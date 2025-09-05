@@ -110,7 +110,7 @@ router.post("/register", async (req, res) => {
 	if (phone.length != 10) {
 		errors.push("Phone number must be 10 digits. Do not include country code or special characters (e.g. +27)");
 	}
-	const phoneRegex = /^\d{10}$/;
+	const phoneRegex = /^\d$/; //Only digits
 	if (!phoneRegex.test(phone)) {
 		errors.push("Phone number must contain only digits. Do not include country code or special characters (e.g. +27)");
 	}
@@ -155,7 +155,7 @@ router.post("/register", async (req, res) => {
 
 // Login
 router.post("/login", async (req, res) => {
-  	// const { email, password, captchaToken } = req.body;
+  	let { email, password, captchaToken } = req.body;
 
 	// //Check if captcha token is provided and valid before doing anything else
 	// if (!captchaToken) {
@@ -202,7 +202,7 @@ router.post("/login", async (req, res) => {
 
 
   try {
-    const result = await pool.query("SELECT email, role, password_hash FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT name, email, role, password_hash FROM users WHERE email = $1", [email]);
     if (result.rowCount === 0){
 		console.log("No user found with that email");
 		return error(res, ["Invalid credentials"], "Login Failed", 401);

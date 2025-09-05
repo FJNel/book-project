@@ -13,6 +13,12 @@ const app = express();
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Middleware to parse JSON request bodies
 
+// Middleware to log request start time
+app.use((req, res, next) => {
+  req._startTime = process.hrtime();
+  next();
+});
+
 // Routes for different functionalities
 app.use("/api/users", userRoutes);
 app.use("/api/borrowers", borrowerRoutes);
