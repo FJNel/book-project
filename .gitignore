@@ -1,1 +1,64 @@
+# Node.js
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+env/
+venv/
+ENV/
+Pipfile.lock
+
+# VS Code
+.vscode/
+.history/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+**/.env
+.env.*
+*.env.local
+
+# Database
+*.sqlite3
+*.db
+*.pgsql
+*.log
+
+# Build output
+dist/
+build/
+coverage/
+*.egg-info/
+*.bak
+
+# Misc
+*.swp
+*.swo
+*.tmp
+*.orig
+.idea/
+*.iml
+
+# Test output
+htmlcov/
+junit.xml
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Others
+logs/

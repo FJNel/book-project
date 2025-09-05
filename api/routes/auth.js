@@ -1,10 +1,26 @@
-// src/routes/auth.js
+// api/routes/auth.js
+// Routes for user authentication (registration and login)
+// 
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
+const axios = require("axios"); // For reCAPTCHA verification
+const SALT_ROUNDS = 10;
 const { success, error } = require("../utils/response");
+
+
+//CAPTHCA
+async function verifyRecaptcha(token) {
+  const secretKey = process.env.RECAPTCHA_SECRET;
+  const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
+  const response = await axios.post(url);
+  return response.data.success;
+}
+
+
+
 
 //Endpoint to register a new user
 router.post("/register", async (req, res) => {
@@ -13,22 +29,23 @@ router.post("/register", async (req, res) => {
 	// email: The user's email address (string, required, must be unique)
 	// password: The user's password (string, required)
 	// role: The user's role (string, optional, defaults to 'user')
-	const { name, email, password, role, phone } = req.body;
+	let { name, email, password, role, phone, captchaToken } = req.body;
+
+	//Check if captcha token is provided and valid before doing anything else
+	if (!captchaToken) {
+		return error(res, ["Captcha token missing"], "Validation Error", 400);
+	}
+	const captchaValid = await verifyRecaptcha(captchaToken);
+	if (!captchaValid) {
+		return error(res, ["Captcha verification failed"], "Validation Error", 400);
+	}
 
 	//Check if name, email and password are provided
-	errors = [];
-	if (!name) {
-		errors.push("Name is required");
-	}
-	if (!email) {
-		errors.push("Email is required");
-	}
-	if (!password) {
-		errors.push("Password is required");
-	}
-	if (!phone) {
-		errors.push("Phone number is required");
-	}
+	let errors = [];
+	if (!name) errors.push("Name is required");
+	if (!email) errors.push("Email is required");
+	if (!password) errors.push("Password is required");
+	if (!phone) errors.push("Phone number is required");
 	//If any are missing, return error
 	if (errors.length > 0) {
 		return error(res, errors, "Validation Error", 400);
@@ -103,7 +120,7 @@ router.post("/register", async (req, res) => {
 		role = role.toLowerCase().trim();
 		//Check role validity
 		if (role !== 'user' && role !== 'admin') {
-			return error(res, "Invalid role specified: Must be 'user' or 'admin'", "Validation Error", 400);
+			errors.push("Role must be either 'user' or 'admin'");
 		}
 	}
 
@@ -117,7 +134,7 @@ router.post("/register", async (req, res) => {
 	//All validations passed - proceed to create user
 	try {
 		// Hash password
-		const hashedPassword = await bcrypt.hash(password, 10); //Hash the password with bcrypt using 10 salt rounds
+		const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS); //Hash the password with bcrypt using 10 salt rounds
 
 		// Insert user
 		const result = await pool.query(
@@ -138,8 +155,18 @@ router.post("/register", async (req, res) => {
 
 // Login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return error(res, "Email and password required", "Validation Error", 400);
+  	const { email, password, captchaToken } = req.body;
+
+	//Check if captcha token is provided and valid before doing anything else
+	if (!captchaToken) {
+		return error(res, ["Captcha token missing"], "Validation Error", 400);
+	}
+	const captchaValid = await verifyRecaptcha(captchaToken);
+	if (!captchaValid) {
+		return error(res, ["Captcha verification failed"], "Validation Error", 400);
+	}
+
+  	if (!email || !password) return error(res, ["Email and password required"], "Validation Error", 400);
 
 	//Trim and normalize inputs
 	email = email.toLowerCase().trim();
@@ -178,19 +205,20 @@ router.post("/login", async (req, res) => {
     const result = await pool.query("SELECT email, role, password_hash FROM users WHERE email = $1", [email]);
     if (result.rowCount === 0){
 		console.log("No user found with that email");
-		return error(res, "Invalid credentials", "Login Failed", 401);
+		return error(res, ["Invalid credentials"], "Login Failed", 401);
 	}
 
     const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
+    const match = await bcrypt.compare(password, user.password_hash); //Compare provided password with stored hash: Do not need to pass in salt_rounds, as the hash already contains that info
+	
     if (!match) {
 		console.log("Password mismatch");
-		return error(res, "Invalid credentials", "Login Failed", 401);
+		return error(res, ["Invalid credentials"], "Login Failed", 401);
 	}
 
     // Sign JWT
-	// JWT payload contains user ID and role
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+	// JWT payload contains user email
+    const token = jwt.sign({ email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     return success(res, { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } }, "Login successful", 200);
   } catch (err) {
