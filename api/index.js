@@ -6,6 +6,7 @@ require("dotenv").config();			// Load environment variables from .env file
 const userRoutes = require("./routes/users");
 const borrowerRoutes = require("./routes/borrowers");
 const bookRoutes = require("./routes/books");
+const authRoutes = require("./routes/auth");
 
 // Initialize Express application
 const app = express();
@@ -16,6 +17,7 @@ app.use(express.json()); // Middleware to parse JSON request bodies
 app.use("/api/users", userRoutes);
 app.use("/api/borrowers", borrowerRoutes);
 app.use("/api/books", bookRoutes);
+app.use("/api/auth", authRoutes);
 
 // Start the server on the specified port
 const PORT = process.env.PORT || 4000;

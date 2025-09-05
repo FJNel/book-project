@@ -31,14 +31,14 @@ router.post("/register", async (req, res) => {
 	// role: The user's role (string, optional, defaults to 'user')
 	let { name, email, password, role, phone, captchaToken } = req.body;
 
-	//Check if captcha token is provided and valid before doing anything else
-	if (!captchaToken) {
-		return error(res, ["Captcha token missing"], "Validation Error", 400);
-	}
-	const captchaValid = await verifyRecaptcha(captchaToken);
-	if (!captchaValid) {
-		return error(res, ["Captcha verification failed"], "Validation Error", 400);
-	}
+	// //Check if captcha token is provided and valid before doing anything else
+	// if (!captchaToken) {
+	// 	return error(res, ["Captcha token missing"], "Validation Error", 400);
+	// }
+	// const captchaValid = await verifyRecaptcha(captchaToken);
+	// if (!captchaValid) {
+	// 	return error(res, ["Captcha verification failed"], "Validation Error", 400);
+	// }
 
 	//Check if name, email and password are provided
 	let errors = [];
@@ -155,16 +155,16 @@ router.post("/register", async (req, res) => {
 
 // Login
 router.post("/login", async (req, res) => {
-  	const { email, password, captchaToken } = req.body;
+  	// const { email, password, captchaToken } = req.body;
 
-	//Check if captcha token is provided and valid before doing anything else
-	if (!captchaToken) {
-		return error(res, ["Captcha token missing"], "Validation Error", 400);
-	}
-	const captchaValid = await verifyRecaptcha(captchaToken);
-	if (!captchaValid) {
-		return error(res, ["Captcha verification failed"], "Validation Error", 400);
-	}
+	// //Check if captcha token is provided and valid before doing anything else
+	// if (!captchaToken) {
+	// 	return error(res, ["Captcha token missing"], "Validation Error", 400);
+	// }
+	// const captchaValid = await verifyRecaptcha(captchaToken);
+	// if (!captchaValid) {
+	// 	return error(res, ["Captcha verification failed"], "Validation Error", 400);
+	// }
 
   	if (!email || !password) return error(res, ["Email and password required"], "Validation Error", 400);
 
