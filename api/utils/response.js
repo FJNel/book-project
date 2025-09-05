@@ -10,7 +10,7 @@ function success(res, data = {}, message = "Success", httpCode = 200) {
   return res.status(httpCode).json({
     status: "success",
     httpCode,
-    timestamp: new Date().toISOString(),
+    // timestamp: new Date().toISOString(),
     responseTime: getResponseTime(res.req), //Calculate response time if possible
     message,
     data,
@@ -25,7 +25,7 @@ function error(res, errors = [], message = "Error", httpCode = 500) {
   return res.status(httpCode).json({
     status: "error",
     httpCode,
-    timestamp: new Date().toISOString(),
+    // timestamp: new Date().toISOString(),
     responseTime: getResponseTime(res.req), //Calculate response time if possible
     message,
     data: {}, //Empty object for consistency

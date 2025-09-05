@@ -6,12 +6,27 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
+const rateLimit = require("express-rate-limit");
 const axios = require("axios"); // For reCAPTCHA verification
 const SALT_ROUNDS = 10;
 const { success, error } = require("../utils/response");
 
+const registerLimiter = rateLimit({
+	windowMs: 60*1000, // 1 minute
+	max: 10, // limit each IP to 10 requests per windowMs
+	handler: (req, res) => {
+		return error(res, ["Too many registration attempts from this IP"], "Rate limit exceeded", 429);
+	  }
+});
+const loginLimiter = rateLimit({
+	windowMs: 60*1000, // 1 minute
+	max: 5, // limit each IP to 5 requests per windowMs
+	handler: (req, res) => {
+		return error(res, ["Too many login attempts from this IP"], "Rate limit exceeded", 429);
+	}
+});
 
-//CAPTHCA
+//CAPTCHA
 async function verifyRecaptcha(token) {
   const secretKey = process.env.RECAPTCHA_SECRET;
   const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
@@ -23,7 +38,7 @@ async function verifyRecaptcha(token) {
 
 
 //Endpoint to register a new user
-router.post("/register", async (req, res) => {
+router.post("/register", registerLimiter, async (req, res) => {
 	//Passed in parameters:
 	// name: The user's full name (string, required)
 	// email: The user's email address (string, required, must be unique)
@@ -106,13 +121,9 @@ router.post("/register", async (req, res) => {
 		errors.push("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character");
 	}
 
-	//Thorough Phone validation
-	if (phone.length != 10) {
-		errors.push("Phone number must be 10 digits. Do not include country code or special characters (e.g. +27)");
-	}
-	const phoneRegex = /^\d$/; //Only digits
+	const phoneRegex = /^\d{10}$/; //Only digits
 	if (!phoneRegex.test(phone)) {
-		errors.push("Phone number must contain only digits. Do not include country code or special characters (e.g. +27)");
+		errors.push("Phone number must contain only digits with a length of 10 digits. Do not include country code or special characters (e.g. +27)");
 	}
 
 	//Role validation (if provided)
@@ -154,7 +165,7 @@ router.post("/register", async (req, res) => {
 
 
 // Login
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   	let { email, password, captchaToken } = req.body;
 
 	// //Check if captcha token is provided and valid before doing anything else
@@ -202,7 +213,7 @@ router.post("/login", async (req, res) => {
 
 
   try {
-    const result = await pool.query("SELECT name, email, role, password_hash FROM users WHERE email = $1", [email]);
+    const result = await pool.query("SELECT id, name, email, role, password_hash FROM users WHERE email = $1", [email]);
     if (result.rowCount === 0){
 		console.log("No user found with that email");
 		return error(res, ["Invalid credentials"], "Login Failed", 401);
@@ -215,6 +226,11 @@ router.post("/login", async (req, res) => {
 		console.log("Password mismatch");
 		return error(res, ["Invalid credentials"], "Login Failed", 401);
 	}
+
+	await pool.query(
+		"UPDATE users SET last_login = now() WHERE id = $1",
+		[user.id]
+	);
 
     // Sign JWT
 	// JWT payload contains user email
