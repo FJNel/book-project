@@ -10,6 +10,13 @@ const rateLimit = require("express-rate-limit");
 const axios = require("axios"); // For reCAPTCHA verification
 const SALT_ROUNDS = 10;
 const { success, error } = require("../utils/response");
+const {
+	validateName,
+	validateEmail,
+	validatePassword,
+	validatePhone,
+	validateRole
+  } = require("../utils/validators");
 
 const registerLimiter = rateLimit({
 	windowMs: 60*1000, // 1 minute
@@ -56,108 +63,52 @@ router.post("/register", registerLimiter, async (req, res) => {
 	// }
 
 	//Check if name, email and password are provided
-	let errors = [];
-	if (!name) errors.push("Name is required");
-	if (!email) errors.push("Email is required");
-	if (!password) errors.push("Password is required");
-	if (!phone) errors.push("Phone number is required");
-	//If any are missing, return error
-	if (errors.length > 0) {
-		return error(res, errors, "Validation Error", 400);
-	}
+	email = email ? email.toLowerCase().trim() : "";
+	phone = phone ? phone.trim() : "";
+	name = name ? name.trim() : "";
+	password = password ? password.trim() : "";
+	role = role ? role.trim() : "";
 
 	//Trim and normalize inputs
-	email = email.toLowerCase().trim();
-	phone = phone.trim();
-	name = name.trim();
-	password = password.trim();
+	let errors = [
+		...validateName(name),
+		...validateEmail(email),
+		...validatePassword(password),
+		...validatePhone(phone),
+		...validateRole(role)
+	];
 
-	//Input Validations:
-	//(These are in addition to the database constraints, to provide quicker and clearer feedback to users)	
-	//Thorough name validation:
-	errors = [];
-	//Check length
-	if (name.length < 2 || name.length > 100) {
-		errors.push("Name must be between 2 and 100 characters");
-	}
-	//Check for invalid characters (only letters, spaces, hyphens, and apostrophes)
-	const nameRegex = /^[a-zA-Z\s'-]+$/;
-	if (!nameRegex.test(name)) {
-		errors.push("Name contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed");
-	}
-
-	//Thorough Email validation:
-	//Check length
-	if (email.length > 255) {
-		errors.push("Email must be less than 255 characters");
-	}
-	//Check format
-	const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-	if (!emailRegex.test(email)) {
-		errors.push("Invalid email format");
-	}
-	//Check if email is already used  
-	//(This will also be checked later before inserting, but this gives a quicker response)
 	try {
-		const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-		if (existing.rowCount > 0) {
-		errors.push("Email already registered. Please use a different email or login.");
+		if (email) {
+		  const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+		  if (existing.rowCount > 0) {
+			errors.push("Email already registered. Please use a different email or login.");
+		  }
 		}
 	} catch (err) {
 		console.error("Error checking existing email:", err);
 		return error(res, "Server error: Could not check if email already exists", "Registration failed due to server error", 500);
 	}
 
-	//Thorough Password validation
-	if (password.length < 6) {
-		errors.push("Password must be at least 6 characters");
-	}
-	if (password.length > 100) {
-		errors.push("Password must be less than 100 characters");
-	}
-	//Check for complexity (at least one uppercase, one lowercase, one number, and one special character)
-	const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
-	if (!passwordRegex.test(password)) {
-		errors.push("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character");
-	}
-
-	const phoneRegex = /^\d{10}$/; //Only digits
-	if (!phoneRegex.test(phone)) {
-		errors.push("Phone number must contain only digits with a length of 10 digits. Do not include country code or special characters (e.g. +27)");
-	}
-
-	//Role validation (if provided)
-	if (role){
-		role = role.toLowerCase().trim();
-		//Check role validity
-		if (role !== 'user' && role !== 'admin') {
-			errors.push("Role must be either 'user' or 'admin'");
-		}
-	}
-
-	//If there are validation errors, return them
 	if (errors.length > 0) {
-		return error(res, errors, "Validation Error", 400);
+	return error(res, errors, "Validation Error", 400);
 	}
-
-	/////////////////////////////////////////////////
 	
-	//All validations passed - proceed to create user
+	// All validations passed - proceed to create user
 	try {
-		// Hash password
-		const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS); //Hash the password with bcrypt using 10 salt rounds
+	const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-		// Insert user
-		const result = await pool.query(
+	const result = await pool.query(
 		"INSERT INTO users (name, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, created_at",
 		[name, email, phone, hashedPassword, role || 'user']
-		);
+	);
 
-		return success(res, result.rows[0], "User registered successfully", 201);
+	return success(res, result.rows[0], "User registered successfully", 201);
 	} catch (err) {
-		console.error(err);
-		return error(res, err.message, "Server Error while registering user", 500);
+	console.error(err);
+	return error(res, err.message, "Server error during user registration", 500);
 	}
+
 });
 
 
@@ -177,70 +128,45 @@ router.post("/login", loginLimiter, async (req, res) => {
 	// 	return error(res, ["Captcha verification failed"], "Validation Error", 400);
 	// }
 
-  	if (!email || !password) return error(res, ["Email and password required"], "Validation Error", 400);
-
-	//Trim and normalize inputs
-	email = email.toLowerCase().trim();
-	password = password.trim();
-
-	//Input Validations:
-	errors = [];
-	//Email validations
-	if (email.length === 0) {
-		errors.push("Email cannot be empty");
-	} else {
-		if (email.length > 255) {
-			errors.push("Email must be less than 255 characters");
-		}
-		const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-		if (!emailRegex.test(email)) {
-			errors.push("Invalid email format");
-		}
-	}
-
-	//Password validations
-	if (password.length === 0) {
-		errors.push("Password cannot be empty");
-	} else {
-		if (password.length > 100) {
-			errors.push("Password must be less than 100 characters");
-		}
-	}
-	//If there are validation errors, return them
+	email = email ? email.toLowerCase().trim() : "";
+	password = password ? password.trim() : "";
+  
+	let errors = [
+	  ...validateEmail(email),
+	  ...validatePassword(password)
+	];
+  
 	if (errors.length > 0) {
 		return error(res, errors, "Validation Error", 400);
-	}	
-
-
-  try {
-    const result = await pool.query("SELECT id, name, email, role, password_hash FROM users WHERE email = $1", [email]);
-    if (result.rowCount === 0){
-		console.log("No user found with that email");
-		return error(res, ["Invalid credentials"], "Login Failed", 401);
 	}
 
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash); //Compare provided password with stored hash: Do not need to pass in salt_rounds, as the hash already contains that info
-	
-    if (!match) {
-		console.log("Password mismatch");
-		return error(res, ["Invalid credentials"], "Login Failed", 401);
+	try {
+		const result = await pool.query("SELECT id, name, email, role, password_hash FROM users WHERE email = $1", [email]);
+		if (result.rowCount === 0) {
+			console.log("No user found with that email");
+			return error(res, ["Invalid credentials"], "Login Failed", 401);
+		}
+
+		const user = result.rows[0];
+		const match = await bcrypt.compare(password, user.password_hash);
+
+		if (!match) {
+			console.log("Password mismatch");
+			return error(res, ["Invalid credentials"], "Login Failed", 401);
+		}
+
+		await pool.query(
+			"UPDATE users SET last_login = now() WHERE id = $1",
+			[user.id]
+		);
+
+		const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+		return success(res, { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } }, "Login successful", 200);
+	} catch (err) {
+		console.error(err);
+		return error(res, err.message, "Server Error while attempting login", 500);
 	}
-
-	await pool.query(
-		"UPDATE users SET last_login = now() WHERE id = $1",
-		[user.id]
-	);
-
-    // Sign JWT
-	// JWT payload contains user email
-    const token = jwt.sign({ email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-    return success(res, { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } }, "Login successful", 200);
-  } catch (err) {
-    console.error(err);
-    return error(res, err.message, "Server Error while attempting login", 500);
-  }
 });
 
 module.exports = router;
