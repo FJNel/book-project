@@ -1,6 +1,6 @@
-# Book Project API Documentation
+# BOOK PROJECT API DOCUMENTATION
 
-Welcome to the Book Project API. This document provides an overview of the Book Project API. This documentation covers authentication, standard response formats, and all available endpoints.
+Welcome to the Book Project API Documentation. This document provides an overview of the Book Project API. This documentation covers authentication, standard response formats, and all available endpoints.
 
 To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests. 
 
@@ -10,29 +10,32 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 **Request Type:** Depends on the endpoint used (see below for more details)
 
-## Table of Contents
+# Table of Contents
 
-- [Book Project API Documentation](#book-project-api-documentation)
-  - [Table of Contents](#table-of-contents)
-  - [Standard Response Format](#standard-response-format)
-    - [Success Response](#success-response)
-    - [Error Response](#error-response)
-  - [Rate limiting](#rate-limiting)
-  - [General Endpoints](#general-endpoints)
-    - [Health Check](#health-check)
-  - [Authentication Endpoints](#authentication-endpoints)
-    - [Understanding the JWT Authentication System](#understanding-the-jwt-authentication-system)
-    - [Register](#register)
-    - [Login](#login)
-    - [Logout](#logout)
-    - [Refresh Token](#refresh-token)
-    - [Me](#me)
+- [BOOK PROJECT API DOCUMENTATION](#book-project-api-documentation)
+- [Table of Contents](#table-of-contents)
+- [Standard Response Format](#standard-response-format)
+  - [Success Response](#success-response)
+  - [Error Response](#error-response)
+- [Rate limiting](#rate-limiting)
+- [General Endpoints](#general-endpoints)
+  - [Health Check](#health-check)
+- [Authentication Endpoints](#authentication-endpoints)
+  - [Understanding the JWT Authentication System](#understanding-the-jwt-authentication-system)
+    - [The Access Token: A 15-Minute "Access Pass"](#the-access-token-a-15-minute-access-pass)
+    - [The Refresh Token: A 7-Day "Session Key"](#the-refresh-token-a-7-day-session-key)
+    - [Key Design Benefits](#key-design-benefits)
+  - [Register](#register)
+  - [Login](#login)
+  - [Logout](#logout)
+  - [Refresh Token](#refresh-token)
+  - [Me](#me)
 
-## Standard Response Format
+# Standard Response Format
 
 All API responses, whether successful or failed, follow a standardised JSON structure.
 
-### Success Response
+## Success Response
 
 Successful requests will return a `2xx` HTTP status code and a JSON body with the following structure:
 
@@ -49,7 +52,7 @@ Successful requests will return a `2xx` HTTP status code and a JSON body with th
 }
 ```
 
-### Error Response
+## Error Response
 
 Failed requests will return a `4xx` or `5xx` HTTP status code and provide details in the errors array.
 
@@ -67,13 +70,17 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 }
 ```
 
-## Rate limiting
+# Rate limiting
 
-To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". 
+To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". Rate limiting details are as follows:
+| Endpoint               | Limit                | Window       | Description                          |
+| :--------------------- | :------------------- | :----------- | :----------------------------------- |
+| `POST /auth/register`  | 5 requests          | 15 minutes   | Allows new user registrations.      |
+| `POST /auth/login`     | 10 requests         | 15 minutes   | Allows users to log in to their account.
 
-## General Endpoints
+# General Endpoints
 
-### Health Check
+## Health Check
 
 This endpoint retrieves the API's current status. It is a public endpoint and does not require authentication.
 
@@ -96,21 +103,17 @@ This endpoint retrieves the API's current status. It is a public endpoint and do
 
 
 
-## Authentication Endpoints
+# Authentication Endpoints
 
 The authentication endpoints allow users to register, log in, refresh tokens, get their profile, and log out.
 
-This is a great summary. Here is a cleaned-up and re-structured explanation that logically connects *what* each token is with *why* it's used that way.
-
-***
-
-### Understanding the JWT Authentication System
+## Understanding the JWT Authentication System
 
 The Book Project API uses a two-token system (JWT Access Tokens and Refresh Tokens) to manage user sessions. This model is intentionally designed to provide a perfect balance between robust security, server efficiency, and a seamless user experience.
 
 Instead of a single, long-lived token that creates a major security risk, we split the responsibilities between two distinct tokens.
 
-#### The Access Token: A 15-Minute "Access Pass"
+### The Access Token: A 15-Minute "Access Pass"
 
 This is the primary token used to interact with the API.
 
@@ -118,7 +121,7 @@ This is the primary token used to interact with the API.
 * **How It's Used:** It must be sent in the `Authorization: Bearer <token>` header for every request to a protected endpoint. The server verifies this token to authenticate and authorize your request.
 * **The "Why":** This token is **short-lived (15 minutes)** by design. This is a core security feature. If an access token is ever leaked or intercepted, an attacker only has a 15-minute window to use it, drastically limiting potential damage. Once it expires, it is useless.
 
-#### The Refresh Token: A 7-Day "Session Key"
+### The Refresh Token: A 7-Day "Session Key"
 
 This token's only job is to prove you are still the same user so you can get a new access pass.
 
@@ -126,31 +129,31 @@ This token's only job is to prove you are still the same user so you can get a n
 * **How It's Used:** When your Access Token expires, your application sends this Refresh Token in the request body to the `/auth/refresh` endpoint. If valid, the server grants you a brand-new 15-minute Access Token.
 * **The "Why":** This token is **long-lived (7 days)** to provide a good user experience. It allows you to stay "logged in" for a full week without having to re-enter your credentials every 15 minutes. When you log out, this token is revoked, immediately ending the session.
 
-#### Key Design Benefits
+### Key Design Benefits
 
 This hybrid approach provides the best of both stateless and stateful authentication models.
 
-##### 1. The Best of Both Worlds: Stateless Verification & Stateful Control
+#### 1. The Best of Both Worlds: Stateless Verification & Stateful Control
 
 This is the most important concept in our design.
 
 * **Stateless Verification:** The **Access Tokens** are self-contained (stateless). They are cryptographically signed and encode the user's ID and permissions directly inside them. This means our servers can verify your identity and permissions on any protected endpoint *without* needing an extra database lookup, making the API extremely fast and scalable.
 * **Stateful Control:** The **Refresh Tokens** are stored in our database (stateful). This gives us complete control over user sessions. This is what makes a secure logout possible: the `/auth/logout` endpoint works by finding and deleting your refresh token from our database, instantly revoking your long-term session.
 
-##### 2. Enhanced Security & Identification
+#### 2. Enhanced Security & Identification
 
 This model is inherently secure.
 
 * **Tamper-Proof:** All JWTs are digitally signed. The server can instantly verify that the token's data (like your user ID or role) has not been tampered with.
 * **Reliable Identification:** Because a valid Access Token must accompany every request, the API reliably identifies *who* is making each request, which is essential for enforcing role-based access control.
 
-##### 3. Universal Integration
+#### 3. Universal Integration
 
 JWT is a global standard. By using the standard HTTP `Authorization` header, our API can be easily integrated with any client, including web applications, mobile apps, or other backend services.
 
 ---
 
-### Register
+## Register
 
 **Endpoint:** `POST /auth/register`
 
@@ -237,7 +240,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 
 ---
 
-### Login
+## Login
 
 **Endpoint:** `POST /auth/login`
 
@@ -316,7 +319,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 
 ---
 
-### Logout
+## Logout
 
 **Endpoint:** `POST /auth/logout`
 
@@ -369,7 +372,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 
 ---
 
-### Refresh Token
+## Refresh Token
 
 **Endpoint:** `POST /auth/refresh`
 
@@ -419,7 +422,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 
 ---
 
-### Me
+## Me
 
 **Endpoint:** `GET /auth/me`
 
@@ -467,3 +470,4 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
     ]
 }
 ```
+

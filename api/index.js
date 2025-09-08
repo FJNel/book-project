@@ -18,6 +18,7 @@ app.set('trust proxy', 1); // Trust proxy headers (needed for express-rate-limit
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Middleware to parse JSON request bodies
 app.use(helmet()); // Use Helmet to set various HTTP headers for security
+app.use(express.static("public"));
 
 // Middleware to log request start time
 app.use((req, res, next) => {
