@@ -18,9 +18,9 @@ function requireAuth(req, res, next) {
 	const [scheme, token] = auth.split(" "); //Splits the header into scheme and token
 	// (i.e. scheme should be Bearer and token should be the JWT)
 	if (scheme !== "Bearer") {
-		return error(res, ["Authorization scheme must be Bearer"], "Unauthorized", 401);
+		return error(res, ["Authorization header scheme must be Bearer"], "Unauthorized", 401);
 	} else if (!token) {
-		return error(res, ["Authorization missing token"], "Unauthorized", 401);
+		return error(res, ["Authorization header missing token"], "Unauthorized", 401);
 	}
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
