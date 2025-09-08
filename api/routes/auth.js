@@ -62,19 +62,43 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 	//Check if name, email and password are provided
 	email = email ? email.toLowerCase().trim() : "";
-	phone = phone ? phone.trim() : "";
 	name = name ? name.trim() : "";
+	let errors = [];
+	errors = [
+		...validateName(name),
+		...validateEmail(email)
+	];
+
+	if (errors.length > 0) {
+		return error(res, errors, "Validation Error", 400);
+	}
+
+	//Check if user is allowed to register (name in approved_users)
+    try {
+        const approved = await pool.query(
+            "SELECT id FROM approved_users WHERE email = $1 AND name = $2", [email, name]
+        );
+        if (approved.rowCount === 0) {
+            return error(res, "Registration not allowed: Name and email do not match an approved user.", "Registration not allowed", 403);
+        }
+    } catch (err) {
+        console.error("Error checking approved_users:", err);
+        return error(res, "Server error: Could not check approved users list", "Registration failed due to server error", 500);
+    }
+
+	//Other fields
+	phone = phone ? phone.trim() : "";
 	password = password ? password.trim() : "";
 	role = role ? role.trim() : "";
 
 	//Trim and normalize inputs
-	let errors = [
-		...validateName(name),
-		...validateEmail(email),
+	errors = [
 		...validatePassword(password),
 		...validatePhone(phone),
 		...validateRole(role)
 	];
+
+	//Check if 
 
 	try {
 		if (email) {

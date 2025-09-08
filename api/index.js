@@ -12,6 +12,9 @@ const { success, error } = require("./utils/response");
 
 // Initialize Express application
 const app = express();
+
+app.set('trust proxy', 1); // Trust proxy headers (needed for express-rate-limit behind Cloudflare/Nginx)
+
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Middleware to parse JSON request bodies
 app.use(helmet()); // Use Helmet to set various HTTP headers for security
@@ -44,6 +47,16 @@ app.use("/users", userRoutes);
 app.use("/borrowers", borrowerRoutes);
 app.use("/books", bookRoutes);
 app.use("/auth", authRoutes);
+
+//404 handler
+app.use((req, res) => {
+  return error(res, ["Endpoint not found", "Make sure that you are also using the correct request type!"], "Not Found", 404);
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  return error(res, ["An unexpected error occurred", err.message], "Internal Server Error", 500);
+});
 
 // Start the server on the specified port
 const PORT = process.env.PORT || 4000;

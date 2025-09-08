@@ -1,172 +1,217 @@
 # Book Project API Documentation
 
-Welcome to the Book Project API. This document provides an overview of the Book Project API, including its endpoints, request and response formats, and usage examples. To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests. 
+Welcome to the Book Project API. This document provides an overview of the Book Project API. This documentation covers authentication, standard response formats, and all available endpoints.
 
-**Location:** https://api.fjnel.co.za/
+To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests. 
+
+**Location:** https://api.fjnel.co.za/ 
+
 **Request and Response Format:** JSON
-**Request Type:** Depends on the endpoint used
 
-
+**Request Type:** Depends on the endpoint used (see below for more details)
 
 ## Table of Contents
 
-- [Introduction](#introduction)
-- [Authentication](#authentication)
+- [Standard Response Format](##standard-response-format)
+- [Rate limiting](#rate-limiting)
+- [General Endpoints](#general-endpoints)
+  - [Health Check](#health-check)
+- [Authentication Endpoints](#authentication)
+  - [Register](#register-a-new-user)
+  - [Login](#login)
 
-## Introduction
+## Standard Response Format
 
-The Book Project API is a RESTful service that allows users to manage books, authors, and borrowers. It is built using Node.js and Express. 
+All API responses, whether successful or failed, follow a standardised JSON structure.
 
-The API supports JSON request and response formats and includes endpoints for creating, reading, updating, and deleting resources.
+### Success Response
 
-## Authentication
+Successful requests will return a `2xx` HTTP status code and a JSON body with the following structure:
 
-The authentication endpoints allow users to register and log in to the Book Project API. All requests and responses use JSON format.
+```json
+{
+	"status": "success",
+	"httpCode": 200,
+	"responseTime": "15.42", // Response time in milliseconds
+	"message": "A descriptive success message",
+	"data": {
+		// Contains the requested data (e.g., a user object, a list of books)
+	},
+	"errors": [] // Always an empty array on success
+}
+```
 
----
+### Error Response
 
-### Root Endpoint (API Status)
+Failed requests will return a `4xx` or `5xx` HTTP status code and provide details in the errors array.
+
+```json
+{
+	"status": "error",
+	"httpCode": 400,
+	"responseTime": "10.01", // Response time in milliseconds
+	"message": "A general error message (e.g., 'Validation Error')",
+	"data": {}, // Always an empty object on error
+	"errors": [
+		"Specific error message 1.",
+		"Specific error message 2."
+  	]
+}
+```
+
+## Rate limiting
+
+To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". 
+
+## General Endpoints
+
+### Health Check
+
+This endpoint retrieves the API's curret status. It is a public endpoint and does not require authentication.
 
 **Endpoint:** `GET /`
-
-Returns a simple JSON response to confirm the API is running.
-
-**Example Request:**
-```bash
-curl https://api.fjnel.co.za/
-```
 
 **Example Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "message": "Book API is working!"
-  }
+	"status": "success",
+	"httpCode": 200,
+	"responseTime": "0.48",
+	"message": "Success",
+	"data": {
+		"message": "The Book Project API is working!",
+	"timestamp": "08/09/2025, 14:41:51"
+  	},
+	"errors": []
 }
 ```
+
+
+
+## Authentication Endpoints
+
+The authentication endpoints allow users to register and log in to the Book Project API.
 
 ---
 
 ### Register a New User
 
-**Endpoint:** `POST /api/auth/register`
+**Endpoint:** `POST /auth/register`
+**Access:** Public
+**Description:** Registers a new user account in the database, if the provided details are valid and the user is authorized to create an account.
 
-Registers a new user account.
+> **Important Note:**  
+> User registration is restricted. A user will only be registered if their email address and name exactly match an entry in the "Can own an account" list.  
+> If the provided email or name does not match this list, registration will fail and an error response will be returned (see below).
+> This is an **intentional security measure** to prevent unauthorized account creation: The API and its associated services are intended for use by a specific group of users only. 
 
 **Required Parameters (JSON body):**
-- `name` (string): Full name of the user.
-- `email` (string): Email address (must be unique).
-- `password` (string): Password.
-- `role` (string, optional): User role (defaults to `"user"` if omitted).
-- `phone` (string, optional): Phone number.
-- `captchaToken` (string, optional): reCAPTCHA token (currently not enforced).
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `captchaToken` | String | **Yes** | Google reCAPTCHA v3 token to verify that the user is not a bot. Obtain this token from the frontend application. |
+| `name` | String | **Yes** | User's full name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `email` | String | **Yes** | User's email address. Must be a valid format, unique, and less than 255 characters. |
+| `password` | String | **Yes** | User's password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (`@$!%*?&`). |
+| `phone` | String | **Yes** | User's phone number. Must be exactly 10 digits (e.g., `0821234567`). No country codes or symbols. |
+| `role` | String | **No** | Role for the user. Must be either `user` or `admin`. Defaults to `user` if not provided. |
 
-**Example Request:**
-```bash
-curl -X POST https://api.fjnel.co.za/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "password": "StrongPassword123",
-    "role": "user",
-    "phone": "0123456789"
-  }'
-```
-
-**Successful Response:**
+**Example Request Body**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "role": "user",
-    "created_at": "2025-09-08T12:34:56.789Z"
-  },
-  "message": "User registered successfully"
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "password": "Password123!",
+  "phone": "0821234567",
+  "role": "user"
 }
 ```
 
-**Error Response (validation):**
+**Example Success Response (201 Created):**
 ```json
 {
-  "success": false,
-  "errors": [
-    "Email already registered. Please use a different email or login."
-  ],
-  "message": "Validation Error"
+    "status": "success",
+    "httpCode": 201,
+    "timestamp": "2025-09-05T19:05:45.272Z",
+    "message": "User registered successfully",
+    "data": {
+        "id": 1,
+        "name": "Johan",
+        "email": "johan@test.co.za",
+        "role": "user",
+        "created_at": "2025-09-05T19:05:45.268Z"
+    },
+    "errors": []
+}
+```
+
+**Example Error Response (400 Bad Request):**
+```json
+{
+    "status": "error",
+    "httpCode": 400,
+    "timestamp": "2025-09-05T19:05:19.515Z",
+    "message": "Validation Error",
+    "data": {},
+    "errors": [
+        "Invalid email format",
+        "Password must be at least 6 characters",
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+        "Phone number must be 10 digits. Do not include country code or special characters (e.g. +27)",
+        "Phone number must contain only digits. Do not include country code or special characters (e.g. +27)"
+    ]
 }
 ```
 
 ---
 
-### User Login
+### Login
 
-**Endpoint:** `POST /api/auth/login`
+**Endpoint:** `POST /auth/login`
+**Access:** Public
+**Description:** Authenticates a user and returns a JWT token for accessing protected endpoints.
 
-Authenticates a user and returns a JWT token.
+> **Important Note:**  
+> The API response does not provide specific details about why a login attempt failed (e.g. whether the email or password was incorrect). This is an **intentional security measure** to prevent potential attackers from gaining insights into valid email addresses or account statuses.
 
 **Required Parameters (JSON body):**
-- `email` (string): Registered email address.
-- `password` (string): Password.
-- `captchaToken` (string, optional): reCAPTCHA token (currently not enforced).
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `captchaToken` | String | **Yes** | Google reCAPTCHA v3 token to verify that the user is not a bot. Obtain this token from the frontend application. |
+| `email` | String | **Yes** | User's email address. Must be a valid format, unique, and less than 255 characters. |
+| `password` | String | **Yes** | User's password. |
 
-**Example Request:**
-```bash
-curl -X POST https://api.fjnel.co.za/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "jane@example.com",
-    "password": "StrongPassword123"
-  }'
-```
-
-**Successful Response:**
+**Example Request Body**
 ```json
 {
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": 1,
-      "name": "Jane Doe",
-      "email": "jane@example.com",
-      "role": "user"
-    }
-  },
-  "message": "Login successful"
+	"email": "jane.doe@example.com",
+	"password": "Password123!"
 }
 ```
 
-**Error Response (invalid credentials):**
+**Example Success Response (200 OK):**
 ```json
 {
-  "success": false,
-  "errors": [
-    "Invalid credentials"
-  ],
-  "message": "Login Failed"
+    "email":"johan@test.co.za",
+    "password":"Hello@123!"
 }
 ```
 
-**Error Response (rate limit):**
+**Example Error Response (401 Unauthorized):**
 ```json
 {
-  "success": false,
-  "errors": [
-    "Too many login attempts from this IP"
-  ],
-  "message": "Rate limit exceeded"
+    "status": "success",
+    "httpCode": 200,
+    "responseTime": "120.55",
+    "message": "Login successful",
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6InVzZXIiLCJpYXQiOjE3NTczMzc2MzIsImV4cCI6MTc1Nzk0MjQzMn0.WlrQAQBaDfe-2kRE93gZgtiFbiv54mOjTVI-QlihYFw",
+        "user": {
+            "id": 1,
+            "name": "Johan",
+            "email": "johan@test.co.za",
+            "role": "user"
+        }
+    },
+    "errors": []
 }
 ```
-
----
-
-### Notes
-
-- All endpoints expect and return JSON.
-- Rate limiting is enforced: max 10 registration attempts and 5 login attempts per minute per IP.
-- JWT tokens returned on login should be included in the `Authorization` header for protected endpoints (see relevant documentation).
