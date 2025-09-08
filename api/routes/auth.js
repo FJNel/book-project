@@ -186,7 +186,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 	}
 
 	try {
-		const result = await pool.query("SELECT id, name, email, role, password_hash FROM users WHERE email = $1", [email]);
+		const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
 		if (result.rowCount === 0) {
 			console.log("No user found with that email");
 			return error(res, ["Invalid credentials"], "Login Failed", 401);
@@ -210,8 +210,9 @@ router.post("/login", loginLimiter, async (req, res) => {
     	const token = signAccessToken({ id: user.id, role: user.role }, "15m");
 		// Long-lived refresh token (7 days)
 		const refreshToken = await issueRefreshToken(user.id);	
+		delete user.password_hash; // Remove sensitive info
 		return success(res, 
-			{ token, refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } }, "Login successful", 200);
+			{ token, refreshToken, user }, "Login successful", 200);
 	
 	} catch (err) {
 		console.error(err);
@@ -247,7 +248,7 @@ router.post("/refresh", async (req, res) => {
 
 	// Find session
 	const session = await pool.query(
-		"SELECT * FROM user_sessions WHERE token_fingerprint = $1 AND revoked = false AND expires_at > now()",
+		"SELECT * FROM refresh_tokens WHERE token_fingerprint = $1 AND revoked = false AND expires_at > now()",
 		[refreshToken]
 	);
 
@@ -268,7 +269,7 @@ router.post("/logout", requireAuth, async (req, res) => {
 	const { refreshToken } = req.body;
 	if (!refreshToken) return error(res, ["Missing refresh token"], "Bad Request", 400);
 	await pool.query(
-		"UPDATE user_sessions SET revoked = true WHERE token_fingerprint = $1 AND user_id = $2",
+		"UPDATE refresh_tokens SET revoked = true WHERE token_fingerprint = $1 AND user_id = $2",
 		[refreshToken, req.user.id]
 	);
 	return success(res, {}, "Logged out", 200);
