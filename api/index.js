@@ -8,7 +8,7 @@ const userRoutes = require("./routes/users");
 const borrowerRoutes = require("./routes/borrowers");
 const bookRoutes = require("./routes/books");
 const authRoutes = require("./routes/auth");
-const adminRoutes = require("./routes/admin");
+const adminApprovedUsersRoutes = require("./routes/adminApprovedUsers");
 const { success, error } = require("./utils/response");
 
 // Initialize Express application
@@ -43,13 +43,13 @@ app.get("/", (req, res) => {
     timestamp
   });
 });
-
+  
 // Routes for different functionalities
 app.use("/users", userRoutes);
 app.use("/borrowers", borrowerRoutes);
 app.use("/books", bookRoutes);
 app.use("/auth", authRoutes);
-app.use("/admin", adminRoutes);
+app.use("/admin/approved-users", adminApprovedUsersRoutes);
 
 //404 handler
 app.use((req, res) => {

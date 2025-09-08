@@ -41,7 +41,7 @@ function requireAuth(req, res, next) {
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return error(res, ["Insufficient permissions"], "Forbidden", 403);
+      return error(res, ["Insufficient permissions for this action"], "Forbidden", 403);
     }
     next();
   };
