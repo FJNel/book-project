@@ -12,13 +12,18 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 ## Table of Contents
 
-- [Standard Response Format](##standard-response-format)
-- [Rate limiting](#rate-limiting)
-- [General Endpoints](#general-endpoints)
-  - [Health Check](#health-check)
-- [Authentication Endpoints](#authentication)
-  - [Register](#register-a-new-user)
-  - [Login](#login)
+- [Book Project API Documentation](#book-project-api-documentation)
+  - [Table of Contents](#table-of-contents)
+  - [Standard Response Format](#standard-response-format)
+    - [Success Response](#success-response)
+    - [Error Response](#error-response)
+  - [Rate limiting](#rate-limiting)
+  - [General Endpoints](#general-endpoints)
+    - [Health Check](#health-check)
+  - [Authentication Endpoints](#authentication-endpoints)
+    - [Register](#register)
+    - [Login](#login)
+    - [](#)
 
 ## Standard Response Format
 
@@ -67,7 +72,7 @@ To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding 
 
 ### Health Check
 
-This endpoint retrieves the API's curret status. It is a public endpoint and does not require authentication.
+This endpoint retrieves the API's current status. It is a public endpoint and does not require authentication.
 
 **Endpoint:** `GET /`
 
@@ -94,22 +99,23 @@ The authentication endpoints allow users to register and log in to the Book Proj
 
 ---
 
-### Register a New User
+### Register
 
 **Endpoint:** `POST /auth/register`
 **Access:** Public
 **Description:** Registers a new user account in the database, if the provided details are valid and the user is authorized to create an account.
 
 > **Important Note:**  
-> User registration is restricted. A user will only be registered if their email address and name exactly match an entry in the "Can own an account" list.  
+> User registration is restricted. A user will only be registered if their email address and name **exactly** match an entry in the list of allowed users.  
 > If the provided email or name does not match this list, registration will fail and an error response will be returned (see below).
 > This is an **intentional security measure** to prevent unauthorized account creation: The API and its associated services are intended for use by a specific group of users only. 
+> The list of allowed users is maintained by the system administrator and can be updated as needed. Contact the administrator to request access.
 
 **Required Parameters (JSON body):**
 | Parameter | Type | Required | Description and Details |
 | :--- | :--- | :--- | :--- |
 | `captchaToken` | String | **Yes** | Google reCAPTCHA v3 token to verify that the user is not a bot. Obtain this token from the frontend application. |
-| `name` | String | **Yes** | User's full name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `name` | String | **Yes** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
 | `email` | String | **Yes** | User's email address. Must be a valid format, unique, and less than 255 characters. |
 | `password` | String | **Yes** | User's password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (`@$!%*?&`). |
 | `phone` | String | **Yes** | User's phone number. Must be exactly 10 digits (e.g., `0821234567`). No country codes or symbols. |
@@ -162,6 +168,20 @@ The authentication endpoints allow users to register and log in to the Book Proj
 }
 ```
 
+**Example Error Response (403 Forbidden - Unauthorized Registration Attempt):**
+```json
+{
+    "status": "error",
+    "httpCode": 403,
+    "responseTime": "55.60",
+    "message": "Registration not allowed",
+    "data": {},
+    "errors": [
+        "Registration not allowed: Name and Email do not match an approved user."
+    ]
+}
+```
+
 ---
 
 ### Login
@@ -191,27 +211,35 @@ The authentication endpoints allow users to register and log in to the Book Proj
 **Example Success Response (200 OK):**
 ```json
 {
-    "email":"johan@test.co.za",
-    "password":"Hello@123!"
-}
-```
-
-**Example Error Response (401 Unauthorized):**
-```json
-{
     "status": "success",
     "httpCode": 200,
-    "responseTime": "120.55",
+    "responseTime": "139.27",
     "message": "Login successful",
     "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sZSI6InVzZXIiLCJpYXQiOjE3NTczMzc2MzIsImV4cCI6MTc1Nzk0MjQzMn0.WlrQAQBaDfe-2kRE93gZgtiFbiv54mOjTVI-QlihYFw",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InVzZXIiLCJpYXQiOjE3NTczNDQ4ODUsImV4cCI6MTc1Nzk0OTY4NX0.iSrr2IU2V3ngidCg-CGSyz6zTLkOsPGJPIJ8fKydIc0",
         "user": {
-            "id": 1,
+            "id": 2,
             "name": "Johan",
-            "email": "johan@test.co.za",
+            "email": "joha@test.co.za",
             "role": "user"
         }
     },
     "errors": []
 }
 ```
+
+**Example Error Response (401 Unauthorized):**
+```json
+{
+    "status": "error",
+    "httpCode": 401,
+    "responseTime": "15.76",
+    "message": "Login Failed",
+    "data": {},
+    "errors": [
+        "Invalid credentials"
+    ]
+}
+```
+
+### 
