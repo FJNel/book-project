@@ -8,6 +8,7 @@ const userRoutes = require("./routes/users");
 const borrowerRoutes = require("./routes/borrowers");
 const bookRoutes = require("./routes/books");
 const authRoutes = require("./routes/auth");
+const { success, error } = require("./utils/response");
 
 // Initialize Express application
 const app = express();
@@ -21,11 +22,28 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get("/", (req, res) => {
+  const now = new Date();
+  const timestamp = now.toLocaleString("en-GB", {
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  return success(res, {
+    message: "The Book Project API is working!",
+    timestamp
+  });
+});
+
 // Routes for different functionalities
-app.use("/api/users", userRoutes);
-app.use("/api/borrowers", borrowerRoutes);
-app.use("/api/books", bookRoutes);
-app.use("/api/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/borrowers", borrowerRoutes);
+app.use("/books", bookRoutes);
+app.use("/auth", authRoutes);
 
 // Start the server on the specified port
 const PORT = process.env.PORT || 4000;

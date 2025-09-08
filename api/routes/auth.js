@@ -42,8 +42,6 @@ async function verifyRecaptcha(token) {
 }
 
 
-
-
 //Endpoint to register a new user
 router.post("/register", registerLimiter, async (req, res) => {
 	//Passed in parameters:
