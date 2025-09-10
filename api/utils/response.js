@@ -21,6 +21,9 @@ function success(res, data = {}, message = "Success", httpCode = 200) {
 function error(res, errors = [], message = "Error", httpCode = 500) {
   // ensure errors is always an array
   if (!Array.isArray(errors)) errors = [errors];
+  errors = errors.flat(Infinity); //Flatten nested arrays if any
+  errors = errors.filter(e => e !== null && e !== undefined && String(e).trim() !== ""); //Remove null/undefined
+  errors = errors.map(e => (typeof e === "string" ? e.trim() : e));
 
   return res.status(httpCode).json({
     status: "error",

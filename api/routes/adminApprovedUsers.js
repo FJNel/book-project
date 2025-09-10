@@ -33,10 +33,10 @@ router.get("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 
 // Add a new approved user (admin only)
 router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
-	const { name, email } = req.body;
+	let { name, email } = req.body;
 	email = email ? email.toLowerCase().trim() : "";
 	name = name ? name.trim() : "";
-	let errors = [validateName(name), ...validateEmail(email)];
+	let errors = [...validateName(name), ...validateEmail(email)];
 	if (errors.length > 0) {
 		return error(res, errors, "Validation Error", 400);
 	}
@@ -63,12 +63,25 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 	const { id } = req.params;
 	let { name, email } = req.body;
-	email = email ? email.toLowerCase().trim() : "";
-	name = name ? name.trim() : "";
-	let errors = [validateName(name), ...validateEmail(email)];
+	let errors = [];
+
+	if (name !== undefined){
+		name = name ? name.trim() : "";
+		errors.push(...validateName(name));
+	}
+	if (email !== undefined){
+		email = email ? email.toLowerCase().trim() : "";
+		errors.push(...validateEmail(email));
+	}
+
+	if (name === undefined && email === undefined) {
+		errors.push("At least one of 'name' or 'email' must be provided for update");
+	}
+
 	if (errors.length > 0) {
 		return error(res, errors, "Validation Error", 400);
 	}
+
 	try {
 		// Check if user exists
 		const existing = await pool.query("SELECT * FROM approved_users WHERE id = $1", [id]);
@@ -82,10 +95,24 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 			return error(res, ["New email is already owned by another approved user"], "Conflict", 409);
 		}
 
-		// Update approved user
+		const fields = [];
+		const values = [];
+		let idx = 1;
+		
+		if (name !== undefined) {
+			fields.push(`name = $${idx++}`);
+			values.push(name);
+		}
+		if (email !== undefined) {
+			fields.push(`email = $${idx++}`);
+			values.push(email);
+		}
+		values.push(id); // For WHERE clause
+
+
 		const result = await pool.query(
-			"UPDATE approved_users SET name = $1, email = $2 WHERE id = $3 RETURNING *",
-			[name, email, id]
+			`UPDATE approved_users SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
+			values
 		);
 		return success(res, { approvedUser: result.rows[0] }, "Approved user updated", 200);
 	} catch (err) {

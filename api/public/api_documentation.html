@@ -2,7 +2,7 @@
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Book Project API Documentation</title>
+            <title>BOOK PROJECT API DOCUMENTATION</title>
             <style>
 /* From extension vscode.github */
 /*---------------------------------------------------------------------------------------------
@@ -139,16 +139,15 @@
         
         </head>
         <body class="vscode-body vscode-light">
-            <h1 id="book-project-api-documentation">Book Project API Documentation</h1>
-<p>Welcome to the Book Project API. This document provides an overview of the Book Project API. This documentation covers authentication, standard response formats, and all available endpoints.</p>
+            <h1 id="book-project-api-documentation">BOOK PROJECT API DOCUMENTATION</h1>
+<p>Welcome to the Book Project API Documentation. This document provides an overview of the Book Project API. This documentation covers authentication, standard response formats, and all available endpoints.</p>
 <p>To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests.</p>
 <p><strong>Location:</strong> <a href="https://api.fjnel.co.za/">https://api.fjnel.co.za/</a></p>
 <p><strong>Request and Response Format:</strong> JSON</p>
 <p><strong>Request Type:</strong> Depends on the endpoint used (see below for more details)</p>
-<h2 id="table-of-contents">Table of Contents</h2>
+<h1 id="table-of-contents">Table of Contents</h1>
 <ul>
-<li><a href="#book-project-api-documentation">Book Project API Documentation</a>
-<ul>
+<li><a href="#book-project-api-documentation">BOOK PROJECT API DOCUMENTATION</a></li>
 <li><a href="#table-of-contents">Table of Contents</a></li>
 <li><a href="#standard-response-format">Standard Response Format</a>
 <ul>
@@ -164,7 +163,13 @@
 </li>
 <li><a href="#authentication-endpoints">Authentication Endpoints</a>
 <ul>
-<li><a href="#understanding-the-jwt-authentication-system">Understanding the JWT Authentication System</a></li>
+<li><a href="#understanding-the-jwt-authentication-system">Understanding the JWT Authentication System</a>
+<ul>
+<li><a href="#the-access-token-a-15-minute-access-pass">The Access Token: A 15-Minute &quot;Access Pass&quot;</a></li>
+<li><a href="#the-refresh-token-a-7-day-session-key">The Refresh Token: A 7-Day &quot;Session Key&quot;</a></li>
+<li><a href="#key-design-benefits">Key Design Benefits</a></li>
+</ul>
+</li>
 <li><a href="#register">Register</a></li>
 <li><a href="#login">Login</a></li>
 <li><a href="#logout">Logout</a></li>
@@ -172,12 +177,23 @@
 <li><a href="#me">Me</a></li>
 </ul>
 </li>
+<li><a href="#admin-endpoints">Admin Endpoints</a>
+<ul>
+<li><a href="#approved-user-management">Approved User Management</a>
+<ul>
+<li><a href="#get-all-approved-users">Get (All) Approved Users</a></li>
+<li><a href="#get-an-approved-user">Get an Approved User</a></li>
+<li><a href="#add-an-approved-user">Add an Approved User</a></li>
+<li><a href="#edit-an-approved-user">Edit an Approved User</a></li>
+<li><a href="#delete-an-approved-user">Delete an Approved User</a></li>
 </ul>
 </li>
 </ul>
-<h2 id="standard-response-format">Standard Response Format</h2>
+</li>
+</ul>
+<h1 id="standard-response-format">Standard Response Format</h1>
 <p>All API responses, whether successful or failed, follow a standardised JSON structure.</p>
-<h3 id="success-response">Success Response</h3>
+<h2 id="success-response">Success Response</h2>
 <p>Successful requests will return a <code>2xx</code> HTTP status code and a JSON body with the following structure:</p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
 	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -190,7 +206,7 @@
 	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span> <span class="hljs-comment">// Always an empty array on success</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="error-response">Error Response</h3>
+<h2 id="error-response">Error Response</h2>
 <p>Failed requests will return a <code>4xx</code> or <code>5xx</code> HTTP status code and provide details in the errors array.</p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
 	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
@@ -204,10 +220,34 @@
   	<span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="rate-limiting">Rate limiting</h2>
-<p>To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a <code>429 Too Many Requests</code> response with the message &quot;Too many requests from this IP&quot;.</p>
-<h2 id="general-endpoints">General Endpoints</h2>
-<h3 id="health-check">Health Check</h3>
+<h1 id="rate-limiting">Rate limiting</h1>
+<p>To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a <code>429 Too Many Requests</code> response with the message &quot;Too many requests from this IP&quot;. Rate limiting details are as follows:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Endpoint</th>
+<th style="text-align:left">Limit</th>
+<th style="text-align:left">Window</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>POST /auth/register</code></td>
+<td style="text-align:left">5 requests</td>
+<td style="text-align:left">15 minutes</td>
+<td style="text-align:left">Allows new user registrations.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>POST /auth/login</code></td>
+<td style="text-align:left">10 requests</td>
+<td style="text-align:left">15 minutes</td>
+<td style="text-align:left">Allows users to log in to their account.</td>
+</tr>
+</tbody>
+</table>
+<h1 id="general-endpoints">General Endpoints</h1>
+<h2 id="health-check">Health Check</h2>
 <p>This endpoint retrieves the API's current status. It is a public endpoint and does not require authentication.</p>
 <p><strong>Endpoint:</strong> <code>GET /</code></p>
 <p><strong>Example Response:</strong></p>
@@ -223,45 +263,43 @@
 	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="authentication-endpoints">Authentication Endpoints</h2>
+<h1 id="authentication-endpoints">Authentication Endpoints</h1>
 <p>The authentication endpoints allow users to register, log in, refresh tokens, get their profile, and log out.</p>
-<p>This is a great summary. Here is a cleaned-up and re-structured explanation that logically connects <em>what</em> each token is with <em>why</em> it's used that way.</p>
-<hr>
-<h3 id="understanding-the-jwt-authentication-system">Understanding the JWT Authentication System</h3>
+<h2 id="understanding-the-jwt-authentication-system">Understanding the JWT Authentication System</h2>
 <p>The Book Project API uses a two-token system (JWT Access Tokens and Refresh Tokens) to manage user sessions. This model is intentionally designed to provide a perfect balance between robust security, server efficiency, and a seamless user experience.</p>
 <p>Instead of a single, long-lived token that creates a major security risk, we split the responsibilities between two distinct tokens.</p>
-<h4 id="the-access-token-a-15-minute-access-pass">The Access Token: A 15-Minute &quot;Access Pass&quot;</h4>
+<h3 id="the-access-token-a-15-minute-access-pass">The Access Token: A 15-Minute &quot;Access Pass&quot;</h3>
 <p>This is the primary token used to interact with the API.</p>
 <ul>
 <li><strong>What It Is:</strong> A JSON Web Token (JWT) that is returned on a successful login or refresh.</li>
 <li><strong>How It's Used:</strong> It must be sent in the <code>Authorization: Bearer &lt;token&gt;</code> header for every request to a protected endpoint. The server verifies this token to authenticate and authorize your request.</li>
 <li><strong>The &quot;Why&quot;:</strong> This token is <strong>short-lived (15 minutes)</strong> by design. This is a core security feature. If an access token is ever leaked or intercepted, an attacker only has a 15-minute window to use it, drastically limiting potential damage. Once it expires, it is useless.</li>
 </ul>
-<h4 id="the-refresh-token-a-7-day-session-key">The Refresh Token: A 7-Day &quot;Session Key&quot;</h4>
+<h3 id="the-refresh-token-a-7-day-session-key">The Refresh Token: A 7-Day &quot;Session Key&quot;</h3>
 <p>This token's only job is to prove you are still the same user so you can get a new access pass.</p>
 <ul>
 <li><strong>What It Is:</strong> A long-lived token returned <em>only</em> at login.</li>
 <li><strong>How It's Used:</strong> When your Access Token expires, your application sends this Refresh Token in the request body to the <code>/auth/refresh</code> endpoint. If valid, the server grants you a brand-new 15-minute Access Token.</li>
 <li><strong>The &quot;Why&quot;:</strong> This token is <strong>long-lived (7 days)</strong> to provide a good user experience. It allows you to stay &quot;logged in&quot; for a full week without having to re-enter your credentials every 15 minutes. When you log out, this token is revoked, immediately ending the session.</li>
 </ul>
-<h4 id="key-design-benefits">Key Design Benefits</h4>
+<h3 id="key-design-benefits">Key Design Benefits</h3>
 <p>This hybrid approach provides the best of both stateless and stateful authentication models.</p>
-<h5 id="1-the-best-of-both-worlds-stateless-verification--stateful-control">1. The Best of Both Worlds: Stateless Verification &amp; Stateful Control</h5>
+<h4 id="1-the-best-of-both-worlds-stateless-verification--stateful-control">1. The Best of Both Worlds: Stateless Verification &amp; Stateful Control</h4>
 <p>This is the most important concept in our design.</p>
 <ul>
 <li><strong>Stateless Verification:</strong> The <strong>Access Tokens</strong> are self-contained (stateless). They are cryptographically signed and encode the user's ID and permissions directly inside them. This means our servers can verify your identity and permissions on any protected endpoint <em>without</em> needing an extra database lookup, making the API extremely fast and scalable.</li>
 <li><strong>Stateful Control:</strong> The <strong>Refresh Tokens</strong> are stored in our database (stateful). This gives us complete control over user sessions. This is what makes a secure logout possible: the <code>/auth/logout</code> endpoint works by finding and deleting your refresh token from our database, instantly revoking your long-term session.</li>
 </ul>
-<h5 id="2-enhanced-security--identification">2. Enhanced Security &amp; Identification</h5>
+<h4 id="2-enhanced-security--identification">2. Enhanced Security &amp; Identification</h4>
 <p>This model is inherently secure.</p>
 <ul>
 <li><strong>Tamper-Proof:</strong> All JWTs are digitally signed. The server can instantly verify that the token's data (like your user ID or role) has not been tampered with.</li>
 <li><strong>Reliable Identification:</strong> Because a valid Access Token must accompany every request, the API reliably identifies <em>who</em> is making each request, which is essential for enforcing role-based access control.</li>
 </ul>
-<h5 id="3-universal-integration">3. Universal Integration</h5>
+<h4 id="3-universal-integration">3. Universal Integration</h4>
 <p>JWT is a global standard. By using the standard HTTP <code>Authorization</code> header, our API can be easily integrated with any client, including web applications, mobile apps, or other backend services.</p>
 <hr>
-<h3 id="register">Register</h3>
+<h2 id="register">Register</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/register</code></p>
 <p><strong>Access:</strong> Captcha-protected public</p>
 <p><strong>Description:</strong> Registers a new user account in the database, if the provided details are valid and the user is authorized to create an account.</p>
@@ -375,7 +413,7 @@ The list of allowed users is maintained by the system administrator and can be u
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <hr>
-<h3 id="login">Login</h3>
+<h2 id="login">Login</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/login</code></p>
 <p><strong>Access:</strong> Captcha-protected public</p>
 <p><strong>Description:</strong> Authenticates a user and returns a JWT access token and a refresh token for accessing protected endpoints.</p>
@@ -480,7 +518,7 @@ The API response does not provide specific details about why a login attempt fai
             <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Johan&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;joha@test.co.za&quot;</span><span class="hljs-punctuation">,</span>
-            <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662250909&quot;</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662240908&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-08T14:55:32.842Z&quot;</span><span class="hljs-punctuation">,</span>
@@ -504,7 +542,7 @@ The API response does not provide specific details about why a login attempt fai
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <hr>
-<h3 id="logout">Logout</h3>
+<h2 id="logout">Logout</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/logout</code></p>
 <p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
 <p><strong>Description:</strong> Logs out the authenticated user by invalidating their current refresh token.</p>
@@ -574,7 +612,7 @@ The API response does not provide specific details about why a login attempt fai
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <hr>
-<h3 id="refresh-token">Refresh Token</h3>
+<h2 id="refresh-token">Refresh Token</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/refresh</code></p>
 <p><strong>Access:</strong> Protected (requires valid refresh token)</p>
 <p><strong>Description:</strong> Issues a new JWT access token using a valid refresh token.</p>
@@ -627,7 +665,7 @@ The API response does not provide specific details about why a login attempt fai
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <hr>
-<h3 id="me">Me</h3>
+<h2 id="me">Me</h2>
 <p><strong>Endpoint:</strong> <code>GET /auth/me</code></p>
 <p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
 <p><strong>Description:</strong> Retrieves the profile information of the authenticated user.</p>
@@ -660,7 +698,7 @@ The API response does not provide specific details about why a login attempt fai
         <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Johan&quot;</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;joha@test.co.za&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662250909&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662240908&quot;</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-08T14:55:32.842Z&quot;</span><span class="hljs-punctuation">,</span>
@@ -680,6 +718,392 @@ The API response does not provide specific details about why a login attempt fai
     <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
         <span class="hljs-string">&quot;Invalid or expired token&quot;</span>
     <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h1 id="admin-endpoints">Admin Endpoints</h1>
+<p>Admin endpoints are restricted to users with the <code>admin</code> role. These endpoints allow for user management and other administrative tasks.</p>
+<h2 id="approved-user-management">Approved User Management</h2>
+<p>We use the term &quot;Approved Users&quot; to refer to a predefined list of individuals who are authorized/allowed to register and access the Book Project API.</p>
+<p>The system administrator can view, add, edit or remove users from this list as needed using these admin-only endpoints.</p>
+<h3 id="get-all-approved-users">Get (All) Approved Users</h3>
+<p><strong>Endpoint:</strong> <code>GET /admin/approved-users</code></p>
+<p><strong>Access:</strong> Protected Admin-only (requires valid JWT access token with <code>admin</code> role)</p>
+<p><strong>Description:</strong> Retrieves a list of all approved users who are authorized to register and access the API.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh. Must belong to an <code>admin</code> user.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> The returned array of <code>approvedUsers</code> are sorted by name.</p>
+</blockquote>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11.17&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;approvedUsers&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Johan&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;fnel688@gmail.com&quot;</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="get-an-approved-user">Get an Approved User</h3>
+<p><strong>Endpoint:</strong> <code>GET /admin/approved-users/{id}</code></p>
+<p><strong>Access:</strong> Protected Admin-only (requires valid JWT access token with <code>admin</code> role)</p>
+<p><strong>Description:</strong> Retrieves details of a specific approved user by their ID.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh. Must belong to an <code>admin</code> user.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Path Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The unique identifier of the approved user to retrieve.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11.03&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;approvedUser&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (404 Not Found):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;10.89&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Not Found&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Approved user not found&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="add-an-approved-user">Add an Approved User</h3>
+<p><strong>Endpoint:</strong> <code>POST /admin/approved-users</code></p>
+<p><strong>Access:</strong> Protected Admin-only (requires valid JWT access token with <code>admin</code> role)</p>
+<p><strong>Description:</strong> Adds a new user to the list of approved users who are authorized to register and access the API.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh. Must belong to an <code>admin</code> user.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Required Parameters (JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">User's email address. Must be a valid format and less than 255 characters.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Request Body</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (201 Created):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">201</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;14.15&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Approved user added&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;approvedUser&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (409 Conflict):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;12.71&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Conflict&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Email is already owned by an approved user&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (400 Bad Request):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1.48&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Invalid email format&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="edit-an-approved-user">Edit an Approved User</h3>
+<p><strong>Endpoint:</strong> <code>PUT /admin/approved-users/{id}</code></p>
+<p><strong>Access:</strong> Protected Admin-only (requires valid JWT access token with <code>admin</code> role)</p>
+<p><strong>Description:</strong> Updates the details of an existing approved user.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh. Must belong to an <code>admin</code> user.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Path Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The unique identifier of the approved user to update.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Required Parameters (JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's email address. Must be a valid format and less than 255 characters.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> At least one of <code>name</code> or <code>email</code> must be provided in the request body. If a field is not provided, it will remain unchanged.</p>
+</blockquote>
+<p><strong>Example Request Body</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Smith&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.smith@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;18.10&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Approved user updated&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;approvedUser&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Smith&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.smith@example.com&quot;</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (404 Not Found):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;12.34&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Not Found&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Approved user not found&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="delete-an-approved-user">Delete an Approved User</h3>
+<p><strong>Endpoint:</strong> <code>DELETE /admin/approved-users/{id}</code></p>
+<p><strong>Access:</strong> Protected Admin-only (requires valid JWT access token with <code>admin</code> role)</p>
+<p><strong>Description:</strong> Removes an approved user from the list, revoking their ability to register and access the API.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh. Must belong to an <code>admin</code> user.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Path Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The unique identifier of the approved user to delete.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;17.93&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Approved user deleted&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (404 Not Found):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Not Found&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Approved user not found&quot;</span>
+  <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 

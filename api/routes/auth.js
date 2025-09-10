@@ -90,28 +90,28 @@ router.post("/register", registerLimiter, async (req, res) => {
 	//Check if name, email and password are provided
 	email = email ? email.toLowerCase().trim() : "";
 	name = name ? name.trim() : "";
-	let errors = [];
 	//Other fields
 	phone = phone ? phone.trim() : "";
 	password = password ? password.trim() : "";
 	role = role ? role.trim() : "";
 
 	//Trim and normalize inputs
-	errors = [
-		validateName(name),
+	let errors = [
+		...validateName(name),
 		...validateEmail(email),
 		...validatePassword(password),
 		...validatePhone(phone),
 		...validateRole(role)
-	];
+	  ];
+	errors = errors.flat();
+	errors = errors.filter(Boolean); // Remove empty strings or nulls
 
 	//Check if 
-
 	if (errors.length > 0) {
 		return error(res, errors, "Validation Error", 400);
 	}
 
-	//Check if user is allowed to register (name in approved_users)
+	// Check if user is allowed to register (name in approved_users)
     try {
         const approved = await pool.query(
             "SELECT id FROM approved_users WHERE email = $1 AND name = $2", [email, name]

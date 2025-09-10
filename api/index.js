@@ -40,7 +40,9 @@ app.get("/", (req, res) => {
   });
   return success(res, {
     message: "The Book Project API is working!",
-    timestamp
+    timestamp,
+    api_documentation_url: "https://api.fjnel.co.za/api_documentation.html",
+    db_documentation_url: "https://api.fjnel.co.za/db_documentation.html"    
   });
 });
   

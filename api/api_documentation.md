@@ -30,10 +30,17 @@ To interact with the API, you can use tools like Postman or curl, or access it p
   - [Logout](#logout)
   - [Refresh Token](#refresh-token)
   - [Me](#me)
+- [Admin Endpoints](#admin-endpoints)
+  - [Approved User Management](#approved-user-management)
+    - [Get (All) Approved Users](#get-all-approved-users)
+    - [Get an Approved User](#get-an-approved-user)
+    - [Add an Approved User](#add-an-approved-user)
+    - [Edit an Approved User](#edit-an-approved-user)
+    - [Delete an Approved User](#delete-an-approved-user)
 
 # Standard Response Format
 
-All API responses, whether successful or failed, follow a standardised JSON structure.
+All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically. 
 
 ## Success Response
 
@@ -72,13 +79,15 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 
 # Rate limiting
 
-To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". Rate limiting details are as follows:
+To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". Rate limiting is implemented as follows:
 | Endpoint               | Limit                | Window       | Description                          |
 | :--------------------- | :------------------- | :----------- | :----------------------------------- |
 | `POST /auth/register`  | 5 requests          | 15 minutes   | Allows new user registrations.      |
 | `POST /auth/login`     | 10 requests         | 15 minutes   | Allows users to log in to their account.
 
 # General Endpoints
+
+These endpoints are available to all users, regardless of authentication status.
 
 ## Health Check
 
@@ -100,7 +109,6 @@ This endpoint retrieves the API's current status. It is a public endpoint and do
 	"errors": []
 }
 ```
-
 
 
 # Authentication Endpoints
@@ -471,3 +479,284 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 }
 ```
 
+# Admin Endpoints
+
+Admin endpoints are restricted to users with the `admin` role. These endpoints allow for user management and other administrative tasks.
+
+## Approved User Management
+
+We use the term "Approved Users" to refer to a predefined list of individuals who are authorized/allowed to register and access the Book Project API.
+
+The system administrator can view, add, edit or remove users from this list as needed using these admin-only endpoints.
+
+### Get (All) Approved Users
+
+**Endpoint:** `GET /admin/approved-users`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Retrieves a list of all approved users who are authorized to register and access the API.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
+
+> **Note:** The returned array of `approvedUsers` are sorted by name.
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "11.17",
+  "message": "Success",
+  "data": {
+    "approvedUsers": [
+      {
+        "id": 2,
+        "name": "Jane Doe",
+        "email": "jane.doe@example.com"
+      },
+      {
+        "id": 1,
+        "name": "Johan",
+        "email": "fnel688@gmail.com"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### Get an Approved User
+
+**Endpoint:** `GET /admin/approved-users/{id}`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Retrieves details of a specific approved user by their ID.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
+
+**Path Parameters:**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `id` | Integer | **Yes** | The unique identifier of the approved user to retrieve. |
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "11.03",
+  "message": "Success",
+  "data": {
+    "approvedUser": {
+      "id": 2,
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com"
+    }
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (404 Not Found):**
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "10.89",
+  "message": "Not Found",
+  "data": {},
+  "errors": [
+    "Approved user not found"
+  ]
+}
+```
+
+### Add an Approved User
+
+**Endpoint:** `POST /admin/approved-users`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Adds a new user to the list of approved users who are authorized to register and access the API.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
+
+**Required Parameters (JSON body):**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `name` | String | **Yes** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `email` | String | **Yes** | User's email address. Must be a valid format and less than 255 characters. |
+
+**Example Request Body**
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com"
+}
+```
+
+**Example Success Response (201 Created):**
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "14.15",
+  "message": "Approved user added",
+  "data": {
+    "approvedUser": {
+      "id": 2,
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com"
+    }
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (409 Conflict):**
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "12.71",
+  "message": "Conflict",
+  "data": {},
+  "errors": [
+    "Email is already owned by an approved user"
+  ]
+}
+```
+
+**Example Error Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "1.48",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Invalid email format"
+  ]
+}
+```
+
+### Edit an Approved User
+
+**Endpoint:** `PUT /admin/approved-users/{id}`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Updates the details of an existing approved user.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
+
+**Path Parameters:**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `id` | Integer | **Yes** | The unique identifier of the approved user to update. |
+
+**Required Parameters (JSON body):**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `name` | String | **No** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `email` | String | **No** | User's email address. Must be a valid format and less than 255 characters. |
+> **Note:** At least one of `name` or `email` must be provided in the request body. If a field is not provided, it will remain unchanged.
+
+**Example Request Body**
+```json
+{
+  "name": "Jane Smith",
+  "email": "jane.smith@example.com"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "18.10",
+  "message": "Approved user updated",
+  "data": {
+    "approvedUser": {
+      "id": 2,
+      "name": "Jane Smith",
+      "email": "jane.smith@example.com"
+    }
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (404 Not Found):**
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "12.34",
+  "message": "Not Found",
+  "data": {},
+  "errors": [
+    "Approved user not found"
+  ]
+}
+```
+
+### Delete an Approved User
+
+**Endpoint:** `DELETE /admin/approved-users/{id}`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Removes an approved user from the list, revoking their ability to register and access the API.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
+
+**Path Parameters:**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `id` | Integer | **Yes** | The unique identifier of the approved user to delete. |
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "17.93",
+  "message": "Approved user deleted",
+  "data": {},
+  "errors": []
+}
+```
+
+**Example Error Response (404 Not Found):**
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "11.22",
+  "message": "Not Found",
+  "data": {},
+  "errors": [
+    "Approved user not found"
+  ]
+}
+```
