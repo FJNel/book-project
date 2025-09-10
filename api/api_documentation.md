@@ -29,7 +29,6 @@ To interact with the API, you can use tools like Postman or curl, or access it p
   - [Login](#login)
   - [Logout](#logout)
   - [Refresh Token](#refresh-token)
-  - [Me](#me)
 - [Admin Endpoints](#admin-endpoints)
   - [Approved User Management](#approved-user-management)
     - [Get (All) Approved Users](#get-all-approved-users)
@@ -37,6 +36,9 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Add an Approved User](#add-an-approved-user)
     - [Edit an Approved User](#edit-an-approved-user)
     - [Delete an Approved User](#delete-an-approved-user)
+- [User Endpoints](#user-endpoints)
+  - [Get Me](#get-me)
+- [](#)
 
 # Standard Response Format
 
@@ -51,7 +53,7 @@ Successful requests will return a `2xx` HTTP status code and a JSON body with th
 	"status": "success",
 	"httpCode": 200,
 	"responseTime": "15.42", // Response time in milliseconds
-	"message": "A descriptive success message",
+	"message": "A success message",
 	"data": {
 		// Contains the requested data (e.g., a user object, a list of books)
 	},
@@ -82,8 +84,8 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". Rate limiting is implemented as follows:
 | Endpoint               | Limit                | Window       | Description                          |
 | :--------------------- | :------------------- | :----------- | :----------------------------------- |
-| `POST /auth/register`  | 5 requests          | 15 minutes   | Allows new user registrations.      |
-| `POST /auth/login`     | 10 requests         | 15 minutes   | Allows users to log in to their account.
+| [`POST /auth/register`](#register)  | 5 requests          | 15 minutes   | Allows new user registrations.      |
+| [`POST /auth/login`](#login)     | 10 requests         | 15 minutes   | Allows users to log in to their account.
 
 # General Endpoints
 
@@ -159,13 +161,11 @@ This model is inherently secure.
 
 JWT is a global standard. By using the standard HTTP `Authorization` header, our API can be easily integrated with any client, including web applications, mobile apps, or other backend services.
 
----
-
 ## Register
 
 **Endpoint:** `POST /auth/register`
 
-**Access:** Captcha-protected public
+**Access:** Captcha-protected Public
 
 **Description:** Registers a new user account in the database, if the provided details are valid and the user is authorized to create an account.
 
@@ -184,6 +184,15 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 | `password` | String | **Yes** | User's password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (`@$!%*?&`). |
 | `phone` | String | **Yes** | User's phone number. Must be exactly 10 digits (e.g., `0821234567`). No country codes or symbols. |
 | `role` | String | **No** | Role for the user. Must be either `user` or `admin`. Defaults to `user` if not provided. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | Integer | Unique identifier for the created user. |
+| `name` | String | User's name. |
+| `email` | String | User's email address. |
+| `role` | String | User's role (`user`, `admin`). |
+| `created_at` | String | Timestamp of when the user was created. |
 
 **Example Request Body**
 ```json
@@ -246,13 +255,11 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 }
 ```
 
----
-
 ## Login
 
 **Endpoint:** `POST /auth/login`
 
-**Access:** Captcha-protected public
+**Access:** Captcha-protected Public
 
 **Description:** Authenticates a user and returns a JWT access token and a refresh token for accessing protected endpoints.
 
@@ -266,6 +273,22 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 | `email` | String | **Yes** | User's email address. Must be a valid format, unique, and less than 255 characters. |
 | `password` | String | **Yes** | User's password. |
 
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `token` | String | JWT access token for authenticating subsequent requests. |
+| `refreshToken` | String | Refresh token for obtaining a new access token. |
+| `user` | Object | Information about the authenticated user. |
+| `user.id` | Integer | Unique identifier for the user. |
+| `user.name` | String | User's name. |
+| `user.email` | String | User's email address. |
+| `user.phone` | String | User's phone number. |
+| `user.role` | String | User's role (`user`, `admin`). |
+| `user.is_active` | Boolean | Indicates if the user's account is active (defaults to `true`) |
+| `user.created_at` | String | Timestamp of when the user was created. |
+| `user.last_login` | String | Timestamp of the user's last login. |
+| `user.metadata` | Object or null | Additional metadata associated with the user (if any). |
+
 **Example Request Body**
 ```json
 {
@@ -273,17 +296,6 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 	"password": "Password123!"
 }
 ```
-
-**Response (JSON):**
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `token` | String | JWT access token for authenticating subsequent requests. Valid for 15 minutes. |
-| `refresh_token` | String | Token used to obtain a new access token when the current one expires. Valid for 7 days. |
-| `user` | Object | Object containing user details. |
-| `user.id` | Integer | Unique identifier for the user. |
-| `user.name` | String | User's full name. |
-| `user.email` | String | User's email address. |
-| `user.role` | String | User's role (`user`, `admin`). |
 
 **Example Success Response (200 OK):**
 ```json
@@ -324,8 +336,6 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
     ]
 }
 ```
-
----
 
 ## Logout
 
@@ -378,8 +388,6 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 }
 ```
 
----
-
 ## Refresh Token
 
 **Endpoint:** `POST /auth/refresh`
@@ -392,6 +400,11 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 | Parameter | Type | Required | Description and Details |
 | :--- | :--- | :--- | :--- |
 | `refreshToken` | String | **Yes** | The refresh token previously issued during login. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `token` | String | JWT access token for authenticating subsequent requests. |
 
 **Example Request Body**
 ```json
@@ -428,56 +441,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
 }
 ```
 
----
-
-## Me
-
-**Endpoint:** `GET /auth/me`
-
-**Access:** Protected (requires valid JWT access token)
-
-**Description:** Retrieves the profile information of the authenticated user.
-
-**Headers:**
-| Header | Value | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. |
-
-**Example Success Response (200 OK):**
-```json
-{
-    "status": "success",
-    "httpCode": 200,
-    "responseTime": "12.30",
-    "message": "User profile fetched successfully",
-    "data": {
-        "id": 2,
-        "name": "Johan",
-        "email": "joha@test.co.za",
-        "phone": "0662240908",
-        "role": "user",
-        "is_active": true,
-        "created_at": "2025-09-08T14:55:32.842Z",
-        "last_login": "2025-09-08T16:52:53.936Z",
-        "metadata": null
-    },
-    "errors": []
-}
-```
-
-**Example Error Response (401 Unauthorized):**
-```json
-{
-    "status": "error",
-    "httpCode": 401,
-    "responseTime": "0.58",
-    "message": "Unauthorized",
-    "data": {},
-    "errors": [
-        "Invalid or expired token"
-    ]
-}
-```
+--- 
 
 # Admin Endpoints
 
@@ -502,7 +466,13 @@ The system administrator can view, add, edit or remove users from this list as n
 | :--- | :--- | :--- | :--- |
 | `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. Must belong to an `admin` user. |
 
-> **Note:** The returned array of `approvedUsers` are sorted by name.
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `approvedUsers` | Array of Objects | List of approved users. Sorted by `name` in ascending order. |
+| `approvedUsers[].id` | Integer | Unique identifier for the approved user. |
+| `approvedUsers[].name` | String | Approved user's name. |
+| `approvedUsers[].email` | String | Approved user's email address. |
 
 **Example Success Response (200 OK):**
 ```json
@@ -546,6 +516,14 @@ The system administrator can view, add, edit or remove users from this list as n
 | Parameter | Type | Required | Description and Details |
 | :--- | :--- | :--- | :--- |
 | `id` | Integer | **Yes** | The unique identifier of the approved user to retrieve. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `approvedUser` | Object | Details of the approved user. |
+| `approvedUser.id` | Integer | Unique identifier for the approved user. |
+| `approvedUser.name` | String | Approved user's name. |
+| `approvedUser.email` | String | Approved user's email address. |
 
 **Example Success Response (200 OK):**
 ```json
@@ -597,6 +575,14 @@ The system administrator can view, add, edit or remove users from this list as n
 | :--- | :--- | :--- | :--- |
 | `name` | String | **Yes** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
 | `email` | String | **Yes** | User's email address. Must be a valid format and less than 255 characters. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `approvedUser` | Object | Details of the newly added approved user. | 
+| `approvedUser.id` | Integer | Unique identifier for the approved user. |
+| `approvedUser.name` | String | Approved user's name. |
+| `approvedUser.email` | String | Approved user's email address. |
 
 **Example Request Body**
 ```json
@@ -676,6 +662,14 @@ The system administrator can view, add, edit or remove users from this list as n
 | `name` | String | **No** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
 | `email` | String | **No** | User's email address. Must be a valid format and less than 255 characters. |
 > **Note:** At least one of `name` or `email` must be provided in the request body. If a field is not provided, it will remain unchanged.
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `approvedUser` | Object | Details of the updated approved user. |
+| `approvedUser.id` | Integer | Unique identifier for the approved user. |
+| `approvedUser.name` | String | Approved user's name. |
+| `approvedUser.email` | String | Approved user's email address. |
 
 **Example Request Body**
 ```json
@@ -760,3 +754,73 @@ The system administrator can view, add, edit or remove users from this list as n
   ]
 }
 ```
+
+---
+
+# User Endpoints
+
+The endpoints in this section are available to allow for better user management and profile handling.
+
+## Get Me
+
+**Endpoint:** `GET /users/me`
+
+**Access:** Protected (requires valid JWT access token)
+
+**Description:** Retrieves the profile information of the authenticated user.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | Integer | Unique identifier for the user. |
+| `name` | String | User's name. |
+| `email` | String | User's email address. |
+| `phone` | String | User's phone number. |
+| `role` | String | User's role (`user`, `admin`). |
+| `is_active` | Boolean | Indicates if the user's account is active (defaults to `true`). |
+| `created_at` | String | Timestamp of when the user was created. |
+| `last_login` | String | Timestamp of the user's last login. |
+| `metadata` | Object or null | Additional metadata associated with the user (if any). |
+
+**Example Success Response (200 OK):**
+```json
+{
+    "status": "success",
+    "httpCode": 200,
+    "responseTime": "12.30",
+    "message": "User profile fetched successfully",
+    "data": {
+        "id": 2,
+        "name": "Johan",
+        "email": "joha@test.co.za",
+        "phone": "0662240908",
+        "role": "user",
+        "is_active": true,
+        "created_at": "2025-09-08T14:55:32.842Z",
+        "last_login": "2025-09-08T16:52:53.936Z",
+        "metadata": null
+    },
+    "errors": []
+}
+```
+
+**Example Error Response (401 Unauthorized):**
+```json
+{
+    "status": "error",
+    "httpCode": 401,
+    "responseTime": "0.58",
+    "message": "Unauthorized",
+    "data": {},
+    "errors": [
+        "Invalid or expired token"
+    ]
+}
+```
+
+#

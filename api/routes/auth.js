@@ -4,11 +4,10 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const rateLimit = require("express-rate-limit");
 const axios = require("axios"); // For reCAPTCHA verification
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS) || 10;
 const { success, error } = require("../utils/response");
 const {
 	validateName,
@@ -219,27 +218,6 @@ router.post("/login", loginLimiter, async (req, res) => {
 		return error(res, err.message, "Server Error while attempting login", 500);
 	}
 });
-
-
-
-//ME ENDPOINT
-router.get("/me", requireAuth, async (req, res) => {
-	try {
-		const {id} = req.user;
-		const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
-		if (result.rowCount === 0) {
-			return error(res, ["User not found"], "Not Found", 404);
-		}
-		const user = result.rows[0];
-		delete user.password_hash; // Remove sensitive info
-		return success(res, user, "User profile fetched successfully", 200);
-	} catch (err) {
-		console.error(err);
-		return error(res, err.message, "Server Error while fetching user profile", 500);
-	}
-});
-
-
 
 //REFRESH ENDPOINT
 router.post("/refresh", async (req, res) => {

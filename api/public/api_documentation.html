@@ -192,14 +192,14 @@
 </li>
 </ul>
 <h1 id="standard-response-format">Standard Response Format</h1>
-<p>All API responses, whether successful or failed, follow a standardised JSON structure.</p>
+<p>All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically.</p>
 <h2 id="success-response">Success Response</h2>
 <p>Successful requests will return a <code>2xx</code> HTTP status code and a JSON body with the following structure:</p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
 	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
 	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
 	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15.42&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-comment">// Response time in milliseconds</span>
-	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;A descriptive success message&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;A success message&quot;</span><span class="hljs-punctuation">,</span>
 	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
 		<span class="hljs-comment">// Contains the requested data (e.g., a user object, a list of books)</span>
 	<span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -221,7 +221,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h1 id="rate-limiting">Rate limiting</h1>
-<p>To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a <code>429 Too Many Requests</code> response with the message &quot;Too many requests from this IP&quot;. Rate limiting details are as follows:</p>
+<p>To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a <code>429 Too Many Requests</code> response with the message &quot;Too many requests from this IP&quot;. Rate limiting is implemented as follows:</p>
 <table>
 <thead>
 <tr>
@@ -233,13 +233,13 @@
 </thead>
 <tbody>
 <tr>
-<td style="text-align:left"><code>POST /auth/register</code></td>
+<td style="text-align:left"><a href="#register"><code>POST /auth/register</code></a></td>
 <td style="text-align:left">5 requests</td>
 <td style="text-align:left">15 minutes</td>
 <td style="text-align:left">Allows new user registrations.</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>POST /auth/login</code></td>
+<td style="text-align:left"><a href="#login"><code>POST /auth/login</code></a></td>
 <td style="text-align:left">10 requests</td>
 <td style="text-align:left">15 minutes</td>
 <td style="text-align:left">Allows users to log in to their account.</td>
@@ -247,6 +247,7 @@
 </tbody>
 </table>
 <h1 id="general-endpoints">General Endpoints</h1>
+<p>These endpoints are available to all users, regardless of authentication status.</p>
 <h2 id="health-check">Health Check</h2>
 <p>This endpoint retrieves the API's current status. It is a public endpoint and does not require authentication.</p>
 <p><strong>Endpoint:</strong> <code>GET /</code></p>
@@ -298,10 +299,9 @@
 </ul>
 <h4 id="3-universal-integration">3. Universal Integration</h4>
 <p>JWT is a global standard. By using the standard HTTP <code>Authorization</code> header, our API can be easily integrated with any client, including web applications, mobile apps, or other backend services.</p>
-<hr>
 <h2 id="register">Register</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/register</code></p>
-<p><strong>Access:</strong> Captcha-protected public</p>
+<p><strong>Access:</strong> Captcha-protected Public</p>
 <p><strong>Description:</strong> Registers a new user account in the database, if the provided details are valid and the user is authorized to create an account.</p>
 <blockquote>
 <p><strong>Important Note:</strong><br>
@@ -359,6 +359,43 @@ The list of allowed users is maintained by the system administrator and can be u
 </tr>
 </tbody>
 </table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the created user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's email address.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>role</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>created_at</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of when the user was created.</td>
+</tr>
+</tbody>
+</table>
 <p><strong>Example Request Body</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
@@ -412,10 +449,9 @@ The list of allowed users is maintained by the system administrator and can be u
     <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
 <h2 id="login">Login</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/login</code></p>
-<p><strong>Access:</strong> Captcha-protected public</p>
+<p><strong>Access:</strong> Captcha-protected Public</p>
 <p><strong>Description:</strong> Authenticates a user and returns a JWT access token and a refresh token for accessing protected endpoints.</p>
 <blockquote>
 <p><strong>Important Note:</strong><br>
@@ -452,13 +488,7 @@ The API response does not provide specific details about why a login attempt fai
 </tr>
 </tbody>
 </table>
-<p><strong>Example Request Body</strong></p>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span><span class="hljs-punctuation">,</span>
-	<span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password123!&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<p><strong>Response (JSON):</strong></p>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
 <table>
 <thead>
 <tr>
@@ -471,17 +501,17 @@ The API response does not provide specific details about why a login attempt fai
 <tr>
 <td style="text-align:left"><code>token</code></td>
 <td style="text-align:left">String</td>
-<td style="text-align:left">JWT access token for authenticating subsequent requests. Valid for 15 minutes.</td>
+<td style="text-align:left">JWT access token for authenticating subsequent requests.</td>
 </tr>
 <tr>
-<td style="text-align:left"><code>refresh_token</code></td>
+<td style="text-align:left"><code>refreshToken</code></td>
 <td style="text-align:left">String</td>
-<td style="text-align:left">Token used to obtain a new access token when the current one expires. Valid for 7 days.</td>
+<td style="text-align:left">Refresh token for obtaining a new access token.</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>user</code></td>
 <td style="text-align:left">Object</td>
-<td style="text-align:left">Object containing user details.</td>
+<td style="text-align:left">Information about the authenticated user.</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>user.id</code></td>
@@ -491,7 +521,7 @@ The API response does not provide specific details about why a login attempt fai
 <tr>
 <td style="text-align:left"><code>user.name</code></td>
 <td style="text-align:left">String</td>
-<td style="text-align:left">User's full name.</td>
+<td style="text-align:left">User's name.</td>
 </tr>
 <tr>
 <td style="text-align:left"><code>user.email</code></td>
@@ -499,12 +529,43 @@ The API response does not provide specific details about why a login attempt fai
 <td style="text-align:left">User's email address.</td>
 </tr>
 <tr>
+<td style="text-align:left"><code>user.phone</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's phone number.</td>
+</tr>
+<tr>
 <td style="text-align:left"><code>user.role</code></td>
 <td style="text-align:left">String</td>
 <td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
 </tr>
+<tr>
+<td style="text-align:left"><code>user.is_active</code></td>
+<td style="text-align:left">Boolean</td>
+<td style="text-align:left">Indicates if the user's account is active (defaults to <code>true</code>)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>user.created_at</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of when the user was created.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>user.last_login</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of the user's last login.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>user.metadata</code></td>
+<td style="text-align:left">Object or null</td>
+<td style="text-align:left">Additional metadata associated with the user (if any).</td>
+</tr>
 </tbody>
 </table>
+<p><strong>Example Request Body</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password123!&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <p><strong>Example Success Response (200 OK):</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -541,7 +602,6 @@ The API response does not provide specific details about why a login attempt fai
     <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
 <h2 id="logout">Logout</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/logout</code></p>
 <p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
@@ -611,7 +671,6 @@ The API response does not provide specific details about why a login attempt fai
     <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
 <h2 id="refresh-token">Refresh Token</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/refresh</code></p>
 <p><strong>Access:</strong> Protected (requires valid refresh token)</p>
@@ -632,6 +691,23 @@ The API response does not provide specific details about why a login attempt fai
 <td style="text-align:left">String</td>
 <td style="text-align:left"><strong>Yes</strong></td>
 <td style="text-align:left">The refresh token previously issued during login.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>token</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">JWT access token for authenticating subsequent requests.</td>
 </tr>
 </tbody>
 </table>
@@ -664,7 +740,6 @@ The API response does not provide specific details about why a login attempt fai
     <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
 <h2 id="me">Me</h2>
 <p><strong>Endpoint:</strong> <code>GET /auth/me</code></p>
 <p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
@@ -685,6 +760,63 @@ The API response does not provide specific details about why a login attempt fai
 <td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
 <td style="text-align:left"><strong>Yes</strong></td>
 <td style="text-align:left">The JWT access token received during login or refresh.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's email address.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>phone</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's phone number.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>role</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>is_active</code></td>
+<td style="text-align:left">Boolean</td>
+<td style="text-align:left">Indicates if the user's account is active (defaults to <code>true</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>created_at</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of when the user was created.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>last_login</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of the user's last login.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>metadata</code></td>
+<td style="text-align:left">Object or null</td>
+<td style="text-align:left">Additional metadata associated with the user (if any).</td>
 </tr>
 </tbody>
 </table>
@@ -748,9 +880,38 @@ The API response does not provide specific details about why a login attempt fai
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p><strong>Note:</strong> The returned array of <code>approvedUsers</code> are sorted by name.</p>
-</blockquote>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>approvedUsers</code></td>
+<td style="text-align:left">Array of Objects</td>
+<td style="text-align:left">List of approved users. Sorted by <code>name</code> in ascending order.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUsers[].id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUsers[].name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUsers[].email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's email address.</td>
+</tr>
+</tbody>
+</table>
 <p><strong>Example Success Response (200 OK):</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -813,6 +974,38 @@ The API response does not provide specific details about why a login attempt fai
 <td style="text-align:left">Integer</td>
 <td style="text-align:left"><strong>Yes</strong></td>
 <td style="text-align:left">The unique identifier of the approved user to retrieve.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>approvedUser</code></td>
+<td style="text-align:left">Object</td>
+<td style="text-align:left">Details of the approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's email address.</td>
 </tr>
 </tbody>
 </table>
@@ -889,6 +1082,38 @@ The API response does not provide specific details about why a login attempt fai
 <td style="text-align:left">String</td>
 <td style="text-align:left"><strong>Yes</strong></td>
 <td style="text-align:left">User's email address. Must be a valid format and less than 255 characters.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>approvedUser</code></td>
+<td style="text-align:left">Object</td>
+<td style="text-align:left">Details of the newly added approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's email address.</td>
 </tr>
 </tbody>
 </table>
@@ -1008,6 +1233,38 @@ The API response does not provide specific details about why a login attempt fai
 <blockquote>
 <p><strong>Note:</strong> At least one of <code>name</code> or <code>email</code> must be provided in the request body. If a field is not provided, it will remain unchanged.</p>
 </blockquote>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>approvedUser</code></td>
+<td style="text-align:left">Object</td>
+<td style="text-align:left">Details of the updated approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the approved user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>approvedUser.email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Approved user's email address.</td>
+</tr>
+</tbody>
+</table>
 <p><strong>Example Request Body</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Smith&quot;</span><span class="hljs-punctuation">,</span>
