@@ -174,7 +174,6 @@
 <li><a href="#login">Login</a></li>
 <li><a href="#logout">Logout</a></li>
 <li><a href="#refresh-token">Refresh Token</a></li>
-<li><a href="#me">Me</a></li>
 </ul>
 </li>
 <li><a href="#admin-endpoints">Admin Endpoints</a>
@@ -188,6 +187,13 @@
 <li><a href="#delete-an-approved-user">Delete an Approved User</a></li>
 </ul>
 </li>
+</ul>
+</li>
+<li><a href="#user-endpoints">User Endpoints</a>
+<ul>
+<li><a href="#get-me">Get Me</a></li>
+<li><a href="#edit-me">Edit Me</a></li>
+<li><a href="#delete-me">Delete Me</a></li>
 </ul>
 </li>
 </ul>
@@ -579,7 +585,7 @@ The API response does not provide specific details about why a login attempt fai
             <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Johan&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;joha@test.co.za&quot;</span><span class="hljs-punctuation">,</span>
-            <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662240908&quot;</span><span class="hljs-punctuation">,</span>
+            <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0772240909&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
             <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-08T14:55:32.842Z&quot;</span><span class="hljs-punctuation">,</span>
@@ -740,118 +746,7 @@ The API response does not provide specific details about why a login attempt fai
     <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="me">Me</h2>
-<p><strong>Endpoint:</strong> <code>GET /auth/me</code></p>
-<p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
-<p><strong>Description:</strong> Retrieves the profile information of the authenticated user.</p>
-<p><strong>Headers:</strong></p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">Header</th>
-<th style="text-align:left">Value</th>
-<th style="text-align:left">Required</th>
-<th style="text-align:left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left"><code>Authorization</code></td>
-<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
-<td style="text-align:left"><strong>Yes</strong></td>
-<td style="text-align:left">The JWT access token received during login or refresh.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
-<table>
-<thead>
-<tr>
-<th style="text-align:left">Field</th>
-<th style="text-align:left">Type</th>
-<th style="text-align:left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left"><code>id</code></td>
-<td style="text-align:left">Integer</td>
-<td style="text-align:left">Unique identifier for the user.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>name</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">User's name.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>email</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">User's email address.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>phone</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">User's phone number.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>role</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>is_active</code></td>
-<td style="text-align:left">Boolean</td>
-<td style="text-align:left">Indicates if the user's account is active (defaults to <code>true</code>).</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>created_at</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">Timestamp of when the user was created.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>last_login</code></td>
-<td style="text-align:left">String</td>
-<td style="text-align:left">Timestamp of the user's last login.</td>
-</tr>
-<tr>
-<td style="text-align:left"><code>metadata</code></td>
-<td style="text-align:left">Object or null</td>
-<td style="text-align:left">Additional metadata associated with the user (if any).</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Example Success Response (200 OK):</strong></p>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;12.30&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User profile fetched successfully&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Johan&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;joha@test.co.za&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0662240908&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-08T14:55:32.842Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;last_login&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-08T16:52:53.936Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<p><strong>Example Error Response (401 Unauthorized):</strong></p>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0.58&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Unauthorized&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-        <span class="hljs-string">&quot;Invalid or expired token&quot;</span>
-    <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<hr>
 <h1 id="admin-endpoints">Admin Endpoints</h1>
 <p>Admin endpoints are restricted to users with the <code>admin</code> role. These endpoints allow for user management and other administrative tasks.</p>
 <h2 id="approved-user-management">Approved User Management</h2>
@@ -1363,6 +1258,332 @@ The API response does not provide specific details about why a login attempt fai
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<hr>
+<h1 id="user-endpoints">User Endpoints</h1>
+<p>The endpoints in this section are available to allow for better user management and profile handling.</p>
+<h2 id="get-me">Get Me</h2>
+<p><strong>Endpoint:</strong> <code>GET /users/me</code></p>
+<p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
+<p><strong>Description:</strong> Retrieves the complete profile information of the authenticated user.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's email address.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>phone</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's phone number.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>role</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>is_active</code></td>
+<td style="text-align:left">Boolean</td>
+<td style="text-align:left">Indicates if the user's account is active (defaults to <code>true</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>created_at</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of when the user was created.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>last_login</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of the user's last login.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>metadata</code></td>
+<td style="text-align:left">Object or null</td>
+<td style="text-align:left">Additional metadata associated with the user (if any).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15.88&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User profile fetched successfully&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Smith&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0128967523&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-10T13:37:25.120Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;last_login&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-10T13:38:01.483Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (401 Unauthorized):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0.58&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Unauthorized&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;Invalid or expired token&quot;</span>
+    <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="edit-me">Edit Me</h2>
+<p><strong>Endpoint:</strong> <code>PUT /users/me</code></p>
+<p><strong>Access:</strong> Protected (requires valid JWT access token)</p>
+<p><strong>Description:</strong> Updates the authenticated user's profile information with the provided details.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Header</th>
+<th style="text-align:left">Value</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>Authorization</code></td>
+<td style="text-align:left"><code>Bearer &lt;JWT_ACCESS_TOKEN&gt;</code></td>
+<td style="text-align:left"><strong>Yes</strong></td>
+<td style="text-align:left">The JWT access token received during login or refresh.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Required Parameters (JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Parameter</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Required</th>
+<th style="text-align:left">Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's new name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's new email address. Must be a valid format and less than 255 characters.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>phone</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's new phone number. Must be exactly 10 digits (e.g., <code>0821234567</code>). No country codes or symbols.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>currentPassword</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>If changing <code>password</code></strong></td>
+<td style="text-align:left">User's current password.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>password</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left"><strong>No</strong></td>
+<td style="text-align:left">User's new password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (<code>@$!%*?&amp;</code>).</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> Users cannot change their password if their current password is not provided and verified. The current password must be correct. If a field is not provided, it will remain unchanged.</p>
+</blockquote>
+<p><strong>Successful Response Fields (<code>data</code> in JSON body):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Field</th>
+<th style="text-align:left">Type</th>
+<th style="text-align:left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>id</code></td>
+<td style="text-align:left">Integer</td>
+<td style="text-align:left">Unique identifier for the user.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>name</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's name.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>email</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's email address.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>phone</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's phone number.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>role</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">User's role (<code>user</code>, <code>admin</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>is_active</code></td>
+<td style="text-align:left">Boolean</td>
+<td style="text-align:left">Indicates if the user's account is active (defaults to <code>true</code>).</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>created_at</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of when the user was created.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>last_login</code></td>
+<td style="text-align:left">String</td>
+<td style="text-align:left">Timestamp of the user's last login.</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>metadata</code></td>
+<td style="text-align:left">Object or null</td>
+<td style="text-align:left">Additional metadata associated with the user (if any).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example Request Body</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;currentPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hello@123!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hello@321!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0821234567&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;208.00&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User profile updated successfully&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.doe@example.com&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;phone&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;0821234567&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;is_active&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;created_at&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-10T13:37:25.120Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;last_login&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-09-10T13:38:01.483Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (400 Bad Request):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.14&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Invalid email format&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Password must be at least 6 characters&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Phone number must be 10 digits. Do not include country code or special characters (e.g. +27)&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Phone number must contain only digits. Do not include country code or special characters (e.g. +27)&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (403 Forbidden):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">403</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Current password is required to change password.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (403 Forbidden):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">403</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;127.82&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Current password is incorrect.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (409 Conflict):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;16.38&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Email already registered. Please use a different email.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="delete-me">Delete Me</h2>
+<p><strong>Endpoint:</strong> <code>DELETE /users/me</code></p>
+<blockquote>
+<p><strong>Note:</strong> Users cannot delete their own accounts! To delete a user account, an admin must do so via the admin user management endpoints.</p>
+</blockquote>
 
             <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
             

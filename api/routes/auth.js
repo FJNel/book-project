@@ -23,15 +23,15 @@ const crypto = require("crypto");
 // Limit registration attempts to 10 per minute per IP
 // Limit login attempts to 5 per minute per IP
 const registerLimiter = rateLimit({
-	windowMs: 60*1000, // 1 minute
+	windowMs: 60*1000*5, // 5 minutes
 	max: 10, // limit each IP to 10 requests per windowMs
 	handler: (req, res) => {
 		return error(res, ["Too many registration attempts from this IP"], "Rate limit exceeded", 429);
 	  }
 });
 const loginLimiter = rateLimit({
-	windowMs: 60*1000, // 1 minute
-	max: 5, // limit each IP to 5 requests per windowMs
+	windowMs: 60*1000*5, // 5 minutes
+	max: 10, // limit each IP to 5 requests per windowMs
 	handler: (req, res) => {
 		return error(res, ["Too many login attempts from this IP"], "Rate limit exceeded", 429);
 	}
@@ -69,6 +69,11 @@ async function issueRefreshToken(userId) {
 
 
 //REGISTER ENDPOINT
+/**
+ * @openapi
+ * /auth/register
+ * 
+ */
 router.post("/register", registerLimiter, async (req, res) => {
 	//Passed in parameters:
 	// name: The user's full name (string, required)

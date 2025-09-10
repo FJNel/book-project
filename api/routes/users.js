@@ -61,6 +61,24 @@ router.put("/me", requireAuth, async (req, res) => {
   }
   errors = [];
 
+  // Check if new email is unique
+  if (email) {
+    try {
+      const emailCheck = await pool.query("SELECT id FROM users WHERE email = $1 AND id != $2", [email, id]);
+      if (emailCheck.rowCount > 0) {
+        errors.push("Email already registered. Please use a different email.");
+      }
+    } catch (err) {
+      console.error(err);
+      return error(res, [err.message], "Server Error while checking email uniqueness", 500);
+    }
+  }
+  errors = errors.filter(Boolean);
+  if (errors.length > 0) {
+    return error(res, errors, "Email Error", 409);
+  }  
+  errors = [];
+
   // Password change logic
   let hashedPassword;
   if (password !== undefined) {
@@ -87,7 +105,7 @@ router.put("/me", requireAuth, async (req, res) => {
 
   errors = errors.filter(Boolean);
   if (errors.length > 0) {
-    return error(res, errors, "Password Verification Error", 400);
+    return error(res, errors, "Password Error", 403);
   }  
 
   // Build update query
@@ -187,6 +205,30 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   let { name, email, phone, password, role } = req.body;
   let errors = [];
 
+  // Require admin password for any edit
+  if (!adminPassword || typeof adminPassword !== "string") {
+    return error(res, ["Admin password must be provided for editing a user"], "Forbidden", 403);
+  }
+  // Verify admin password
+  try {
+    const adminRes = await pool.query("SELECT password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (adminRes.rowCount === 0) {
+      return error(res, ["Admin user not found"], "Forbidden", 403);
+    }
+    const match = await bcrypt.compare(adminPassword, adminRes.rows[0].password_hash);
+    if (!match) {
+      return error(res, ["Admin password is incorrect"], "Forbidden", 403);
+    }
+  } catch (err) {
+    console.error(err);
+    return error(res, [err.message], "Server Error while verifying admin password", 500);
+  }
+
+  // Prevent admin from changing their own role to non-admin
+  if (role !== undefined && parseInt(id) === req.user.id && role.trim() !== "admin") {
+    return error(res, ["Admins cannot change their own role to non-admin"], "Forbidden", 403);
+  }
+
   if (name !== undefined) {
     name = name ? name.trim() : "";
     errors.push(...validateName(name));
@@ -213,6 +255,25 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   if (errors.length > 0) {
     return error(res, errors, "Validation Error", 400);
   }
+  errors = [];
+
+  // Check if new email is unique
+  if (email !== undefined) {
+    try {
+      const emailCheck = await pool.query("SELECT id FROM users WHERE email = $1 AND id != $2", [email, id]);
+      if (emailCheck.rowCount > 0) {
+        errors.push("Email is already registered to another user.");
+      }
+    } catch (err) {
+      console.error(err);
+      return error(res, [err.message], "Server Error while checking email uniqueness", 500);
+    }
+  }
+  errors = errors.filter(Boolean);
+  if (errors.length > 0) {
+    return error(res, errors, "Email Error", 409);
+  }  
+  errors = [];
 
   // Build update query
   const updatedFields = {};
@@ -258,6 +319,29 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
+  if (id === req.user.id) {
+    return error(res, ["Admin users cannot delete their own account"], "Forbidden", 403);
+  }
+
+  // Require admin password for deletion
+  if (!adminPassword || typeof adminPassword !== "string") {
+    return error(res, ["Admin password must be provided for deleting a user"], "Forbidden", 403);
+  }
+  // Verify admin password
+  try {
+    const adminRes = await pool.query("SELECT password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (adminRes.rowCount === 0) {
+      return error(res, ["Admin user not found"], "Forbidden", 403);
+    }
+    const match = await bcrypt.compare(adminPassword, adminRes.rows[0].password_hash);
+    if (!match) {
+      return error(res, ["Admin password is incorrect"], "Forbidden", 403);
+    }
+  } catch (err) {
+    console.error(err);
+    return error(res, [err.message], "Server Error while verifying admin password", 500);
+  }
+
   if (!name || typeof name !== "string") {
     return error(res, ["Name must be provided for deletion"], "Validation Error", 400);
   }

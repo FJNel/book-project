@@ -10,6 +10,8 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 **Request Type:** Depends on the endpoint used (see below for more details)
 
+> **Important Security note:** Always ensure that sensitive information (like passwords) is not exposed in your requests or responses. **Use HTTPS to encrypt data in transit.**
+
 # Table of Contents
 
 - [BOOK PROJECT API DOCUMENTATION](#book-project-api-documentation)
@@ -36,9 +38,12 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Add an Approved User](#add-an-approved-user)
     - [Edit an Approved User](#edit-an-approved-user)
     - [Delete an Approved User](#delete-an-approved-user)
+  - [User Management](#user-management)
+    - [Add User](#add-user)
 - [User Endpoints](#user-endpoints)
   - [Get Me](#get-me)
-- [](#)
+  - [Edit Me](#edit-me)
+  - [Delete Me](#delete-me)
 
 # Standard Response Format
 
@@ -84,8 +89,8 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 To prevent API abuse, rate limiting is enforced on certain endpoints. Exceeding the limit will result in a `429 Too Many Requests` response with the message "Too many requests from this IP". Rate limiting is implemented as follows:
 | Endpoint               | Limit                | Window       | Description                          |
 | :--------------------- | :------------------- | :----------- | :----------------------------------- |
-| [`POST /auth/register`](#register)  | 5 requests          | 15 minutes   | Allows new user registrations.      |
-| [`POST /auth/login`](#login)     | 10 requests         | 15 minutes   | Allows users to log in to their account.
+| [`POST /auth/register`](#register)  | 10 requests          | 5 minutes   | Allows new user registrations.      |
+| [`POST /auth/login`](#login)     | 10 requests         | 5 minutes   | Allows users to log in to their account.
 
 # General Endpoints
 
@@ -311,7 +316,7 @@ JWT is a global standard. By using the standard HTTP `Authorization` header, our
             "id": 2,
             "name": "Johan",
             "email": "joha@test.co.za",
-            "phone": "0662240908",
+            "phone": "0772240909",
             "role": "user",
             "is_active": true,
             "created_at": "2025-09-08T14:55:32.842Z",
@@ -755,6 +760,53 @@ The system administrator can view, add, edit or remove users from this list as n
 }
 ```
 
+## User Management
+
+Admins can manage all registered users in the system using these endpoints. Please note that these endpoints are available using the normal `/users/` route, but are restricted to users with the `admin` role. 
+
+### Add User
+
+**Endpoint:** `POST /users`
+
+**Access:** Protected Admin-only (requires valid JWT access token with `admin` role)
+
+**Description:** Creates a new user account in the database with the provided details. This endpoint is intended for admin users to create accounts for other users without needing to go through the restrictions of the [`/auth/register`](#register) endpoint (like the approved users list, Captcha verification and [rate limiting](#rate-limiting)).
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. |
+
+**Required Parameters (JSON body):**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `name` | String | **Yes** | User's name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `email` | String | **Yes** | User's email address. Must be a valid format, unique, and less than 255 characters. |
+| `password` | String | **Yes** | User's password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (`@$!%*?&`). |
+| `phone` | String | **Yes** | User's phone number. Must be exactly 10 digits (e.g., `0821234567`). No country codes or symbols. |
+| `role` | String | **No** | Role for the user. Must be either `user` or `admin`. Defaults to `user` if not provided. |
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+
+
+**Example Error Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "16.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Invalid email format"
+  ]
+}
+```
+
+
+
 ---
 
 # User Endpoints
@@ -767,7 +819,7 @@ The endpoints in this section are available to allow for better user management 
 
 **Access:** Protected (requires valid JWT access token)
 
-**Description:** Retrieves the profile information of the authenticated user.
+**Description:** Retrieves the complete profile information of the authenticated user.
 
 **Headers:**
 | Header | Value | Required | Description |
@@ -790,22 +842,22 @@ The endpoints in this section are available to allow for better user management 
 **Example Success Response (200 OK):**
 ```json
 {
-    "status": "success",
-    "httpCode": 200,
-    "responseTime": "12.30",
-    "message": "User profile fetched successfully",
-    "data": {
-        "id": 2,
-        "name": "Johan",
-        "email": "joha@test.co.za",
-        "phone": "0662240908",
-        "role": "user",
-        "is_active": true,
-        "created_at": "2025-09-08T14:55:32.842Z",
-        "last_login": "2025-09-08T16:52:53.936Z",
-        "metadata": null
-    },
-    "errors": []
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "15.88",
+  "message": "User profile fetched successfully",
+  "data": {
+    "id": 5,
+    "name": "Jane Smith",
+    "email": "jane.doe@example.com",
+    "phone": "0128967523",
+    "role": "user",
+    "is_active": true,
+    "created_at": "2025-09-10T13:37:25.120Z",
+    "last_login": "2025-09-10T13:38:01.483Z",
+    "metadata": null
+  },
+  "errors": []
 }
 ```
 
@@ -823,4 +875,138 @@ The endpoints in this section are available to allow for better user management 
 }
 ```
 
-#
+## Edit Me
+
+**Endpoint:** `PUT /users/me`
+
+**Access:** Protected (requires valid JWT access token)
+
+**Description:** Updates the authenticated user's profile information with the provided details.
+
+**Headers:**
+| Header | Value | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | **Yes** | The JWT access token received during login or refresh. |
+
+**Required Parameters (JSON body):**
+| Parameter | Type | Required | Description and Details |
+| :--- | :--- | :--- | :--- |
+| `name` | String | **No** | User's new name. Must be 2-100 characters. Allows letters, spaces, hyphens, apostrophes. |
+| `email` | String | **No** | User's new email address. Must be a valid format and less than 255 characters. |
+| `phone` | String | **No** | User's new phone number. Must be exactly 10 digits (e.g., `0821234567`). No country codes or symbols. |
+| `currentPassword` | String | **If changing `password`** | User's current password. |
+| `password` | String | **No** | User's new password. Must be 6-100 characters. Must contain at least one uppercase, one lowercase, one number, and one special character (`@$!%*?&`). |
+
+> **Note:** Users cannot change their password if their current password is not provided and verified. The current password must be correct. If a field is not provided, it will remain unchanged.
+
+**Successful Response Fields (`data` in JSON body):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | Integer | Unique identifier for the user. |
+| `name` | String | User's name. |
+| `email` | String | User's email address. |
+| `phone` | String | User's phone number. |
+| `role` | String | User's role (`user`, `admin`). |
+| `is_active` | Boolean | Indicates if the user's account is active (defaults to `true`). |
+| `created_at` | String | Timestamp of when the user was created. |
+| `last_login` | String | Timestamp of the user's last login. |
+| `metadata` | Object or null | Additional metadata associated with the user (if any). |
+
+**Example Request Body**
+```json
+{
+  "currentPassword": "Hello@123!",
+  "password": "Hello@321!",
+  "phone": "0821234567",
+  "name": "Jane Doe"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "208.00",
+  "message": "User profile updated successfully",
+  "data": {
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "jane.doe@example.com",
+    "phone": "0821234567",
+    "role": "user",
+    "is_active": true,
+    "created_at": "2025-09-10T13:37:25.120Z",
+    "last_login": "2025-09-10T13:38:01.483Z",
+    "metadata": null
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "3.14",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Invalid email format",
+    "Password must be at least 6 characters",
+    "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+    "Phone number must be 10 digits. Do not include country code or special characters (e.g. +27)",
+    "Phone number must contain only digits. Do not include country code or special characters (e.g. +27)"
+  ]
+}
+```
+
+**Example Error Response (403 Forbidden):**
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.22",
+  "message": "Password Error",
+  "data": {},
+  "errors": [
+    "Current password is required to change password."
+  ]
+}
+```
+
+**Example Error Response (403 Forbidden):**
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "127.82",
+  "message": "Password Error",
+  "data": {},
+  "errors": [
+    "Current password is incorrect."
+  ]
+}
+```
+
+**Example Error Response (409 Conflict):**
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "16.38",
+  "message": "Email Error",
+  "data": {},
+  "errors": [
+    "Email already registered. Please use a different email."
+  ]
+}
+```
+
+## Delete Me
+
+**Endpoint:** `DELETE /users/me`
+
+> **Note:** Users cannot delete their own accounts! To delete a user account, an admin must do so via the admin user management endpoints.
+
