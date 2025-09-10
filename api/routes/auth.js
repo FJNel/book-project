@@ -1,6 +1,5 @@
 // api/routes/auth.js
 // Routes for user authentication (registration and login)
-// 
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
@@ -70,9 +69,47 @@ async function issueRefreshToken(userId) {
 
 //REGISTER ENDPOINT
 /**
- * @openapi
- * /auth/register
- * 
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Full name of the user
+ *               email:
+ *                 type: string
+ *                 description: Email address (unique)
+ *               password:
+ *                 type: string
+ *                 description: User password
+ *               role:
+ *                 type: string
+ *                 description: User role (optional, default "user")
+ *               captchaToken:
+ *                 type: string
+ *                 description: Google reCAPTCHA token
+ *     responses:
+ *       201:
+ *         description: User registered successfully. Email verification required.
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Registration not allowed
+ *       500:
+ *         description: Server error
  */
 router.post("/register", registerLimiter, async (req, res) => {
 	//Passed in parameters:
@@ -165,6 +202,43 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 
 //LOGIN ENDPOINT
+
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     summary: Login user with email/password
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User email
+ *               password:
+ *                 type: string
+ *                 description: User password
+ *               captchaToken:
+ *                 type: string
+ *                 description: Google reCAPTCHA token
+ *     responses:
+ *       200:
+ *         description: Login successful, returns access & refresh tokens
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Server error
+ */
 router.post("/login", loginLimiter, async (req, res) => {
   	let { email, password, captchaToken } = req.body;
 
