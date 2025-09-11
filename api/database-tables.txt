@@ -1,27 +1,120 @@
-CREATE TABLE approved_users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE
-);
+-- Use an ENUM type for roles for better data integrity.
+CREATE TYPE user_role AS ENUM ('user', 'admin');
 
 CREATE TABLE IF NOT EXISTS users (
   id              SERIAL PRIMARY KEY,
-  name            TEXT NOT NULL,
-  email           TEXT UNIQUE NOT NULL,
-  phone           TEXT,
-  password_hash   TEXT NOT NULL,
+  name            VARCHAR(255) NOT NULL,
+  email           VARCHAR(255) UNIQUE NOT NULL,
+  password_hash   TEXT, -- null if OAuth-only account
   role            user_role NOT NULL DEFAULT 'user',
-  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  last_login      TIMESTAMP WITH TIME ZONE,
+  is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
+  is_disabled     BOOLEAN NOT NULL DEFAULT FALSE, -- Added for disabling accounts
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_login      TIMESTAMPTZ,
   metadata        JSONB
 );
 
-CREATE TABLE refresh_tokens (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_fingerprint VARCHAR(128) NOT NULL UNIQUE,
-    issued_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL,
-    revoked BOOLEAN NOT NULL DEFAULT FALSE
+
+
+-- Use an ENUM type for token types to make the table more versatile.
+CREATE TYPE token_type AS ENUM ('email_verification', 'password_reset');
+
+CREATE TABLE IF NOT EXISTS verification_tokens (
+  id              SERIAL PRIMARY KEY,
+  user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token           VARCHAR(255) NOT NULL UNIQUE,
+  token_type      token_type NOT NULL, -- Added to support different token uses
+  expires_at      TIMESTAMPTZ NOT NULL,
+  used            BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  id               SERIAL PRIMARY KEY,
+  user_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider         VARCHAR(50) NOT NULL, -- e.g. 'google', 'github'
+  provider_user_id VARCHAR(255) NOT NULL, -- The unique ID from the provider
+  access_token     TEXT,  -- IMPORTANT: Encrypt this value before storing!
+  refresh_token    TEXT,  -- IMPORTANT: Encrypt this value before storing!
+  scopes           JSONB, -- Optional: Store granted OAuth scopes
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(provider, provider_user_id)
+);
+
+
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id                SERIAL PRIMARY KEY,
+  user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_fingerprint VARCHAR(128) NOT NULL UNIQUE,
+  issued_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at        TIMESTAMPTZ NOT NULL,
+  revoked           BOOLEAN NOT NULL DEFAULT FALSE,
+  ip_address        INET, -- Added for security auditing
+  user_agent        TEXT  -- Added for security auditing
+);
+
+
+
+CREATE OR REPLACE FUNCTION update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = now();
+   RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_modtime
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_oauth_accounts_modtime
+BEFORE UPDATE ON oauth_accounts
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+
+
+-- Recommendation: Create ENUM types for data integrity.
+CREATE TYPE log_action AS ENUM (
+    'LOGIN_ATTEMPT',
+    'LOGOUT',
+    'PASSWORD_RESET_REQUEST',
+    'PASSWORD_RESET_SUCCESS',
+    'EMAIL_VERIFICATION',
+    'USER_REGISTERED',
+    'USER_UPDATED_PROFILE',
+    'TOKEN_REFRESHED'
+    -- Add more as your application grows
+);
+
+CREATE TYPE log_status AS ENUM (
+    'SUCCESS',
+    'FAILURE',
+    'INFO'
+);
+
+CREATE TABLE user_logs (
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       INT REFERENCES users(id) ON DELETE SET NULL,
+    action        log_action NOT NULL,           -- Changed to ENUM
+    status        log_status NOT NULL,           -- Changed to ENUM
+    ip_address    INET,
+    user_agent    TEXT,
+    error_message TEXT,                          -- Great for storing why a 'FAILURE' occurred
+    details       JSONB,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now() -- Changed to TIMESTAMPTZ
+);
+
+-- Recommendation: Add indexes for common query patterns.
+-- Speeds up finding all logs for a specific user.
+CREATE INDEX idx_user_logs_user_id ON user_logs(user_id);
+-- Speeds up finding all logs of a certain type (e.g., all failed logins).
+CREATE INDEX idx_user_logs_action_status ON user_logs(action, status);
+-- Speeds up sorting by time.
+CREATE INDEX idx_user_logs_created_at ON user_logs(created_at);
