@@ -109,7 +109,7 @@ async function verifyCaptcha(token, ip) {
 		const data = await response.json();
 	// Log minimal info only; avoid dumping entire CAPTCHA payload
 	logToFile("CAPTCHA_VERIFICATION", { success: data?.success === true, score: data?.score }, "info");
-		return data.success && data.score && data.score >= 0.5; //Accept scores >= 0.5
+		return data.success && data.score && data.score >= 0.7; //Accept scores >= 0.7
 	} catch (e) {
 		logToFile("CAPTCHA_VERIFICATION_ERROR", { message: e.message }, "error");
 		return false;
@@ -321,9 +321,21 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 
 
+async function maybeDelay(start, minMs, jitterMs = 400) {
+    const elapsed = Date.now() - start;
+    const randomMs = Math.floor(Math.random() * jitterMs); // 0 to jitterMs-1
+    const totalMin = minMs + randomMs;
+    if (elapsed < totalMin) {
+        await new Promise(resolve => setTimeout(resolve, totalMin - elapsed));
+    }
+}
+
 // POST auth/resend-verification: Resend email verification for existing, unverified users
 router.post("/resend-verification", async (req, res) => {
-    let { email } = req.body || {};
+    const start = Date.now();
+	const MIN_RESPONSE_MS = 600; //Mitigates timing attacks
+
+	let { email } = req.body || {};
     email = email ? email.trim().toLowerCase() : null;
 
     const emailErrors = validateEmail(email);
@@ -339,7 +351,7 @@ router.post("/resend-verification", async (req, res) => {
             details: { email, errors: emailErrors }
         });
         logToFile("EMAIL_VERIFICATION", { reason: "VALIDATION", email, errors: emailErrors }, "warn");
-        return errorResponse(res, 400, "Validation Error", emailErrors);
+		return errorResponse(res, 400, "Validation Error", emailErrors);
     }
 
     try {
@@ -357,7 +369,8 @@ router.post("/resend-verification", async (req, res) => {
                 details: { email }
             });
             logToFile("EMAIL_VERIFICATION", { reason: "NONEXISTENT_OR_VERIFIED", email }, "info");
-            return successResponse(res, 200, generalMessage);
+            await maybeDelay(start, MIN_RESPONSE_MS);
+			return successResponse(res, 200, generalMessage);
         }
 
         const user = userRes.rows[0];
@@ -388,9 +401,10 @@ router.post("/resend-verification", async (req, res) => {
             });
             logToFile("EMAIL_VERIFICATION", { error: "Failed to send verification email", email }, "error");
             // Still respond generically
+			await maybeDelay(start, MIN_RESPONSE_MS);
             return successResponse(res, 200, generalMessage);
         }
-
+		await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     } catch (e) {
         await logUserAction({
@@ -404,6 +418,7 @@ router.post("/resend-verification", async (req, res) => {
         });
         logToFile("EMAIL_VERIFICATION", { error: e.message, email }, "error");
         // Still respond generically
+		await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     }
 });
@@ -590,23 +605,22 @@ router.post("/login", loginLimiter, async (req, res) => {
   
 	try {
 	  const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email.trim().toLowerCase()]);
-	  if (userRes.rows.length === 0) {
-		await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "NO_USER", details: { email } });
-		logToFile("LOGIN_ATTEMPT", { reason: "NO_USER", email }, "warn");
-		return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect."]);
+	  let user;
+	  let passwordMatch = false;
+
+	  if (userRes.rows.length > 0) {
+		user = userRes.rows[0];
+		if (user.is_verified) {
+		  passwordMatch = await bcrypt.compare(password, user.password_hash);
+		}
+	  } else {
+		//Hash a dummy password to mitigate timing attacks
+		await bcrypt.compare(password, "$2b$10$CwTycUXWue0Thq9StjUM0uJ8m5rRZ1h6h4b1a8u7d1yK5j1y6q9e");
 	  }
-  
-	  const user = userRes.rows[0];
-	  if (!user.is_verified) {
-		await logUserAction({ userId: user.id, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "NOT_VERIFIED", details: { email } });
-		logToFile("LOGIN_ATTEMPT", { reason: "NOT_VERIFIED", email }, "warn");
-		return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect."]);
-	  }
-  
-	  const passwordMatch = await bcrypt.compare(password, user.password_hash);
-	  if (!passwordMatch) {
-		await logUserAction({ userId: user.id, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "WRONG_PASSWORD", details: { email } });
-		logToFile("LOGIN_ATTEMPT", { reason: "WRONG_PASSWORD", email }, "warn");
+
+	  if (!user || !user.is_verified || !passwordMatch) {
+		await logUserAction({ userId: user ? user.id : null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "INVALID_CREDENTIALS", details: { email } });
+		logToFile("LOGIN_ATTEMPT", { reason: "INVALID_CREDENTIALS", email }, "warn");
 		return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect."]);
 	  }
   
@@ -652,6 +666,49 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 //POST auth/logout: Revoke refreshToken to log user out
 router.post("/logout", requiresAuth, async (req, res) => {
+	//Use user id from refresh-token payload
+	const { refreshToken } = req.body || {};
+	if (!refreshToken || typeof refreshToken !== "string") {
+		return errorResponse(res, 400, "Refresh token required", ["Please provide a valid refresh token in the request body."]);
+	}
+
+	let payload;
+	try {
+		payload = verifyRefreshToken(refreshToken);
+	} catch (e) {
+		return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
+	}
+
+	if (payload.id !== req.user.id) {
+		return errorResponse(res, 403, "Forbidden", ["You can only log out your own session.",
+			"The access token and refresh token do not belong to the same user."]);
+	}
+
+	try {
+		// Revoke the refresh token
+		const result = await pool.query(
+			`UPDATE refresh_tokens
+			 SET revoked = true
+			 WHERE user_id = $1
+			   AND token_fingerprint = $2
+			   AND revoked = false
+			   AND expires_at > NOW()`,
+			[req.user.id, payload.fingerprint]
+		);
+	} catch (e) {
+		return errorResponse(res, 500, "Server error.", ["An error occurred while logging out. Please try again."]);
+	}
+
+	await logUserAction({ userId: payload.id, action: "LOGOUT", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent"), details: {} });
+	logToFile("LOGOUT", { user_id: payload.id, outcome: "SUCCESS" });
+
+	return successResponse(res, 200, "Logged out successfully.", {});
+});
+
+
+
+//POST /refresh-token: Get a new accessToken using a valid refreshToken
+router.post("/refresh-token", async (req, res) => {
 	const { refreshToken } = req.body || {};
 
 	if (!refreshToken || typeof refreshToken !== "string") {
@@ -666,32 +723,35 @@ router.post("/logout", requiresAuth, async (req, res) => {
 	}
 
 	try {
-		// Revoke the refresh token in the database
-		const result = await pool.query(
-			`UPDATE refresh_tokens
-			 SET revoked = true, revoked_at = NOW()
+		// Check if the refresh token is valid and not revoked
+		const tokenRes = await pool.query(
+			`SELECT id FROM refresh_tokens
 			 WHERE user_id = $1
 			   AND token_fingerprint = $2
 			   AND revoked = false
 			   AND expires_at > NOW()`,
-			[req.user.id, payload.fingerprint]
+			[payload.id, payload.fingerprint]
 		);
 
-		if (result.rowCount === 0) {
+		if (tokenRes.rows.length === 0) {
 			return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 		}
 
-		await logUserAction({ userId: payload.userId, action: "LOGOUT", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent"), details: {} });
-		logToFile("LOGOUT", { user_id: payload.userId, outcome: "SUCCESS" });
+		// Fetch user details
+		const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [payload.id]);
+		if (userRes.rows.length === 0) {
+			return errorResponse(res, 401, "Invalid refresh token", ["User associated with token not found."]);
+		}
+		const user = userRes.rows[0];
 
-		return successResponse(res, 200, "Logout successful.", {});
+		// Generate a new access token
+		const newAccessToken = generateAccessToken(user);
+
+		return successResponse(res, 200, "Access token refreshed.", { accessToken: newAccessToken });
 	} catch (e) {
-		await logUserAction({ userId: payload.userId, action: "LOGOUT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: e.message, details: {} });
-		logToFile("LOGOUT", { error: e.message, user_id: payload.userId }, "error");
-		return errorResponse(res, 500, "Server error.", ["An error occurred during logout. Please try again."]);
+		return errorResponse(res, 500, "Server error.", ["An error occurred while refreshing the access token."]);
 	}
 });
-
 
 // Temporary test endpoint: POST /auth/test-email
 router.post("/test-email", emailVerificationLimiter, async (req, res) => {

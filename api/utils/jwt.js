@@ -10,11 +10,11 @@ function generateAccessToken(user) {
   return jwt.sign(
     {
       id: user.id,
-      email: user.email,
-      role: user.role,
-      isVerified: user.is_verified,
-      preferredName: user.preferred_name,
-      fullName: user.full_name
+    //   email: user.email,
+      role: user.role
+    //   isVerified: user.is_verified,
+    //   preferredName: user.preferred_name,
+    //   fullName: user.full_name
     },
     ACCESS_TOKEN_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
