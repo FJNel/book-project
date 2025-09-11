@@ -110,7 +110,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 	if (!captchaValid) {
 	await logUserAction({ userId: null, action: "USER_REGISTERED", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
 	logToFile("USER_REGISTERED", { reason: "CAPTCHA_FAILED", email }, "warn");
-		return errorResponse(res, 400, "CAPTCHA verification failed", ["CAPTCHA verification failed. Please try again."]);
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["CAPTCHA verification failed. Please try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 
 	//Sanitize and validate inputs
@@ -157,7 +157,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 						details: { email }
 					});
 					logToFile("USER_REGISTERED", { reason: "EMAIL_IN_USE", email }, "warn");
-					return errorResponse(res, 400, "Email already in use", ["The provided email is already associated with another account."]);
+					return errorResponse(res, 409, "Email already in use", ["The provided email is already associated with another account."]);
 				}
 
 				// If not verified, (re)issue verification token and respond 200
@@ -265,6 +265,8 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 });
 
+
+
 // POST auth/resend-verification: Resend email verification for existing, unverified users
 router.post("/resend-verification", async (req, res) => {
 	let { email } = req.body || {};
@@ -345,3 +347,4 @@ router.post("/resend-verification", async (req, res) => {
 	}
 });
 
+module.exports = router;

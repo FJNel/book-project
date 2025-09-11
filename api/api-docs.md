@@ -21,11 +21,11 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 # Logging
 
-The API uses a hybrid logging approach.
+The API uses a hybrid logging approach:
 
-- Significant actions, like user registration, login, logout, password reset requests, profile updates, etc. are logged in a dedicated database table called `user_logs`.
-- In addition to this, all requests and responses are logged to log files using `morgan` middleware. This includes details like the HTTP method, endpoint accessed, response status code, and response time. This is useful for monitoring and debugging purposes.
-- Sensitive information like passwords and tokens are never logged.
+- Significant actions (user registration, login, logout, password reset requests, profile updates, token refresh, email verification events, etc.) are logged in a dedicated database table `user_logs`.
+- In addition, all HTTP requests are logged to rotating log files (via a Winston-based logger) with method, path, status, response time, and limited metadata. This is helpful for monitoring and debugging.
+- Sensitive information (passwords, tokens, secrets, Authorization headers, etc.) is never logged. Potentially secret-like fields are redacted in both file and DB logs.
 
 # Response Format
 
@@ -112,7 +112,7 @@ To prevent automated registrations, this endpoint is protected by CAPTCHA. Users
 
 ### Email Verification:
 
-After registration, a verification email will be sent to the provided email address. The user must verify their email before they can log in. This is prevent unauthorised access using fake or incorrect email addresses.
+After successful registration, a verification email is issued for the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.
 
 ### Required Parameters (JSON Body):
 
@@ -125,6 +125,168 @@ Here’s a clean Markdown table you can paste into your docs:
 | `preferredName` | String | No | The user's preferred name. This name will be used in UI elements. Must be between 2 and 100 characters. Only alphabetic characters are allowed. | `null` |
 | `email` | String | **Yes** | The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
 | `password` | String | **Yes** | The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. | |
+
+### Example Request Object
+```json
+{
+	"captchaToken": "<captcha-token-from-client>",
+	"fullName": "Jane Doe",
+	"preferredName": "Jane",
+	"email": "jane@example.com",
+	"password": "Str0ng&P@ssw0rd!"
+}
+```
+
+### Example Success Response (201 Created):
+```json
+{
+	"status": "success",
+	"httpCode": 201,
+	"responseTime": "12.34",
+	"message": "User registered successfully. Please verify your email before logging in.",
+	"data": {
+		"id": 123,
+		"email": "jane@example.com",
+		"fullName": "Jane Doe",
+		"preferredName": "Jane",
+		"role": "user",
+		"isVerified": false
+	},
+	"errors": []
+}
+```
+
+### Example Request Object
+If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK (no new account is created):
+
+```json
+{
+	"captchaToken": "<captcha-token-from-client>",
+	"fullName": "Jane Doe",
+	"preferredName": "Jane",
+	"email": "unverified@example.com",
+	"password": "Str0ng&P@ssw0rd!"
+}
+```
+
+### Example Success Response (201 OK):
+```json
+{
+	"status": "success",
+	"httpCode": 200,
+	"responseTime": "9.87",
+	"message": "Account already exists but not verified. Verification email has been (re)sent.",
+	"data": {},
+	"errors": []
+}
+```
+
+### Example Error Response (409 Conflict)
+
+Example error when the email is already verified and in use:
+
+```json
+{
+	"status": "error",
+	"httpCode": 409,
+	"responseTime": "3.21",
+	"message": "Email already in use",
+	"data": {},
+	"errors": [
+		"The provided email is already associated with another account."
+	]
+}
+```
+
+### Example Error Response (400 Bad Request)
+
+Example error when CAPTCHA fails:
+
+```json
+{
+	"status": "error",
+	"httpCode": 400,
+	"responseTime": "4.56",
+	"message": "CAPTCHA verification failed",
+	"data": {},
+	"errors": [
+		"CAPTCHA verification failed. Please try again."
+	]
+}
+```
+
+Notes:
+- Emails are not actually sent in the current environment; the code includes a `//SEND EMAIL HERE` placeholder.
+- The verification token is reused if an active one exists; otherwise a new token valid for 1 hour is created.
+
+## Resend Email Verification
+
+**Endpoint:** `POST /auth/resend-verification`
+**Access:** Public
+**Description:** Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.
+
+### Required Parameters (JSON Body):
+
+| Parameter | Type | Required | Description and Details | Default |
+|-----------|------|----------|-------------------------|---------|
+| `email` | String | **Yes** | The registered email address to resend the verification to. | |
+
+### Example Request
+
+```http
+POST /auth/resend-verification
+Content-Type: application/json
+
+{
+	"email": "jane@example.com"
+}
+```
+
+Example success response (200 OK):
+
+```json
+{
+	"status": "success",
+	"httpCode": 200,
+	"responseTime": "7.42",
+	"message": "Verification email has been (re)sent.",
+	"data": {},
+	"errors": []
+}
+```
+
+Example error when the account does not exist (404 Not Found):
+
+```json
+{
+	"status": "error",
+	"httpCode": 404,
+	"responseTime": "2.11",
+	"message": "User not found",
+	"data": {},
+	"errors": [
+		"No account is registered with this email."
+	]
+}
+```
+
+Example error when the account is already verified (400 Bad Request):
+
+```json
+{
+	"status": "error",
+	"httpCode": 400,
+	"responseTime": "3.05",
+	"message": "Email already verified",
+	"data": {},
+	"errors": [
+		"This account is already verified."
+	]
+}
+```
+
+Notes:
+- Emails are not actually sent in the current environment; the code includes a `//SEND EMAIL HERE` placeholder.
 
 
 

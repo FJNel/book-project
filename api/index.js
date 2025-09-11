@@ -53,8 +53,8 @@ app.use(express.static("public"));
 
 //Routes
 app.use("/", rootRoute);
-// app.use("/users", userRoutes);
-// app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
+app.use("/auth", authRoutes);
 
 //404 Handler
 app.use((req, res) => {
