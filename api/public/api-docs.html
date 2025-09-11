@@ -148,6 +148,7 @@
 <ul>
 <li><a href="#documentation">Documentation</a></li>
 <li><a href="#table-of-contents">Table of Contents</a></li>
+<li><a href="#logging">Logging</a></li>
 <li><a href="#response-format">Response Format</a>
 <ul>
 <li><a href="#success-response">Success Response</a></li>
@@ -157,16 +158,63 @@
 <li><a href="#root-endpoint-health-check">Root Endpoint (Health Check)</a></li>
 <li><a href="#authentication">Authentication</a>
 <ul>
-<li><a href="#"></a></li>
+<li><a href="#register">Register</a>
+<ul>
+<li><a href="#rate-limiting">Rate Limiting:</a></li>
+<li><a href="#captcha-protection">CAPTCHA Protection:</a></li>
+<li><a href="#email-verification">Email Verification:</a></li>
+<li><a href="#required-parameters-json-body">Required Parameters (JSON Body):</a></li>
+<li><a href="#notes">Notes:</a></li>
+<li><a href="#examples">Examples:</a></li>
+</ul>
+</li>
+<li><a href="#resend-email-verification">Resend Email Verification</a>
+<ul>
+<li><a href="#rate-limiting-1">Rate Limiting:</a></li>
+<li><a href="#required-parameters-json-body-1">Required Parameters (JSON Body):</a></li>
+<li><a href="#notes-1">Notes:</a></li>
+<li><a href="#examples-1">Examples:</a></li>
+</ul>
+</li>
+<li><a href="#verify-email">Verify Email</a>
+<ul>
+<li><a href="#required-parameters-query-string">Required Parameters (Query String):</a></li>
+<li><a href="#notes-2">Notes:</a></li>
+<li><a href="#examples-2">Examples:</a></li>
+</ul>
+</li>
+<li><a href="#login">Login</a>
+<ul>
+<li><a href="#rate-limiting-2">Rate Limiting:</a></li>
+<li><a href="#captcha-protection-1">CAPTCHA Protection:</a></li>
+<li><a href="#required-parameters-json-body-2">Required Parameters (JSON Body):</a></li>
+<li><a href="#notes-3">Notes:</a></li>
+<li><a href="#examples-3">Examples:</a></li>
+</ul>
+</li>
+<li><a href="#refresh-token">Refresh Token</a>
+<ul>
+<li><a href="#required-parameters-json-body-3">Required Parameters (JSON Body):</a></li>
+<li><a href="#examples-4">Examples:</a></li>
+</ul>
+</li>
+<li><a href="#logout">Logout</a>
+<ul>
+<li><a href="#required-parameters-json-body-4">Required Parameters (JSON Body):</a></li>
+<li><a href="#required-headers">Required Headers:</a></li>
+<li><a href="#notes-4">Notes:</a></li>
+<li><a href="#examples-5">Examples:</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
 <h1 id="logging">Logging</h1>
-<p>The API uses a hybrid logging approach.</p>
+<p>The API uses a hybrid logging approach:</p>
 <ul>
-<li>Significant actions, like user registration, login, logout, password reset requests, profile updates, etc. are logged in a dedicated database table called <code>user_logs</code>.</li>
-<li>In addition to this, all requests and responses are logged to log files using <code>morgan</code> middleware. This includes details like the HTTP method, endpoint accessed, response status code, and response time. This is useful for monitoring and debugging purposes.</li>
-<li>Sensitive information like passwords and tokens are never logged.</li>
+<li>Significant actions (user registration, login, logout, password reset requests, profile updates, token refresh, email verification events, etc.) are logged in a dedicated database table <code>user_logs</code>.</li>
+<li>In addition, all HTTP requests are logged to rotating log files (via a Winston-based logger) with method, path, status, response time, and limited metadata. This is helpful for monitoring and debugging.</li>
+<li>Sensitive information (passwords, tokens, secrets, Authorization headers, etc.) is never logged. Potentially secret-like fields are redacted in both file and DB logs.</li>
 </ul>
 <h1 id="response-format">Response Format</h1>
 <p>All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically.</p>
@@ -198,8 +246,8 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h1 id="root-endpoint-health-check">Root Endpoint (Health Check)</h1>
-<p><strong>Endpoint:</strong> <code>GET /</code>
-<strong>Access:</strong> Public
+<p><strong>Endpoint:</strong> <code>GET /</code><br>
+<strong>Access:</strong> Public<br>
 <strong>Description:</strong> Returns a welcome message and basic information about the API.</p>
 <p><strong>Example Response:</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -226,9 +274,8 @@
 <h3 id="captcha-protection">CAPTCHA Protection:</h3>
 <p>To prevent automated registrations, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully register. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
 <h3 id="email-verification">Email Verification:</h3>
-<p>After registration, a verification email will be sent to the provided email address. The user must verify their email before they can log in. This is prevent unauthorised access using fake or incorrect email addresses.</p>
+<p>After successful registration, a verification email is sent to the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.</p>
 <h3 id="required-parameters-json-body">Required Parameters (JSON Body):</h3>
-<p>Here’s a clean Markdown table you can paste into your docs:</p>
 <table>
 <thead>
 <tr>
@@ -277,6 +324,397 @@
 </tr>
 </tbody>
 </table>
+<h3 id="notes">Notes:</h3>
+<ul>
+<li>If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.</li>
+</ul>
+<h3 id="examples">Examples:</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token-from-client&gt;&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Str0ng&amp;P@ssw0rd!&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (201 Created):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">201</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;12.34&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User registered successfully. Please verify your email before logging in.&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+		<span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">123</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+	<span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;9.87&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Account already exists but not verified. Verification email has been (re)sent.&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (409 Conflict)</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email already in use&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+		<span class="hljs-string">&quot;The provided email is already associated with another account.&quot;</span>
+	<span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (400 Bad Request)</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.56&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+		<span class="hljs-string">&quot;CAPTCHA verification failed. Please try again.&quot;</span>
+	<span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="resend-email-verification">Resend Email Verification</h2>
+<p><strong>Endpoint:</strong> <code>POST /auth/resend-verification</code><br>
+<strong>Access:</strong> Public (Rate Limited)<br>
+<strong>Description:</strong> Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.</p>
+<h3 id="rate-limiting-1">Rate Limiting:</h3>
+<p>To ensure that this endpoint is not abused, it is rate-limited.<br>
+<strong>Limit:</strong> Maximum of 1 requests per IP address every 5 minutes.</p>
+<h3 id="required-parameters-json-body-1">Required Parameters (JSON Body):</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>email</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="notes-1">Notes:</h3>
+<ul>
+<li>The response is always a generic success message to prevent email enumeration. If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.</li>
+<li>If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.</li>
+<li>If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.</li>
+<li>If the email could not be sent due to a server error, the response will still indicate that a verification email has been sent to avoid revealing whether the email exists in the system.</li>
+</ul>
+<h3 id="examples-1">Examples:</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;60.15&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If you have registered an account with this email address and it is unverified, you will receive a verification email.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;disclaimer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If you did not receive an email when you should have, please check your spam folder or try again later.&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="verify-email">Verify Email</h2>
+<p><strong>Endpoint:</strong> <code>GET /auth/verify-email</code><br>
+<strong>Access:</strong> Public<br>
+<strong>Description:</strong> Verifies a user's email address using the token that was sent via email.</p>
+<h3 id="required-parameters-query-string">Required Parameters (Query String):</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>email</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The verification token sent to the user's email address.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="notes-2">Notes:</h3>
+<ul>
+<li>If the token is valid (not expired or already used) and matches the email, the user's account will be marked as verified. They can then log in.</li>
+<li>If the token is invalid or expired, or the email does not match, an error message will be returned.</li>
+</ul>
+<h3 id="examples-2">Examples:</h3>
+<p><strong>Example Request:</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;25.34&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email verified successfully. You can now log in.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">456</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span> 
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (400 Bad Request)</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Incorrect email address, or invalid or expired token.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+	<span class="hljs-string">&quot;The provided token is invalid or has expired OR the email address is incorrect.&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-string">&quot;Please request a new verification email.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="login">Login</h2>
+<p><strong>Endpoint:</strong> <code>POST /auth/login</code><br>
+<strong>Access:</strong> Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)<br>
+<strong>Description:</strong> Authenticates a user and returns a JWT token for session management.</p>
+<h3 id="rate-limiting-2">Rate Limiting:</h3>
+<p>To ensure that this endpoint is not abused, it is rate-limited.<br>
+<strong>Limit:</strong> Maximum of 10 requests per IP address every 10 minutes.</p>
+<h3 id="captcha-protection-1">CAPTCHA Protection:</h3>
+<p>To prevent automated login attempts, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully log in. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
+<h3 id="required-parameters-json-body-2">Required Parameters (JSON Body):</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>CAPTCHA token from the client-side challenge, used to verify that the request is human.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The user's registered email address.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The user's password.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="notes-3">Notes:</h3>
+<ul>
+<li>If the email is not verified, the login will fail. The user should first verify their email address before they can log in.</li>
+<li>The email and password fields are not validated for format or length to avoid giving hints to attackers. Both fields must still be provided and non-empty.</li>
+<li>If the email or password is incorrect, a generic error message is returned to avoid revealing which part was wrong.</li>
+</ul>
+<h3 id="examples-3">Examples:</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token-from-client&gt;&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;StrongPassword@123&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;45.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Login successful.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;accessToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;jwt-access-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;user&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+	  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">456</span><span class="hljs-punctuation">,</span>
+	  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
+	  <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Peter Parker&quot;</span><span class="hljs-punctuation">,</span>
+	  <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Peter&quot;</span><span class="hljs-punctuation">,</span>
+	  <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+	  <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+	<span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (401 Unauthorized)</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;30.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid email or password.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+	<span class="hljs-string">&quot;The provided email or password is incorrect.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="refresh-token">Refresh Token</h2>
+<p><strong>Endpoint:</strong> <code>POST /auth/refresh-token</code><br>
+<strong>Access:</strong> Public<br>
+<strong>Description:</strong> Generates a new access token using a valid refresh token.</p>
+<h3 id="required-parameters-json-body-3">Required Parameters (JSON Body):</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>refreshToken</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The refresh token to be used for generating a new access token.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples-4">Examples:</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;25.34&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Access token refreshed.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;accessToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;new-jwt-access-token&gt;&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="logout">Logout</h2>
+<p><strong>Endpoint:</strong> <code>POST /auth/logout</code><br>
+<strong>Access:</strong> Authenticated Users<br>
+<strong>Description:</strong> Logs out the user by invalidating their refresh token.</p>
+<h3 id="required-parameters-json-body-4">Required Parameters (JSON Body):</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>refreshToken</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The refresh token to be invalidated.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="required-headers">Required Headers:</h3>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Type</th>
+<th>Required</th>
+<th>Format</th>
+<th>Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td><code>Bearer &lt;token&gt;</code></td>
+<td>Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="notes-4">Notes:</h3>
+<ul>
+<li>To log out, the user must provide their refresh token in the request body and a valid access token in the <code>Authorization</code> header. The tokens must belong to the same user.</li>
+<li>If the refresh token is invalid or does not belong to the user, an error message will be returned.</li>
+<li>If the access token is missing or invalid, an error will be returned.</li>
+</ul>
+<h3 id="examples-5">Examples:</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;20.45&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Logged out successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 
             
             

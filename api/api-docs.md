@@ -40,7 +40,14 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 		- [Required Parameters (JSON Body):](#required-parameters-json-body-2)
 		- [Notes:](#notes-3)
 		- [Examples:](#examples-3)
+	- [Refresh Token](#refresh-token)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-3)
+		- [Examples:](#examples-4)
 	- [Logout](#logout)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-4)
+		- [Required Headers:](#required-headers)
+		- [Notes:](#notes-4)
+		- [Examples:](#examples-5)
 
 # Logging
 
@@ -93,9 +100,9 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 
 # Root Endpoint (Health Check)
 
-**Endpoint:** `GET /`
-**Access:** Public
-**Description:** Returns a welcome message and basic information about the API.
+**Endpoint:** `GET /`  
+**Access:** Public  
+**Description:** Returns a welcome message and basic information about the API.  
 
 **Example Response:**
 ```json
@@ -138,8 +145,6 @@ To prevent automated registrations, this endpoint is protected by CAPTCHA. Users
 After successful registration, a verification email is sent to the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.
 
 ### Required Parameters (JSON Body):
-
-Here’s a clean Markdown table you can paste into your docs:
 
 | Parameter | Type | Required | Description and Details | Default |
 |-----------|------|----------|-------------------------|---------|
@@ -228,7 +233,7 @@ Here’s a clean Markdown table you can paste into your docs:
 ## Resend Email Verification
 
 **Endpoint:** `POST /auth/resend-verification`  
-**Access:** Public (Rate Limited)
+**Access:** Public (Rate Limited)  
 **Description:** Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.
 
 ### Rate Limiting:
@@ -238,9 +243,9 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 ### Required Parameters (JSON Body):
 
-| Parameter | Type | Required | Description and Details | Default |
-|-----------|------|----------|-------------------------|---------|
-| `email` | String | **Yes** | The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `email` | String | **Yes** | The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
 
 ### Notes:
 
@@ -275,16 +280,16 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 ## Verify Email
 
-**Endpoint:** `GET /auth/verify-email`
-**Access:** Public 
+**Endpoint:** `GET /auth/verify-email`  
+**Access:** Public  
 **Description:** Verifies a user's email address using the token that was sent via email.
 
 ### Required Parameters (Query String):
 
-| Parameter | Type | Required | Description and Details | Default |
-|-----------|------|----------|-------------------------|---------|
-| `email` | String | **Yes** | The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. | |
-| `token` | String | **Yes** | The verification token sent to the user's email address. | |
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `email` | String | **Yes** | The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. |
+| `token` | String | **Yes** | The verification token sent to the user's email address. |
 
 ### Notes:
 
@@ -334,7 +339,7 @@ To ensure that this endpoint is not abused, it is rate-limited.
 ## Login
 
 **Endpoint:** `POST /auth/login`  
-**Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
+**Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)  
 **Description:** Authenticates a user and returns a JWT token for session management.
 
 ### Rate Limiting:
@@ -347,11 +352,11 @@ To ensure that this endpoint is not abused, it is rate-limited.
 To prevent automated login attempts, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully log in. The `captchaToken` as provided by the client must be included in the request body.
 
 ### Required Parameters (JSON Body):
-| Parameter | Type | Required | Description and Details | Default |
-|-----------|------|----------|-------------------------|---------|
-| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. | |
-| `email` | String | **Yes** | The user's registered email address. | |
-| `password` | String | **Yes** | The user's password. | |
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
+| `email` | String | **Yes** | The user's registered email address. |
+| `password` | String | **Yes** | The user's password. |
 
 ### Notes:
 
@@ -407,9 +412,85 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 }
 ```
 
+## Refresh Token
+
+**Endpoint:** `POST /auth/refresh-token`  
+**Access:** Public  
+**Description:** Generates a new access token using a valid refresh token.
+
+### Required Parameters (JSON Body):
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `refreshToken` | String | **Yes** | The refresh token to be used for generating a new access token. |
+
+### Examples:
+
+**Example Request (JSON Object):**
+```json
+{
+	"refreshToken": "<refresh-token>"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "25.34",
+  "message": "Access token refreshed.",
+  "data": {
+	"accessToken": "<new-jwt-access-token>"
+  },
+  "errors": []
+}
+```
+
 ## Logout
 
 **Endpoint:** `POST /auth/logout`  
 **Access:** Authenticated Users  
 **Description:** Logs out the user by invalidating their refresh token.  
+
+### Required Parameters (JSON Body):
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `refreshToken` | String | **Yes** | The refresh token to be invalidated. |
+
+### Required Headers:
+
+| Header | Type | Required | Format | Description and Details |
+|--------|------|----------|--------|-------------------------|
+| `Authorization` | String | **Yes**| `Bearer <token>` | Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically. |
+
+### Notes:
+
+- To log out, the user must provide their refresh token in the request body and a valid access token in the `Authorization` header. The tokens must belong to the same user.
+- If the refresh token is invalid or does not belong to the user, an error message will be returned.
+- If the access token is missing or invalid, an error will be returned.
+
+### Examples:
+
+**Example Request (JSON Object):**
+```json
+{
+	"refreshToken": "<refresh-token>"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "20.45",
+  "message": "Logged out successfully.",
+  "data": {},
+  "errors": []
+}
+```
+
+
 
