@@ -16,8 +16,8 @@ function getResponseTime(request) {
 // 	},
 // 	"errors": [] // Always an empty array on success
 // }
-function successResponse(response, httpCode = 200, message = "Success", data = {}) {
-  return response.status(httpCode).json({
+function successResponse(res, httpCode = 200, message = "Success", data = {}) {
+  return res.status(httpCode).json({
     status: "success",
     httpCode,
     responseTime: getResponseTime(res.req),
@@ -39,14 +39,14 @@ function successResponse(response, httpCode = 200, message = "Success", data = {
 // 		"Specific error message 2."
 //   	]
 // }
-function errorResponse(response, httpCode = 500, message = "An error occurred", errors = []) {
+function errorResponse(res, httpCode = 500, message = "An error occurred", errors = []) {
   if (!Array.isArray(errors)) {
     errors = [errors];
   }
   //Flatten nested error arrays
   errors = errors.flat();
 
-  return response.status(httpCode).json({
+  return res.status(httpCode).json({
     status: "error",
     httpCode,
     responseTime: getResponseTime(response.req),
