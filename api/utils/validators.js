@@ -64,7 +64,7 @@ function validateEmail(email) {
     errors.push("Email must be between 5 and 255 characters.");
   }
   // Simple email regex for format validation
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+  if (!/^(?=.{3,255}$)[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/.test(e)) {
     errors.push("Email format is incorrect.");
   }
   return errors;

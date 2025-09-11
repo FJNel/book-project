@@ -5,6 +5,7 @@ require("dotenv").config();
 
 //Import standard response handlers
 const { successResponse, errorResponse } = require("./utils/response");
+const { logToFile } = require("./utils/logging");
 
 //Start the Express app
 const app = express();
@@ -18,6 +19,25 @@ const authRoutes = require("./routes/auth");
 app.use((request, response, nextFunction) => {
   request._startTime = process.hrtime();
   nextFunction();
+});
+
+// Log all API requests to rotating files
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    const diff = process.hrtime(req._startTime || process.hrtime());
+    const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+    logToFile("HTTP_REQUEST", {
+      method: req.method,
+      path: req.originalUrl || req.url,
+      status: res.statusCode,
+      duration_ms: durationMs,
+      ip: req.ip,
+      user_agent: req.get("user-agent"),
+      user_id: (req.user && req.user.id) || null,
+      request_object: req.body ? (Object.keys(req.body).length > 0 ? "[REDACTED]" : "{}") : null
+    });
+  });
+  next();
 });
 
 //Trust proxy headers for rate-limiting
@@ -52,6 +72,12 @@ app.use((req, res) => {
 //Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  // Optionally also log unhandled errors to file
+  logToFile("UNHANDLED_ERROR", {
+    message: err.message,
+    stack: process.env.NODE_ENV === "production" ? undefined : err.stack
+  }, "error");
+
   return errorResponse(res, 500, "Internal Server Error", [
     "An unexpected error occurred",
     err.message
