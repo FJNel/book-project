@@ -48,6 +48,18 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 		- [Required Headers:](#required-headers)
 		- [Notes:](#notes-4)
 		- [Examples:](#examples-5)
+	- [Request Password Reset Email](#request-password-reset-email)
+		- [Rate Limiting:](#rate-limiting-3)
+		- [CAPTCHA Protection:](#captcha-protection-2)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-5)
+		- [Notes:](#notes-5)
+		- [Examples:](#examples-6)
+	- [Reset Password](#reset-password)
+		- [Rate Limiting:](#rate-limiting-4)
+		- [CAPTCHA Protection:](#captcha-protection-3)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-6)
+		- [Notes:](#notes-6)
+		- [Examples:](#examples-7)
 
 # Logging
 
@@ -245,6 +257,7 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
 | `email` | String | **Yes** | The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
 
 ### Notes:
@@ -492,5 +505,104 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 }
 ```
 
+## Request Password Reset Email
 
+**Endpoint:** `POST /auth/request-password-reset`  
+**Access:** Public (Rate Limited) (CAPTCHA Protected)  
+**Description:** Sends a password reset email to the user if the email exists in the system.
 
+### Rate Limiting:
+
+To ensure that this endpoint is not abused, it is rate-limited.  
+**Limit:** Maximum of 1 request per IP address every 5 minutes.
+
+### CAPTCHA Protection:
+
+To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully request a password reset. The `captchaToken` as provided by the client must be included in the request body.
+
+### Required Parameters (JSON Body):
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
+| `email` | String | **Yes** | The registered email address to send the password reset link to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
+
+### Notes:
+
+- The response is always a generic success message to prevent email enumeration. If the email does not exist, the response will still indicate that a password reset email has been sent. 
+- If the email could not be sent due to a server error, the response will still indicate that a password reset email has been sent to avoid revealing whether the email exists in the system.
+
+### Examples:
+
+**Example Request (JSON Object):**
+```json
+{
+	"captchaToken": "<captcha-token>",
+	"email": "<user-email>"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "30.12",
+  "message": "Password reset email sent.",
+  "data": {},
+  "errors": []
+}
+```
+
+## Reset Password
+
+**Endpoint:** `POST /auth/reset-password`  
+**Access:** Public (Rate Limited) (CAPTCHA Protected)  
+**Description:** Resets the user's password using the token sent to their email.
+
+### Rate Limiting:
+
+To ensure that this endpoint is not abused, it is rate-limited.  
+**Limit:** Maximum of 1 request per IP address every 5 minutes.
+
+### CAPTCHA Protection:
+
+To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully reset their password. The `captchaToken` as provided by the client must be included in the request body.
+
+### Required Parameters (JSON Body):
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
+| `email` | String | **Yes** | The registered email address associated with the account. It must be between 5 and 255 characters and follow standard email formatting rules. |
+| `token` | String | **Yes** | The password reset token sent to the user's email address. |
+| `newPassword` | String | **Yes** | The new password for the user's account. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. |
+
+### Notes:
+
+- If the token is valid (not expired or already used) and matches the email, the user's password will be updated. All existing refresh tokens for the user will be revoked, requiring re-authentication.
+- If the token is invalid or expired, or the email does not match, an error message will be returned.
+
+### Examples:
+
+**Example Request (JSON Object):**
+```json
+{
+	"captchaToken": "<captcha-token>",
+	"email": "peter@example.com",
+	"token": "<reset-token>",
+	"newPassword": "<new-password>"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "30.12",
+  "message": "Password has been reset successfully.",
+  "data": {},
+  "errors": []
+}
+```

@@ -18,7 +18,7 @@ const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { logUserAction, logToFile } = require("../utils/logging");
-const { sendVerificationEmail } = require("../utils/email");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/email");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, requiresAuth } = require("../utils/jwt");
 const { v4: uuidv4 } = require("uuid");
 
@@ -33,6 +33,20 @@ const registerLimiter = rateLimit({
   });
 
 const emailVerificationLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, //5 minutes
+	max: 5, // 5 requests
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false
+  });
+
+  const passwordVerificationLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, //5 minutes
+	max: 1, // 1 request
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false
+  });
+
+  const passwordResetLimiter = rateLimit({
 	windowMs: 5 * 60 * 1000, //5 minutes
 	max: 1, // 1 request
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
@@ -331,11 +345,20 @@ async function maybeDelay(start, minMs, jitterMs = 400) {
 }
 
 // POST auth/resend-verification: Resend email verification for existing, unverified users
-router.post("/resend-verification", async (req, res) => {
+router.post("/resend-verification", emailVerificationLimiter, async (req, res) => {
     const start = Date.now();
 	const MIN_RESPONSE_MS = 600; //Mitigates timing attacks
 
-	let { email } = req.body || {};
+	let { email, captchaToken } = req.body || {};
+
+	//Verify CAPTCHA before doing anything else
+	const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+	if (!captchaValid) {
+	await logUserAction({ userId: null, action: "EMAIL_VERIFICATION", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
+	logToFile("EMAIL_VERIFICATION", { reason: "CAPTCHA_FAILED", email }, "warn");
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["CAPTCHA verification failed. Please try again.", "Make sure that you provided a captchaToken in your request."]);
+	}
+
     email = email ? email.trim().toLowerCase() : null;
 
     const emailErrors = validateEmail(email);
@@ -753,27 +776,282 @@ router.post("/refresh-token", async (req, res) => {
 	}
 });
 
-// Temporary test endpoint: POST /auth/test-email
-router.post("/test-email", emailVerificationLimiter, async (req, res) => {
-  const { email, preferredName } = req.body || {};
-  const testToken = crypto.randomBytes(32).toString("hex");
 
-  if (!email) {
-    return errorResponse(res, 400, "Email required", ["Please provide an email address in the request body."]);
-  }
 
-  try {
-    const sent = await sendVerificationEmail(email, testToken, preferredName);
-    if (sent) {
-      return successResponse(res, 200, "Test verification email sent.", { email });
-    } else {
-      return errorResponse(res, 500, "Failed to send test email", ["Email service error."]);
+//POST auth/request-password-reset: Request a password reset email
+router.post("/request-password-reset", passwordVerificationLimiter, async (req, res) => {
+    const start = Date.now();
+    const MIN_RESPONSE_MS = 600; // Mitigate timing attacks
+
+    let { email, captchaToken } = req.body || {};
+
+    // CAPTCHA check
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    if (!captchaValid) {
+        await logUserAction({ userId: null, action: "PASSWORD_RESET_REQUEST", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
+        logToFile("PASSWORD_RESET_REQUEST", { reason: "CAPTCHA_FAILED", email }, "warn");
+        return errorResponse(res, 400, "CAPTCHA verification failed", ["CAPTCHA verification failed. Please try again.", "Make sure that you provided a captchaToken in your request."]);
     }
-  } catch (err) {
-    return errorResponse(res, 500, "Error sending test email", [err.message]);
-  }
+
+    email = email ? email.trim().toLowerCase() : null;
+    const emailErrors = validateEmail(email);
+    const generalMessage = {
+        message: "If you have registered an account with this email address, you will receive a password reset email.",
+        disclaimer: "If you did not receive an email when you should have, please check your spam folder or try again later."
+    };
+
+    if (emailErrors.length > 0) {
+        await logUserAction({
+            userId: null,
+            action: "PASSWORD_RESET_REQUEST",
+            status: "FAILURE",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            errorMessage: "Validation Error",
+            details: { email, errors: emailErrors }
+        });
+        logToFile("PASSWORD_RESET_REQUEST", { reason: "VALIDATION", email, errors: emailErrors }, "warn");
+        return errorResponse(res, 400, "Validation Error", emailErrors);
+    }
+
+    try {
+        const userRes = await pool.query("SELECT id, preferred_name FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) {
+            // Log attempt, but respond generically
+            await logUserAction({
+                userId: null,
+                action: "PASSWORD_RESET_REQUEST",
+                status: "INFO",
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
+                errorMessage: "Password reset requested for non-existent email",
+                details: { email }
+            });
+            logToFile("PASSWORD_RESET_REQUEST", { reason: "NONEXISTENT_EMAIL", email }, "info");
+            await maybeDelay(start, MIN_RESPONSE_MS);
+            return successResponse(res, 200, generalMessage);
+        }
+
+        const user = userRes.rows[0];
+        // Try to get an active password reset token or create a new one
+        const existing = await pool.query(
+            `SELECT token, expires_at
+             FROM verification_tokens
+             WHERE user_id = $1
+               AND token_type = 'password_reset'
+               AND used = false
+               AND expires_at > NOW()
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [user.id]
+        );
+
+        let token, expiresAt, reused;
+        if (existing.rows.length > 0) {
+            token = existing.rows[0].token;
+            expiresAt = existing.rows[0].expires_at;
+            reused = true;
+        } else {
+            token = crypto.randomBytes(32).toString("hex");
+            expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+            await pool.query(
+                `INSERT INTO verification_tokens (user_id, token, token_type, expires_at, used, created_at)
+                 VALUES ($1, $2, 'password_reset', $3, false, NOW())`,
+                [user.id, token, expiresAt]
+            );
+            reused = false;
+        }
+
+        await logUserAction({
+            userId: user.id,
+            action: "PASSWORD_RESET_REQUEST",
+            status: "SUCCESS",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            details: { email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN", trigger: "REQUEST_PASSWORD_RESET" }
+        });
+        logToFile("PASSWORD_RESET_REQUEST", { user_id: user.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN" }, "info");
+
+        // Send password reset email (implement sendPasswordResetEmail similar to sendVerificationEmail)
+        const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+        await sendPasswordResetEmail(email, token, user.preferred_name, expiresIn);
+        await maybeDelay(start, MIN_RESPONSE_MS);
+        return successResponse(res, 200, generalMessage);
+    } catch (e) {
+        await logUserAction({
+            userId: null,
+            action: "PASSWORD_RESET_REQUEST",
+            status: "FAILURE",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            errorMessage: e.message,
+            details: { email, trigger: "REQUEST_PASSWORD_RESET" }
+        });
+        logToFile("PASSWORD_RESET_REQUEST", { error: e.message, email }, "error");
+        await maybeDelay(start, MIN_RESPONSE_MS);
+        return successResponse(res, 200, generalMessage);
+    }
 });
 
-// ...existing
+//POST auth/reset-password: Reset password using the token sent to user's email
+router.post("/reset-password", passwordResetLimiter, async (req, res) => {
+    let { email, token, newPassword, captchaToken } = req.body || {};
+
+    // CAPTCHA check
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    if (!captchaValid) {
+        await logUserAction({ userId: null, action: "PASSWORD_RESET_SUCCESS", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
+        logToFile("PASSWORD_RESET_SUCCESS", { reason: "CAPTCHA_FAILED", email }, "warn");
+        return errorResponse(res, 400, "CAPTCHA verification failed", ["CAPTCHA verification failed. Please try again.", "Make sure that you provided a captchaToken in your request."]);
+    }
+
+    email = email ? email.trim().toLowerCase() : null;
+    token = token ? token.trim() : null;
+    newPassword = newPassword ? newPassword.trim() : null;
+
+    // Validate input
+    const errors = [
+        ...validateEmail(email),
+        ...(typeof token !== "string" || token.length < 10 ? ["A valid password reset token must be provided."] : []),
+        ...validatePassword(newPassword)
+    ].filter(Boolean);
+
+    if (errors.length > 0) {
+        await logUserAction({
+            userId: null,
+            action: "PASSWORD_RESET_SUCCESS",
+            status: "FAILURE",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            errorMessage: "Validation Error",
+            details: { email, errors }
+        });
+        logToFile("PASSWORD_RESET_SUCCESS", { reason: "VALIDATION", email, errors }, "warn");
+        return errorResponse(res, 400, "Validation Error", errors);
+    }
+
+    try {
+        // Find user by email
+        const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) {
+            await logUserAction({
+                userId: null,
+                action: "PASSWORD_RESET_SUCCESS",
+                status: "FAILURE",
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
+                errorMessage: "No user found for email",
+                details: { email }
+            });
+            logToFile("PASSWORD_RESET_SUCCESS", { reason: "NO_USER", email }, "warn");
+            return errorResponse(res, 400, "Incorrect email address, or invalid or expired token.", [
+                "The provided token is invalid or has expired OR the email address is incorrect.",
+                "Please request a new password reset email."
+            ]);
+        }
+
+        const user = userRes.rows[0];
+
+        // Find token
+        const tokenRes = await pool.query(
+            `SELECT id, user_id, expires_at, used
+             FROM verification_tokens
+             WHERE user_id = $1
+               AND token_type = 'password_reset'
+               AND token = $2
+             LIMIT 1`,
+            [user.id, token]
+        );
+
+        if (
+            tokenRes.rows.length === 0 ||
+            tokenRes.rows[0].used ||
+            new Date(tokenRes.rows[0].expires_at) < new Date()
+        ) {
+            await logUserAction({
+                userId: user.id,
+                action: "PASSWORD_RESET_SUCCESS",
+                status: "FAILURE",
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
+                errorMessage: "Invalid or expired token",
+                details: { email, token }
+            });
+            logToFile("PASSWORD_RESET_SUCCESS", { reason: "INVALID_OR_EXPIRED_TOKEN", email }, "warn");
+            return errorResponse(res, 400, "Incorrect email address, or invalid or expired token.", [
+                "The provided token is invalid or has expired OR the email address is incorrect.",
+                "Please request a new password reset email."
+            ]);
+        }
+
+        // Mark token as used and update password in a transaction
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+            await client.query(
+                `UPDATE verification_tokens SET used = true WHERE id = $1 AND token_type = 'password_reset' AND used = false`,
+                [tokenRes.rows[0].id]
+            );
+            const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+            await client.query(
+                `UPDATE users SET password_hash = $1 WHERE id = $2`,
+                [passwordHash, user.id]
+            );
+
+			await client.query(
+				`UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false`,
+				[user.id]
+			);
+
+            await client.query("COMMIT");
+
+            await logUserAction({
+                userId: user.id,
+                action: "PASSWORD_RESET_SUCCESS",
+                status: "SUCCESS",
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
+                details: { email }
+            });
+            logToFile("PASSWORD_RESET_SUCCESS", { user_id: user.id, email, reset: true }, "info");
+
+            return successResponse(res, 200, "Password reset successfully. You can now log in.", {
+                id: user.id,
+                email
+            });
+        } catch (e) {
+            await client.query("ROLLBACK");
+            await logUserAction({
+                userId: user.id,
+                action: "PASSWORD_RESET_SUCCESS",
+                status: "FAILURE",
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
+                errorMessage: e.message,
+                details: { email, token }
+            });
+            logToFile("PASSWORD_RESET_SUCCESS", { error: e.message, email }, "error");
+            return errorResponse(res, 500, "Database error during password reset.", [
+                "An error occurred while resetting your password. Please try again."
+            ]);
+        } finally {
+            client.release();
+        }
+    } catch (e) {
+        await logUserAction({
+            userId: null,
+            action: "PASSWORD_RESET_SUCCESS",
+            status: "FAILURE",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            errorMessage: e.message,
+            details: { email, token }
+        });
+        logToFile("PASSWORD_RESET_SUCCESS", { error: e.message, email }, "error");
+        return errorResponse(res, 500, "Server error.", [
+            "An error occurred while resetting your password. Please try again."
+        ]);
+    }
+});
 
 module.exports = router;
