@@ -101,25 +101,9 @@ function validatePassword(password) {
   return errors;
 }
 
-//Compare Password and ConfirmPassword:
-//Strings
-// Makes sure that the two passwords match exactly.
-function validatePasswordMatch(password, confirmPassword) {
-  const errors = [];
-  if (typeof password !== "string" || typeof confirmPassword !== "string") {
-    errors.push("Both password and confirmPassword must be provided.");
-    return errors;
-  }
-  if (password !== confirmPassword) {
-    errors.push("Passwords do not match.");
-  }
-  return errors;
-}
-
 module.exports = {
   validateFullName,
   validatePreferredName,
   validateEmail,
-  validatePassword,
-  validatePasswordMatch,
+  validatePassword
 };

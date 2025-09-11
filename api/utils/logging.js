@@ -1,35 +1,34 @@
-// Handles logging to rotating files and the user_logs database table.
+// Centralized logging: rotating file logs (Winston) + DB user action logs
 
 const fs = require("fs");
 const path = require("path");
 const winston = require("winston");
 const pool = require("../db");
 
-// ----- Configuration -----
+// ----- Setup log directory -----
 const LOG_DIR = path.join(__dirname, "..", "logs");
 ensureLogsDir(LOG_DIR);
 
-// Winston rotating file transport (size-based)
-const transport = new winston.transports.File({
+// ----- Winston logger (size-based rotation via maxsize/maxFiles) -----
+const fileTransport = new winston.transports.File({
   filename: path.join(LOG_DIR, "app.log"),
-  maxsize: 5 * 1024 * 1024, // 5 MB
-  maxFiles: 5,              // keep last 5 log files
-  tailable: true            // overwrite oldest logs
+  maxsize: 5 * 1024 * 1024, // 5MB per file
+  maxFiles: 5,
+  tailable: true
 });
 
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.json(),
-  transports: [transport]
+  transports: [fileTransport]
 });
 
-// Also log to console in non-production for convenience
 if (process.env.NODE_ENV !== "production") {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-// ----- Validation -----
-const VALID_ACTIONS = [
+// ----- Whitelists (align with DB CHECK constraints) -----
+const VALID_ACTIONS = new Set([
   "LOGIN_ATTEMPT",
   "LOGOUT",
   "PASSWORD_RESET_REQUEST",
@@ -38,37 +37,11 @@ const VALID_ACTIONS = [
   "USER_REGISTERED",
   "USER_UPDATED_PROFILE",
   "TOKEN_REFRESHED"
-];
+]);
 
-const VALID_STATUSES = ["SUCCESS", "FAILURE", "INFO"];
+const VALID_STATUSES = new Set(["SUCCESS", "FAILURE", "INFO"]);
 
-// ----- Sanitization (deep) -----
-function sanitizeInput(value) {
-  try {
-    // Redact strings that look like secrets (if you ever pass raw strings)
-    if (typeof value === "string") return redactIfSecretLike(value);
-
-    if (Array.isArray(value)) {
-      return value.map(sanitizeInput);
-    }
-    if (value && typeof value === "object") {
-      const copy = {};
-      for (const [key, val] of Object.entries(value)) {
-        if (isSecretKey(key)) {
-          copy[key] = "[REDACTED]";
-        } else {
-          copy[key] = sanitizeInput(val);
-        }
-      }
-      return copy;
-    }
-    return value;
-  } catch {
-    // Fallback: never let sanitization throw
-    return "[UNSERIALIZABLE]";
-  }
-}
-
+// ----- Helpers: sanitize -----
 function isSecretKey(key = "") {
   const k = String(key).toLowerCase();
   return (
@@ -83,14 +56,37 @@ function isSecretKey(key = "") {
 }
 
 function redactIfSecretLike(str) {
-  // Very light heuristic; adjust if needed
+  if (typeof str !== "string") return str;
+  // Avoid logging very large strings
   if (str.length > 2000) return "[REDACTED_LARGE_STRING]";
   return str;
 }
 
+function sanitizeInput(value) {
+  try {
+    if (value === null || value === undefined) return value;
+
+    if (typeof value === "string") return redactIfSecretLike(value);
+
+    if (Array.isArray(value)) return value.map(sanitizeInput);
+
+    if (typeof value === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(value)) {
+        out[k] = isSecretKey(k) ? "[REDACTED]" : sanitizeInput(v);
+      }
+      return out;
+    }
+
+    return value;
+  } catch (e) {
+    return "[UNSERIALIZABLE]";
+  }
+}
+
 // ----- File logging -----
 function logToFile(event, data = {}, level = "info") {
-  const safePayload = sanitizeInput(data);
+  const safePayload = sanitizeInput(data || {});
   logger.log({
     level,
     event,
@@ -110,19 +106,12 @@ async function logUserAction({
   details
 }) {
   try {
-    // Validate enums
-    if (!VALID_ACTIONS.includes(action)) {
-      throw new Error(`Invalid action '${action}'. Must be one of: ${VALID_ACTIONS.join(", ")}`);
-    }
-    if (!VALID_STATUSES.includes(status)) {
-      throw new Error(`Invalid status '${status}'. Must be one of: ${VALID_STATUSES.join(", ")}`);
-    }
+    if (!VALID_ACTIONS.has(action)) throw new Error(`Invalid action '${action}'.`);
+    if (!VALID_STATUSES.has(status)) throw new Error(`Invalid status '${status}'.`);
 
-    // Sanitize inputs (never store raw secrets)
     const safeDetails = sanitizeInput(details || {});
-    const safeError = typeof errorMessage === "string" ? redactIfSecretLike(errorMessage) : undefined;
+    const safeError = typeof errorMessage === "string" ? redactIfSecretLike(errorMessage) : null;
 
-    // Insert into DB; cast details to jsonb safely
     await pool.query(
       `INSERT INTO user_logs (user_id, action, status, ip_address, user_agent, error_message, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
@@ -132,14 +121,14 @@ async function logUserAction({
         status,
         ip || null,
         userAgent || null,
-        safeError || null,
+        safeError,
         Object.keys(safeDetails).length ? JSON.stringify(safeDetails) : null
       ]
     );
   } catch (err) {
-    // Fallback to file if DB logging fails or validation fails
+    // Fallback: ensure we don't lose the event
     logToFile("DB_LOG_ERROR", {
-      error: err.message,
+      error: err && err.message ? err.message : String(err),
       userId,
       action,
       status,
@@ -154,10 +143,8 @@ function ensureLogsDir(dir) {
   try {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   } catch (e) {
-    // If directory creation fails, Winston will still try to create the file path on first write
-    // Log to console as last resort
     // eslint-disable-next-line no-console
-    console.error("Failed to ensure logs directory:", e.message);
+    console.error("Failed to ensure logs directory:", e && e.message ? e.message : e);
   }
 }
 
@@ -165,7 +152,5 @@ module.exports = {
   logUserAction,
   logToFile,
   logger,
-  VALID_ACTIONS,
-  VALID_STATUSES,
   sanitizeInput
 };

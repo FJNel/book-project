@@ -23,11 +23,9 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 The API uses a hybrid logging approach.
 
-Significant actions, like user registration, login, logout, password reset requests, profile updates, etc. are logged in a dedicated database table called `user_logs`.
-
-In addition to this, all requests and responses are logged to log files using `morgan` middleware. This includes details like the HTTP method, endpoint accessed, response status code, and response time. This is useful for monitoring and debugging purposes. 
-
-Sensitive information like passwords and tokens are never logged.
+- Significant actions, like user registration, login, logout, password reset requests, profile updates, etc. are logged in a dedicated database table called `user_logs`.
+- In addition to this, all requests and responses are logged to log files using `morgan` middleware. This includes details like the HTTP method, endpoint accessed, response status code, and response time. This is useful for monitoring and debugging purposes.
+- Sensitive information like passwords and tokens are never logged.
 
 # Response Format
 
@@ -72,9 +70,9 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 
 # Root Endpoint (Health Check)
 
-- **Endpoint:** `GET /`
-- **Access:** Public
-- **Description:** Returns a welcome message and basic information about the API.
+**Endpoint:** `GET /`
+**Access:** Public
+**Description:** Returns a welcome message and basic information about the API.
 
 **Example Response:**
 ```json
@@ -99,9 +97,9 @@ The `/auth/` route is used for all authentication-related operations, including 
 
 ## Register
 
-- **Endpoint:** `POST /auth/register`
-- **Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
-- **Description:** Registers a new user in the database.
+**Endpoint:** `POST /auth/register`
+**Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
+**Description:** Registers a new user in the database.
 
 ### Rate Limiting:
 
@@ -118,12 +116,15 @@ After registration, a verification email will be sent to the provided email addr
 
 ### Required Parameters (JSON Body):
 
-Parameter | Type | Required | Description and Details | Default
---- | --- | --- | ---
-`captchaToken` | String | **Yes** | The CAPTCHA token obtained from the client-side CAPTCHA challenge. This is used to verify that the registration request is legitimate and not automated. |
-`fullName` | String | **Yes** | The user's full name. This allows for flexibility in name formats. Must be between 2 and 255 characters. Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed. |
-`preferredName` | String | No | The user's preferred name. This name will be used in UI elements. Must be between 2 and 100 characters. Only alphabetic characters are allowed. | `null`
-`email` | String | **Yes** | The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. **Important:** The email must exist and belong to the user: A verification email will be sent to the provided email address and the user will only be allowed to log in after verifying their email. |
-`password` | String | **Yes** | The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. |
-`confirmPassword` | String | **Yes** | Must match the `password` field exactly. This is to ensure that the user has correctly entered their desired password. |
+Here’s a clean Markdown table you can paste into your docs:
+
+| Parameter | Type | Required | Description and Details | Default |
+|-----------|------|----------|-------------------------|---------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. | |
+| `fullName` | String | **Yes** | The user's full name. This allows for flexibility in name formats. Must be between 2 and 255 characters. Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed. | |
+| `preferredName` | String | No | The user's preferred name. This name will be used in UI elements. Must be between 2 and 100 characters. Only alphabetic characters are allowed. | `null` |
+| `email` | String | **Yes** | The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
+| `password` | String | **Yes** | The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. | |
+
+
 

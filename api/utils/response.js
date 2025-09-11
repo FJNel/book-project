@@ -44,12 +44,19 @@ function errorResponse(res, httpCode = 500, message = "An error occurred", error
     errors = [errors];
   }
   //Flatten nested error arrays
-  errors = errors.flat();
+  try {
+    errors = errors.flat ? errors.flat(Infinity) : errors;
+  } catch (_) {
+    // ignore if not supported; leave as-is
+  }
+  errors = errors
+    .filter(Boolean)
+    .map((e) => (typeof e === "string" ? e : (e && e.message) || String(e)));
 
   return res.status(httpCode).json({
     status: "error",
     httpCode,
-    responseTime: getResponseTime(response.req),
+    responseTime: getResponseTime(res.req),
     message,
     data: {},
     errors

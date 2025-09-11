@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Documentation</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="documentation">Documentation</h1>
+<p>Welcome to the Documentation for my project. This document provides an overview of the API and covers authentication, standard response formats, and all available endpoints. It also provides an overview of how databases are structured. You can access databases indirectly using the API.</p>
+<p>To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests.</p>
+<p><strong>API Location:</strong> <a href="https://api.fjnel.co.za/">https://api.fjnel.co.za/</a><br>
+<strong>API Request and Response Format:</strong> JSON<br>
+<strong>API Request Type:</strong> Depends on the endpoint used (see below for more details)</p>
+<h1 id="table-of-contents">Table of Contents</h1>
+<ul>
+<li><a href="#documentation">Documentation</a></li>
+<li><a href="#table-of-contents">Table of Contents</a></li>
+<li><a href="#response-format">Response Format</a>
+<ul>
+<li><a href="#success-response">Success Response</a></li>
+<li><a href="#error-response">Error Response</a></li>
+</ul>
+</li>
+<li><a href="#root-endpoint-health-check">Root Endpoint (Health Check)</a></li>
+<li><a href="#authentication">Authentication</a>
+<ul>
+<li><a href="#"></a></li>
+</ul>
+</li>
+</ul>
+<h1 id="logging">Logging</h1>
+<p>The API uses a hybrid logging approach.</p>
+<ul>
+<li>Significant actions, like user registration, login, logout, password reset requests, profile updates, etc. are logged in a dedicated database table called <code>user_logs</code>.</li>
+<li>In addition to this, all requests and responses are logged to log files using <code>morgan</code> middleware. This includes details like the HTTP method, endpoint accessed, response status code, and response time. This is useful for monitoring and debugging purposes.</li>
+<li>Sensitive information like passwords and tokens are never logged.</li>
+</ul>
+<h1 id="response-format">Response Format</h1>
+<p>All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically.</p>
+<h2 id="success-response">Success Response</h2>
+<p>Successful requests will return a <code>2xx</code> HTTP status code and a JSON body with the following structure:</p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15.42&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-comment">// Response time in milliseconds</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;A success message&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+		<span class="hljs-comment">// Contains the requested data (e.g., a user object, a list of books)</span>
+	<span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span> <span class="hljs-comment">// Always an empty array on success</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="error-response">Error Response</h2>
+<p>Failed requests will return a <code>4xx</code> or <code>5xx</code> HTTP status code and provide details in the <code>errors</code> array.</p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+	<span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;10.01&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-comment">// Response time in milliseconds</span>
+	<span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;A general error message (e.g., &#x27;Validation Error&#x27;)&quot;</span><span class="hljs-punctuation">,</span>
+	<span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span> <span class="hljs-comment">// Always an empty object on error</span>
+	<span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+		<span class="hljs-string">&quot;Specific error message 1.&quot;</span><span class="hljs-punctuation">,</span>
+		<span class="hljs-string">&quot;Specific error message 2.&quot;</span>
+  	<span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h1 id="root-endpoint-health-check">Root Endpoint (Health Check)</h1>
+<p><strong>Endpoint:</strong> <code>GET /</code>
+<strong>Access:</strong> Public
+<strong>Description:</strong> Returns a welcome message and basic information about the API.</p>
+<p><strong>Example Response:</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1.26&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The API is working!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;timestamp&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11/09/2025, 09:03:54&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;api_documentation_url&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://api.fjnel.co.za/api-docs.html&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h1 id="authentication">Authentication</h1>
+<p>The <code>/auth/</code> route is used for all authentication-related operations, including user registration, login, logout, password reset, and token refresh.</p>
+<h2 id="register">Register</h2>
+<p><strong>Endpoint:</strong> <code>POST /auth/register</code>
+<strong>Access:</strong> Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
+<strong>Description:</strong> Registers a new user in the database.</p>
+<h3 id="rate-limiting">Rate Limiting:</h3>
+<p>To ensure that this endpoint is not abused, it is rate-limited.<br>
+<strong>Limit:</strong> Maximum of 5 requests per IP address every 10 minutes.</p>
+<h3 id="captcha-protection">CAPTCHA Protection:</h3>
+<p>To prevent automated registrations, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully register. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
+<h3 id="email-verification">Email Verification:</h3>
+<p>After registration, a verification email will be sent to the provided email address. The user must verify their email before they can log in. This is prevent unauthorised access using fake or incorrect email addresses.</p>
+<h3 id="required-parameters-json-body">Required Parameters (JSON Body):</h3>
+<p>Here’s a clean Markdown table you can paste into your docs:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>CAPTCHA token from the client-side challenge, used to verify that the request is human.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>fullName</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The user's full name. This allows for flexibility in name formats. Must be between 2 and 255 characters. Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>preferredName</code></td>
+<td>String</td>
+<td>No</td>
+<td>The user's preferred name. This name will be used in UI elements. Must be between 2 and 100 characters. Only alphabetic characters are allowed.</td>
+<td><code>null</code></td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address.</td>
+<td></td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+            
+            
+        </body>
+        </html>
