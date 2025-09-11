@@ -43,7 +43,7 @@ app.use((req, res) => {
     404,
     "Endpoint Not Found",
     [
-      "Endpoint not found",
+      "Endpoint not found!",
       "Make sure that you are also using the correct request type!"
     ]
   );
