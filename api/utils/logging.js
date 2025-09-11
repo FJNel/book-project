@@ -14,13 +14,13 @@ const fileTransport = new winston.transports.File({
   filename: path.join(LOG_DIR, "app.log"),
   maxsize: 5 * 1024 * 1024, // 5MB per file
   maxFiles: 5,
-  tailable: true
+  tailable: true,
 });
 
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.json(),
-  transports: [fileTransport]
+  transports: [fileTransport],
 });
 
 if (process.env.NODE_ENV !== "production") {
@@ -36,7 +36,7 @@ const VALID_ACTIONS = new Set([
   "EMAIL_VERIFICATION",
   "USER_REGISTERED",
   "USER_UPDATED_PROFILE",
-  "TOKEN_REFRESHED"
+  "TOKEN_REFRESHED",
 ]);
 
 const VALID_STATUSES = new Set(["SUCCESS", "FAILURE", "INFO"]);
@@ -61,18 +61,33 @@ function redactIfSecretLike(str) {
   return str;
 }
 
-function sanitizeInput(value) {
+/**
+ * Recursively sanitizes an input value.
+ * - Redacts object values if their key is a secret key.
+ * - **Crucially, attempts to parse string values as JSON to sanitize nested sensitive data.**
+ * - Redacts large strings.
+ * - Maps over arrays to sanitize their elements.
+ */
+function sanitizeInput(value, keyHint = null) {
   try {
     if (value === null || value === undefined) return value;
 
-    if (typeof value === "string") return redactIfSecretLike(value);
+    if (typeof value === "string") {
+      // If this field is marked secret → redact
+      if (isSecretKey(keyHint)) return "[REDACTED]";
+      // If it's just a huge blob → avoid log spam
+      if (value.length > 2000) return "[REDACTED_LARGE_STRING]";
+      return value;
+    }
 
-    if (Array.isArray(value)) return value.map(sanitizeInput);
+    if (Array.isArray(value)) {
+      return value.map((v) => sanitizeInput(v));
+    }
 
     if (typeof value === "object") {
       const out = {};
       for (const [k, v] of Object.entries(value)) {
-        out[k] = isSecretKey(k) ? "[REDACTED]" : sanitizeInput(v);
+        out[k] = sanitizeInput(v, k);
       }
       return out;
     }
@@ -90,7 +105,7 @@ function logToFile(event, data = {}, level = "info") {
     level,
     event,
     timestamp: new Date().toISOString(),
-    ...safePayload
+    ...safePayload,
   });
 }
 
@@ -102,7 +117,7 @@ async function logUserAction({
   ip,
   userAgent,
   errorMessage,
-  details
+  details,
 }) {
   try {
     if (!VALID_ACTIONS.has(action)) throw new Error(`Invalid action '${action}'.`);
@@ -121,7 +136,7 @@ async function logUserAction({
         ip || null,
         userAgent || null,
         safeError,
-        Object.keys(safeDetails).length ? JSON.stringify(safeDetails) : null
+        Object.keys(safeDetails).length ? JSON.stringify(safeDetails) : null,
       ]
     );
   } catch (err) {
@@ -131,7 +146,7 @@ async function logUserAction({
       action,
       status,
       ip,
-      userAgent
+      userAgent,
     }, "error");
   }
 }
@@ -150,5 +165,5 @@ module.exports = {
   logUserAction,
   logToFile,
   logger,
-  sanitizeInput
+  sanitizeInput,
 };

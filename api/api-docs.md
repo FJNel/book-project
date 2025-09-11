@@ -12,12 +12,35 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 - [Documentation](#documentation)
 - [Table of Contents](#table-of-contents)
+- [Logging](#logging)
 - [Response Format](#response-format)
 	- [Success Response](#success-response)
 	- [Error Response](#error-response)
 - [Root Endpoint (Health Check)](#root-endpoint-health-check)
 - [Authentication](#authentication)
-	- [](#)
+	- [Register](#register)
+		- [Rate Limiting:](#rate-limiting)
+		- [CAPTCHA Protection:](#captcha-protection)
+		- [Email Verification:](#email-verification)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body)
+		- [Notes:](#notes)
+		- [Examples:](#examples)
+	- [Resend Email Verification](#resend-email-verification)
+		- [Rate Limiting:](#rate-limiting-1)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-1)
+		- [Notes:](#notes-1)
+		- [Examples:](#examples-1)
+	- [Verify Email](#verify-email)
+		- [Required Parameters (Query String):](#required-parameters-query-string)
+		- [Notes:](#notes-2)
+		- [Examples:](#examples-2)
+	- [Login](#login)
+		- [Rate Limiting:](#rate-limiting-2)
+		- [CAPTCHA Protection:](#captcha-protection-1)
+		- [Required Parameters (JSON Body):](#required-parameters-json-body-2)
+		- [Notes:](#notes-3)
+		- [Examples:](#examples-3)
+	- [Logout](#logout)
 
 # Logging
 
@@ -112,7 +135,7 @@ To prevent automated registrations, this endpoint is protected by CAPTCHA. Users
 
 ### Email Verification:
 
-After successful registration, a verification email is issued for the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.
+After successful registration, a verification email is sent to the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.
 
 ### Required Parameters (JSON Body):
 
@@ -126,7 +149,13 @@ Here’s a clean Markdown table you can paste into your docs:
 | `email` | String | **Yes** | The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
 | `password` | String | **Yes** | The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. | |
 
-### Example Request Object
+### Notes:
+
+- If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.
+
+### Examples:
+
+**Example Request (JSON Object):**
 ```json
 {
 	"captchaToken": "<captcha-token-from-client>",
@@ -137,7 +166,7 @@ Here’s a clean Markdown table you can paste into your docs:
 }
 ```
 
-### Example Success Response (201 Created):
+**Example Success Response (201 Created):**
 ```json
 {
 	"status": "success",
@@ -156,21 +185,7 @@ Here’s a clean Markdown table you can paste into your docs:
 }
 ```
 
-### Example Request Object
-
-If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK (no new account is created):
-
-```json
-{
-	"captchaToken": "<captcha-token-from-client>",
-	"fullName": "Jane Doe",
-	"preferredName": "Jane",
-	"email": "unverified@example.com",
-	"password": "Str0ng&P@ssw0rd!"
-}
-```
-
-### Example Success Response (201 OK):
+**Example Success Response (200 OK):**
 ```json
 {
 	"status": "success",
@@ -182,10 +197,7 @@ If the email already exists but is not verified, a verification email is (re)sen
 }
 ```
 
-### Example Error Response (409 Conflict)
-
-Example error when the email is already verified and in use:
-
+**Example Error Response (409 Conflict)**
 ```json
 {
 	"status": "error",
@@ -199,10 +211,7 @@ Example error when the email is already verified and in use:
 }
 ```
 
-### Example Error Response (400 Bad Request)
-
-Example error when CAPTCHA fails:
-
+**Example Error Response (400 Bad Request)**
 ```json
 {
 	"status": "error",
@@ -219,68 +228,188 @@ Example error when CAPTCHA fails:
 ## Resend Email Verification
 
 **Endpoint:** `POST /auth/resend-verification`  
-**Access:** Public  
+**Access:** Public (Rate Limited)
 **Description:** Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.
+
+### Rate Limiting:
+
+To ensure that this endpoint is not abused, it is rate-limited.  
+**Limit:** Maximum of 1 requests per IP address every 5 minutes.
 
 ### Required Parameters (JSON Body):
 
 | Parameter | Type | Required | Description and Details | Default |
 |-----------|------|----------|-------------------------|---------|
-| `email` | String | **Yes** | The registered email address to resend the verification to. | |
+| `email` | String | **Yes** | The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
 
-### Example Request
+### Notes:
 
-```http
-POST /auth/resend-verification
-Content-Type: application/json
+- The response is always a generic success message to prevent email enumeration. If the email does not exist or is already verified, the response will still indicate that a verification email has been sent. 
+- If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.
+- If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.
+- If the email could not be sent due to a server error, the response will still indicate that a verification email has been sent to avoid revealing whether the email exists in the system.
 
-{
-	"email": "jane@example.com"
-}
-```
+### Examples:
 
-Example success response (200 OK):
-
+**Example Request (JSON Object):**
 ```json
 {
-	"status": "success",
-	"httpCode": 200,
-	"responseTime": "7.42",
-	"message": "Verification email has been (re)sent.",
-	"data": {},
-	"errors": []
+	"email": "peter@example.com"
 }
 ```
 
-Example error when the account does not exist (404 Not Found):
-
+**Example Success Response (200 OK):**
 ```json
 {
-	"status": "error",
-	"httpCode": 404,
-	"responseTime": "2.11",
-	"message": "User not found",
-	"data": {},
-	"errors": [
-		"No account is registered with this email."
-	]
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "60.15",
+  "message": {
+    "message": "If you have registered an account with this email address and it is unverified, you will receive a verification email.",
+    "disclaimer": "If you did not receive an email when you should have, please check your spam folder or try again later."
+  },
+  "data": {},
+  "errors": []
 }
 ```
 
-Example error when the account is already verified (400 Bad Request):
+## Verify Email
 
+**Endpoint:** `GET /auth/verify-email`
+**Access:** Public 
+**Description:** Verifies a user's email address using the token that was sent via email.
+
+### Required Parameters (Query String):
+
+| Parameter | Type | Required | Description and Details | Default |
+|-----------|------|----------|-------------------------|---------|
+| `email` | String | **Yes** | The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. | |
+| `token` | String | **Yes** | The verification token sent to the user's email address. | |
+
+### Notes:
+
+- If the token is valid (not expired or already used) and matches the email, the user's account will be marked as verified. They can then log in.
+- If the token is invalid or expired, or the email does not match, an error message will be returned.
+
+### Examples:
+
+**Example Request:**
 ```json
 {
-	"status": "error",
-	"httpCode": 400,
-	"responseTime": "3.05",
-	"message": "Email already verified",
-	"data": {},
-	"errors": [
-		"This account is already verified."
-	]
+	"email": "peter@example.com",
+	"token": "<verification-token>"
 }
 ```
 
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "25.34",
+  "message": "Email verified successfully. You can now log in.",
+  "data": {
+	"id": 456,
+	"email": "peter@example.com"
+  }, 
+  "errors": []
+}
+```
 
+**Example Error Response (400 Bad Request)**
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "15.67",
+  "message": "Incorrect email address, or invalid or expired token.",
+  "data": {},
+  "errors": [
+	"The provided token is invalid or has expired OR the email address is incorrect.",
+	"Please request a new verification email."
+  ]
+}
+```
+
+## Login
+
+**Endpoint:** `POST /auth/login`  
+**Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
+**Description:** Authenticates a user and returns a JWT token for session management.
+
+### Rate Limiting:
+
+To ensure that this endpoint is not abused, it is rate-limited.  
+**Limit:** Maximum of 10 requests per IP address every 10 minutes.
+
+### CAPTCHA Protection:
+
+To prevent automated login attempts, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully log in. The `captchaToken` as provided by the client must be included in the request body.
+
+### Required Parameters (JSON Body):
+| Parameter | Type | Required | Description and Details | Default |
+|-----------|------|----------|-------------------------|---------|
+| `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. | |
+| `email` | String | **Yes** | The user's registered email address. | |
+| `password` | String | **Yes** | The user's password. | |
+
+### Notes:
+
+- If the email is not verified, the login will fail. The user should first verify their email address before they can log in.
+- The email and password fields are not validated for format or length to avoid giving hints to attackers. Both fields must still be provided and non-empty.
+- If the email or password is incorrect, a generic error message is returned to avoid revealing which part was wrong.
+
+### Examples:
+
+**Example Request (JSON Object):**
+```json
+{
+	"captchaToken": "<captcha-token-from-client>",
+	"email": "peter@example.com",
+	"password": "StrongPassword@123"
+}
+```
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "45.67",
+  "message": "Login successful.",
+  "data": {
+	"accessToken": "<jwt-access-token>",
+	"refreshToken": "<refresh-token>",
+	"user": {
+	  "id": 456,
+	  "email": "peter@example.com",
+	  "fullName": "Peter Parker",
+	  "preferredName": "Peter",
+	  "role": "user",
+	  "isVerified": true
+	}
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (401 Unauthorized)**
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "30.12",
+  "message": "Invalid email or password.",
+  "data": {},
+  "errors": [
+	"The provided email or password is incorrect."
+  ]
+}
+```
+
+## Logout
+
+**Endpoint:** `POST /auth/logout`  
+**Access:** Authenticated Users  
+**Description:** Logs out the user by invalidating their refresh token.  
 

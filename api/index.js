@@ -5,7 +5,7 @@ require("dotenv").config();
 
 //Import standard response handlers
 const { successResponse, errorResponse } = require("./utils/response");
-const { logToFile } = require("./utils/logging");
+const { logToFile, sanitizeInput } = require("./utils/logging");
 
 //Start the Express app
 const app = express();
@@ -34,7 +34,7 @@ app.use((req, res, next) => {
       ip: req.ip,
       user_agent: req.get("user-agent"),
       user_id: (req.user && req.user.id) || null,
-      request_object: req.body ? (Object.keys(req.body).length > 0 ? "[REDACTED]" : "{}") : null
+      request_object: sanitizeInput(req.body || {}),
     });
   });
   next();
