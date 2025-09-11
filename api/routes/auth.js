@@ -162,7 +162,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 				// If not verified, (re)issue verification token and respond 200
 				try {
-					const { reused } = await ensureActiveVerificationToken(existingUser.id);
+					const { token, expiresAt, reused } = await ensureActiveVerificationToken(existingUser.id);
 					await logUserAction({
 						userId: existingUser.id,
 						action: "EMAIL_VERIFICATION",
@@ -174,8 +174,26 @@ router.post("/register", registerLimiter, async (req, res) => {
 					logToFile("EMAIL_VERIFICATION", { user_id: existingUser.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN" }, "info");
 
 					//SEND EMAIL HERE
+					const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+					const emailSent = await sendVerificationEmail(email, token, preferredName, expiresIn);
 
-					return successResponse(res, 200, "Account already exists but not verified. Verification email has been (re)sent.", {});
+					if (!emailSent) {
+						await logUserAction({
+						  userId: existingUser.id,
+						  action: "EMAIL_VERIFICATION",
+						  status: "FAILURE",
+						  ip: req.ip,
+						  userAgent: req.get("user-agent"),
+						  errorMessage: "Failed to send verification email",
+						  details: { email, trigger: "REGISTER_ATTEMPT" }
+						});
+						logToFile("EMAIL_VERIFICATION", { error: "Failed to send verification email", email }, "error");
+						return errorResponse(res, 500, "Failed to send verification email", [
+						  "Could not send verification email. Please try again later."
+						]);
+					  }
+
+					return successResponse(res, 200, "Account already exists but not verified. Verification email has been (re)sent. The existing account was not modified.", {});
 				} catch (e) {
 					await logUserAction({
 						userId: existingUser.id,
@@ -222,7 +240,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 		//Generate email verification token
 		// Issue verification token (new if none active)
-		await ensureActiveVerificationToken(newUser.id, client);
+		const { token, expiresAt } = await ensureActiveVerificationToken(newUser.id, client);
 
 		await client.query("COMMIT");
 
@@ -237,6 +255,25 @@ router.post("/register", registerLimiter, async (req, res) => {
 	logToFile("USER_REGISTERED", { user_id: newUser.id, email: newUser.email }, "info");
 
 		//SEND EMAIL HERE
+		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+		const emailSent = await sendVerificationEmail(email, token, preferredName, expiresIn);
+
+		if (!emailSent) {
+			await logUserAction({
+				userId: existingUser.id,
+				action: "EMAIL_VERIFICATION",
+				status: "FAILURE",
+				ip: req.ip,
+				userAgent: req.get("user-agent"),
+				errorMessage: "Failed to send verification email",
+				details: { email, trigger: "REGISTER_ATTEMPT" }
+			});
+			logToFile("EMAIL_VERIFICATION", { error: "Failed to send verification email", email }, "error");
+			return errorResponse(res, 500, "Failed to send verification email", [
+				"Could not send verification email. Please try again later.",
+				"Note: Your account was created, but you will need to verify your email before logging in."
+			]);
+		}
 
 		return successResponse(res, 201, "User registered successfully. Please verify your email before logging in.", 
 			{   id: newUser.id,
@@ -300,7 +337,7 @@ router.post("/resend-verification", async (req, res) => {
 				details: { email }
 			});
 			logToFile("EMAIL_VERIFICATION", { reason: "USER_NOT_FOUND", email }, "warn");
-			return errorResponse(res, 404, "User not found", ["No account is registered with this email."]);
+			return errorResponse(res, 404, "User not found", ["No account is registered with this email. Please register a new account."]);
 		}
 
 		const user = userRes.rows[0];
@@ -315,10 +352,10 @@ router.post("/resend-verification", async (req, res) => {
 				details: { email }
 			});
 			logToFile("EMAIL_VERIFICATION", { reason: "ALREADY_VERIFIED", email }, "info");
-			return errorResponse(res, 400, "Email already verified", ["This account is already verified."]);
+			return errorResponse(res, 400, "Email already verified", ["This account is already verified. Please log in instead."]);
 		}
 
-		const { reused } = await ensureActiveVerificationToken(user.id);
+		const { token, expiresAt, reused } = await ensureActiveVerificationToken(newUser.id, client);
 		await logUserAction({
 			userId: user.id,
 			action: "EMAIL_VERIFICATION",
@@ -330,6 +367,24 @@ router.post("/resend-verification", async (req, res) => {
 		logToFile("EMAIL_VERIFICATION", { user_id: user.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN" }, "info");
 
 		//SEND EMAIL HERE
+		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+		const emailSent = await sendVerificationEmail(email, token, preferredName, expiresIn);
+
+		if (!emailSent) {
+			await logUserAction({
+				userId: existingUser.id,
+				action: "EMAIL_VERIFICATION",
+				status: "FAILURE",
+				ip: req.ip,
+				userAgent: req.get("user-agent"),
+				errorMessage: "Failed to send verification email",
+				details: { email, trigger: "REGISTER_ATTEMPT" }
+			});
+			logToFile("EMAIL_VERIFICATION", { error: "Failed to send verification email", email }, "error");
+			return errorResponse(res, 500, "Failed to send verification email", [
+				"Could not send verification email. Please try again later."
+			]);
+		}
 
 		return successResponse(res, 200, "Verification email has been (re)sent.");
 	} catch (e) {
@@ -346,5 +401,32 @@ router.post("/resend-verification", async (req, res) => {
 		return errorResponse(res, 500, "Failed to (re)send verification email", [e.message]);
 	}
 });
+
+const { sendVerificationEmail } = require("../utils/email");
+
+// ...existing code...
+
+// Temporary test endpoint: POST /auth/test-email
+router.post("/test-email", async (req, res) => {
+  const { email, preferredName } = req.body || {};
+  const testToken = crypto.randomBytes(32).toString("hex");
+
+  if (!email) {
+    return errorResponse(res, 400, "Email required", ["Please provide an email address in the request body."]);
+  }
+
+  try {
+    const sent = await sendVerificationEmail(email, testToken, preferredName);
+    if (sent) {
+      return successResponse(res, 200, "Test verification email sent.", { email });
+    } else {
+      return errorResponse(res, 500, "Failed to send test email", ["Email service error."]);
+    }
+  } catch (err) {
+    return errorResponse(res, 500, "Error sending test email", [err.message]);
+  }
+});
+
+// ...existing
 
 module.exports = router;

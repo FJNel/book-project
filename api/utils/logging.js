@@ -57,7 +57,6 @@ function isSecretKey(key = "") {
 
 function redactIfSecretLike(str) {
   if (typeof str !== "string") return str;
-  // Avoid logging very large strings
   if (str.length > 2000) return "[REDACTED_LARGE_STRING]";
   return str;
 }
@@ -126,7 +125,6 @@ async function logUserAction({
       ]
     );
   } catch (err) {
-    // Fallback: ensure we don't lose the event
     logToFile("DB_LOG_ERROR", {
       error: err && err.message ? err.message : String(err),
       userId,

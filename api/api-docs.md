@@ -157,6 +157,7 @@ Here’s a clean Markdown table you can paste into your docs:
 ```
 
 ### Example Request Object
+
 If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK (no new account is created):
 
 ```json
@@ -215,14 +216,10 @@ Example error when CAPTCHA fails:
 }
 ```
 
-Notes:
-- Emails are not actually sent in the current environment; the code includes a `//SEND EMAIL HERE` placeholder.
-- The verification token is reused if an active one exists; otherwise a new token valid for 1 hour is created.
-
 ## Resend Email Verification
 
-**Endpoint:** `POST /auth/resend-verification`
-**Access:** Public
+**Endpoint:** `POST /auth/resend-verification`  
+**Access:** Public  
 **Description:** Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.
 
 ### Required Parameters (JSON Body):
@@ -284,9 +281,6 @@ Example error when the account is already verified (400 Bad Request):
 	]
 }
 ```
-
-Notes:
-- Emails are not actually sent in the current environment; the code includes a `//SEND EMAIL HERE` placeholder.
 
 
 
