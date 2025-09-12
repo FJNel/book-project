@@ -1066,7 +1066,7 @@ async function verifyGoogleIdToken(idToken) {
 }
 
 //POST auth/google: Sign in or register a user using Google OAuth2
-router.post("/google", googleLimiter, async (req, res) => {
+router.post("/google", async (req, res) => {
   const { idToken } = req.body || {};
 
   if (!idToken || typeof idToken !== "string") {
@@ -1140,7 +1140,7 @@ router.post("/google", googleLimiter, async (req, res) => {
         [email.toLowerCase(), name, given_name]
       );
       user = insertUser.rows[0];
-
+ 
       await client.query(
         `INSERT INTO oauth_accounts (user_id, provider, provider_user_id, created_at)
          VALUES ($1, 'google', $2, NOW())`,

@@ -14,52 +14,56 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 - [Table of Contents](#table-of-contents)
 - [Logging](#logging)
 - [Response Format](#response-format)
-	- [Success Response](#success-response)
-	- [Error Response](#error-response)
+  - [Success Response](#success-response)
+  - [Error Response](#error-response)
 - [Root Endpoint (Health Check)](#root-endpoint-health-check)
 - [Authentication](#authentication)
-	- [Register](#register)
-		- [Rate Limiting](#rate-limiting)
-		- [CAPTCHA Protection](#captcha-protection)
-		- [Email Verification](#email-verification)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body)
-		- [Notes](#notes)
-		- [Examples](#examples)
-	- [Resend Email Verification](#resend-email-verification)
-		- [Rate Limiting](#rate-limiting-1)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-1)
-		- [Notes](#notes-1)
-		- [Examples](#examples-1)
-	- [Verify Email](#verify-email)
-		- [Required Parameters (Query String)](#required-parameters-query-string)
-		- [Notes](#notes-2)
-		- [Examples](#examples-2)
-	- [Login](#login)
-		- [Rate Limiting](#rate-limiting-2)
-		- [CAPTCHA Protection](#captcha-protection-1)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-2)
-		- [Notes](#notes-3)
-		- [Examples](#examples-3)
-	- [Refresh Token](#refresh-token)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-3)
-		- [Examples](#examples-4)
-	- [Logout](#logout)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-4)
-		- [Required Headers](#required-headers)
-		- [Notes](#notes-4)
-		- [Examples](#examples-5)
-	- [Request Password Reset Email](#request-password-reset-email)
-		- [Rate Limiting](#rate-limiting-3)
-		- [CAPTCHA Protection](#captcha-protection-2)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-5)
-		- [Notes](#notes-5)
-		- [Examples](#examples-6)
-	- [Reset Password](#reset-password)
-		- [Rate Limiting](#rate-limiting-4)
-		- [CAPTCHA Protection](#captcha-protection-3)
-		- [Required Parameters (JSON Body)](#required-parameters-json-body-6)
-		- [Notes](#notes-6)
-		- [Examples](#examples-7)
+  - [Register](#register)
+    - [Rate Limiting](#rate-limiting)
+    - [CAPTCHA Protection](#captcha-protection)
+    - [Email Verification](#email-verification)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body)
+    - [Notes](#notes)
+    - [Examples](#examples)
+  - [Resend Email Verification](#resend-email-verification)
+    - [Rate Limiting](#rate-limiting-1)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-1)
+    - [Notes](#notes-1)
+    - [Examples](#examples-1)
+  - [Verify Email](#verify-email)
+    - [Required Parameters (Query String)](#required-parameters-query-string)
+    - [Notes](#notes-2)
+    - [Examples](#examples-2)
+  - [Login](#login)
+    - [Rate Limiting](#rate-limiting-2)
+    - [CAPTCHA Protection](#captcha-protection-1)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-2)
+    - [Notes](#notes-3)
+    - [Examples](#examples-3)
+  - [Refresh Token](#refresh-token)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-3)
+    - [Examples](#examples-4)
+  - [Logout](#logout)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-4)
+    - [Required Headers](#required-headers)
+    - [Notes](#notes-4)
+    - [Examples](#examples-5)
+  - [Request Password Reset Email](#request-password-reset-email)
+    - [Rate Limiting](#rate-limiting-3)
+    - [CAPTCHA Protection](#captcha-protection-2)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-5)
+    - [Notes](#notes-5)
+    - [Examples](#examples-6)
+  - [Reset Password](#reset-password)
+    - [Rate Limiting](#rate-limiting-4)
+    - [CAPTCHA Protection](#captcha-protection-3)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-6)
+    - [Notes](#notes-6)
+    - [Examples](#examples-7)
+  - [Google OAuth2 Verification](#google-oauth2-verification)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-7)
+    - [Notes](#notes-7)
+    - [Examples](#examples-8)
 
 # Logging
 
@@ -625,3 +629,54 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
   "errors": []
 }
 ```
+
+## Google OAuth2 Verification
+
+**Endpoint:** `POST /auth/google`  
+**Access:** Public
+**Description:** Verifies a Google OAuth2 token and logs in or registers the user.
+
+### Required Parameters (JSON Body)
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `idToken` | String | **Yes** | The ID token obtained from Google after user authentication. This token is used to verify the user's identity and retrieve their profile information. |
+
+### Notes
+
+- If the user does not exist in the system, a new account will be created using the information retrieved from Google. The account will be marked as verified since Google has already verified the user's email.
+- If the user already exists, they will be logged in and a new access token will be issued.
+- The `preferredName` will be set to the user's first name as provided by Google.
+- The password field will be set to `null`.
+- If the email provided by Google is already associated with a non-Google account, Google will be added as an OAuth provider for the existing account. This means that the user can log in using either their original method (email/password) or Google OAuth2 in the future.
+
+### Examples
+
+**Example Request (JSON Object):**
+
+```json
+{
+ "idToken": "<google-id-token>"
+}
+```
+
+**Example Success Response (200 OK):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "40.56",
+  "message": "Login successful.",
+  "data": {
+    "accessToken": "<jwt-access-token>",
+    "refreshToken": "<refresh-token>",
+    "user": {
+      "id": 789,
+      "email": "<user-email>",
+      "preferredName": "<user-first-name>",
+      "provider": "google"
+    }
+  },
+  "errors": []
+}
