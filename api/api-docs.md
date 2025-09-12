@@ -4,7 +4,7 @@ Welcome to the Documentation for my project. This document provides an overview 
 
 To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests.
 
-**API Location:** https://api.fjnel.co.za/  
+**API Location:** <https://api.fjnel.co.za/>  
 **API Request and Response Format:** JSON  
 **API Request Type:** Depends on the endpoint used (see below for more details)
 
@@ -19,47 +19,47 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 - [Root Endpoint (Health Check)](#root-endpoint-health-check)
 - [Authentication](#authentication)
 	- [Register](#register)
-		- [Rate Limiting:](#rate-limiting)
-		- [CAPTCHA Protection:](#captcha-protection)
-		- [Email Verification:](#email-verification)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body)
-		- [Notes:](#notes)
-		- [Examples:](#examples)
+		- [Rate Limiting](#rate-limiting)
+		- [CAPTCHA Protection](#captcha-protection)
+		- [Email Verification](#email-verification)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body)
+		- [Notes](#notes)
+		- [Examples](#examples)
 	- [Resend Email Verification](#resend-email-verification)
-		- [Rate Limiting:](#rate-limiting-1)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-1)
-		- [Notes:](#notes-1)
-		- [Examples:](#examples-1)
+		- [Rate Limiting](#rate-limiting-1)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-1)
+		- [Notes](#notes-1)
+		- [Examples](#examples-1)
 	- [Verify Email](#verify-email)
-		- [Required Parameters (Query String):](#required-parameters-query-string)
-		- [Notes:](#notes-2)
-		- [Examples:](#examples-2)
+		- [Required Parameters (Query String)](#required-parameters-query-string)
+		- [Notes](#notes-2)
+		- [Examples](#examples-2)
 	- [Login](#login)
-		- [Rate Limiting:](#rate-limiting-2)
-		- [CAPTCHA Protection:](#captcha-protection-1)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-2)
-		- [Notes:](#notes-3)
-		- [Examples:](#examples-3)
+		- [Rate Limiting](#rate-limiting-2)
+		- [CAPTCHA Protection](#captcha-protection-1)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-2)
+		- [Notes](#notes-3)
+		- [Examples](#examples-3)
 	- [Refresh Token](#refresh-token)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-3)
-		- [Examples:](#examples-4)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-3)
+		- [Examples](#examples-4)
 	- [Logout](#logout)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-4)
-		- [Required Headers:](#required-headers)
-		- [Notes:](#notes-4)
-		- [Examples:](#examples-5)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-4)
+		- [Required Headers](#required-headers)
+		- [Notes](#notes-4)
+		- [Examples](#examples-5)
 	- [Request Password Reset Email](#request-password-reset-email)
-		- [Rate Limiting:](#rate-limiting-3)
-		- [CAPTCHA Protection:](#captcha-protection-2)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-5)
-		- [Notes:](#notes-5)
-		- [Examples:](#examples-6)
+		- [Rate Limiting](#rate-limiting-3)
+		- [CAPTCHA Protection](#captcha-protection-2)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-5)
+		- [Notes](#notes-5)
+		- [Examples](#examples-6)
 	- [Reset Password](#reset-password)
-		- [Rate Limiting:](#rate-limiting-4)
-		- [CAPTCHA Protection:](#captcha-protection-3)
-		- [Required Parameters (JSON Body):](#required-parameters-json-body-6)
-		- [Notes:](#notes-6)
-		- [Examples:](#examples-7)
+		- [Rate Limiting](#rate-limiting-4)
+		- [CAPTCHA Protection](#captcha-protection-3)
+		- [Required Parameters (JSON Body)](#required-parameters-json-body-6)
+		- [Notes](#notes-6)
+		- [Examples](#examples-7)
 
 # Logging
 
@@ -79,14 +79,14 @@ Successful requests will return a `2xx` HTTP status code and a JSON body with th
 
 ```json
 {
-	"status": "success",
-	"httpCode": 200,
-	"responseTime": "15.42", // Response time in milliseconds
-	"message": "A success message",
-	"data": {
-		// Contains the requested data (e.g., a user object, a list of books)
-	},
-	"errors": [] // Always an empty array on success
+ "status": "success",
+ "httpCode": 200,
+ "responseTime": "15.42", // Response time in milliseconds
+ "message": "A success message",
+ "data": {
+  // Contains the requested data (e.g., a user object, a list of books)
+ },
+ "errors": [] // Always an empty array on success
 }
 ```
 
@@ -96,19 +96,17 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 
 ```json
 {
-	"status": "error",
-	"httpCode": 400,
-	"responseTime": "10.01", // Response time in milliseconds
-	"message": "A general error message (e.g., 'Validation Error')",
-	"data": {}, // Always an empty object on error
-	"errors": [
-		"Specific error message 1.",
-		"Specific error message 2."
-  	]
+ "status": "error",
+ "httpCode": 400,
+ "responseTime": "10.01", // Response time in milliseconds
+ "message": "A general error message (e.g., 'Validation Error')",
+ "data": {}, // Always an empty object on error
+ "errors": [
+  "Specific error message 1.",
+  "Specific error message 2."
+   ]
 }
 ```
-
-
 
 # Root Endpoint (Health Check)
 
@@ -117,6 +115,7 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 **Description:** Returns a welcome message and basic information about the API.  
 
 **Example Response:**
+
 ```json
 {
   "status": "success",
@@ -131,11 +130,9 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 }
 ```
 
-
-
 # Authentication
 
-The `/auth/` route is used for all authentication-related operations, including user registration, login, logout, password reset, and token refresh. 
+The `/auth/` route is used for all authentication-related operations, including user registration, login, logout, password reset, and token refresh.
 
 ## Register
 
@@ -143,20 +140,20 @@ The `/auth/` route is used for all authentication-related operations, including 
 **Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
 **Description:** Registers a new user in the database.
 
-### Rate Limiting:
+### Rate Limiting
 
 To ensure that this endpoint is not abused, it is rate-limited.  
 **Limit:** Maximum of 5 requests per IP address every 10 minutes.
 
-### CAPTCHA Protection:
+### CAPTCHA Protection
 
-To prevent automated registrations, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully register. The `captchaToken` as provided by the client must be included in the request body. 
+To prevent automated registrations, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully register. The `captchaToken` as provided by the client must be included in the request body.
 
-### Email Verification:
+### Email Verification
 
 After successful registration, a verification email is sent to the provided email address. The user must verify their email before they can log in. If a registration is attempted with an email that already exists but is not yet verified, the API will (re)send a verification email (reusing an active token if still valid, otherwise creating a new one) and return a success message instead of creating a duplicate account.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details | Default |
 |-----------|------|----------|-------------------------|---------|
@@ -166,79 +163,84 @@ After successful registration, a verification email is sent to the provided emai
 | `email` | String | **Yes** | The user's email address which will be used for login. It must be unique. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. | |
 | `password` | String | **Yes** | The user's password. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. | |
 
-### Notes:
+### Notes
 
 - If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"captchaToken": "<captcha-token-from-client>",
-	"fullName": "Jane Doe",
-	"preferredName": "Jane",
-	"email": "jane@example.com",
-	"password": "Str0ng&P@ssw0rd!"
+ "captchaToken": "<captcha-token-from-client>",
+ "fullName": "Jane Doe",
+ "preferredName": "Jane",
+ "email": "jane@example.com",
+ "password": "Str0ng&P@ssw0rd!"
 }
 ```
 
 **Example Success Response (201 Created):**
+
 ```json
 {
-	"status": "success",
-	"httpCode": 201,
-	"responseTime": "12.34",
-	"message": "User registered successfully. Please verify your email before logging in.",
-	"data": {
-		"id": 123,
-		"email": "jane@example.com",
-		"fullName": "Jane Doe",
-		"preferredName": "Jane",
-		"role": "user",
-		"isVerified": false
-	},
-	"errors": []
+ "status": "success",
+ "httpCode": 201,
+ "responseTime": "12.34",
+ "message": "User registered successfully. Please verify your email before logging in.",
+ "data": {
+  "id": 123,
+  "email": "jane@example.com",
+  "fullName": "Jane Doe",
+  "preferredName": "Jane",
+  "role": "user",
+  "isVerified": false
+ },
+ "errors": []
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
-	"status": "success",
-	"httpCode": 200,
-	"responseTime": "9.87",
-	"message": "Account already exists but not verified. Verification email has been (re)sent.",
-	"data": {},
-	"errors": []
+ "status": "success",
+ "httpCode": 200,
+ "responseTime": "9.87",
+ "message": "Account already exists but not verified. Verification email has been (re)sent.",
+ "data": {},
+ "errors": []
 }
 ```
 
 **Example Error Response (409 Conflict)**
+
 ```json
 {
-	"status": "error",
-	"httpCode": 409,
-	"responseTime": "3.21",
-	"message": "Email already in use",
-	"data": {},
-	"errors": [
-		"The provided email is already associated with another account."
-	]
+ "status": "error",
+ "httpCode": 409,
+ "responseTime": "3.21",
+ "message": "Email already in use",
+ "data": {},
+ "errors": [
+  "The provided email is already associated with another account."
+ ]
 }
 ```
 
 **Example Error Response (400 Bad Request)**
+
 ```json
 {
-	"status": "error",
-	"httpCode": 400,
-	"responseTime": "4.56",
-	"message": "CAPTCHA verification failed",
-	"data": {},
-	"errors": [
-		"CAPTCHA verification failed. Please try again."
-	]
+ "status": "error",
+ "httpCode": 400,
+ "responseTime": "4.56",
+ "message": "CAPTCHA verification failed",
+ "data": {},
+ "errors": [
+  "CAPTCHA verification failed. Please try again."
+ ]
 }
 ```
 
@@ -248,35 +250,37 @@ After successful registration, a verification email is sent to the provided emai
 **Access:** Public (Rate Limited)  
 **Description:** Resends the email verification if the account exists but is not yet verified. If an active verification token exists, it is reused; otherwise, a new one is created.
 
-### Rate Limiting:
+### Rate Limiting
 
 To ensure that this endpoint is not abused, it is rate-limited.  
 **Limit:** Maximum of 1 requests per IP address every 5 minutes.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
 | `email` | String | **Yes** | The registered email address to resend the verification to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
 
-### Notes:
+### Notes
 
-- The response is always a generic success message to prevent email enumeration. If the email does not exist or is already verified, the response will still indicate that a verification email has been sent. 
+- The response is always a generic success message to prevent email enumeration. If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.
 - If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.
 - If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.
 - If the email could not be sent due to a server error, the response will still indicate that a verification email has been sent to avoid revealing whether the email exists in the system.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"email": "peter@example.com"
+ "email": "peter@example.com"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -297,29 +301,31 @@ To ensure that this endpoint is not abused, it is rate-limited.
 **Access:** Public  
 **Description:** Verifies a user's email address using the token that was sent via email.
 
-### Required Parameters (Query String):
+### Required Parameters (Query String)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `email` | String | **Yes** | The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. |
 | `token` | String | **Yes** | The verification token sent to the user's email address. |
 
-### Notes:
+### Notes
 
 - If the token is valid (not expired or already used) and matches the email, the user's account will be marked as verified. They can then log in.
 - If the token is invalid or expired, or the email does not match, an error message will be returned.
 
-### Examples:
+### Examples
 
 **Example Request:**
+
 ```json
 {
-	"email": "peter@example.com",
-	"token": "<verification-token>"
+ "email": "peter@example.com",
+ "token": "<verification-token>"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -327,14 +333,15 @@ To ensure that this endpoint is not abused, it is rate-limited.
   "responseTime": "25.34",
   "message": "Email verified successfully. You can now log in.",
   "data": {
-	"id": 456,
-	"email": "peter@example.com"
+ "id": 456,
+ "email": "peter@example.com"
   }, 
   "errors": []
 }
 ```
 
 **Example Error Response (400 Bad Request)**
+
 ```json
 {
   "status": "error",
@@ -343,8 +350,8 @@ To ensure that this endpoint is not abused, it is rate-limited.
   "message": "Incorrect email address, or invalid or expired token.",
   "data": {},
   "errors": [
-	"The provided token is invalid or has expired OR the email address is incorrect.",
-	"Please request a new verification email."
+ "The provided token is invalid or has expired OR the email address is incorrect.",
+ "Please request a new verification email."
   ]
 }
 ```
@@ -355,40 +362,43 @@ To ensure that this endpoint is not abused, it is rate-limited.
 **Access:** Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)  
 **Description:** Authenticates a user and returns a JWT token for session management.
 
-### Rate Limiting:
+### Rate Limiting
 
 To ensure that this endpoint is not abused, it is rate-limited.  
 **Limit:** Maximum of 10 requests per IP address every 10 minutes.
 
-### CAPTCHA Protection:
+### CAPTCHA Protection
 
 To prevent automated login attempts, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully log in. The `captchaToken` as provided by the client must be included in the request body.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
+
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
 | `email` | String | **Yes** | The user's registered email address. |
 | `password` | String | **Yes** | The user's password. |
 
-### Notes:
+### Notes
 
 - If the email is not verified, the login will fail. The user should first verify their email address before they can log in.
 - The email and password fields are not validated for format or length to avoid giving hints to attackers. Both fields must still be provided and non-empty.
 - If the email or password is incorrect, a generic error message is returned to avoid revealing which part was wrong.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"captchaToken": "<captcha-token-from-client>",
-	"email": "peter@example.com",
-	"password": "StrongPassword@123"
+ "captchaToken": "<captcha-token-from-client>",
+ "email": "peter@example.com",
+ "password": "StrongPassword@123"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -396,22 +406,23 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
   "responseTime": "45.67",
   "message": "Login successful.",
   "data": {
-	"accessToken": "<jwt-access-token>",
-	"refreshToken": "<refresh-token>",
-	"user": {
-	  "id": 456,
-	  "email": "peter@example.com",
-	  "fullName": "Peter Parker",
-	  "preferredName": "Peter",
-	  "role": "user",
-	  "isVerified": true
-	}
+ "accessToken": "<jwt-access-token>",
+ "refreshToken": "<refresh-token>",
+ "user": {
+   "id": 456,
+   "email": "peter@example.com",
+   "fullName": "Peter Parker",
+   "preferredName": "Peter",
+   "role": "user",
+   "isVerified": true
+ }
   },
   "errors": []
 }
 ```
 
 **Example Error Response (401 Unauthorized)**
+
 ```json
 {
   "status": "error",
@@ -420,7 +431,7 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
   "message": "Invalid email or password.",
   "data": {},
   "errors": [
-	"The provided email or password is incorrect."
+ "The provided email or password is incorrect."
   ]
 }
 ```
@@ -431,22 +442,24 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 **Access:** Public  
 **Description:** Generates a new access token using a valid refresh token.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `refreshToken` | String | **Yes** | The refresh token to be used for generating a new access token. |
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"refreshToken": "<refresh-token>"
+ "refreshToken": "<refresh-token>"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -454,7 +467,7 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
   "responseTime": "25.34",
   "message": "Access token refreshed.",
   "data": {
-	"accessToken": "<new-jwt-access-token>"
+ "accessToken": "<new-jwt-access-token>"
   },
   "errors": []
 }
@@ -466,34 +479,36 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 **Access:** Authenticated Users  
 **Description:** Logs out the user by invalidating their refresh token.  
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `refreshToken` | String | **Yes** | The refresh token to be invalidated. |
 
-### Required Headers:
+### Required Headers
 
 | Header | Type | Required | Format | Description and Details |
 |--------|------|----------|--------|-------------------------|
 | `Authorization` | String | **Yes**| `Bearer <token>` | Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically. |
 
-### Notes:
+### Notes
 
 - To log out, the user must provide their refresh token in the request body and a valid access token in the `Authorization` header. The tokens must belong to the same user.
 - If the refresh token is invalid or does not belong to the user, an error message will be returned.
 - If the access token is missing or invalid, an error will be returned.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"refreshToken": "<refresh-token>"
+ "refreshToken": "<refresh-token>"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -511,38 +526,40 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 **Access:** Public (Rate Limited) (CAPTCHA Protected)  
 **Description:** Sends a password reset email to the user if the email exists in the system.
 
-### Rate Limiting:
+### Rate Limiting
 
 To ensure that this endpoint is not abused, it is rate-limited.  
 **Limit:** Maximum of 1 request per IP address every 5 minutes.
 
-### CAPTCHA Protection:
+### CAPTCHA Protection
 
 To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully request a password reset. The `captchaToken` as provided by the client must be included in the request body.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `captchaToken` | String | **Yes** | CAPTCHA token from the client-side challenge, used to verify that the request is human. |
 | `email` | String | **Yes** | The registered email address to send the password reset link to. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
 
-### Notes:
+### Notes
 
-- The response is always a generic success message to prevent email enumeration. If the email does not exist, the response will still indicate that a password reset email has been sent. 
+- The response is always a generic success message to prevent email enumeration. If the email does not exist, the response will still indicate that a password reset email has been sent.
 - If the email could not be sent due to a server error, the response will still indicate that a password reset email has been sent to avoid revealing whether the email exists in the system.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"captchaToken": "<captcha-token>",
-	"email": "<user-email>"
+ "captchaToken": "<captcha-token>",
+ "email": "<user-email>"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -560,16 +577,16 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
 **Access:** Public (Rate Limited) (CAPTCHA Protected)  
 **Description:** Resets the user's password using the token sent to their email.
 
-### Rate Limiting:
+### Rate Limiting
 
 To ensure that this endpoint is not abused, it is rate-limited.  
 **Limit:** Maximum of 1 request per IP address every 5 minutes.
 
-### CAPTCHA Protection:
+### CAPTCHA Protection
 
 To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully reset their password. The `captchaToken` as provided by the client must be included in the request body.
 
-### Required Parameters (JSON Body):
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
@@ -578,24 +595,26 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
 | `token` | String | **Yes** | The password reset token sent to the user's email address. |
 | `newPassword` | String | **Yes** | The new password for the user's account. It must be between 10 and 100 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character. |
 
-### Notes:
+### Notes
 
 - If the token is valid (not expired or already used) and matches the email, the user's password will be updated. All existing refresh tokens for the user will be revoked, requiring re-authentication.
 - If the token is invalid or expired, or the email does not match, an error message will be returned.
 
-### Examples:
+### Examples
 
 **Example Request (JSON Object):**
+
 ```json
 {
-	"captchaToken": "<captcha-token>",
-	"email": "peter@example.com",
-	"token": "<reset-token>",
-	"newPassword": "<new-password>"
+ "captchaToken": "<captcha-token>",
+ "email": "peter@example.com",
+ "token": "<reset-token>",
+ "newPassword": "<new-password>"
 }
 ```
 
 **Example Success Response (200 OK):**
+
 ```json
 {
   "status": "success",

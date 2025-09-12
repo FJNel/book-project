@@ -13,6 +13,7 @@ const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const rateLimit = require("express-rate-limit");
+const { OAuth2Client } = require("google-auth-library");
 
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
@@ -24,6 +25,7 @@ const { v4: uuidv4 } = require("uuid");
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 10;
 const RECAPTCHA_SECRET = process.env.GOOGLE_RECAPTCHA_SECRET;
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const registerLimiter = rateLimit({
 	windowMs: 10 * 60 * 1000, //10 minutes
@@ -1052,6 +1054,139 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
             "An error occurred while resetting your password. Please try again."
         ]);
     }
+});
+
+
+async function verifyGoogleIdToken(idToken) {
+  const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  return ticket.getPayload(); // Contains email, name, sub (Google user ID), etc.
+}
+
+//POST auth/google: Sign in or register a user using Google OAuth2
+router.post("/google", googleLimiter, async (req, res) => {
+  const { idToken } = req.body || {};
+
+  if (!idToken || typeof idToken !== "string") {
+    return errorResponse(res, 400, "ID token required", ["Please provide a valid Google ID token in the request body."]);
+  }
+
+  try {
+    const payload = await verifyGoogleIdToken(idToken);
+  } catch (e) {
+    return errorResponse(res, 401, "Invalid ID token", ["The provided Google ID token is invalid."]);
+  }
+
+  //Save userID, email, fullName and preferredName from payload
+  const { email, email_verified, name, given_name, sub: providerUserId } = payload;
+
+  if (!email_verified) {
+    return errorResponse(res, 400, "Email not verified by Google", ["Your Google account email is not verified. Please verify your email with Google before signing in."]);
+  }
+
+  if (!providerUserId || typeof providerUserId !== "string") {
+    return errorResponse(res, 400, "Invalid Google profile: No user ID", ["Could not retrieve valid user ID from Google profile."]);
+  }
+
+  if (!email || !name ) {
+    return errorResponse(res, 400, "Incomplete Google profile", ["Your Google profile is missing required information.", "Please ensure your Google account has an email address and name associated with it.",
+      "Or, if you still have issues, please register/login manually."
+    ]);
+  }
+
+  if (!given_name) {
+    given_name = null;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    //1. Check if user exists
+    let userRes = await client.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase()]);
+    let user;
+
+    if (userRes.rows.length > 0) {
+      user = userRes.rows[0];
+
+      //If user exists but is not verified, verify them now
+      if (!user.is_verified) {
+        await client.query("UPDATE users SET is_verified = true WHERE id = $1", [user.id]);
+        user.is_verified = true;
+      }
+
+      //Check of OAuth account already exists
+      let oauthRes = await client.query(
+        "SELECT * FROM oauth_accounts WHERE provider = 'google' AND provider_user_id = $1",
+        [providerUserId]
+      );
+
+      //If no linked OAuth account, create one (existing user)
+      if (oauthRes.rows.length === 0) {
+        await client.query(
+          `INSERT INTO oauth_accounts (user_id, provider, provider_user_id, created_at)
+           VALUES ($1, 'google', $2, NOW())`,
+          [user.id, providerUserId]
+        );
+      }
+    } else //Create a complete new user in user table and oauth table
+    {
+      const insertUser = await client.query(
+        `INSERT INTO users (email, full_name, preferred_name, is_verified, role, created_at)
+         VALUES ($1, $2, $3, true, 'user', NOW())
+         RETURNING *`,
+        [email.toLowerCase(), name, given_name]
+      );
+      user = insertUser.rows[0];
+
+      await client.query(
+        `INSERT INTO oauth_accounts (user_id, provider, provider_user_id, created_at)
+         VALUES ($1, 'google', $2, NOW())`,
+        [user.id, providerUserId]
+      );
+    }//else
+
+    await client.query("COMMIT");
+
+    //Generate tokens
+    const fingerprint = uuidv4();
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user, fingerprint);
+
+    //Store refresh token in DB
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token_fingerprint, issued_at, expires_at, revoked, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, false, $5, $6)`,
+      [user.id, fingerprint, now, expiresAt, req.ip, req.get("user-agent")]
+    );
+
+    await logUserAction({ userId: user.id, action: "OAUTH_LOGIN", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent"), details: { email, provider: "google" } });
+    logToFile("OAUTH_LOGIN", { user_id: user.id, email, provider: "google", outcome: "SUCCESS" });
+
+    return successResponse(res, 200, "Login successful.", {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        preferredName: user.preferred_name,
+        role: user.role,
+        isVerified: user.is_verified
+      }
+    });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    await logUserAction({ userId: null, action: "OAUTH_LOGIN", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: e.message, details: { email, provider: "google" } });
+    logToFile("OAUTH_LOGIN", { error: e.message , email, provider: "google" }, "error");
+    return errorResponse(res, 500, "Server error.", ["An error occurred during Google login. Please try again."]);
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;
