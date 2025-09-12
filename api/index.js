@@ -45,11 +45,21 @@ app.set("trust proxy", 1);
 
 //Middleware: Security and Parsing
 app.use(helmet()); //Set HTTP headers for security
-app.use(cors()); //Enable CORS
+// app.use(cors()); //Enable CORS
 app.use(express.json()); //Parse JSON request bodies
 
 //Serve static documentation in the "public" folder
 app.use(express.static("public"));
+
+// Allow requests from other domains (CORS)
+const corsOptions = {
+  origin: 'https://fjnel.co.za', // Allow only your frontend
+  credentials: true, // Allow cookies/auth headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
 
 //Routes
 app.use("/", rootRoute);

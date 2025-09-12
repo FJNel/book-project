@@ -27,18 +27,6 @@ if (process.env.NODE_ENV !== "production") {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-// ----- Whitelists (align with DB CHECK constraints) -----
-const VALID_ACTIONS = new Set([
-  "LOGIN_ATTEMPT",
-  "LOGOUT",
-  "PASSWORD_RESET_REQUEST",
-  "PASSWORD_RESET_SUCCESS",
-  "EMAIL_VERIFICATION",
-  "USER_REGISTERED",
-  "USER_UPDATED_PROFILE",
-  "TOKEN_REFRESHED",
-]);
-
 const VALID_STATUSES = new Set(["SUCCESS", "FAILURE", "INFO"]);
 
 // ----- Helpers: sanitize -----
@@ -120,9 +108,6 @@ async function logUserAction({
   details,
 }) {
   try {
-    if (!VALID_ACTIONS.has(action)) throw new Error(`Invalid action '${action}'.`);
-    if (!VALID_STATUSES.has(status)) throw new Error(`Invalid status '${status}'.`);
-
     const safeDetails = sanitizeInput(details || {});
     const safeError = typeof errorMessage === "string" ? redactIfSecretLike(errorMessage) : null;
 

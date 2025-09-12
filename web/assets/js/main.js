@@ -1,25 +1,107 @@
-// Wait for the DOM to be fully loaded before running the script
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Callback function that handles the response from Google Sign-In.
+ */
+async function handleCredentialResponse(response) {
+    console.log("[GoogleSignIn] Received credential response:", response);
 
-    // --- THEME SWITCHER ---
+    const googleIdToken = response.credential;
+    const backendUrl = 'https://api.fjnel.co.za/auth/google';
+
+    try {
+        const res = await fetch(backendUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: googleIdToken }),
+        });
+        console.log("[GoogleSignIn] Sent token to backend:", { googleIdToken, backendUrl });
+        console.log("[GoogleSignIn] Backend response:", res);
+
+        if (!res.ok) {
+            console.error("[GoogleSignIn] Backend verification failed:", res);
+            alert('Authentication failed. Please try again.');
+            return;
+        }
+
+        const json = await res.json();
+        const accessToken = json.data && json.data.accessToken;
+        const user = json.data && json.data.user;
+        console.log("[GoogleSignIn] Parsed backend response:", { accessToken, user });
+
+        if (accessToken && user) {
+            localStorage.setItem('authToken', accessToken);
+        
+            // Get current language
+            const lang = localStorage.getItem('language') || 'en';
+            const resLang = await fetch(`../lang/${lang}.json`);
+            const translations = await resLang.json();
+        
+            // Show success modal with user's name
+            const modalBody = document.getElementById('loginSuccessModalBody');
+            const welcomeMsg = translations.login_success_message.replace('{name}', user.preferredName || user.fullName || user.email);
+            modalBody.textContent = welcomeMsg;
+        
+            const loginModal = new bootstrap.Modal(document.getElementById('loginSuccessModal'));
+            loginModal.show();
+        
+            setTimeout(() => {
+                window.location.href = 'books.html';
+            }, 3000);
+        } else {
+            console.error("[GoogleSignIn] Access token not received.");
+            alert('Could not log you in. Please try again.');
+        }
+    } catch (error) {
+        console.error("[GoogleSignIn] Error sending token to backend:", error);
+        alert('An error occurred during sign-in. Please check the console.');
+    }
+}
+
+
+/**
+ * Initializes Google Sign-In.
+ */
+function initializeGoogleSignIn() {
+    if (typeof google === 'undefined' || typeof google.accounts === 'undefined') {
+        console.warn("[GoogleInit] Google library not ready yet, retrying...");
+        setTimeout(initializeGoogleSignIn, 100);
+        return;
+    }
+
+    console.log("[GoogleInit] Initializing with client_id...");
+    google.accounts.id.initialize({
+        client_id: '1046748066305-2hasc6e95hhc7penpipegf0be1n1cosa.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+    });
+
+    // DELETE the line below, as we are no longer rendering Google's button
+    // renderGoogleButton(); 
+    console.log("[GoogleInit] Initialization complete.");
+}
+
+
+// Main execution block
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("[Main] DOMContentLoaded fired. Setting up theme, language, and Google Sign-In...");
+
     const themeSwitcher = document.getElementById('theme-switcher');
     const sunIcon = document.getElementById('sun-icon');
     const moonIcon = document.getElementById('moon-icon');
+    const languageSelector = document.getElementById('language-selector');
+    const storedLanguage = localStorage.getItem('language') || 'en';
+    languageSelector.value = storedLanguage;
 
-    // Function to get the preferred theme from system or local storage
+    // --- Theme Setup ---
+    const getStoredTheme = () => localStorage.getItem('theme');
+    const setStoredTheme = theme => localStorage.setItem('theme', theme);
+
     const getPreferredTheme = () => {
-        const storedTheme = localStorage.getItem('theme');
-        if (storedTheme) {
-            return storedTheme;
-        }
-        // If no theme is stored, use the system preference
+        const storedTheme = getStoredTheme();
+        if (storedTheme) return storedTheme;
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     };
 
-    // Function to apply the theme to the document
-    const applyTheme = (theme) => {
+    const setTheme = theme => {
         document.documentElement.setAttribute('data-bs-theme', theme);
-        // Show the correct icon based on the theme
         if (theme === 'dark') {
             sunIcon.classList.remove('d-none');
             moonIcon.classList.add('d-none');
@@ -27,58 +109,105 @@ document.addEventListener('DOMContentLoaded', () => {
             sunIcon.classList.add('d-none');
             moonIcon.classList.remove('d-none');
         }
+        console.log("[Theme] Applied theme:", theme);
     };
 
-    // Initialize the theme when the page loads
     const currentTheme = getPreferredTheme();
-    applyTheme(currentTheme);
+    setTheme(currentTheme);
 
-    // Add click event listener to the theme switcher button
+    initializeGoogleSignIn();
+
+    const customGoogleButton = document.getElementById('google-custom-signin');
+    if (customGoogleButton) {
+        customGoogleButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        // Fallback: open Google OAuth2 in a new window
+                        const clientId = '1046748066305-2hasc6e95hhc7penpipegf0be1n1cosa.apps.googleusercontent.com';
+                        const redirectUri = window.location.origin + '/oauth-callback.html'; // or your backend endpoint
+                        const scope = 'openid email profile';
+                        const oauthUrl =
+                            `https://accounts.google.com/o/oauth2/v2/auth?` +
+                            `client_id=${encodeURIComponent(clientId)}` +
+                            `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                            `&response_type=token` +
+                            `&scope=${encodeURIComponent(scope)}`;
+                        window.open(oauthUrl, '_blank', 'width=500,height=600');
+                        console.warn("[GoogleSignIn] Google prompt not displayed, opened OAuth2 URL as fallback.");
+                    }
+                });
+            } else {
+                console.error("Google library not ready.");
+            }
+        });
+    }
+
     themeSwitcher.addEventListener('click', () => {
-        const newTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
+        const theme = getStoredTheme() === 'light' ? 'dark' : 'light';
+        setStoredTheme(theme);
+        setTheme(theme);
+        // renderGoogleButton();
     });
 
-
-    // --- LANGUAGE SWITCHER ---
-    const languageSelector = document.getElementById('language-selector');
-
-    // Function to fetch and apply language data
-    const loadLanguage = async (lang) => {
+    // --- Language Setup ---
+    const fetchAndApplyLanguage = async (lang) => {
         try {
-            const response = await fetch(`lang/${lang}.json`);
-            if (!response.ok) {
-                throw new Error(`Could not load language file: ${lang}.json`);
-            }
-            const translations = await response.json();
-            
-            // Find all elements with a data-lang attribute and update their text
-            document.querySelectorAll('[data-lang]').forEach(element => {
-                const key = element.getAttribute('data-lang');
+            const res = await fetch(`../lang/${lang}.json`);
+            const translations = await res.json();
+    
+            document.querySelectorAll("[data-lang]").forEach(el => {
+                const key = el.getAttribute("data-lang");
                 if (translations[key]) {
-                    element.textContent = translations[key];
+                    if (el.tagName === "TITLE") {
+                        document.title = translations[key];
+                    } else if (el.id === "google-custom-signin") {
+                        const span = el.querySelector("#google-signin-text");
+                        if (span) {
+                            span.textContent = translations[key];
+                        }
+                    } else {
+                        el.textContent = translations[key];
+                    }
                 }
             });
-            // Set the lang attribute on the html tag for accessibility
-            document.documentElement.lang = lang;
         } catch (error) {
-            console.error('Error loading language:', error);
+            console.error("[Lang] Failed to load language file:", error);
         }
     };
 
-    // Function to handle language change from the dropdown
-    const handleLanguageChange = () => {
-        const selectedLanguage = languageSelector.value;
-        localStorage.setItem('language', selectedLanguage);
-        loadLanguage(selectedLanguage);
-    };
+    fetchAndApplyLanguage(storedLanguage);
 
-    // Add change event listener to the language selector dropdown
-    languageSelector.addEventListener('change', handleLanguageChange);
+    languageSelector.addEventListener('change', () => {
+        const selectedLang = languageSelector.value;
+        localStorage.setItem('language', selectedLang);
+        fetchAndApplyLanguage(selectedLang);
+        // renderGoogleButton();
+    });
 
-    // Initialize the language when the page loads
-    const savedLanguage = localStorage.getItem('language') || 'en'; // Default to English
-    languageSelector.value = savedLanguage; // Set dropdown to the saved language
-    loadLanguage(savedLanguage);
+    window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data && event.data.type === 'google-login-success') {
+            const { accessToken, user } = event.data.data;
+            localStorage.setItem('authToken', accessToken);
+    
+            // Show success modal with user's name
+            const lang = localStorage.getItem('language') || 'en';
+            fetch(`../lang/${lang}.json`)
+                .then(res => res.json())
+                .then(translations => {
+                    const modalBody = document.getElementById('loginSuccessModalBody');
+                    const welcomeMsg = translations.login_success_message.replace('{name}', user.preferredName || user.fullName || user.email);
+                    modalBody.textContent = welcomeMsg;
+    
+                    const loginModal = new bootstrap.Modal(document.getElementById('loginSuccessModal'));
+                    loginModal.show();
+    
+                    setTimeout(() => {
+                        window.location.href = 'books.html';
+                    }, 3000);
+                });
+        }
+    });
 });

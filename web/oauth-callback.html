@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-lang="login_success_title">Google OAuth Callback</title>
+  <link href="assets/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .top-right-controls {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+  </style>
+</head>
+<body class="text-center">
+  <!-- Language Selector -->
+  <div class="top-right-controls">
+    <select class="form-select form-select-sm" id="language-selector" style="width: auto; min-width: 120px;">
+      <option value="en">English</option>
+      <option value="af">Afrikaans</option>
+    </select>
+  </div>
+  <main>
+    <div class="px-4 py-5">
+      <div id="status-content">
+        <div class="mb-4">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <h2 id="status-title" data-lang="login_success_title">Completing sign-in...</h2>
+        <p id="status-message" data-lang="login_success_message">Please wait while we complete your sign-in.</p>
+      </div>
+    </div>
+  </main>
+  <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Language support
+    const translations = {
+      en: {
+        login_success_title: "Login Successful!",
+        login_success_message: "Welcome, {name}!",
+        oauth_processing: "Completing sign-in...",
+        oauth_wait: "Please wait while we complete your sign-in.",
+        oauth_error: "Login failed. Please try again.",
+        oauth_no_token: "No access token received."
+      },
+      af: {
+        login_success_title: "Suksesvol Ingeteken!",
+        login_success_message: "Welkom, {name}!",
+        oauth_processing: "Teken in word voltooi...",
+        oauth_wait: "Wag asseblief terwyl ons jou intekening voltooi.",
+        oauth_error: "Kon nie inteken nie. Probeer asseblief weer.",
+        oauth_no_token: "Geen toegangstoken ontvang nie."
+      }
+    };
+
+    function applyTranslations(lang, name = "") {
+      document.title = translations[lang].login_success_title;
+      document.getElementById('status-title').textContent = translations[lang].oauth_processing;
+      document.getElementById('status-message').textContent = translations[lang].oauth_wait.replace('{name}', name);
+    }
+
+    // Set language from localStorage or default to 'en'
+    const languageSelector = document.getElementById('language-selector');
+    const storedLang = localStorage.getItem('language') || 'en';
+    languageSelector.value = storedLang;
+    applyTranslations(storedLang);
+
+    languageSelector.addEventListener('change', () => {
+      const lang = languageSelector.value;
+      localStorage.setItem('language', lang);
+      applyTranslations(lang);
+    });
+
+    window.onload = async function() {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const lang = localStorage.getItem('language') || 'en';
+      const statusTitle = document.getElementById('status-title');
+      const statusMsg = document.getElementById('status-message');
+
+      if (!accessToken) {
+        statusTitle.textContent = translations[lang].login_success_title;
+        statusMsg.textContent = translations[lang].oauth_no_token;
+        document.querySelector('.spinner-border').classList.add('d-none');
+        setTimeout(() => window.close(), 2500);
+        return;
+      }
+
+      try {
+        const res = await fetch('https://api.fjnel.co.za/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: accessToken }),
+        });
+        const json = await res.json();
+        if (json.data && json.data.accessToken && window.opener) {
+          const user = json.data.user || {};
+          statusTitle.textContent = translations[lang].login_success_title;
+          statusMsg.textContent = translations[lang].login_success_message.replace('{name}', user.preferredName || user.fullName || user.email || "");
+          document.querySelector('.spinner-border').classList.add('d-none');
+          window.opener.postMessage({ type: 'google-login-success', data: json.data }, window.location.origin);
+          setTimeout(() => window.close(), 2000);
+        } else {
+          statusTitle.textContent = translations[lang].login_success_title;
+          statusMsg.textContent = translations[lang].oauth_error;
+          document.querySelector('.spinner-border').classList.add('d-none');
+          setTimeout(() => window.close(), 2500);
+        }
+      } catch (err) {
+        statusTitle.textContent = translations[lang].login_success_title;
+        statusMsg.textContent = translations[lang].oauth_error;
+        document.querySelector('.spinner-border').classList.add('d-none');
+        setTimeout(() => window.close(), 2500);
+      }
+    };
+  </script>
+</body>
+</html>

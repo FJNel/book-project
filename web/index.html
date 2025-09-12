@@ -3,12 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Welcome to the Book Project</title>
+    <!-- IMPORTANT: Add your Google Client ID here -->
+    <meta name="google-signin-client_id" content="1046748066305-2hasc6e95hhc7penpipegf0be1n1cosa.apps.googleusercontent.com">
+    <title data-lang="page_title">The Book Project</title>
 
     <!-- Bootstrap CSS -->
     <link href="assets/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <!-- Bootstrap Icons CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/style.css" />
 
 
     <style>
@@ -43,7 +46,7 @@
     <!-- Controls for Theme and Language -->
     <div class="top-right-controls">
         <!-- Language Selector Dropdown -->
-        <select class="form-select" id="language-selector" style="width: auto;">
+        <select class="form-select form-select-sm" id="language-selector" style="width: auto; min-width: 120px;">
             <option value="en">English</option>
             <option value="af">Afrikaans</option>
         </select>
@@ -67,13 +70,16 @@
                 account.
               </p>
               
-              <!-- Primary Google Sign-in Button -->
-              <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-3">
-                <a href="#" id="google-signin-btn" role="button" class="btn btn-primary btn-lg px-4 gap-3">
-                  <i class="bi bi-google me-2"></i><span data-lang="google_signin_button">Sign in with Google</span>
+              <div id="google-button-container" class="d-flex justify-content-sm-center mb-3"></div>
+
+              <div class="d-flex justify-content-center mb-3">
+                <a href="#" role="button" id="google-custom-signin" class="btn btn-primary btn-lg px-4 d-flex align-items-center justify-content-center gap-2" data-lang="google_signin_button">
+                  <i class="bi bi-google"></i>
+                  <span id="google-signin-text">Sign in with Google</span>
                 </a>
               </div>
-    
+
+
               <!-- Divider -->
               <div class="d-flex align-items-center my-4">
                 <hr class="flex-grow-1">
@@ -102,10 +108,27 @@
         </div>
     </main>
 
+    <!-- Add inside <body>, after your main content -->
+      <div class="modal fade" id="loginSuccessModal" tabindex="-1" aria-labelledby="loginSuccessModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="loginSuccessModalLabel" data-lang="login_success_title">Login Successful</h5>
+            </div>
+            <div class="modal-body" id="loginSuccessModalBody">
+              <!-- Success message will be inserted here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    
     <!-- Bootstrap JS -->
-    <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS for theme and language -->
-    <script src="assets/js/main.js"></script>
+      <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+      <!-- Google Identity Services Library -->
+      <script src="https://accounts.google.com/gsi/client" async defer></script>
+      <!-- Custom JS for theme and language -->
+      <script src="assets/js/main.js"></script>
+
   </body>
 </html>
 

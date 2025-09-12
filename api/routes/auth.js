@@ -1058,14 +1058,14 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 
 
 async function verifyGoogleIdToken(idToken) {
-  const ticket = await client.verifyIdToken({
+  const ticket = await googleClient.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
   });
-  return ticket.getPayload(); // Contains email, name, sub (Google user ID), etc.
+  const payload = ticket.getPayload();
+  return payload;
 }
 
-//POST auth/google: Sign in or register a user using Google OAuth2
 router.post("/google", async (req, res) => {
   const { idToken } = req.body || {};
 
@@ -1073,9 +1073,12 @@ router.post("/google", async (req, res) => {
     return errorResponse(res, 400, "ID token required", ["Please provide a valid Google ID token in the request body."]);
   }
 
+  let payload;
   try {
-    const payload = await verifyGoogleIdToken(idToken);
+    payload = await verifyGoogleIdToken(idToken);
   } catch (e) {
+    await logUserAction({ userId: null, action: "OAUTH_LOGIN", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: e.message, details: { idToken, provider: "google" } });
+    logToFile("OAUTH_LOGIN", { error: e.message, provider: "google" }, "error");
     return errorResponse(res, 401, "Invalid ID token", ["The provided Google ID token is invalid."]);
   }
 

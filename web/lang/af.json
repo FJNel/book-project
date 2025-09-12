@@ -1,9 +1,11 @@
 {
+	"page_title": "Die Boekprojek",
 	"welcome_title": "Welkom by die Boekprojek",
-	"welcome_message": "Hierdie toepassing laat jou toe om jou persoonlike boekversameling te bestuur. Teken asseblief in aan om voort te gaan, of registreer as jy nog nie 'n rekening het nie.",
-	"login_button": "Teken in",
+	"welcome_message": "Hierdie toepassing laat jou toe om jou persoonlike boekversameling te bestuur. Teken asseblief in om voort te gaan, of registreer as jy nie 'n rekening het nie.",
+	"or_divider": "Of",
 	"register_button": "Registreer",
+	"login_button": "Teken in",
 	"google_signin_button": "Teken in met Google",
-	"or_divider": "OF"
+	"login_success_title": "Suksesvol Ingeteken!",
+	"login_success_message": "Welkom, {name}!"
   }
-  
