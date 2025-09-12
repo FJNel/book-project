@@ -1,0 +1,9 @@
+{
+	"welcome_title": "Welcome to the Book Project",
+	"welcome_message": "This application allows you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.",
+	"login_button": "Login",
+	"register_button": "Register",
+	"google_signin_button": "Sign in with Google",
+	"or_divider": "OR"
+}
+  

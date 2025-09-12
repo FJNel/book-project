@@ -62,3 +62,6 @@ junit.xml
 
 # Others
 logs/
+
+# Bootstrap
+bootstrap/
