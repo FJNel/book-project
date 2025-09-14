@@ -7,5 +7,14 @@
 	"login_button": "Teken in",
 	"google_signin_button": "Teken in met Google",
 	"login_success_title": "Suksesvol Ingeteken!",
-	"login_success_message": "Welkom, {name}!"
+	"login_success_message": "Welkom, {name}!",
+
+	"api_error_title": "TPK Verbindingsfout",
+	"api_error_message": "Die toepassing kan nie met die agterkant-dienste koppel nie. Die webwerf sal nie korrek funksioneer sonder hierdie verbinding nie. Kontroleer asseblief jou internetkonneksie en probeer later weer.",
+	"google_error_title": "Teken in Met Google Nie Beskikbaar Nie",
+	"google_error_p1": "Die <b>\"Teken in met Google\"</b> aanwysing kon nie vertoon word nie. Dit kan wees as gevolg van jou blaaierinstellings (soos die blokkeering van derdeparty-koekies of opspringvensters).",
+	"google_error_p2": "Gebruik asseblief een van die opsies hieronder:",
+	"google_error_li1": "As jy <b>nog nooit</b> met Google ingeteken het nie, <b>registreer</b> asseblief 'n nuwe rekening.",
+	"google_error_li2": "As jy al <b>voorheen</b> met Google ingeteken het en jy <b>het</b> 'n wagwoord, kan jy met jou <b>e-pos en wagwoord</b> inteken.",
+	"google_error_li3": "As jy al <b>voorheen</b> met Google ingeteken het en jy <b>het nog nie</b> 'n wagwoord gestel het nie, gebruik die <b>\"Wagwoord Vergeet\"</b> opsie op die intekenblad om een te skep."
   }

@@ -7,5 +7,14 @@
 	"login_button": "Login",
 	"google_signin_button": "Login with Google",
 	"login_success_title": "Login Successful!",
-	"login_success_message": "Welcome, {name}!"
+	"login_success_message": "Welcome, {name}!",
+
+	"api_error_title": "API Connection Error",
+	"api_error_message": "The application cannot connect to the backend services. The website will not function correctly without this connection. Please check your internet connection and try again later.",
+	"google_error_title": "Google Login Unavailable",
+	"google_error_p1": "The <b>\"Login with Google\"</b> prompt could not be displayed. This might be due to your browser settings (like blocking third-party cookies or pop-ups).",
+	"google_error_p2": "Please use one of the options below:",
+	"google_error_li1": "If you have <b>never</b> logged in with Google, please <b>register</b> a new account.",
+	"google_error_li2": "If you <b>have</b> logged in with Google before and you <b>have</b> set a password, you can log in with your <b>email and password</b>.",
+	"google_error_li3": "If you <b>have</b> logged in with Google before and you <b>haven't</b> set a password, use the <b>\"Forgot Password\"</b> option on the login page to create one."
   }
