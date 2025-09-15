@@ -91,64 +91,63 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                if (response.status === 429) {
-                    console.warn('[Login Handler] Too many requests (429). Showing loginErrorModal...');
-                    const loginErrorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
-                    const loginErrorModalText = document.getElementById('loginErrorModalText');
-                    loginErrorModalText.textContent = 'Too many login attempts. Please try again later.';
-                    loginErrorModal.show();
-                    return;
-                }
-
-                const data = await response.json();
-                console.log('[Login Handler] API response received:', data);
-
-                if (response.ok && data.message === 'LOGIN_SUCCESS') {
-                    console.log('[Login Handler] Login successful. Showing loginSuccessModal...');
-                    const loginSuccessModal = new bootstrap.Modal(document.getElementById('loginSuccessModal'));
-                    const loginSuccessModalText = document.getElementById('loginSuccessModalText');
-                    loginSuccessModalText.textContent = `Welcome back, ${data.user.preferredName}!`;
-                    loginSuccessModal.show();
-
-                    // Store JWT token in localStorage
-                    console.log('[Login Handler] Storing JWT token in localStorage...');
-                    localStorage.setItem('authToken', data.token);
-
-                    // Redirect to dashboard after a short delay
-                    console.log('[Login Handler] Redirecting to dashboard...');
-                    setTimeout(() => {
-                        window.location.href = '/dashboard';
-                    }, 3000);
-                } else {
-                    console.warn('[Login Handler] Login failed. Showing error alerts...');
-                    const loginErrorAlert = document.getElementById('loginErrorAlert');
-                    loginErrorAlert.innerHTML = `<strong>${data.message}</strong><br>${data.errors.join('<br>')}`;
-                    loginErrorAlert.style.display = 'block';
-
-                    if (data.message === 'LOGIN_INVALID_CREDENTIALS') {
-                        console.warn('[Login Handler] Invalid credentials. Showing resend verification alert...');
-                        const loginErrorResendVerificationAlert = document.getElementById('loginErrorResendVerificationAlert');
-                        loginErrorResendVerificationAlert.style.display = 'block';
-                    }
-                }
-            } catch (error) {
-                console.error('[Login Handler] Login request failed:', error);
-                const loginErrorAlert = document.getElementById('loginErrorAlert');
-                loginErrorAlert.innerHTML = '<strong>Unexpected Error:</strong> Please try again later.';
-                loginErrorAlert.style.display = 'block';
-            } finally {
-                console.log('[Login Handler] Resetting login button state...');
-                loginButton.querySelector('span').style.display = 'none';
-                loginButton.disabled = false;
-            }
+				const response = await fetch(apiUrl, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify(payload),
+				});
+			
+				if (response.status === 429) {
+					console.warn('[Login Handler] Too many requests (429). Showing loginErrorAlert...');
+					const loginErrorAlert = document.getElementById('loginErrorAlert');
+					loginErrorAlert.innerHTML = '<strong>Too many requests:</strong> Please try again later.';
+					loginErrorAlert.style.display = 'block'; // Ensure the alert is visible
+					return;
+				}
+			
+				const data = await response.json();
+				console.log('[Login Handler] API response received:', data);
+			
+				if (response.ok && data.message === 'LOGIN_SUCCESS') {
+					console.log('[Login Handler] Login successful. Showing loginSuccessModal...');
+					const loginSuccessModal = new bootstrap.Modal(document.getElementById('loginSuccessModal'));
+					const loginSuccessModalText = document.getElementById('loginSuccessModalText');
+					loginSuccessModalText.textContent = `Welcome back, ${data.user.preferredName}!`;
+					loginSuccessModal.show();
+			
+					// Store JWT token in localStorage
+					console.log('[Login Handler] Storing JWT token in localStorage...');
+					localStorage.setItem('authToken', data.token);
+			
+					// Redirect to dashboard after a short delay
+					console.log('[Login Handler] Redirecting to dashboard...');
+					setTimeout(() => {
+						window.location.href = '/dashboard';
+					}, 3000);
+				} else {
+					console.warn('[Login Handler] Login failed. Showing error alerts...');
+					const loginErrorAlert = document.getElementById('loginErrorAlert');
+					loginErrorAlert.innerHTML = `<strong>${data.message}</strong><br>${data.errors.join('<br>')}`;
+					loginErrorAlert.style.display = 'block';
+			
+					if (data.message === 'LOGIN_INVALID_CREDENTIALS') {
+						console.warn('[Login Handler] Invalid credentials. Showing resend verification alert...');
+						const loginErrorResendVerificationAlert = document.getElementById('loginErrorResendVerificationAlert');
+						loginErrorResendVerificationAlert.style.display = 'block';
+					}
+				}
+			} catch (error) {
+				console.error('[Login Handler] Login request failed:', error);
+				const loginErrorAlert = document.getElementById('loginErrorAlert');
+				loginErrorAlert.innerHTML = '<strong>Unexpected Error:</strong> Please try again later.';
+				loginErrorAlert.style.display = 'block';
+			} finally {
+				console.log('[Login Handler] Resetting login button state...');
+				loginButton.querySelector('span').style.display = 'none';
+				loginButton.disabled = false;
+			}
         });
     }
 });
