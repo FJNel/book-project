@@ -21,10 +21,9 @@
                 </div>
             </div>
             <div class="row h-100">
-                <div class="col-md-10 col-xl-8 text-center d-flex d-sm-flex d-md-flex justify-content-center align-items-center justify-content-md-start align-items-md-center justify-content-xl-center mx-auto">
+                <div class="col-md-10 col-xl-8 text-center d-flex justify-content-center align-items-center mx-auto">
                     <div class="card shadow w-50">
-                        <div class="card-body w-100">
-                            <h6 class="text-muted card-subtitle mb-2"></h6><button class="btn btn-danger fs-4 w-100" type="button">Continue with Google</button>
+                        <div class="card-body w-100"><button class="btn btn-danger fs-4 w-100" type="button">Continue with Google</button>
                             <div>
                                 <p class="text-center text-muted mt-3">OR</p>
                             </div>
@@ -93,7 +92,7 @@
         <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Desktop View Required</h4>
+                    <h4 class="modal-title">Desktop View Required</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <p>This site is best experienced on a desktop or in your browser's "Desktop site" mode. Some features will not work as expected on smaller screens.</p>
@@ -103,7 +102,7 @@
                         <li><strong>On Safari:</strong> Tap the "aA" icon in the address bar and select "Request Desktop Website".</li>
                         <li><strong>On other browsers:</strong> Please check your browser's menu for a similar "Desktop site" or "Desktop view" option.</li>
                     </ul>
-                    <p><em>This dialog will disappear once your device is in Desktop mode.</em></p>
+                    <p><em>This message will disappear when your device is in Desktop mode. You can also close it, but this may result in a less optimal experience.</em></p>
                 </div>
             </div>
         </div>
@@ -115,26 +114,28 @@
                     <h4 class="modal-title">Register a new account</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-success" role="alert" id="registerSuccessAlert"><span><strong>Alert</strong> text.</span></div>
+                    <div class="alert alert-warning" role="alert" id="registerErrorAlert"><span><strong>Alert</strong> text.</span></div>
                     <form id="registerForm" method="get">
                         <div class="mb-3"><label class="form-label" for="registerFullName"><strong>Full Name</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your full name. It is primarily used for account verification.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="registerFullName" name="fullName" placeholder="John Smith" autofocus="" required="" minlength="2" maxlength="255" pattern="^[a-zA-Z \.\-']{2,255}$" autocomplete="on"><small class="form-text"></small></div>
+                            </svg><input class="form-control" type="text" id="registerFullName" name="fullName" placeholder="John Smith" autofocus="" required="" minlength="2" maxlength="255" pattern="^[a-zA-Z \.\-']{2,255}$" autocomplete="on"><small class="form-text" id="registerFullNameHelp"></small></div>
                         <div class="mb-3"><label class="form-label" for="registerPreferredName"><strong>Preferred Name</strong><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your preferred name. This name will be used to personalise your experience on the site.">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                     <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                </svg></label><input class="form-control" type="text" id="registerPreferredName" name="preferredName" placeholder="John" minlength="2" maxlength="100" pattern="^[a-zA-Z]{2,100}$" autocomplete="on"><small class="form-text"></small></div>
+                                </svg></label><input class="form-control" type="text" id="registerPreferredName" name="preferredName" placeholder="John" minlength="2" maxlength="100" pattern="^[a-zA-Z]{2,100}$" autocomplete="on"><small class="form-text" id="registerPreferredNameHelp"></small></div>
                         <div class="mb-3"><label class="form-label" for="registerEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your email will be your unique username. We'll also send verification links and important account notifications here. We will never share it with third parties.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="registerEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autocomplete="on"><small class="form-text"></small></div>
+                            </svg><input class="form-control" type="text" id="registerEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autocomplete="on"><small class="form-text" id="registerEmailHelp"></small></div>
                         <div class="mb-3"><label class="form-label" for="registerPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your password must be 10-100 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. !@#$%).">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="password" id="registerPassword" name="password" placeholder="StrongPassword" minlength="10" maxlength="100" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{10,100}$" required="" autocomplete="on"><small class="form-text"></small></div>
+                            </svg><input class="form-control" type="password" id="registerPassword" name="password" placeholder="StrongPassword" minlength="10" maxlength="100" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{10,100}$" required="" autocomplete="on"><small class="form-text" id="registerPasswordHelp"></small></div>
                     </form>
                 </div>
-                <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Register</button></div>
+                <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit"><span class="spinner-border spinner-border-sm" role="status"></span>Register</button></div>
             </div>
         </div>
     </div>
@@ -144,17 +145,20 @@
                 <div class="modal-header">
                     <h4 class="modal-title">Login to your Account</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pb-1">
+                    <div class="alert alert-success" role="alert" id="loginSuccessAlert"><span><strong>Alert</strong> text.</span></div>
+                    <div class="alert alert-danger" role="alert" id="loginErrorAlert"><span><strong>Alert</strong> text.</span></div>
+                    <div class="alert alert-danger" role="alert" id="loginErrorResemdVerificationAlert"><span><strong>Email Verification Required:</strong>&nbsp;Please check your inbox for the verification link we sent. Can't find it?&nbsp;</span><a class="alert-link" id="resendVerificationLink" href="#" data-bs-target="#resendVerificationEmail" data-bs-toggle="modal">Request a new link.</a></div>
                     <form id="loginForm" method="get">
                         <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Please use the email address you registered with. We will never share your email with anyone.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="loginEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""></div>
-                        <div class="mb-3"><label class="form-label" for="loginPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Passwords are case-sensitive. Click 'Forgot Password?' if you're having trouble.">
+                            </svg><input class="form-control" type="text" id="loginEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="loginEmailHelp"></small></div>
+                        <div class="mb-0"><label class="form-label" for="loginPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Passwords are case-sensitive. Click 'Forgot Password?' if you're having trouble.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="password" id="loginPassoword" name="password" placeholder="StrongPassword" required="" autocomplete="on">
-                            <div class="text-end"><a href="#" data-bs-target="#forgotPasswordModal" data-bs-toggle="modal">Forgot Password?</a></div>
+                            </svg><input class="form-control" type="password" id="loginPassoword" name="password" placeholder="StrongPassword" required="" autocomplete="on"><small class="form-text" id="loginPasswordHelp"></small>
+                            <div class="text-end mb-0"><a href="#" data-bs-target="#forgotPasswordModal" data-bs-toggle="modal">Forgot Password?</a></div>
                         </div>
                     </form>
                 </div>
@@ -169,12 +173,14 @@
                     <h4 class="modal-title">Resend Verification Email</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning" role="alert" id="resendVerificationAlert"><span><strong>Alert</strong> text.</span></div>
+                    <div class="alert alert-danger" role="alert" id="resendVerificationErrorAlert"><span><strong>Alert</strong> text.</span></div>
                     <p>Enter your email address below. If an unverified account exists, we will send a new verification link to your email address.&nbsp;<br><em>For security, this form can only be used once every 5 minutes.</em></p>
                     <form id="resendVerificationForm" method="get">
                         <div class="mb-3"><label class="form-label" for="resendEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address you registered with. A new verification link will be sent if the account is unverified.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="resendEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""></div>
+                            </svg><input class="form-control" type="text" id="resendEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="resendVerificationEmailHelp"></small></div>
                     </form>
                 </div>
                 <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Send Link</button></div>
@@ -188,12 +194,14 @@
                     <h4 class="modal-title">Reset your Password</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning" role="alert" id="forgotPasswordAlert"><span><strong>Alert</strong> text.</span></div>
+                    <div class="alert alert-danger" role="alert" id="forgotPasswordErrorAlert"><span><strong>Alert</strong> text.</span></div>
                     <p>Enter your account's email address and we will send you a link to reset your password. <br><em>For security, you can only make this request once every 5 minutes.</em></p>
                     <form id="forgotPasswordForm" method="get">
                         <div class="mb-3"><label class="form-label" for="resetEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address associated with your account. We'll send the reset link here.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="resetEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""></div>
+                            </svg><input class="form-control" type="text" id="resetEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="resetPasswordEmailHelp"></small></div>
                     </form>
                 </div>
                 <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Send Link</button></div>
@@ -202,6 +210,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/bs-init.js"></script>
+    <script src="assets/js/main.js"></script>
 </body>
 
 </html>
