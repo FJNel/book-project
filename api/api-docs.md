@@ -2,7 +2,7 @@
 
 Welcome to the Documentation for my project. This document provides an overview of the API and covers authentication, standard response formats, and all available endpoints. It also provides an overview of how databases are structured. You can access databases indirectly using the API.
 
-To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests
+To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests.
 
 **API Location:** <https://api.fjnel.co.za/>  
 **API Request and Response Format:** JSON  
