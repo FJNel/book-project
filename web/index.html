@@ -54,6 +54,25 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
+        <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Desktop View Required</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This site is best experienced on a desktop or in your browser's "Desktop site" mode. Some features will not work as expected on smaller screens.</p>
+                    <h5>For the best experience, please enable "Desktop site" in your browser settings.</h5>
+                    <ul>
+                        <li><strong>On Chrome:</strong> Tap the three-dot menu and check the "Desktop site" checkbox.</li>
+                        <li><strong>On Safari:</strong> Tap the "aA" icon in the address bar and select "Request Desktop Website".</li>
+                        <li><strong>On other browsers:</strong> Please check your browser's menu for a similar "Desktop site" or "Desktop view" option.</li>
+                    </ul>
+                    <p><em>This message will disappear when your device is in Desktop mode. You can also close it, but this may result in a less optimal experience.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" role="dialog" tabindex="-1" id="googleLoginErrorModal">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -84,25 +103,6 @@
                     <p class="lead text-center w-100"><strong>Welcome back, {name}!</strong></p>
                     <ul></ul>
                     <p class="text-center w-100"><em>You will be redirected to your dashboard shortly.</em></p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
-        <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Desktop View Required</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>This site is best experienced on a desktop or in your browser's "Desktop site" mode. Some features will not work as expected on smaller screens.</p>
-                    <h5>For the best experience, please enable "Desktop site" in your browser settings.</h5>
-                    <ul>
-                        <li><strong>On Chrome:</strong> Tap the three-dot menu and check the "Desktop site" checkbox.</li>
-                        <li><strong>On Safari:</strong> Tap the "aA" icon in the address bar and select "Request Desktop Website".</li>
-                        <li><strong>On other browsers:</strong> Please check your browser's menu for a similar "Desktop site" or "Desktop view" option.</li>
-                    </ul>
-                    <p><em>This message will disappear when your device is in Desktop mode. You can also close it, but this may result in a less optimal experience.</em></p>
                 </div>
             </div>
         </div>
@@ -210,7 +210,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/bs-init.js"></script>
-    <script src="assets/js/main.js"></script>
+    <script src="/assets/js/common.js"></script>
 </body>
 
 </html>
