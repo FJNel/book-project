@@ -53,7 +53,7 @@ function checkLoginStatus() {
         return true;
     } else {
         console.warn('[Login Check] User is not logged in. Redirecting to homepage...');
-        window.location.href = 'https://fjnel.co.za';
+        // window.location.href = 'https://fjnel.co.za';
         return false;
     }
 }

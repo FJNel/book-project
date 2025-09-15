@@ -55,7 +55,7 @@
         </div>
     </div>
     <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
-        <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" role="document">
+        <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Desktop View Required</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
@@ -100,7 +100,7 @@
                     <h4 class="modal-title text-center w-100">Logged in Successfully!</h4>
                 </div>
                 <div class="modal-body">
-                    <p class="lead text-center w-100"><strong>Welcome back, {name}!</strong></p>
+                    <p class="lead text-center w-100" id="loginSuccessModalText"><strong>Welcome back, {name}!</strong></p>
                     <ul></ul>
                     <p class="text-center w-100"><em>You will be redirected to your dashboard shortly.</em></p>
                 </div>
@@ -148,21 +148,21 @@
                 <div class="modal-body pb-1">
                     <div class="alert alert-success" role="alert" id="loginSuccessAlert"><span><strong>Alert</strong> text.</span></div>
                     <div class="alert alert-danger" role="alert" id="loginErrorAlert"><span><strong>Alert</strong> text.</span></div>
-                    <div class="alert alert-danger" role="alert" id="loginErrorResemdVerificationAlert"><span><strong>Email Verification Required:</strong>&nbsp;Please check your inbox for the verification link we sent. Can't find it?&nbsp;</span><a class="alert-link" id="resendVerificationLink" href="#" data-bs-target="#resendVerificationEmail" data-bs-toggle="modal">Request a new link.</a></div>
-                    <form id="loginForm" method="get">
+                    <div class="alert alert-warning" role="alert" id="loginErrorResendVerificationAlert"><span><strong>Email Verification:</strong> If you recently created your account and are unable to log in, please ensure you have verified your email using the link sent to your email address. Can't find it? </span><a class="alert-link alert-link" id="resendVerificationLink" href="#" data-bs-target="#resendVerificationEmail" data-bs-toggle="modal">Request a new link.</a></div>
+                    <form id="loginForm" method="post">
                         <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Please use the email address you registered with. We will never share your email with anyone.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="text" id="loginEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="loginEmailHelp"></small></div>
+                            </svg><input class="form-control" type="email" id="loginEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="loginEmailHelp"></small></div>
                         <div class="mb-0"><label class="form-label" for="loginPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Passwords are case-sensitive. Click 'Forgot Password?' if you're having trouble.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg><input class="form-control" type="password" id="loginPassoword" name="password" placeholder="StrongPassword" required="" autocomplete="on"><small class="form-text" id="loginPasswordHelp"></small>
+                            </svg><input class="form-control" type="password" id="loginPassword" name="password" placeholder="StrongPassword" required="" autocomplete="on"><small class="form-text" id="loginPasswordHelp"></small>
                             <div class="text-end mb-0"><a href="#" data-bs-target="#forgotPasswordModal" data-bs-toggle="modal">Forgot Password?</a></div>
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Login</button></div>
+                <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="loginButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="loginSpinner"></span>Login</button></div>
             </div>
         </div>
     </div>
@@ -210,7 +210,8 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/bs-init.js"></script>
-    <script src="/assets/js/common.js"></script>
+    <script src="assets/js/common.js"></script>
+    <script src="assets/js/login-handler.js"></script>
 </body>
 
 </html>
