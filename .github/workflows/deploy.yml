@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: SSH deploy to Pi
-        uses: appleboy/ssh-action@v1.7.0
+        uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.PI_HOST }}       # e.g., ssh.fjnel.co.za
           username: ${{ secrets.PI_USER }}   # johan
