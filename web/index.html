@@ -55,6 +55,40 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" role="dialog" tabindex="-1" id="googleLoginErrorModal">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Continue with Google Unavailable</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>The Continue with Google window could not be opened, or something went wrong while it was open. This is typically caused by a pop-up blocker in your browser.&nbsp;Please check your browser's address bar for a pop-up blocked icon and allow pop-ups from this site.</p>
+                    <p><em>If you're still having trouble, you can use one of the options below to access your account.</em></p>
+                    <h5>How to access your account now</h5>
+                    <ul>
+                        <li><strong>New User?</strong>&nbsp;Please register an account manually with your email and a password.</li>
+                        <li><strong>Have an Account?&nbsp;</strong>You can log in directly using your email and password.</li>
+                        <li><strong>No Password Set?&nbsp;</strong>If you've used Google before but don't have a password, use the "Forgot Password?" link to create one, and then log in.</li>
+                    </ul>
+                    <p><em>If this is a recurring issue, please contact the System Administrator.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="loginSuccessModal">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <h4 class="modal-title text-center w-100">Logged in Successfully!</h4>
+                </div>
+                <div class="modal-body">
+                    <p class="lead text-center w-100"><strong>Welcome back, {name}!</strong></p>
+                    <ul></ul>
+                    <p class="text-center w-100"><em>You will be redirected to your dashboard shortly.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
         <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" role="document">
             <div class="modal-content">
