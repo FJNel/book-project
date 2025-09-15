@@ -47,9 +47,9 @@ function requiresAuth(req, res, next) {
     return res.status(401).json({
       status: "error",
       httpCode: 401,
-      message: "Authentication required.",
+      message: "AUTHENTICATION_REQUIRED",
       data: {},
-      errors: ["Missing or invalid Authorization header."]
+      errors: ["AUTHENTICATION_REQUIRED_DETAILS"]
     });
   }
   const token = authHeader.split(" ")[1];
@@ -61,9 +61,9 @@ function requiresAuth(req, res, next) {
     return res.status(401).json({
       status: "error",
       httpCode: 401,
-      message: "Invalid or expired access token.",
+      message: "ACCESS_TOKEN_ERROR",
       data: {},
-      errors: ["Authentication failed."]
+      errors: ["ACCESS_TOKEN_FAILED"]
     });
   }
 }
@@ -74,9 +74,9 @@ function requireRole(roles) {
       return res.status(403).json({
         status: "error",
         httpCode: 403,
-        message: "Forbidden: Insufficient permissions.",
+        message: "FORBIDDEN_NO_PERMISSIONS",
         data: {},
-        errors: ["You do not have permission to access this resource or endpoint."]
+        errors: ["FORBIDDEN_NO_PERMISSIONS_DETAIL_1"]
       });
     }
     next();

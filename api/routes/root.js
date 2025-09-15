@@ -18,7 +18,7 @@ router.get("/", (req, res) => {
 	  minute: "2-digit",
 	  second: "2-digit",
 	});
-	return successResponse(res, 200, "The API is working!", {
+	return successResponse(res, 200, "API_IS_WORKING", {
 	  timestamp,
 	  api_documentation_url: "https://api.fjnel.co.za/api-docs.html"
 	//   db_documentation_url: "https://api.fjnel.co.za/db_documentation.html",
