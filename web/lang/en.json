@@ -103,6 +103,8 @@
 	"PASSWORD_UPPERCASE":"Password must include at least one uppercase letter.",
 	"PASSWORD_LOWERCASE":"Password must include at least one lowercase letter.",
 	"PASSWORD_NUMBER":"Password must include at least one number.",
-	"PASSWORD_SPECIAL":"Password must include at least one special character."
+	"PASSWORD_SPECIAL":"Password must include at least one special character.",
+	"TOO_MANY_REQUESTS":"Too many requests",
+	"TOO_MANY_REQUESTS_DETAIL":"You have exceeded the maximum number of requests. Please try again later."
 
 }

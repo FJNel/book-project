@@ -27,39 +27,60 @@ const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 10;
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// A reusable handler for when a rate limit is exceeded
+const rateLimitHandler = (req, res, next, options) => {
+  const errorMessage = `Rate limit exceeded for ${req.ip}`;
+  // Use your existing logging utility
+  logToFile("RATE_LIMIT_EXCEEDED", {
+    path: req.path,
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    limit: options.max, // Access the 'max' from the limiter's options
+    window: options.windowMs / 1000 // Convert to seconds
+  }, "warn");
+
+  // Use your existing JSON error response utility
+  return errorResponse(res, 429, "TOO_MANY_REQUESTS", ["TOO_MANY_REQUESTS_DETAIL"]);
+};
+
 const registerLimiter = rateLimit({
 	windowMs: 10 * 60 * 1000, //10 minutes
 	max: 5, // 5 requests
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false
+	legacyHeaders: false,
+  handler: rateLimitHandler
   });
 
 const emailVerificationLimiter = rateLimit({
 	windowMs: 5 * 60 * 1000, //5 minutes
 	max: 5, // 5 requests
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false
+	legacyHeaders: false,
+  handler: rateLimitHandler
   });
 
   const passwordVerificationLimiter = rateLimit({
 	windowMs: 5 * 60 * 1000, //5 minutes
 	max: 1, // 1 request
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false
+	legacyHeaders: false,
+  handler: rateLimitHandler
   });
 
   const passwordResetLimiter = rateLimit({
 	windowMs: 5 * 60 * 1000, //5 minutes
 	max: 1, // 1 request
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false
+	legacyHeaders: false,
+  handler: rateLimitHandler
   });
 
 const loginLimiter = rateLimit({
 	windowMs: 10 * 60 * 1000, //10 minutes
 	max: 10, // 10 requests
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false
+	legacyHeaders: false,
+  handler: rateLimitHandler
 });
 
 // Helper: get an active (unexpired, unused) email verification token for a user, or create a new one
