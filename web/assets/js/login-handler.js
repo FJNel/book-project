@@ -189,23 +189,28 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles a successful login response from the API.
      * @param {object} data The success response data.
      */
+    /**
+     * Handles a successful login response from the API.
+     * @param {object} data The success response data.
+     */
     function handleLoginSuccess(data) {
-        data = data.data; // Extract the actual data object
-        console.log('[Login] API login successful.');
-        console.log('[Login] Login successful for user:', data.user.preferredName);
-
+        // CORRECTED: Access the user's name from data.data.user
+        console.log('[Login] Login successful for user:', data.data.user.preferredName);
+    
         // Store tokens in Local Storage
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        // CORRECTED: Access tokens from data.data
+        localStorage.setItem('accessToken', data.data.accessToken);
+        localStorage.setItem('refreshToken', data.data.refreshToken);
         console.log('[Storage] Auth tokens saved to localStorage.');
-
+    
         // Update and show the success modal
         const successModalText = document.getElementById('loginSuccessModalText');
-        successModalText.innerHTML = `<strong>Welcome back, ${data.user.preferredName}!</strong>`;
+        // CORRECTED: Access the user's name from data.data.user
+        successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
         
         loginModal.hide();
         loginSuccessModal.show();
-
+    
         // Redirect after 3 seconds
         setTimeout(() => {
             console.log('[Redirect] Redirecting to books.html...');
