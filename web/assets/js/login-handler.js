@@ -65,8 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loginErrorAlert.style.display = 'none';
         loginSpinner.style.display = 'none';
         loginButtonText.textContent = 'Login';
-        loginSuccessAlert.style.display = 'none';
-        loginErrorResendVerificationAlert.style.display = 'none';
+        loginSuccessAlert.style.display = 'none'; // Explicitly hide loginSuccessAlert
+        loginErrorResendVerificationAlert.style.display = 'none'; // Explicitly hide loginErrorResendVerificationAlert
     }
 
     /**
