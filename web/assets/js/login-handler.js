@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginErrorAlert = document.getElementById('loginErrorAlert');
     const loginEmailHelp = document.getElementById('loginEmailHelp');
     const loginPasswordHelp = document.getElementById('loginPasswordHelp');
+    const loginSuccessAlert = document.getElementById('loginSuccessAlert');
+    const loginErrorResendVerificationAlert = document.getElementById('loginErrorResendVerificationAlert');
 
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
@@ -63,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loginErrorAlert.style.display = 'none';
         loginSpinner.style.display = 'none';
         loginButtonText.textContent = 'Login';
+        loginSuccessAlert.style.display = 'none';
+        loginErrorResendVerificationAlert.style.display = 'none';
     }
 
     /**
@@ -101,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loginErrorAlert.style.display = 'none';
         loginEmailHelp.textContent = '';
         loginPasswordHelp.textContent = '';
+        loginErrorResendVerificationAlert.style.display = 'none';
     }
 
     // --- Form Validation ---
@@ -218,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const message = `<strong>${getLangString(data.message)}</strong>`;
             const details = data.errors.map(getLangString).join(' ');
             showLoginError(`${message} ${details}`);
+            loginErrorResendVerificationAlert.style.display = 'block';
         } else {
             showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
         }
