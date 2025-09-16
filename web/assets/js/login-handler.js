@@ -189,10 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles a successful login response from the API.
      * @param {object} data The success response data.
      */
-    /**
-     * Handles a successful login response from the API.
-     * @param {object} data The success response data.
-     */
     function handleLoginSuccess(data) {
         // CORRECTED: Access the user's name from data.data.user
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
