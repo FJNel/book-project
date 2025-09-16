@@ -24,7 +24,7 @@ const { generateAccessToken, generateRefreshToken, verifyRefreshToken, requiresA
 const { v4: uuidv4 } = require("uuid");
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 10;
-const RECAPTCHA_SECRET = process.env.GOOGLE_RECAPTCHA_SECRET;
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const registerLimiter = rateLimit({

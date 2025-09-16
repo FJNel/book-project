@@ -225,6 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const details = data.errors.map(getLangString).join(' ');
             showLoginError(`${message} ${details}`);
             loginErrorResendVerificationAlert.style.display = 'block';
+        } else if (status === 400 && data.message === 'CAPTCHA_VERIFICATION_FAILED') {
+            showLoginError('<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.');
         } else {
             showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
         }
