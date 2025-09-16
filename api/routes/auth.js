@@ -637,80 +637,88 @@ router.post("/verify-email", async (req, res) => {
 
 
 
-//POST auth/login: Authenticate and log in a user with email and password (returns refreshToken)
+// POST auth/login: Authenticate and log in a user with email and password (returns refreshToken)
 router.post("/login", loginLimiter, async (req, res) => {
-	const { captchaToken, email, password } = req.body || {};
-  
-	// CAPTCHA check
-	const captchaValid = await verifyCaptcha(captchaToken, req.ip);
-	if (!captchaValid) {
-	  await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
-	  logToFile("LOGIN_ATTEMPT", { reason: "CAPTCHA_FAILED", email }, "warn");
-	  return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
-	}
-  
-	// Basic input check (do not reveal which field is wrong)
-	if (!email || !password) {
-	  return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
-	}
-  
-	try {
-	  const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email.trim().toLowerCase()]);
-	  let user;
-	  let passwordMatch = false;
+    const { captchaToken, email, password } = req.body || {};
 
-	  if (userRes.rows.length > 0) {
-		user = userRes.rows[0];
-		if (user.is_verified) {
-		  passwordMatch = await bcrypt.compare(password, user.password_hash);
-		}
-	  } else {
-		//Hash a dummy password to mitigate timing attacks
-		await bcrypt.compare(password, "$2b$10$CwTycUXWue0Thq9StjUM0uJ8m5rRZ1h6h4b1a8u7d1yK5j1y6q9e");
-	  }
+    // CAPTCHA check
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    if (!captchaValid) {
+        await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
+        logToFile("LOGIN_ATTEMPT", { reason: "CAPTCHA_FAILED", email }, "warn");
+        return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+    }
 
-	  if (!user || !user.is_verified || !passwordMatch) {
-		await logUserAction({ userId: user ? user.id : null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "INVALID_CREDENTIALS", details: { email } });
-		logToFile("LOGIN_ATTEMPT", { reason: "INVALID_CREDENTIALS", email }, "warn");
-		return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
-	  }
-  
-	  // Generate fingerprint for refresh token
-	  const fingerprint = uuidv4();
-  
-	  // Generate tokens
-	  const accessToken = generateAccessToken(user);
-	  const refreshToken = generateRefreshToken(user, fingerprint);
-  
-	  // Store refresh token in DB
-	  const now = new Date();
-	  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
-	  await pool.query(
-		`INSERT INTO refresh_tokens (user_id, token_fingerprint, issued_at, expires_at, revoked, ip_address, user_agent)
-		 VALUES ($1, $2, $3, $4, false, $5, $6)`,
-		[user.id, fingerprint, now, expiresAt, req.ip, req.get("user-agent")]
-	  );
-  
-	  await logUserAction({ userId: user.id, action: "LOGIN_ATTEMPT", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent"), details: { email } });
-	  logToFile("LOGIN_ATTEMPT", { user_id: user.id, email, outcome: "SUCCESS" });
-  
-	  return successResponse(res, 200, "LOGIN_SUCCESS", {
-		accessToken,
-		refreshToken,
-		user: {
-		  id: user.id,
-		  email: user.email,
-		  fullName: user.full_name,
-		  preferredName: user.preferred_name,
-		  role: user.role,
-		  isVerified: user.is_verified
-		}
-	  });
-	} catch (e) {
-	  await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: e.message, details: { email } });
-	  logToFile("LOGIN_ATTEMPT", { error: e.message, email }, "error");
-	  return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGIN_DETAIL"]);
-	}
+    // Basic input check (do not reveal which field is wrong)
+    if (!email || !password) {
+        return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
+    }
+
+    try {
+        const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email.trim().toLowerCase()]);
+        let user;
+        let passwordMatch = false;
+
+        if (userRes.rows.length > 0) {
+            user = userRes.rows[0];
+
+            // Check if the account is disabled
+            if (user.is_disabled) {
+                await logUserAction({ userId: user.id, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "ACCOUNT_DISABLED", details: { email } });
+                logToFile("LOGIN_ATTEMPT", { reason: "ACCOUNT_DISABLED", email }, "warn");
+                return errorResponse(res, 403, "ACCOUNT_DISABLED", ["ACCOUNT_DISABLED_DETAIL"]);
+            }
+
+            if (user.is_verified) {
+                passwordMatch = await bcrypt.compare(password, user.password_hash);
+            }
+        } else {
+            // Hash a dummy password to mitigate timing attacks
+            await bcrypt.compare(password, "$2b$10$CwTycUXWue0Thq9StjUM0uJ8m5rRZ1h6h4b1a8u7d1yK5j1y6q9e");
+        }
+
+        if (!user || !user.is_verified || !passwordMatch) {
+            await logUserAction({ userId: user ? user.id : null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "INVALID_CREDENTIALS", details: { email } });
+            logToFile("LOGIN_ATTEMPT", { reason: "INVALID_CREDENTIALS", email }, "warn");
+            return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
+        }
+
+        // Generate fingerprint for refresh token
+        const fingerprint = uuidv4();
+
+        // Generate tokens
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user, fingerprint);
+
+        // Store refresh token in DB
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await pool.query(
+            `INSERT INTO refresh_tokens (user_id, token_fingerprint, issued_at, expires_at, revoked, ip_address, user_agent)
+             VALUES ($1, $2, $3, $4, false, $5, $6)`,
+            [user.id, fingerprint, now, expiresAt, req.ip, req.get("user-agent")]
+        );
+
+        await logUserAction({ userId: user.id, action: "LOGIN_ATTEMPT", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent"), details: { email } });
+        logToFile("LOGIN_ATTEMPT", { user_id: user.id, email, outcome: "SUCCESS" });
+
+        return successResponse(res, 200, "LOGIN_SUCCESS", {
+            accessToken,
+            refreshToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                fullName: user.full_name,
+                preferredName: user.preferred_name,
+                role: user.role,
+                isVerified: user.is_verified
+            }
+        });
+    } catch (e) {
+        await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: e.message, details: { email } });
+        logToFile("LOGIN_ATTEMPT", { error: e.message, email }, "error");
+        return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGIN_DETAIL"]);
+    }
 });
 
 

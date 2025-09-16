@@ -140,7 +140,7 @@
         <body class="vscode-body vscode-light">
             <h1 id="documentation">Documentation</h1>
 <p>Welcome to the Documentation for my project. This document provides an overview of the API and covers authentication, standard response formats, and all available endpoints. It also provides an overview of how databases are structured. You can access databases indirectly using the API.</p>
-<p>To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests</p>
+<p>To interact with the API, you can use tools like Postman or curl, or access it programmatically via HTTP requests.</p>
 <p><strong>API Location:</strong> <a href="https://api.fjnel.co.za/">https://api.fjnel.co.za/</a><br>
 <strong>API Request and Response Format:</strong> JSON<br>
 <strong>API Request Type:</strong> Depends on the endpoint used (see below for more details)</p>
@@ -233,6 +233,40 @@
 </li>
 </ul>
 </li>
+<li><a href="#user-management">User Management</a>
+<ul>
+<li><a href="#required-headers-1">Required Headers</a></li>
+<li><a href="#get-current-user-profile">Get Current User Profile</a>
+<ul>
+<li><a href="#notes-8">Notes</a></li>
+<li><a href="#examples-9">Examples</a></li>
+</ul>
+</li>
+<li><a href="#update-current-user-profile">Update Current User Profile</a>
+<ul>
+<li><a href="#required-parameters-json-body-8">Required Parameters (JSON Body)</a></li>
+<li><a href="#notes-9">Notes</a></li>
+<li><a href="#examples-10">Examples</a></li>
+</ul>
+</li>
+<li><a href="#disable-current-user-profile">Disable Current User Profile</a>
+<ul>
+<li><a href="#notes-10">Notes</a></li>
+<li><a href="#examples-11">Examples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#user-management-1">User Management</a></li>
+<li><a href="#books-management">Books Management</a></li>
+<li><a href="#author-management">Author Management</a></li>
+<li><a href="#borrower-management">Borrower Management</a></li>
+<li><a href="#loan-management">Loan Management</a></li>
+<li><a href="#storage-location-management">Storage (Location) Management</a></li>
+<li><a href="#book-series-management">Book Series Management</a></li>
+<li><a href="#tags-categories-management">Tags (Categories) Management</a></li>
+<li><a href="#book-type-management">Book Type Management</a></li>
+<li><a href="#book-acquisition-location-management">Book Acquisition Location Management</a></li>
 </ul>
 <h1 id="logging">Logging</h1>
 <p>The API uses a hybrid logging approach:</p>
@@ -913,7 +947,285 @@
     <span class="hljs-punctuation">}</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span></code></pre>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h1 id="user-management">User Management</h1>
+<p>The <code>/users/</code> route is used for all user-related operations, including retrieving and updating user profiles.</p>
+<h3 id="required-headers-1">Required Headers</h3>
+<p>For any endpoint that requires authentication, the following header must be included:</p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Type</th>
+<th>Required</th>
+<th>Format</th>
+<th>Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td><code>Bearer &lt;token&gt;</code></td>
+<td>Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="get-current-user-profile">Get Current User Profile</h2>
+<p><strong>Endpoint:</strong> <code>GET /users/me</code><br>
+<strong>Access:</strong> Authenticated Users<br>
+<strong>Description:</strong> Retrieves the profile information of the currently authenticated user.</p>
+<h3 id="notes-8">Notes</h3>
+<ul>
+<li>The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.</li>
+<li>The response will include the user's ID, email, full name, preferred name, role, verification status, OAuth provider(s) (if any), and timestamps for account creation and last update.</li>
+<li>Sensitive information such as passwords or tokens will not be included in the response.</li>
+</ul>
+<h3 id="examples-9">Examples</h3>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PROFILE_RETRIEVAL_SUCCESS&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">456</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;oauthProviders&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;google&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;facebook&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2023-01-01T00:00:00Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2023-01-01T00:00:00Z&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="update-current-user-profile">Update Current User Profile</h2>
+<p><strong>Endpoint:</strong> <code>PUT /users/me</code><br>
+<strong>Access:</strong> Authenticated Users<br>
+<strong>Description:</strong> Updates the profile information of the currently authenticated user.</p>
+<h3 id="required-parameters-json-body-8">Required Parameters (JSON Body)</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description and Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fullName</code></td>
+<td>String</td>
+<td>No</td>
+<td>The user's full name. Must be between 2 and 255 characters. Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed.</td>
+</tr>
+<tr>
+<td><code>preferredName</code></td>
+<td>String</td>
+<td>No</td>
+<td>The user's preferred name. Must be between 2 and 100 characters. Only alphabetic characters are allowed.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="notes-9">Notes</h3>
+<ul>
+<li>The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.</li>
+<li>Only fields provided in the request body will be updated. Fields not included will remain unchanged.</li>
+<li>If any of the provided fields are invalid (e.g., too short, too long, contains invalid characters), an error message will be returned and no changes will be made.</li>
+<li>The role, email and password fields cannot be updated via this endpoint:</li>
+<li>To update the role: Requires admin privileges and must be done via a dedicated admin endpoint.</li>
+<li>To update the email: Requires re-verification and must be done via a dedicated admin endpoint.</li>
+<li>To update the password: Must be done via the password reset flow.</li>
+<li>The response will include the updated user profile information.</li>
+</ul>
+<h3 id="examples-10">Examples</h3>
+<p><strong>Example Request (JSON Object):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+ <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Smith&quot;</span><span class="hljs-punctuation">,</span>
+ <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;20.45&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PROFILE_UPDATE_SUCCESS&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">456</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-comment">// Email cannot be changed via this endpoint</span>
+    <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Smith&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;oauthProviders&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;google&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;facebook&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2023-01-01T00:00:00Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2023-01-01T00:00:00Z&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>Example Error Response (400 Bad Request)</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;10.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PROFILE_UPDATE_FAILED&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;FULL_NAME_LENGTH&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;PREFERRED_NAME_ALPHABETICS_ONLY&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="disable-current-user-profile">Disable Current User Profile</h2>
+<p><strong>Endpoint:</strong> <code>DELETE /users/me</code></p>
+<p><strong>Access:</strong> Authenticated Users</p>
+<p><strong>Description:</strong> Disables (soft deletes) the currently authenticated user's profile. This action is reversible by contacting a system administrator.</p>
+<h3 id="notes-10">Notes</h3>
+<ul>
+<li>The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.</li>
+<li>Disabling the profile will prevent the user from logging in or accessing any authenticated endpoints.</li>
+<li>The user's data will remain in the database but will be marked as disabled. This allows for potential reactivation by an administrator.</li>
+</ul>
+<h3 id="examples-11">Examples</h3>
+<p><strong>Example Success Response (200 OK):</strong></p>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;18.34&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;USER_DISABLE_SUCCESS&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<hr>
+<hr>
+<hr>
+<h1 id="user-management-1">User Management</h1>
+<p><code>GET /users/me</code> - Retrieve the profile information of the currently authenticated user
+<code>PUT /users/me</code> - Update the profile information of the currently authenticated user
+<code>DELETE /users/me</code> - Disable (soft delete) the currently authenticated user’s profile</p>
+<p><code>GET /admin/users/</code> - List all users (admin only, with pagination and filtering)
+<code>POST /admin/users/</code> - Create a new user (admin only)
+<code>GET /admin/users/:id</code> - Get a specific user profile by ID (admin only)
+<code>PUT /admin/users/:id</code> - Update a specific user’s profile by ID (including role and email, admin only)
+<code>DELETE /admin/users/:id</code> - Permanently delete a user by ID (hard delete, admin only)
+<code>POST /admin/users/:id/disable</code> - Disable a user profile by ID (admin only)
+<code>POST /admin/users/:id/enable</code> - Re-enable a disabled user profile by ID (admin only)
+<code>POST /admin/users/:id/unverify</code> - Mark a user’s email as unverified by ID (admin only)
+<code>POST /admin/users/:id/verify</code> - Mark a user’s email as verified by ID (bypassing verification, admin only)
+<code>POST /admin/users/:id/send-verification</code> - Resend email verification for a user (admin only)
+<code>POST /admin/users/:id/reset-password</code> - Trigger a password reset for a user by ID (admin only)
+<code>POST /admin/users/:id/force-logout</code> - Force logout a user (invalidate all sessions, admin only)</p>
+<hr>
+<h1 id="books-management">Books Management</h1>
+<p><code>GET /books/</code> - List all books owned by the authenticated user (with pagination and filtering)
+<code>GET /books/:id</code> - Get a specific book by ID (only if owned by the authenticated user)
+<code>POST /books/</code> - Create a new book owned by the authenticated user
+<code>PUT /books/:id</code> - Update a specific book by ID (only if owned by the authenticated user)
+<code>DELETE /books/:id</code> - Delete a specific book by ID (only if owned by the authenticated user)
+<code>GET /books/:id/authors</code> - List all authors for a specific book
+<code>POST /books/:id/authors/:authorId</code> - Add an author to a book
+<code>DELETE /books/:id/authors/:authorId</code> - Remove an author from a book
+<code>PATCH /books/:id/storage/:storageId</code> - Move a book to a different storage location
+<code>GET /books/:id/type</code> - Get the type of a specific book
+<code>PATCH /books/:id/type/:typeId</code> - Change the type of a specific book to a different type</p>
+<p><code>GET /admin/books/</code> - List all books (admin only, with pagination and filtering)
+<code>GET /admin/books/:id</code> - Get a specific book by ID (admin only)
+<code>DELETE /admin/books/:id</code> - Delete a specific book by ID (admin only)</p>
+<hr>
+<h1 id="author-management">Author Management</h1>
+<p><code>GET /authors/</code> - List all authors owned by the authenticated user (with pagination and filtering)
+<code>POST /authors/</code> - Create a new author owned by the authenticated user
+<code>GET /authors/:id</code> - Get a specific author by ID (only if owned by the authenticated user)
+<code>PUT /authors/:id</code> - Update a specific author by ID (only if owned by the authenticated user)
+<code>DELETE /authors/:id</code> - Delete a specific author by ID (only if owned by the authenticated user)</p>
+<p><code>GET /admin/authors/</code> - List all authors (admin only, with pagination and filtering)
+<code>GET /admin/authors/:id</code> - Get a specific author by ID (admin only)
+<code>DELETE /admin/authors/:id</code> - Delete a specific author by ID (admin only)</p>
+<hr>
+<h1 id="borrower-management">Borrower Management</h1>
+<p><code>GET /borrowers/</code> - List all borrowers owned by the authenticated user (with pagination and filtering)
+<code>POST /borrowers/</code> - Create a new borrower owned by the authenticated user
+<code>GET /borrowers/:id</code> - Get a specific borrower by ID (only if owned by the authenticated user)
+<code>PUT /borrowers/:id</code> - Update a specific borrower by ID (only if owned by the authenticated user)
+<code>DELETE /borrowers/:id</code> - Delete a specific borrower by ID (only if owned by the authenticated user)
+<code>POST /borrowers/:id/loans</code> - Record a new loan for a borrower
+<code>GET /borrowers/:id/loans</code> - List all loans for a borrower
+<code>DELETE /borrowers/:id/loans/:loanId</code> - Mark a specific loan as returned</p>
+<p><code>GET /admin/borrowers/</code> - List all borrowers (admin only, with pagination and filtering)
+<code>GET /admin/borrowers/:id</code> - Get a specific borrower by ID (admin only)
+<code>DELETE /admin/borrowers/:id</code> - Delete a specific borrower by ID (admin only)</p>
+<hr>
+<h1 id="loan-management">Loan Management</h1>
+<p><code>GET /loans/</code> - List all loans for the authenticated user (with pagination and filtering)
+<code>POST /loans/</code> - Create a new loan (book + borrower + due date)
+<code>GET /loans/:id</code> - Get details of a specific loan
+<code>PUT /loans/:id/return</code> - Mark a loan as returned
+<code>GET /loans/:id/history</code> - Get the history of a specific loan</p>
+<p><code>GET /admin/loans/</code> - List all loans (admin only, with pagination and filtering)
+<code>GET /admin/loans/overdue</code> - List all overdue loans (admin only)</p>
+<hr>
+<h1 id="storage-location-management">Storage (Location) Management</h1>
+<p><code>GET /storage/</code> - List all storage locations owned by the authenticated user (with pagination and filtering)
+<code>GET /storage/:id</code> - Get a specific storage location by ID
+<code>POST /storage/</code> - Create a new storage location
+<code>PUT /storage/:id</code> - Update a specific storage location
+<code>DELETE /storage/:id</code> - Delete a specific storage location
+<code>GET /storage/:id/books</code> - List all books in a specific storage location</p>
+<p><code>GET /admin/storage/</code> - List all storage locations (admin only, with pagination and filtering)
+<code>GET /admin/storage/:id</code> - Get a specific storage location by ID (admin only)
+<code>DELETE /admin/storage/:id</code> - Delete a specific storage location by ID (admin only)</p>
+<hr>
+<h1 id="book-series-management">Book Series Management</h1>
+<p><code>GET /series/</code> - List all book series owned by the authenticated user (with pagination and filtering)
+<code>GET /series/:id</code> - Get a specific book series by ID
+<code>POST /series/</code> - Create a new book series
+<code>PUT /series/:id</code> - Update a specific book series
+<code>DELETE /series/:id</code> - Delete a specific book series
+<code>GET /series/:id/books</code> - List all books in a specific series
+<code>POST /series/:id/books/:bookId</code> - Add a book to a series
+<code>DELETE /series/:id/books/:bookId</code> - Remove a book from a series</p>
+<p><code>GET /admin/series/</code> - List all book series (admin only, with pagination and filtering)
+<code>GET /admin/series/:id</code> - Get a specific book series by ID (admin only)
+<code>DELETE /admin/series/:id</code> - Delete a specific book series by ID (admin only)</p>
+<hr>
+<h1 id="tags-categories-management">Tags (Categories) Management</h1>
+<p><code>GET /tags/</code> - List all tags created by the authenticated user
+<code>POST /tags/</code> - Create a new tag
+<code>GET /tags/:id</code> - Get a specific tag by ID
+<code>DELETE /tags/:id</code> - Delete a specific tag
+<code>POST /books/:id/tags/:tagId</code> - Add a tag to a book
+<code>DELETE /books/:id/tags/:tagId</code> - Remove a tag from a book
+<code>GET /tags/:id/books</code> - List all books with a specific tag</p>
+<h1 id="book-type-management">Book Type Management</h1>
+<p><code>GET /book-types/</code> - List all book types created by the authenticated user (with pagination and optional filtering)
+<code>POST /book-types/</code> - Create a new book type for the authenticated user
+<code>GET /book-types/:id</code> - Get a specific book type by ID (only if owned by the authenticated user)
+<code>PUT /book-types/:id</code> - Update a specific book type by ID (only if owned by the authenticated user)
+<code>DELETE /book-types/:id</code> - Delete a specific book type by ID (only if owned by the authenticated user)</p>
+<p><code>GET /admin/book-types/</code> - List all book types for all users (admin only, with pagination and filtering)
+<code>GET /admin/book-types/:id</code> - Get a specific book type by ID (admin only)
+<code>DELETE /admin/book-types/:id</code> - Delete a specific book type by ID (admin only)</p>
+<hr>
+<h1 id="book-acquisition-location-management">Book Acquisition Location Management</h1>
+<p><code>GET /locations-acquired/</code> - List all book acquisition locations created by the authenticated user (with pagination and filtering)
+<code>POST /locations-acquired/</code> - Create a new acquisition location for the authenticated user
+<code>GET /locations-acquired/:id</code> - Get a specific acquisition location by ID (only if owned by the authenticated user)
+<code>PUT /locations-acquired/:id</code> - Update a specific acquisition location by ID (only if owned by the authenticated user)
+<code>DELETE /locations-acquired/:id</code> - Delete a specific acquisition location by ID (only if owned by the authenticated user)</p>
+<p><code>GET /books/:id/location-acquired</code> - Get the acquisition location of a specific book
+<code>PATCH /books/:id/location-acquired/:locationId</code> - Update the acquisition location of a specific book</p>
+<p><code>GET /admin/locations-acquired/</code> - List all acquisition locations for all users (admin only, with pagination and filtering)
+<code>GET /admin/locations-acquired/:id</code> - Get a specific acquisition location by ID (admin only)
+<code>DELETE /admin/locations-acquired/:id</code> - Delete a specific acquisition location by ID (admin only)</p>
 
             
             

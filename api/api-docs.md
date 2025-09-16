@@ -64,6 +64,28 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Required Parameters (JSON Body)](#required-parameters-json-body-7)
     - [Notes](#notes-7)
     - [Examples](#examples-8)
+- [User Management](#user-management)
+    - [Required Headers](#required-headers-1)
+  - [Get Current User Profile](#get-current-user-profile)
+    - [Notes](#notes-8)
+    - [Examples](#examples-9)
+  - [Update Current User Profile](#update-current-user-profile)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-8)
+    - [Notes](#notes-9)
+    - [Examples](#examples-10)
+  - [Disable Current User Profile](#disable-current-user-profile)
+    - [Notes](#notes-10)
+    - [Examples](#examples-11)
+- [User Management](#user-management-1)
+- [Books Management](#books-management)
+- [Author Management](#author-management)
+- [Borrower Management](#borrower-management)
+- [Loan Management](#loan-management)
+- [Storage (Location) Management](#storage-location-management)
+- [Book Series Management](#book-series-management)
+- [Tags (Categories) Management](#tags-categories-management)
+- [Book Type Management](#book-type-management)
+- [Book Acquisition Location Management](#book-acquisition-location-management)
 
 # Logging
 
@@ -680,3 +702,319 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
   },
   "errors": []
 }
+```
+
+# User Management
+
+The `/users/` route is used for all user-related operations, including retrieving and updating user profiles. 
+
+### Required Headers
+
+For any endpoint that requires authentication, the following header must be included:
+
+| Header | Type | Required | Format | Description and Details |
+|--------|------|----------|--------|-------------------------|
+| `Authorization` | String | **Yes**| `Bearer <token>` | Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically. |
+
+## Get Current User Profile
+
+**Endpoint:** `GET /users/me`  
+**Access:** Authenticated Users  
+**Description:** Retrieves the profile information of the currently authenticated user.  
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- The response will include the user's ID, email, full name, preferred name, role, verification status, OAuth provider(s) (if any), and timestamps for account creation and last update.
+- Sensitive information such as passwords or tokens will not be included in the response.
+
+### Examples
+
+**Example Success Response (200 OK):**
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "15.67",
+  "message": "PROFILE_RETRIEVAL_SUCCESS",
+  "data": {
+    "id": 456,
+    "email": "jane@example.com",
+    "fullName": "Jane Doe",
+    "preferredName": "Jane",
+    "role": "user",
+    "isVerified": true,
+    "oauthProviders": ["google", "facebook"],
+    "createdAt": "2023-01-01T00:00:00Z",
+    "updatedAt": "2023-01-01T00:00:00Z"
+  },
+  "errors": []
+}
+```
+
+## Update Current User Profile
+
+**Endpoint:** `PUT /users/me`  
+**Access:** Authenticated Users  
+**Description:** Updates the profile information of the currently authenticated user.
+
+### Required Parameters (JSON Body)
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `fullName` | String | No | The user's full name. Must be between 2 and 255 characters. Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed. |
+| `preferredName` | String | No | The user's preferred name. Must be between 2 and 100 characters. Only alphabetic characters are allowed. |
+
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- Only fields provided in the request body will be updated. Fields not included will remain unchanged.
+- If any of the provided fields are invalid (e.g., too short, too long, contains invalid characters), an error message will be returned and no changes will be made.
+- The role, email and password fields cannot be updated via this endpoint:
+ - To update the role: Requires admin privileges and must be done via a dedicated admin endpoint.
+ - To update the email: Requires re-verification and must be done via a dedicated admin endpoint.
+ - To update the password: Must be done via the password reset flow.
+- The response will include the updated user profile information.
+
+### Examples
+
+**Example Request (JSON Object):**
+
+```json
+{
+ "fullName": "John Smith",
+ "preferredName": "John"
+}
+```
+
+**Example Success Response (200 OK):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "20.45",
+  "message": "PROFILE_UPDATE_SUCCESS",
+  "data": {
+    "id": 456,
+    "email": "jane@example.com", // Email cannot be changed via this endpoint
+    "fullName": "John Smith",
+    "preferredName": "John",
+    "role": "user",
+    "isVerified": true,
+    "oauthProviders": ["google", "facebook"],
+    "createdAt": "2023-01-01T00:00:00Z",
+    "updatedAt": "2023-01-01T00:00:00Z"
+  },
+  "errors": []
+}
+```
+
+**Example Error Response (400 Bad Request)**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "10.12",
+  "message": "PROFILE_UPDATE_FAILED",
+  "data": {},
+  "errors": [
+    "FULL_NAME_LENGTH",
+    "PREFERRED_NAME_ALPHABETICS_ONLY"
+  ]
+}
+```
+
+## Disable Current User Profile
+
+**Endpoint:** `DELETE /users/me`  
+
+**Access:** Authenticated Users  
+
+**Description:** Disables (soft deletes) the currently authenticated user's profile. This action is reversible by contacting a system administrator.
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- Disabling the profile will prevent the user from logging in or accessing any authenticated endpoints.
+- The user's data will remain in the database but will be marked as disabled. This allows for potential reactivation by an administrator.
+
+### Examples
+
+**Example Success Response (200 OK):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "18.34",
+  "message": "USER_DISABLE_SUCCESS",
+  "data": {},
+  "errors": []
+}
+```
+
+
+---
+---
+---
+
+# User Management
+
+`GET /users/me` - Retrieve the profile information of the currently authenticated user
+`PUT /users/me` - Update the profile information of the currently authenticated user
+`DELETE /users/me` - Disable (soft delete) the currently authenticated user’s profile
+
+`GET /admin/users/` - List all users (admin only, with pagination and filtering)
+`POST /admin/users/` - Create a new user (admin only)
+`GET /admin/users/:id` - Get a specific user profile by ID (admin only)
+`PUT /admin/users/:id` - Update a specific user’s profile by ID (including role and email, admin only)
+`DELETE /admin/users/:id` - Permanently delete a user by ID (hard delete, admin only)
+`POST /admin/users/:id/disable` - Disable a user profile by ID (admin only)
+`POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)
+`POST /admin/users/:id/unverify` - Mark a user’s email as unverified by ID (admin only)
+`POST /admin/users/:id/verify` - Mark a user’s email as verified by ID (bypassing verification, admin only)
+`POST /admin/users/:id/send-verification` - Resend email verification for a user (admin only)
+`POST /admin/users/:id/reset-password` - Trigger a password reset for a user by ID (admin only)
+`POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)
+
+---
+
+# Books Management
+
+`GET /books/` - List all books owned by the authenticated user (with pagination and filtering)
+`GET /books/:id` - Get a specific book by ID (only if owned by the authenticated user)
+`POST /books/` - Create a new book owned by the authenticated user
+`PUT /books/:id` - Update a specific book by ID (only if owned by the authenticated user)
+`DELETE /books/:id` - Delete a specific book by ID (only if owned by the authenticated user)
+`GET /books/:id/authors` - List all authors for a specific book
+`POST /books/:id/authors/:authorId` - Add an author to a book
+`DELETE /books/:id/authors/:authorId` - Remove an author from a book
+`PATCH /books/:id/storage/:storageId` - Move a book to a different storage location
+`GET /books/:id/type` - Get the type of a specific book
+`PATCH /books/:id/type/:typeId` - Change the type of a specific book to a different type
+
+`GET /admin/books/` - List all books (admin only, with pagination and filtering)
+`GET /admin/books/:id` - Get a specific book by ID (admin only)
+`DELETE /admin/books/:id` - Delete a specific book by ID (admin only)
+
+---
+
+# Author Management
+
+`GET /authors/` - List all authors owned by the authenticated user (with pagination and filtering)
+`POST /authors/` - Create a new author owned by the authenticated user
+`GET /authors/:id` - Get a specific author by ID (only if owned by the authenticated user)
+`PUT /authors/:id` - Update a specific author by ID (only if owned by the authenticated user)
+`DELETE /authors/:id` - Delete a specific author by ID (only if owned by the authenticated user)
+
+`GET /admin/authors/` - List all authors (admin only, with pagination and filtering)
+`GET /admin/authors/:id` - Get a specific author by ID (admin only)
+`DELETE /admin/authors/:id` - Delete a specific author by ID (admin only)
+
+---
+
+# Borrower Management
+
+`GET /borrowers/` - List all borrowers owned by the authenticated user (with pagination and filtering)
+`POST /borrowers/` - Create a new borrower owned by the authenticated user
+`GET /borrowers/:id` - Get a specific borrower by ID (only if owned by the authenticated user)
+`PUT /borrowers/:id` - Update a specific borrower by ID (only if owned by the authenticated user)
+`DELETE /borrowers/:id` - Delete a specific borrower by ID (only if owned by the authenticated user)
+`POST /borrowers/:id/loans` - Record a new loan for a borrower
+`GET /borrowers/:id/loans` - List all loans for a borrower
+`DELETE /borrowers/:id/loans/:loanId` - Mark a specific loan as returned
+
+`GET /admin/borrowers/` - List all borrowers (admin only, with pagination and filtering)
+`GET /admin/borrowers/:id` - Get a specific borrower by ID (admin only)
+`DELETE /admin/borrowers/:id` - Delete a specific borrower by ID (admin only)
+
+---
+
+# Loan Management
+
+`GET /loans/` - List all loans for the authenticated user (with pagination and filtering)
+`POST /loans/` - Create a new loan (book + borrower + due date)
+`GET /loans/:id` - Get details of a specific loan
+`PUT /loans/:id/return` - Mark a loan as returned
+`GET /loans/:id/history` - Get the history of a specific loan
+
+`GET /admin/loans/` - List all loans (admin only, with pagination and filtering)
+`GET /admin/loans/overdue` - List all overdue loans (admin only)
+
+---
+
+# Storage (Location) Management
+
+`GET /storage/` - List all storage locations owned by the authenticated user (with pagination and filtering)
+`GET /storage/:id` - Get a specific storage location by ID
+`POST /storage/` - Create a new storage location
+`PUT /storage/:id` - Update a specific storage location
+`DELETE /storage/:id` - Delete a specific storage location
+`GET /storage/:id/books` - List all books in a specific storage location
+
+`GET /admin/storage/` - List all storage locations (admin only, with pagination and filtering)
+`GET /admin/storage/:id` - Get a specific storage location by ID (admin only)
+`DELETE /admin/storage/:id` - Delete a specific storage location by ID (admin only)
+
+---
+
+# Book Series Management
+
+`GET /series/` - List all book series owned by the authenticated user (with pagination and filtering)
+`GET /series/:id` - Get a specific book series by ID
+`POST /series/` - Create a new book series
+`PUT /series/:id` - Update a specific book series
+`DELETE /series/:id` - Delete a specific book series
+`GET /series/:id/books` - List all books in a specific series
+`POST /series/:id/books/:bookId` - Add a book to a series
+`DELETE /series/:id/books/:bookId` - Remove a book from a series
+
+`GET /admin/series/` - List all book series (admin only, with pagination and filtering)
+`GET /admin/series/:id` - Get a specific book series by ID (admin only)
+`DELETE /admin/series/:id` - Delete a specific book series by ID (admin only)
+
+---
+
+# Tags (Categories) Management
+
+`GET /tags/` - List all tags created by the authenticated user
+`POST /tags/` - Create a new tag
+`GET /tags/:id` - Get a specific tag by ID
+`DELETE /tags/:id` - Delete a specific tag
+`POST /books/:id/tags/:tagId` - Add a tag to a book
+`DELETE /books/:id/tags/:tagId` - Remove a tag from a book
+`GET /tags/:id/books` - List all books with a specific tag
+
+# Book Type Management
+
+`GET /book-types/` - List all book types created by the authenticated user (with pagination and optional filtering)
+`POST /book-types/` - Create a new book type for the authenticated user
+`GET /book-types/:id` - Get a specific book type by ID (only if owned by the authenticated user)
+`PUT /book-types/:id` - Update a specific book type by ID (only if owned by the authenticated user)
+`DELETE /book-types/:id` - Delete a specific book type by ID (only if owned by the authenticated user)
+
+`GET /admin/book-types/` - List all book types for all users (admin only, with pagination and filtering)
+`GET /admin/book-types/:id` - Get a specific book type by ID (admin only)
+`DELETE /admin/book-types/:id` - Delete a specific book type by ID (admin only)
+
+---
+
+# Book Acquisition Location Management
+
+`GET /locations-acquired/` - List all book acquisition locations created by the authenticated user (with pagination and filtering)
+`POST /locations-acquired/` - Create a new acquisition location for the authenticated user
+`GET /locations-acquired/:id` - Get a specific acquisition location by ID (only if owned by the authenticated user)
+`PUT /locations-acquired/:id` - Update a specific acquisition location by ID (only if owned by the authenticated user)
+`DELETE /locations-acquired/:id` - Delete a specific acquisition location by ID (only if owned by the authenticated user)
+
+`GET /books/:id/location-acquired` - Get the acquisition location of a specific book
+`PATCH /books/:id/location-acquired/:locationId` - Update the acquisition location of a specific book
+
+`GET /admin/locations-acquired/` - List all acquisition locations for all users (admin only, with pagination and filtering)
+`GET /admin/locations-acquired/:id` - Get a specific acquisition location by ID (admin only)
+`DELETE /admin/locations-acquired/:id` - Delete a specific acquisition location by ID (admin only)
+
+
