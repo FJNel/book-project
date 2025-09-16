@@ -65,3 +65,7 @@ logs/
 
 # Bootstrap
 bootstrap/
+
+# Drive
+.tmp.drivedownload
+.tmp.driveupload

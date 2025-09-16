@@ -107,6 +107,11 @@ async function verifyCaptcha(token, ip) {
 		return false;
 	}
 
+  //Temporary for development testing
+  if (token === "test-bypass-token") {
+		return true;
+	}
+
 	try {
 		const params = new URLSearchParams();
 		params.append("secret", RECAPTCHA_SECRET);
