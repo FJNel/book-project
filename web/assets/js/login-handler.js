@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loginButton = document.getElementById('loginButton');
     const loginSpinner = document.getElementById('loginSpinner');
-    const loginButtonText = loginButton.childNodes[2]; // The "Login" text node
+    const loginButtonText = document.createTextNode('Login'); // Create a text node for "Login"
+    loginButton.appendChild(loginButtonText); // Append it to the button
 
     const loginErrorAlert = document.getElementById('loginErrorAlert');
     const loginEmailHelp = document.getElementById('loginEmailHelp');
@@ -77,12 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (show) {
             console.log('[UI] Showing login spinner.');
             loginSpinner.style.display = 'inline-block';
-            loginButtonText.textContent = '';
+            loginButtonText.textContent = ''; // Clear the text
             loginButton.disabled = true;
         } else {
             console.log('[UI] Hiding login spinner.');
             loginSpinner.style.display = 'none';
-            loginButtonText.textContent = 'Login';
+            loginButtonText.textContent = 'Login'; // Restore the text
             loginButton.disabled = false;
         }
     }
