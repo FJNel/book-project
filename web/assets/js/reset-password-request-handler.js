@@ -159,6 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 
+    function handleSuccess(data) {
+        console.log('[Password Reset] API request successful.');
+        const message = getLangString(data.message.message || 'PASSWORD_RESET_MESSAGE');
+        const disclaimer = getLangString(data.message.disclaimer || 'PASSWORD_RESET_DISCLAIMER');
+        showAlert('success', `<strong>${message}</strong><br><em>${disclaimer}</em>`);
+        forgotPasswordForm.reset(); // Reset the form after success
+    }
+
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
         if (status === 400 && data.message === 'VALIDATION_ERROR') {
