@@ -105,6 +105,6 @@
 	"PASSWORD_NUMBER":"Password must include at least one number.",
 	"PASSWORD_SPECIAL":"Password must include at least one special character.",
 	"TOO_MANY_REQUESTS":"Too many requests",
-	"TOO_MANY_REQUESTS_DETAIL":"You have exceeded the maximum number of requests. Please try again later."
-
+	"TOO_MANY_REQUESTS_DETAIL":"You have exceeded the maximum number of requests. Please try again later.",
+	"INVALID_TOKEN": "The link you used is invalid. Please use the link from your email."
 }

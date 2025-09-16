@@ -190,6 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} data The success response data.
      */
     function handleLoginSuccess(data) {
+        data = data.data; // Extract the actual data object
+        console.log('[Login] API login successful.');
         console.log('[Login] Login successful for user:', data.user.preferredName);
 
         // Store tokens in Local Storage
