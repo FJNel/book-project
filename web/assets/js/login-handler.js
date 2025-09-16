@@ -220,18 +220,20 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[Login] Login failed with status:', status);
         if (status === 429) {
             //Too many requests
-            const message = `<strong>${getLangString(data.message)}</strong>`;
+            const message = `<strong>${getLangString(data.message)}:</strong>`;
             const details = data.errors.map(getLangString).join(' ');
             showLoginError(`${message} ${details}`);
         } else if (status === 401 && data.message === 'LOGIN_INVALID_CREDENTIALS') {
             // Invalid credentials
-            const message = `<strong>${getLangString(data.message)}</strong>`;
+            const message = `<strong>${getLangString(data.message)}:</strong>`;
             const details = data.errors.map(getLangString).join(' ');
             showLoginError(`${message} ${details}`);
             loginErrorResendVerificationAlert.style.display = 'block';
         } else if (status === 400 && data.message === 'CAPTCHA_VERIFICATION_FAILED') {
             // CAPTCHA failure
-            showLoginError('<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.');
+            const message = `<strong>${getLangString(data.message)}:</strong>`;
+            const details = data.errors[0].map(getLangString).join(' ');
+            showLoginError(`${message} ${details}`);
         } else {
             // Other errors
             showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
