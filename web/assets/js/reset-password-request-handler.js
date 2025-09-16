@@ -116,49 +116,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Main Handler ---
-    async function handlePasswordResetRequest(event) {
-        event.preventDefault();
-        console.log('[Password Reset] Request process initiated.');
+	async function handlePasswordResetRequest(event) {
+		event.preventDefault();
+		console.log('[Password Reset] Request process initiated.');
 
-        if (!validateForm()) {
-            return;
-        }
+		if (!validateForm()) {
+			return;
+		}
 
-        toggleSpinner(true);
+		toggleSpinner(true);
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: emailInput.value.trim(),
-                    captchaToken: 'test-bypass-token'
-                }),
-            });
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email: emailInput.value.trim(),
+					captchaToken: 'test-bypass-token'
+				}),
+			});
 
-            const data = await response.json();
-            console.log('[API] Received password reset response:', { status: response.status, data });
+			// Handle Too Many Requests (429)
+			if (response.status === 429) {
+				console.warn('[Password Reset] Too many requests (429).');
+				showAlert('error', '<strong>Too many requests:</strong> Please try again later.');
+				return;
+			}
 
-            if (response.ok) {
-                handleSuccess(data);
-            } else {
-                handleError(response.status, data);
-            }
-        } catch (error) {
-            console.error('[API] Network or fetch error during password reset request:', error);
-            showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
-        } finally {
-            toggleSpinner(false);
-        }
-    }
+			const data = await response.json();
+			console.log('[API] Received password reset response:', { status: response.status, data });
 
-    function handleSuccess(data) {
-        console.log('[Password Reset] API request successful.');
-        const message = getLangString(data.message.message);
-        const disclaimer = getLangString(data.message.disclaimer);
-        showAlert('success', `<strong>${message}</strong><br><em>${disclaimer}</em>`);
-        forgotPasswordForm.reset();
-    }
+			if (response.ok) {
+				handleSuccess(data);
+			} else {
+				handleError(response.status, data);
+			}
+		} catch (error) {
+			console.error('[API] Network or fetch error during password reset request:', error);
+			showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+		} finally {
+			toggleSpinner(false);
+		}
+	}
 
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
