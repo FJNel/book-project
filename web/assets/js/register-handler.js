@@ -46,14 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[Language] Language data loaded successfully:', lang);
         } catch (error) {
             console.error('[Language] Failed to load language file:', error);
-            // // Fallback strings in case the file fails to load
-            // lang = {
-            //     "LOGIN_INVALID_CREDENTIALS": "Invalid email or password.",
-            //     "LOGIN_INVALID_CREDENTIALS_DETAIL": "The provided email or password is incorrect.",
-            //     "LOGIN_SUCCESS": "Login successful.",
-            //     "TOO_MANY_REQUESTS": "Too many requests. Please try again later.",
-            //     "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
-            // };
+            // Fallback strings in case the file fails to load
+            lang = {
+                "LOGIN_INVALID_CREDENTIALS": "Invalid email or password.",
+                "LOGIN_INVALID_CREDENTIALS_DETAIL": "The provided email or password is incorrect.",
+                "LOGIN_SUCCESS": "Login successful.",
+                "TOO_MANY_REQUESTS": "Too many requests. Please try again later.",
+                "UNEXPECTED_ERROR": "An unexpected error occurred. Please try again."
+            };
         }
     }
 
