@@ -78,7 +78,7 @@ async function initializeApp() {
     const viewportOk = checkViewport();
     const loggedIn = checkLoginStatus();
 
-    if (apiHealthy && viewportOk && loggedIn) {
+    if (apiHealthy && viewportOk && !loggedIn) {
         console.log('[Initialization] All checks passed. Application is ready.');
         // Proceed with application initialization
     } else {
