@@ -48,12 +48,22 @@ function checkViewport() {
 // Checks if the user is logged in
 function checkLoginStatus() {
     const token = localStorage.getItem('authToken');
+    
+    //Check if token refresh token is still valid
+    //TODO: Implement token validation logic here
+    
+    //Placeholder logic
     if (token) {
         console.log('[Login Check] User is logged in:', token);
         return true;
     } else {
-        console.warn('[Login Check] User is not logged in. Redirecting to homepage...');
-        // window.location.href = 'https://fjnel.co.za';
+        console.warn('[Login Check] User is not logged in.');
+        //If not homepage, redirect
+        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+            console.log('[Login Check] Redirecting to homepage.');
+            window.location.href = 'https://fjnel.co.za';
+        }
+        console.log('[Login Check] Already on homepage.');
         return false;
     }
 }
