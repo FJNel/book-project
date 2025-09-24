@@ -56,12 +56,14 @@ function checkLoginStatus() {
         //If not homepage, redirect
         if (window.location.pathname !== '/' 
             && window.location.pathname !== '/index.html' 
+            && window.location.pathname !== '/index'
             && window.location.pathname !== '/reset-password.html'
+            && window.location.pathname !== '/reset-password'
             && window.location.pathname !== '/verify-email.html'
-
+            && window.location.pathname !== '/verify-email'
         ) {
             console.log('[Login Check] Redirecting to homepage.');
-            
+
             window.location.href = 'https://fjnel.co.za';
         }
         console.log('[Login Check] Already on page that does not require login.');
