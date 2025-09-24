@@ -160,9 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleSpinner(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            const response = await apiFetch(`/auth/register`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     fullName: fullNameInput.value,
                     preferredName: preferredNameInput.value || null,

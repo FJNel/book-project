@@ -127,9 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
 		toggleSpinner(true);
 
 		try {
-			const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+			const response = await apiFetch(`/auth/request-password-reset`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					email: emailInput.value.trim(),
 					captchaToken: 'test-bypass-token'

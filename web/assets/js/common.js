@@ -4,12 +4,7 @@ async function checkApiHealth() {
     const apiUrl = 'https://api.fjnel.co.za/'; // Root endpoint for health check
 
     try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        const response = await apiFetch('/', { method: 'GET' });
 
         if (response.ok) {
             const data = await response.json();

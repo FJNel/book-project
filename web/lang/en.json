@@ -35,7 +35,7 @@
 	"CAPTCHA_VERIFICATION_FAILED_DETAIL_2":"Make sure that you provided a captchaToken in your request.",
 	"VALIDATION_ERROR":"Validation Error",
 	"EMAIL_IN_USE":"Email already in use",
-	"EMAIL_IN_USE_DETAIL":"The provided email is already associated with another account.",
+	"EMAIL_IN_USE_DETAIL":"The provided email is already associated with another account. Please log in or use a different email.",
 	"FAILED_TO_SEND_VERIFICATION_EMAIL":"Failed to send verification email",
 	"FAILED_TO_SEND_VERIFICATION_EMAIL_DETAIL":"Could not send verification email. Please try again later.",
 	"FAILED_TO_SEND_VERIFICATION_EMAIL_DETAIL_2":"Note: Your account was created, but you will need to verify your email before logging in.",

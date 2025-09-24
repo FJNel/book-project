@@ -129,9 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleSpinner(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+            const response = await apiFetch(`/auth/resend-verification`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: emailInput.value.trim(),
                     captchaToken: 'test-bypass-token'

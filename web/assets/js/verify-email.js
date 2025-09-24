@@ -80,9 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+            const response = await apiFetch(`/auth/verify-email`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, token }),
             });
 
