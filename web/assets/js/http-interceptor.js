@@ -34,7 +34,7 @@ async function apiFetch(path, options = {}) {
 	headers.set('Content-Type', 'application/json');
 
 	// If the path is not public, attach the Authorization header
-	const accessToken = localStorage.getItem('authToken');
+	const accessToken = localStorage.getItem('accessToken');
 	if (accessToken && !PUBLIC_PATHS.includes(path)) {
 		console.log('[HTTP Interceptor] Private endpoint: Attaching access token to request headers for path:', path);
 		headers.set('Authorization', `Bearer ${accessToken}`);
