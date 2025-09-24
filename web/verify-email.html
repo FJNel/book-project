@@ -54,12 +54,12 @@
                         <li><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
                         <li><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
                     </ul>
-                    <p><em>If the problem continues, please contact the system administrator.</em></p>
+                    <p class="mb-0"><em>If the problem continues, please contact the System Administrator.</em></p>
                 </div>
             </div>
         </div>
     </div>
-    <div class="modal fade show" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal" style="display: none;">
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -73,7 +73,38 @@
                         <li><strong>Safari:</strong> Tap the "aA" icon in the address bar and choose "Request Desktop Website".</li>
                         <li><strong>Other browsers:</strong> Look for a "Desktop site" or "Desktop view" option in the browser's menu.</li>
                     </ul>
-                    <p class="mb-0 pb-0"><em>Note: You can close this window, but your experience might not be optimal.</em></p>
+                    <p class="mb-0"><em>Note: You can close this window, but your experience might not be optimal.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" role="dialog" tabindex="-1" id="sessionExpiredModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+                    <ul>
+                        <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+                        <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+                        <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+                    </ul>
+                    <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" role="dialog" tabindex="-1" id="notLoggedInModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Not Logged In!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
+                    <p class="mb-0"><em>Close this window to return to the login or registration page.</em></p>
                 </div>
             </div>
         </div>

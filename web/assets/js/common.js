@@ -54,11 +54,17 @@ function checkLoginStatus() {
     } else {
         console.warn('[Login Check] User is not logged in.');
         //If not homepage, redirect
-        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+        if (window.location.pathname !== '/' 
+            && window.location.pathname !== '/index.html' 
+            && window.location.pathname !== '/reset-password.html'
+            && window.location.pathname !== '/verify-email.html'
+
+        ) {
             console.log('[Login Check] Redirecting to homepage.');
+            
             window.location.href = 'https://fjnel.co.za';
         }
-        console.log('[Login Check] Already on homepage.');
+        console.log('[Login Check] Already on page that does not require login.');
         return false;
     }
 }
