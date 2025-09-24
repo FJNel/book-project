@@ -77,7 +77,7 @@ const messages = [
 ];
 
 function setRandomMessage() {
-  	const messageElement = document.getElementById("funny-message");
+  	const messageElement = document.getElementById("funnyMessage");
 	if (messageElement) {
 		const randomIndex = Math.floor(Math.random() * messages.length);
 		messageElement.textContent = messages[randomIndex];
