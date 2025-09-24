@@ -50,7 +50,7 @@
                         <li><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
                         <li><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
                     </ul>
-                    <p><em>If the problem continues, please contact the system administrator.</em></p>
+                    <p class="mb-0"><em>If the problem continues, please contact the System Administrator.</em></p>
                 </div>
             </div>
         </div>
@@ -74,6 +74,24 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" role="dialog" tabindex="-1" id="sessionExpiredModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+                    <ul>
+                        <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+                        <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+                        <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+                    </ul>
+                    <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" role="dialog" tabindex="-1" id="googleLoginErrorModal">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -87,7 +105,7 @@
                     <ul>
                         <li><strong>New User?</strong>&nbsp;Please register an account manually with your email and a password.</li>
                         <li><strong>Have an Account?&nbsp;</strong>You can log in directly using your email and password.</li>
-                        <li><strong>No Password Set?&nbsp;</strong>If you've used Google before but don't have a password, use the "Forgot Password?" link to create one, and then log in.</li>
+                        <li><strong>No Password Set?&nbsp;</strong>If you've used Google before but don't have a password, use the "Forgot Password?" link in the login window to create one, and then log in.</li>
                     </ul>
                     <p><em>If this is a recurring issue, please contact the System Administrator.</em></p>
                 </div>
@@ -101,9 +119,9 @@
                     <h4 class="modal-title text-center w-100">Logged in Successfully!</h4>
                 </div>
                 <div class="modal-body">
-                    <p class="lead text-center w-100" id="loginSuccessModalText"><strong>Welcome back, {name}!</strong></p>
+                    <p class="lead text-center w-100" id="loginSuccessModalText"><strong>Welcome back to the Book Project, {name}!</strong></p>
                     <ul></ul>
-                    <p class="text-center w-100"><em>You will be redirected to your dashboard shortly.</em></p>
+                    <p class="text-center w-100 mb-0"><em>You will be redirected to your dashboard shortly.</em></p>
                 </div>
             </div>
         </div>
@@ -130,7 +148,7 @@
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg><input class="form-control" type="text" id="registerEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autocomplete="on"><small class="form-text" id="registerEmailHelp"></small></div>
-                        <div class="mb-3"><label class="form-label" for="registerPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your password must be 10-100 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. !@#$%).">
+                        <div class="mb-0"><label class="form-label" for="registerPassword"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Your password must be 10-100 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. !@#$%).">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg><input class="form-control" type="password" id="registerPassword" name="password" placeholder="StrongPassword" minlength="10" maxlength="100" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{10,100}$" required="" autocomplete="on"><small class="form-text" id="registerPasswordHelp"></small></div>
@@ -178,7 +196,7 @@
                     <div class="alert alert-danger" role="alert" id="resendVerificationErrorAlert"><span><strong>Alert</strong> text.</span></div>
                     <p>Enter your email address below. If an unverified account exists, we will send a new verification link to your email address.&nbsp;<br><em>For security, this form can only be used once every 5 minutes.</em></p>
                     <form id="resendVerificationForm" method="get">
-                        <div class="mb-3"><label class="form-label" for="resendEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address you registered with. A new verification link will be sent if the account is unverified.">
+                        <div class="mb-0"><label class="form-label" for="resendEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address you registered with. A new verification link will be sent if the account is unverified.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg><input class="form-control" type="text" id="resendEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="resendVerificationEmailHelp"></small></div>
@@ -199,31 +217,13 @@
                     <div class="alert alert-danger" role="alert" id="forgotPasswordErrorAlert"><span><strong>Alert</strong> text.</span></div>
                     <p>Enter your account's email address and we will send you a link to reset your password. <br><em>For security, you can only make this request once every 5 minutes.</em></p>
                     <form id="forgotPasswordForm" method="get">
-                        <div class="mb-3"><label class="form-label" for="resetEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address associated with your account. We'll send the reset link here.">
+                        <div class="mb-0"><label class="form-label" for="resetEmail"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the email address associated with your account. We'll send the reset link here.">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg><input class="form-control" type="text" id="resetEmail" name="email" placeholder="john.smith@bookproject.com" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="^(?=.{3,255}$)[-a-z0-9~!$%^&amp;*_=+}{\'?]+(\.[-a-z0-9~!$%^&amp;*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$" autofocus=""><small class="form-text" id="resetPasswordEmailHelp"></small></div>
                     </form>
                 </div>
                 <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="forgotPasswordSpinner"></span></button></div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" role="dialog" tabindex="-1" id="sessionExpiredModal">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Session Timeout</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Your session has ended for security reasons. This might happen due to:</p>
-                    <ul>
-                        <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
-                        <li><strong>Password Update:</strong> You changed your password recently, so you need to log in again on all devices.</li>
-                        <li><strong>Manual Logout:</strong> You logged out on another device.</li>
-                    </ul>
-                    <p class="mb-0"><em>Close this window to go back to the login page.</em></p>
-                </div>
             </div>
         </div>
     </div>
