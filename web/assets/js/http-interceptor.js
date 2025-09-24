@@ -51,7 +51,7 @@ async function apiFetch(path, options = {}) {
 	//Now, intercept the response
 	if (response.ok) {
 		// If the response is successful (2xx), just return it
-		console.log('[HTTP Interceptor] API request successful. Response:', await response.json());
+		console.log('[HTTP Interceptor] API request successful. Response:', response);
 		return response;
 	}
 
@@ -83,7 +83,7 @@ async function apiFetch(path, options = {}) {
 			headers,
 		});
 
-		console.log('[HTTP Interceptor] Retried request response:', await response.json());
+		console.log('[HTTP Interceptor] Retried request response:', response);
 
 		return response;
 	} catch (error) {
