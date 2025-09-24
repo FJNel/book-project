@@ -49,31 +49,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Initialization and State Management ---
     function initializeUI() {
-        console.log('[UI] Initializing password reset page UI state.');
-        //Hide modals and alerts
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
-        console.log('[UI] Hid success and error alerts.');
-
-        //Hide invalidLinkModal modal if token is present
-        console.log('[UI] Checking for token in URL...');
-        const invalidLinkModal = new bootstrap.Modal(document.getElementById('invalidLinkModal'));
+    
+        const invalidLinkModalEl = document.getElementById('invalidLinkModal');
+        if (!invalidLinkModalEl) {
+            console.error('[UI] invalidLinkModal not found in DOM.');
+            return;
+        }
+        const invalidLinkModal = new bootstrap.Modal(invalidLinkModalEl);
+    
         const token = getQueryParam('token');
         if (token) {
-            console.log('[UI] Token found in URL:', token);
-            invalidLinkModal.hide();
+            // Only hide if modal is actually shown
+            console.log('[UI] Valid token found in URL.');
+            if (invalidLinkModalEl.classList.contains('show')) {
+                invalidLinkModal.hide();
+            }
         } else {
-            console.warn('[UI] No token found in URL.');
             invalidLinkModal.show();
-            //If modal closed, redirect to homepage
-            console.log('[UI] Setting up redirect on invalid link modal close.');
-            document.getElementById('invalidLinkModal').addEventListener('hidden.bs.modal', () => {
-                console.log('[Redirect] Redirecting to homepage due to missing token...');
+            invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
                 window.location.href = 'https://fjnel.co.za';
-            });
+            }, { once: true });
         }
-
-
     }
 
     function showAlert(type, htmlContent) {

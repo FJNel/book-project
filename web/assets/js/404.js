@@ -64,16 +64,12 @@ const messages = [
 	"This page is like a unicorn - rumored to exist, but never actually seen.",
 	"This page is like a mirage - it looks real, but it's just an illusion.",
 	"This page is like a secret passage - you know it's there, but you can't find it.",
-	"This page is like Harry Potter's invisibility cloak - it's there, but you can't see it.",
-	"This page is like a riddle wrapped in a mystery inside an enigma - good luck figuring it out.",
-	"This page is like a wild goose chase - you keep looking, but you never find what you're after.",
-	"In Lord of the Rings, this page would be called 'The One That Got Away'.",
-	"In Mistborn, this page would've been like a kandra - it can take any form, but it's still not what you want.",
 	"I've ran out of ideas for funny 404 messages. Please help me think of more.",
-	"Good day! Is it a good day? It's a good day for this 404 page.",
+	"Good day! Is it a good day? It's a good day for this 404 page. Maybe not for you though because you ended up here.",
 	"Did you know? The first 404 error was recorded in 1992.",
 	"Fun fact: 404 errors are more common than typos in Harry Potter fan fiction. (Source: Totally made up statistic.)",
 	"Did you hear about the 404 page that went to therapy? It had too many unresolved issues.",
+	"Welcome to Page 404 in this book. Oh, wait, this isn't a book. My bad.",
 ];
 
 function setRandomMessage() {
