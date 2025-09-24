@@ -42,7 +42,7 @@ function checkViewport() {
 
 // Checks if the user is logged in
 function checkLoginStatus() {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     
     //Check if token refresh token is still valid
     //TODO: Implement token validation logic here
