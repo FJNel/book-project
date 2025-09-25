@@ -30,6 +30,23 @@ async function checkApiHealth() {
 
 // Checks if the viewport is large enough (>= 1200px)
 function checkViewport() {
+    //Only run this logic on pages that require a token
+    const path = window.location.pathname;
+    if (
+        path === '/verify-email.html' || path === '/verify-email' ||
+        path === '/reset-password.html' || path === '/reset-password'
+    ) {
+        console.log('[Viewport Check] Page requires token. Checking token presence.');
+        //Check for token in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (!token) {
+            //Don't show desktop modal if token is missing
+            console.warn('[Viewport Check] Token is missing in URL. Not showing desktop error modal.');
+            return true;
+        }
+    }
+
     if (window.innerWidth >= 1200) {
         console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
         return true;
