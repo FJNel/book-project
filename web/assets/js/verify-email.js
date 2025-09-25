@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         errorAlert.style.display = 'none';
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
-        const desktopErrorModalEl = document.getElementById('desktopErrorModal');
         const token = getQueryParam('token');
     
         if (!invalidLinkModalEl) {
@@ -69,21 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Do NOT show desktop modal
             return;
         }
-    
-        // If token exists, check viewport and show desktop modal if needed
-        if (window.innerWidth < 1200 && desktopErrorModalEl && !desktopModalShown) {
-            const desktopErrorModal = new bootstrap.Modal(desktopErrorModalEl);
-            desktopErrorModal.show();
-            desktopModalShown = true;
-        }
-    }
 
-    const desktopErrorModalEl = document.getElementById('desktopErrorModal');
-    if (desktopErrorModalEl) {
-        desktopErrorModalEl.addEventListener('hidden.bs.modal', () => {
-            document.body.classList.remove('modal-open');
-            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-        });
     }
 
     function showAlert(type, htmlContent) {
