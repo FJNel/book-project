@@ -76,6 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const desktopErrorModalEl = document.getElementById('desktopErrorModal');
+    if (desktopErrorModalEl) {
+        desktopErrorModalEl.addEventListener('hidden.bs.modal', () => {
+            document.body.classList.remove('modal-open');
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        });
+    }
+
     function showAlert(type, htmlContent) {
         console.log(`[UI] Displaying email verification ${type} alert.`);
         successAlert.style.display = 'none';
