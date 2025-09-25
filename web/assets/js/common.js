@@ -62,7 +62,8 @@ function checkLoginStatus() {
     const token = localStorage.getItem('accessToken');
     
     //Check if token refresh token is still valid
-    //TODO: Implement token validation logic here
+    //Not needed: The HTTP interceptor will handle this
+    //If the token is invalid, the user will be logged out automatically by the interceptor
     
     //Placeholder logic
     if (token) {
