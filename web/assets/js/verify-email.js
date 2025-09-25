@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- UI Initialization and State Management ---
+    let desktopModalShown = false;
     function initializeUI() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
@@ -70,9 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     
         // If token exists, check viewport and show desktop modal if needed
-        if (window.innerWidth < 1200 && desktopErrorModalEl) {
+        if (window.innerWidth < 1200 && desktopErrorModalEl && !desktopModalShown) {
             const desktopErrorModal = new bootstrap.Modal(desktopErrorModalEl);
             desktopErrorModal.show();
+            desktopModalShown = true;
         }
     }
 
