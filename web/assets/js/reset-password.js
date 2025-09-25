@@ -53,24 +53,32 @@ document.addEventListener('DOMContentLoaded', () => {
         errorAlert.style.display = 'none';
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
+        const desktopErrorModalEl = document.getElementById('desktopErrorModal');
+        const token = getQueryParam('token');
+    
         if (!invalidLinkModalEl) {
             console.error('[UI] invalidLinkModal not found in DOM.');
+            //Fallback use alert
+            alert('The password reset link is invalid. Please request a new link.');
+            window.location.href = 'https://fjnel.co.za';
             return;
         }
         const invalidLinkModal = new bootstrap.Modal(invalidLinkModalEl);
     
-        const token = getQueryParam('token');
-        if (token) {
-            // Only hide if modal is actually shown
-            console.log('[UI] Valid token found in URL.');
-            if (invalidLinkModalEl.classList.contains('show')) {
-                invalidLinkModal.hide();
-            }
-        } else {
+        if (!token) {
+            // Show only the invalid link modal
             invalidLinkModal.show();
             invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
                 window.location.href = 'https://fjnel.co.za';
             }, { once: true });
+            // Do NOT show desktop modal
+            return;
+        }
+    
+        // If token exists, check viewport and show desktop modal if needed
+        if (window.innerWidth < 1200 && desktopErrorModalEl) {
+            const desktopErrorModal = new bootstrap.Modal(desktopErrorModalEl);
+            desktopErrorModal.show();
         }
     }
 
