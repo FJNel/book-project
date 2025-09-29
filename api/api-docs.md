@@ -76,7 +76,7 @@ To interact with the API, you can use tools like Postman or curl, or access it p
   - [Disable Current User Profile](#disable-current-user-profile)
     - [Notes](#notes-10)
     - [Examples](#examples-11)
-- [User Management](#user-management-1)
+- [Admin User Management](#admin-user-management)
 - [Books Management](#books-management)
 - [Author Management](#author-management)
 - [Borrower Management](#borrower-management)
@@ -772,8 +772,8 @@ For any endpoint that requires authentication, the following header must be incl
 - Only fields provided in the request body will be updated. Fields not included will remain unchanged.
 - If any of the provided fields are invalid (e.g., too short, too long, contains invalid characters), an error message will be returned and no changes will be made.
 - The role, email and password fields cannot be updated via this endpoint:
- - To update the role: Requires admin privileges and must be done via a dedicated admin endpoint.
- - To update the email: Requires re-verification and must be done via a dedicated admin endpoint.
+ - To update the role: Requires admin privileges and must be done via the dedicated admin endpoint.
+ - To update the email: Requires re-verification and must be done via a dedicated endpoint.
  - To update the password: Must be done via the password reset flow.
 - The response will include the updated user profile information.
 
@@ -861,24 +861,22 @@ For any endpoint that requires authentication, the following header must be incl
 ---
 ---
 
-# User Management
+# Admin User Management
 
-`GET /users/me` - Retrieve the profile information of the currently authenticated user
-`PUT /users/me` - Update the profile information of the currently authenticated user
-`DELETE /users/me` - Disable (soft delete) the currently authenticated user’s profile
+> Not yet implemented!
 
-`GET /admin/users/` - List all users (admin only, with pagination and filtering)
-`POST /admin/users/` - Create a new user (admin only)
-`GET /admin/users/:id` - Get a specific user profile by ID (admin only)
-`PUT /admin/users/:id` - Update a specific user’s profile by ID (including role and email, admin only)
-`DELETE /admin/users/:id` - Permanently delete a user by ID (hard delete, admin only)
-`POST /admin/users/:id/disable` - Disable a user profile by ID (admin only)
-`POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)
-`POST /admin/users/:id/unverify` - Mark a user’s email as unverified by ID (admin only)
-`POST /admin/users/:id/verify` - Mark a user’s email as verified by ID (bypassing verification, admin only)
-`POST /admin/users/:id/send-verification` - Resend email verification for a user (admin only)
-`POST /admin/users/:id/reset-password` - Trigger a password reset for a user by ID (admin only)
-`POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)
+`GET /admin/users/` - List all users (admin only, with pagination and filtering)  
+`POST /admin/users/` - Create a new user (admin only)  
+`GET /admin/users/:id` - Get a specific user profile by ID (admin only)  
+`PUT /admin/users/:id` - Update a specific user’s profile by ID (including role and email, admin only)  
+`DELETE /admin/users/:id` - Permanently delete a user by ID (hard delete, admin only)  
+`POST /admin/users/:id/disable` - Disable a user profile by ID (admin only)  
+`POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)  
+`POST /admin/users/:id/unverify` - Mark a user’s email as unverified by ID (admin only)  
+`POST /admin/users/:id/verify` - Mark a user’s email as verified by ID (bypassing verification, admin only)  
+`POST /admin/users/:id/send-verification` - Resend email verification for a user (admin only)  
+`POST /admin/users/:id/reset-password` - Trigger a password reset for a user by ID (admin only)  
+`POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)  
 
 ---
 
