@@ -6,6 +6,7 @@
 	const { requiresAuth } = require("../utils/jwt");
 	const { logUserAction, logToFile } = require("../utils/logging");
 	const { validateFullName, validatePreferredName } = require("../utils/validators");
+	
 
 //Retrieve the profile information of the currently authenticated user
 router.get("/me", requiresAuth, async (req, res) => {
@@ -235,6 +236,9 @@ router.delete("/me", requiresAuth, async (req, res) => {
         });
         logToFile("DISABLE_PROFILE", { user_id: userId, outcome: "SUCCESS" }, "info");
 
+		// Send confirmation email to user (pseudo-code, implement email sending as needed)
+
+
         return successResponse(res, 200, "USER_DISABLED_SUCCESS", {});
 
     } catch (e) {
@@ -255,6 +259,13 @@ router.delete("/me", requiresAuth, async (req, res) => {
     }
 });
 
+router.post("/me/request-email-change", requiresAuth, (req, res) => {
+	return errorResponse(res, 501, "NOT_IMPLEMENTED", ["NOT_IMPLEMENTED_DETAIL"]);
+});
+
+router.post("/me/request-account-deletion", requiresAuth, (req, res) => {
+	return errorResponse(res, 501, "NOT_IMPLEMENTED", ["NOT_IMPLEMENTED_DETAIL"]);
+});
 
 module.exports = router;
 

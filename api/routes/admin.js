@@ -58,5 +58,8 @@ router.post("/users/:id/reset-password", adminAuth, notImplemented);
 // `POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)
 router.post("/users/:id/force-logout", adminAuth, notImplemented);
 
+// `POST /admin/users/:id/handle-account-deletion` - Permanently delete a user and all associated data after review (admin only)
+router.post("/users/:id/handle-account-deletion", adminAuth, notImplemented);
+
 
 module.exports = router;

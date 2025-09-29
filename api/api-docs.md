@@ -76,8 +76,40 @@ To interact with the API, you can use tools like Postman or curl, or access it p
   - [Disable Current User Profile](#disable-current-user-profile)
     - [Notes](#notes-10)
     - [Examples](#examples-11)
+  - [Request Email Change](#request-email-change)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-9)
+    - [Notes](#notes-11)
+  - [Verify Email Change](#verify-email-change)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-10)
+    - [Notes](#notes-12)
+  - [Request Account Deletion](#request-account-deletion)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-11)
+    - [Notes](#notes-13)
 - [Admin User Management](#admin-user-management)
-- [Books Management](#books-management)
+- [Book Management (Normal Users)](#book-management-normal-users)
+  - [Required Headers](#required-headers-2)
+  - [Create a Book and link it to Related Entities](#create-a-book-and-link-it-to-related-entities)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-12)
+    - [Nested Related Entities](#nested-related-entities)
+    - [Examples](#examples-12)
+  - [Create a Book without linking Related Entities](#create-a-book-without-linking-related-entities)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-13)
+    - [Notes](#notes-14)
+  - [Retrieve all Books](#retrieve-all-books)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-14)
+    - [Notes](#notes-15)
+    - [Examples](#examples-13)
+  - [Retrieve all Book Attributes for Filtering](#retrieve-all-book-attributes-for-filtering)
+    - [Notes](#notes-16)
+    - [Examples](#examples-14)
+  - [Get a Specific Book by ID](#get-a-specific-book-by-id)
+    - [Notes](#notes-17)
+    - [Examples](#examples-15)
+  - [ISBN Lookup](#isbn-lookup)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-15)
+    - [Notes](#notes-18)
+    - [Examples](#examples-16)
+  - [Planned endpoints:](#planned-endpoints)
 - [Author Management](#author-management)
 - [Borrower Management](#borrower-management)
 - [Loan Management](#loan-management)
@@ -503,7 +535,7 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 
 **Endpoint:** `POST /auth/logout`  
 **Access:** Authenticated Users  
-**Description:** Logs out the user by invalidating their refresh token.  
+**Description:** Logs out the user by invalidating their refresh token. This logs the user out from all devices.  
 
 ### Required Parameters (JSON Body)
 
@@ -774,7 +806,8 @@ For any endpoint that requires authentication, the following header must be incl
 - The role, email and password fields cannot be updated via this endpoint:
  - To update the role: Requires admin privileges and must be done via the dedicated admin endpoint.
  - To update the email: Requires re-verification and must be done via a dedicated endpoint.
- - To update the password: Must be done via the password reset flow.
+ - To update the password: Must be done via the password reset flow (`auth/request-password-reset` and `auth/reset-password`) on the front-end.
+ - To disable the account: Use the `DELETE /users/me` endpoint.
 - The response will include the updated user profile information.
 
 ### Examples
@@ -833,13 +866,14 @@ For any endpoint that requires authentication, the following header must be incl
 
 **Access:** Authenticated Users  
 
-**Description:** Disables (soft deletes) the currently authenticated user's profile. This action is reversible by contacting a system administrator.
+**Description:** Disables (soft deletes) the currently authenticated user's profile. This action is reversible by contacting a system administrator.  
 
 ### Notes
 
 - The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
 - Disabling the profile will prevent the user from logging in or accessing any authenticated endpoints.
 - The user's data will remain in the database but will be marked as disabled. This allows for potential reactivation by an administrator.
+- The user will receive a confirmation email notifying them of the account disablement and instructions on how to contact the System Administrator if they wish to reactivate their account. (Not yet implemented!)
 
 ### Examples
 
@@ -856,6 +890,72 @@ For any endpoint that requires authentication, the following header must be incl
 }
 ```
 
+## Request Email Change
+
+> Not yet implemented!
+
+**Endpoint:** `POST /users/me/request-email-change`  
+**Access:** Authenticated Users
+**Description:** Requests an email change for the currently authenticated user. A verification email will be sent to the new email address.  
+
+### Required Parameters (JSON Body)
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `newEmail` | String | Yes | The new email address to be set for the user. It must be between 5 and 255 characters and follow standard email formatting rules. The user must be able to receive emails at this address. |
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- The new email address must not already be associated with another account. If it is, an error message will be returned.
+- A verification email will be sent to the new email address. The email change will only take effect after the user verifies the new email using the link and token sent in their email. 
+- Once the email change is requested, the user will still be able to log in using their old email until the new email is verified.
+- Once the new email is verified, the user's email in the system will be updated to the new address.
+- When the email is updated in the system (using the `POST /auth/verify-email-change` endpoint), all existing refresh tokens for the user will be revoked, requiring re-authentication. 
+
+## Verify Email Change
+
+> Not yet implemented!
+
+**Endpoint:** `POST /auth/verify-email-change`  
+**Access:** Public
+**Description:** Verifies the email change request for the currently authenticated user. This endpoint must be called with the token received in the verification email.
+
+### Required Parameters (JSON Body)
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `email` | String | Yes | The new email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. |
+| `token` | String | Yes | The verification token sent to the new email address. |
+
+### Notes
+
+- If the token is valid (not expired or already used) and matches the new email, the user's email in the system will be updated to the new address. All existing refresh tokens for the user will be revoked, requiring re-authentication.
+- The new email address must not already be associated with another account. If it is, an error message will be returned.
+- The response will include the updated user profile information.
+- Any OAuth providers linked to the old email will be unlinked. The user will need to re-link them using the new email address. If the user tries to log in with an OAuth provider using the old email, a new account will be created because the old email is no longer associated with an account.
+- If the token is invalid or expired, or the email does not match, an error message will be returned.
+
+
+## Request Account Deletion
+
+> Not yet implemented!
+
+Users can request permanent deletion of their account and all associated data. This action is irreversible and will remove all user data from the system. To do this, users can use this endpoint which will inform the System Administrator of their request. 
+
+**Endpoint:** `POST /users/me/request-account-deletion`  
+**Access:** Authenticated Users  
+**Description:** Requests permanent deletion of the currently authenticated user's account and all associated data. This action is irreversible and will remove all user data from the system after a grace period.
+
+### Required Parameters (JSON Body)
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `reason` | String | No | The reason for requesting account deletion. This will be sent to the System Administrator. It can be omitted. |
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- The user will receive a confirmation email acknowledging their request, with information about the grace period and how to cancel the request if they change their mind.
+- The System Administrator will also be notified of the request for review. Once the grace period has passed, the user's account and all associated data will be permanently deleted from the system by the System Administrator.
+- During the grace period the user will not be able to log in or access any part of the system.
 
 ---
 ---
@@ -868,23 +968,443 @@ For any endpoint that requires authentication, the following header must be incl
 `GET /admin/users/` - List all users (admin only, with pagination and filtering)  
 `POST /admin/users/` - Create a new user (admin only)  
 `GET /admin/users/:id` - Get a specific user profile by ID (admin only)  
-`PUT /admin/users/:id` - Update a specific user’s profile by ID (including role and email, admin only)  
+`PUT /admin/users/:id` - Update a specific user's profile by ID (including role and email, admin only)  
 `DELETE /admin/users/:id` - Permanently delete a user by ID (hard delete, admin only)  
 `POST /admin/users/:id/disable` - Disable a user profile by ID (admin only)  
 `POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)  
-`POST /admin/users/:id/unverify` - Mark a user’s email as unverified by ID (admin only)  
-`POST /admin/users/:id/verify` - Mark a user’s email as verified by ID (bypassing verification, admin only)  
+`POST /admin/users/:id/unverify` - Mark a user's email as unverified by ID (admin only)  
+`POST /admin/users/:id/verify` - Mark a user's email as verified by ID (bypassing verification, admin only)  
 `POST /admin/users/:id/send-verification` - Resend email verification for a user (admin only)  
 `POST /admin/users/:id/reset-password` - Trigger a password reset for a user by ID (admin only)  
 `POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)  
+`POST /admin/users/:id/handle-account-deletion` - Permanently delete a user and all associated data after review (admin only)
 
 ---
+---
+---
 
-# Books Management
+# Book Management (Normal Users)
 
-`GET /books/` - List all books owned by the authenticated user (with pagination and filtering)
-`GET /books/:id` - Get a specific book by ID (only if owned by the authenticated user)
-`POST /books/` - Create a new book owned by the authenticated user
+The `/books/` route is used for all book-related operations, including creating, retrieving, updating, and deleting books. Books can be linked to related entities such as authors, publishers, series, storage locations, and tags.
+
+## Required Headers
+
+For any endpoint that requires authentication, the following header must be included:
+
+| Header | Type | Required | Format | Description and Details |
+|--------|------|----------|--------|-------------------------|
+| `Authorization` | String | **Yes**| `Bearer <token>` | Bearer token containing the user's access token. This token is used to identify the user. It has a limited lifespan and must be refreshed periodically. |
+
+## Create a Book and link it to Related Entities
+
+**Endpoint:** `POST /books/full`
+
+**Access:** Authenticated Users
+
+**Description:** Creates a new book and links related entities such as authors, publisher(s), series, storage location, and tags.
+- An `id` attribute can be used to link the book to an existing entity. Use other endpoints to create, update, or retrieve existing entities.
+- **Important:** This endpoint creates a record in the `books` table (with all the book information) and one in the `book_copies` table (the first, physical copy owned by the authenticated user). Both records are created in a single transaction to ensure data integrity.
+- If the user owns multiple copies of the same book, they must call the `POST /book-copies/` endpoint to add additional copies.
+- The entire operation is atomic: if any part of the request fails (e.g. invalid data, constraint violation), the entire transaction is rolled back and no data is created.
+- This endpoint does not support creation of related entities. Use their respective endpoints to create authors, publishers, series, storage locations, or book types.
+- This endpoint does not support updating existing books. Use the `PUT /books/:id` endpoint for updates.
+
+### Required Parameters (JSON Body)
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+|` title` | String | **Yes** | The book's title. Must be between 1 and 255 characters. |
+| `subtitle` | String | No | The book's subtitle. Must be between 1 and 255 characters if provided. |
+| `isbn` | String | No | The book's ISBN. Must be a valid ISBN-10 or ISBN-13 format if provided. Must be unique within the user's collection. |
+| `publicationYear` | Integer | No | The year the book was published. Must be a four-digit year between 1000 and the current year. |
+| `language` | String | No | The two letter ISO 639-1 code for the book's language (e.g., "`en`" for English, "`fr`" for French). |
+| `pages` | Integer | No | The number of pages in the book. Must be a positive integer if provided. |
+| `description` | String | No | A brief description or summary of the book. Can be up to 1000 characters. |
+| `coverImageUrl` | String | No | A URL to an image of the book's cover. Must be a valid URL format if provided. |
+
+CREATE TABLE books (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  subtitle VARCHAR(255),
+  isbn VARCHAR(20),
+  language VARCHAR(50),
+  publisher_id INT REFERENCES publishers(id),
+  series_id INT REFERENCES series(id),
+  type_id INT REFERENCES book_types(id),
+  publication_year INT,
+  pages INT,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE book_copies (
+  id SERIAL PRIMARY KEY,
+  book_id INT NOT NULL REFERENCES books(id),
+  user_id INT NOT NULL REFERENCES users(id),
+  storage_id INT REFERENCES storages(id),
+  story_text TEXT,
+  acquisition_date DATE,
+  acquisition_from_person VARCHAR(255),
+  acquisition_from_org VARCHAR(255),
+  condition VARCHAR(50),
+  notes TEXT,
+  borrower_id INT REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
+
+### Nested Related Entities
+
+#### Book Type
+
+- Accepts a single book type `id`. A book can only have one type.
+- The `id` must reference an existing book type.
+- To create new book types, use the `POST /book-types/` endpoint. 
+
+For the `bookType` object:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `id` | Integer | **Yes** | The ID of an existing book type to link. Must belong to the authenticated user. |
+
+#### Authors
+
+- Accepts an array of author objects. **Note:** It is uncommon for a book to have multiple authors, but this implementation allows it for flexibility.
+- Each author object must contain an `id` field referencing an existing author.
+- Optionally, you can provide a `role` field to specify the author's role in relation to this book.
+- To create new authors, use the `POST /authors/` endpoint.
+
+For each `author` object:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `id` | Integer | **Yes** | The ID of an existing author to link. Must belong to the authenticated user.  |
+| `role` | String | No | The author's role in relation to the book (e.g., "Author", "Editor", "Illustrator"). Can be up to 100 characters if provided. |
+
+CREATE TABLE authors (
+    id          SERIAL PRIMARY KEY,
+    full_name   VARCHAR(255) NOT NULL,
+    birth_year  INT,
+    death_year  INT,
+    biography   TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE book_authors (
+    book_id    INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    author_id  INT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+    role       VARCHAR(100), -- e.g., "Author", "Editor", "Illustrator"
+    PRIMARY KEY (book_id, author_id)
+);
+
+#### Publishers
+
+- Accepts an integer array of publisher `id`s. **Note:** It is uncommon for a book to have multiple publishers, but this implementation allows it for flexibility.
+- To create new publishers, use the `POST /publishers/` endpoint.
+
+For each `publisher` `id` in the array:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `id` | Integer | **Yes** | The ID of an existing publisher to link. Must belong to the authenticated user. |
+
+CREATE TABLE publishers (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL UNIQUE,
+    founded_year INT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE book_publishers (
+    book_id      INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    publisher_id INT NOT NULL REFERENCES publishers(id) ON DELETE CASCADE,
+    PRIMARY KEY (book_id, publisher_id)
+);
+
+#### Series
+
+- Accepts an array of series objects. **Note:** It is uncommon for a book to belong to multiple series, but this implementation allows it for flexibility.
+- Each series object must contain an `id` field referencing an existing series.
+- Optionally, you can provide an `order` field to specify the book's position within the series.
+- To create new series, use the `POST /series/` endpoint.
+
+For each `series` object:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `id` | Integer | **Yes** | The ID of an existing series to link. Must belong to the authenticated user. |
+| `order` | Integer | No | The order of the book within the series. Must be a positive integer (or zero) if provided. |
+
+CREATE TABLE series (
+    id          SERIAL PRIMARY KEY,
+    title       VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    metadata    JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE book_series (
+    book_id    INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    series_id  INT NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+    order      INT, -- position in the series
+    PRIMARY KEY (book_id, series_id)
+);
+
+#### Storage Locations
+
+- Accepts a single storage location `id`. This will be the location of the first copy of the book being created.
+- Storage locations are hierarchical (e.g., "Living Room > Shelf A > Row 2"). Assigning a child's location implicitly assigns all its parent locations.
+- The `id` must reference an existing storage location.
+- If omitted or `null`, the first book copy will be created without a storage location.
+- To create new storage location, use the `POST /storage-locations/` endpoint. 
+
+> **Note:** This is the storage location of the first copy of the book being created. If the user owns multiple copies of the same book, they must use the `POST /book-copies/` endpoint to add additional copies and specify their storage locations.
+
+For the `storageLocation` object:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `id` | Integer | No | The ID of an existing storage location to link. Must belong to the authenticated user. |
+
+CREATE TABLE storage_locations (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,   -- e.g., "Living Room Shelf A"
+    description TEXT,
+    parent_id   INT REFERENCES storage_locations(id) ON DELETE SET NULL, -- nested hierarchy
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+#### Tags
+
+- Accepts an array of tag objects.
+- Each tag object must contain a `name` field.
+- Tags are unique per user. If a tag with the same name already exists for the user, it will be linked to the book instead of creating a duplicate.
+- Tags can be up to 50 characters long and can contain letters and spaces.
+- Tags are case-insensitive. "Science Fiction" and "science fiction" will be treated as the same tag.
+- If no tags are provided, the book will have no tags.
+
+For each `tag` object:
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `name`    | String | **Yes** | The name of the tag. Must be unique per user and can be up to 50 characters long. Can only contain letters and spaces. |
+
+CREATE TABLE tags (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
+CREATE TABLE user_book_tags (
+    user_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    book_id   INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    tag_id    INT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, book_id, tag_id)
+);
+
+#### Stories (Acquisition Notes)
+
+Stories are not supported in this endpoint. Use the `POST /stories/` endpoint to create book acquisition stories, analyze them, and link them to specific `book_copies`.
+
+### Examples
+
+**Example Request (JSON Object):**
+
+```json
+{
+ "title": "The Great Gatsby",
+ "subtitle": "A Novel",
+ "isbn": "9780743273565",
+ "publicationYear": 1925,
+ "language": "en",
+ "pages": 180,
+ "description": "A novel set in the Roaring Twenties...",
+ "coverImageUrl": "https://example.com/covers/great-gatsby.jpg",
+ "bookType": {
+   "id": 1
+ },
+ "authors": [
+   {
+     "id": 10,
+     "role": "Author"
+   }
+ ],
+ "publishers": [
+   {
+     "id": 5
+   }
+ ],
+ "series": [
+   {
+     "id": 2,
+     "order": 1
+   }
+ ],
+ "storageLocation": {
+   "id": 3
+ },
+ "tags": [
+   {
+     "name": "Classic"
+   },
+   {
+     "name": "Fiction"
+   }
+ ]
+}
+```
+
+**Example Success Response (201 Created):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "45.67",
+  "message": "Book created successfully.",
+  "data": {
+    "bookId": 123,
+    "bookCopyId": 456
+    //All information about the created book and its first copy can be retrieved using the GET /books/:id endpoint
+  },
+  "errors": []
+}
+```
+
+## Create a Book without linking Related Entities
+
+**Endpoint:** `POST /books/`  
+**Access:** Authenticated Users  
+**Description:** Creates a new book without linking any related entities. This endpoint creates a record in the `books` table with the provided details. It does not create a record in the `book_copies` table. To add physical copies of the book owned by the user, they must use the `POST /book-copies/` endpoint after the book is created.
+
+### Required Parameters (JSON Body)
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+|` title` | String | **Yes** | The book's title. Must be between 1 and 255 characters. |
+| `subtitle` | String | No | The book's subtitle. Must be between 1 and 255 characters if provided. |
+| `isbn` | String | No | The book's ISBN. Must be a valid ISBN-10 or ISBN-13 format if provided. Must be unique within the user's collection. |
+| `publicationYear` | Integer | No | The year the book was published. Must be a four-digit year between 1000 and the current year. |
+| `language` | String | No | The two letter ISO 639-1 code for the book's language (e.g., "`en`" for English, "`fr`" for French). |
+| `pages` | Integer | No | The number of pages in the book. Must be a positive integer if provided. |
+| `description` | String | No | A brief description or summary of the book. Can be up to 1000 characters. |
+| `coverImageUrl` | String | No | A URL to an image of the book's cover. Must be a valid URL format if provided. |
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- If the `isbn` is provided, it must be unique within the user's collection. If a book with the same `isbn` already exists for the user, an error message will be returned.
+- The response will include the ID of the newly created book and all provided details.
+- To add physical copies of the book owned by the user, they must use the `POST /book-copies/` endpoint after the book is created.
+- This endpoint does not support linking related entities such as authors, publishers, series, storage locations, or tags. Use the `POST /books/full` endpoint to create a book with linked entities.
+- This endpoint does not support updating existing books. Use the `PUT /books/:id` endpoint for updates.
+- The entire operation is atomic: if any part of the request fails (e.g. invalid data, constraint violation), no data will be created.
+
+
+## Retrieve all Books
+
+**Endpoint:** `GET /books/`  
+**Access:** Authenticated Users  
+**Description:** Retrieves a paginated list of all books owned by the authenticated user, with optional filtering, sorting, and search. Both `books` and their associated `book_copies` records are included: The response reflects only the copies owned by the currently authenticated user.
+
+### Required Parameters (JSON Body)
+
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `page` | Integer | No | The page number to retrieve. Must be a positive integer. Default is `1`. |
+| `limit` | Integer | No | The number of `book`s per page. Must be a positive integer between `1` and `100`. Default is `20`. |
+| `sortBy` | String | No | The field to sort the results by. Allowed values are: `title`, `subtitle`, `isbn`, `language`, `publicationYear`, `pages`, `createdAt`, `updatedAt`. Default is `title`. |
+| `sortOrder` | String | No | The order to sort the results. Allowed values are: `asc` (ascending) and `desc` (descending). Default is `asc`. |
+| `search` | String | No | A broad keyword search across `title`, `subtitle`, `description`, `authors`, `tags`, `ISBN`, and `series`. Case-insensitive. Must be at least 3 characters long and not exceed 100 characters. |
+| `filters` | Object | No | An object container optional filtering criteria. Each filter is optional and can be combined. See the table below for more information. |
+
+#### Supported Filters
+
+| Field | Type | Description and Details |
+|-------|------|-------------------------|
+| `title` | String | Filter books by title. Case-insensitive partial match. |
+| `authorId` | Integer | Filter books by a specific author ID. Show only books by this author. |
+| `publisherId` | Integer | Filter books by a specific publisher ID. Show only books by this publisher. |
+| `seriesId` | Integer | Filter books by a specific series ID. Show only books in this series. |
+| `storageId` | Integer | Filter books by a specific storage location ID. Show only books in this location. |
+| `typeId` | Integer | Filter books by a specific book type ID. Show only books of this type. |
+| `language` | String | Filter books by language (ISO 639-1 code). Case-insensitive exact match. |
+| `tagIds` | Array of Integers | Filter books by multiple tag IDs. Results will default to an *OR* match. See below for more details. |
+| `tagIdStrict` | Boolean | If `true`, only return books that have *all* of the specified `tagIds` (*AND* logic). If `false` or omitted, return books that have *any* of the specified `tagIds` (*OR* logic). |
+| `publicationYearMin` | Integer | Filter books published in or after this year. Must be a four-digit year between 1000 and the current year. |
+| `publicationYearMax` | Integer | Filter books published in or before this year. Must be a four-digit year between 1000 and the current year. |
+| `pagesMin` | Integer | Filter books with at least this many pages. Must be a positive integer. |
+| `pagesMax` | Integer | Filter books with at most this many pages. Must be a positive integer. |
+| `acquisitionDateMin` | Date | Filter books with copies acquired on or after this date. |
+| `acquisitionDateMax` | Date | Filter books with copies acquired on or before this date. |
+| `borrowed` | Boolean | If `true`, return only books that are currently loaned out. If `false`, return only books that are not loaned out. If omitted, return all books regardless of loan status. |
+| `borrowerId` | Integer | Filter books currently loaned to a specific borrower ID. Show only books currently loaned to this borrower. |
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- The response will include pagination metadata (total items, total pages, current page, items per page) along with the list of books.
+- Each book in the response will include its associated authors, publishers, series, tags, and the details of all copies owned by the authenticated user.
+- Filtering applies only to the books owned by the authenticated user.
+- Combining filters allows for complex queries. `AND` logic is applied between different filter fields: The more filters specified, the narrower the results.
+- Sorting only applies to the book-level fields, not the book copies.
+
+### Examples
+
+...
+
+## Retrieve all Book Attributes for Filtering
+
+**Endpoint:** `GET /books/filter/`  
+**Access:** Authenticated Users  
+**Description:** Retrieves all distinct values for book attributes (authors, tags, series, storage locations, types) owned by the authenticated user to assist with frontend filtering options.
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- The response will include all pagination metadata (total items, total pages, current page, items per page) along with distinct values for book attributes owned by the authenticated user.
+
+### Examples
+
+...
+
+## Get a Specific Book by ID
+
+**Endpoint:** `GET /books/:id`  
+**Access:** Authenticated Users  
+**Description:** Retrieves all information for a specific book by its ID, including its associated authors, publishers, series, tags, and details of all copies owned by the authenticated user.
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- If the book is not found or does not belong to the authenticated user, a 404 Not Found error will be returned.
+
+### Examples
+
+...
+
+## ISBN Lookup
+
+**Endpoint:** `GET /books/fetch-isbn`
+**Access:** Authenticated Users  
+**Description:** Fetches book details from multiple external APIs using an ISBN number. It returns consistently formatted book information that can be used to pre-fill book creation forms, reducing manual data entry. The user can then review and modify the information before creating the book in their collection. 
+
+### Required Parameters (JSON Body)
+| Parameter | Type | Required | Description and Details |
+|-----------|------|----------|-------------------------|
+| `isbn` | String | **Yes** | The ISBN number of the book to look up. Must be a valid ISBN-10 or ISBN-13 format. |
+
+### Notes
+
+- The user must be authenticated to access this endpoint. If the access token is missing or invalid, an error will be returned.
+- This endpoint does not create any records in the database; it only retrieves information from external sources.
+- This API will call multiple external API services in parallel to get the most comprehensive data available. If one service fails, it will still return data from the other services. It will then consolidate the results into a single response which may include partial data if some services failed or if certain information is not available.
+- The response will include all information required to create a book record, including title, author(s), publisher(s), series(s), publication date, and more.
+
+#### API Services Used
+- Open Library Books API: https://openlibrary.org/dev/docs/api/books
+- Google Books API: https://developers.google.com/books/docs/v1/using
+
+### Examples
+
+...
+
+
+## Planned endpoints:
+
 `PUT /books/:id` - Update a specific book by ID (only if owned by the authenticated user)
 `DELETE /books/:id` - Delete a specific book by ID (only if owned by the authenticated user)
 `GET /books/:id/authors` - List all authors for a specific book

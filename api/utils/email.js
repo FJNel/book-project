@@ -150,4 +150,75 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 	}
 }
 
+async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
+	  logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+	  console.error("Email service is not configured. Please check environment variables.");
+	  return false;
+	}
+	const subject = "Your Book Project account has been disabled";
+	const year = new Date().getFullYear();
+	const supportEmail = "support@fjnel.co.za"; // Change to your actual admin/support email
+  
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" 
+		style="max-width: 600px; background: #ffffff; border-radius: 8px; 
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+		<tr>
+		  <td align="center" style="padding: 24px;">
+			<!-- LOGO -->
+			<img src="https://via.placeholder.com/150x50?text=Book+Project" 
+			  alt="Book Project" 
+			  style="display: block; height: 50px; margin-bottom: 16px;">
+		  </td>
+		</tr>
+		<tr>
+		  <td style="padding: 0 32px 32px 32px; color: #333;">
+			<h2 style="color: #2d3748; margin-bottom: 16px;">
+			  Hello${preferredName ? `, ${preferredName}` : ""}.
+			</h2>
+			<p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+			  This is a confirmation that your <strong>Book Project</strong> account has been 
+			  <strong>disabled</strong>.
+			</p>
+			<p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+			  From now on:
+			</p>
+			<ul style="font-size: 15px; color: #4a5568; line-height: 1.5; padding-left: 20px;">
+			  <li>You will no longer be able to log in.</li>
+			  <li>You cannot use any of the Book Project features.</li>
+			  <li>Your data will remain in our database, but is marked as disabled.</li>
+			</ul>
+			<p style="font-size: 16px; color: #4a5568; line-height: 1.5; margin-top: 20px;">
+			  If you would like to <strong>reactivate</strong> your account, please contact the 
+			  System Administrator at <a href="mailto:${supportEmail}" style="color: #3182ce;">${supportEmail}</a>. Provide them with your email address and request account reactivation.
+			</p>
+			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+			<p style="font-size: 12px; color: #a0aec0; text-align: center;">
+			  &copy; ${year} Book Project. All rights reserved.
+			</p>
+		  </td>
+		</tr>
+	  </table>
+	</div>
+	`;
+  
+	try {
+	  const data = await mg.messages.create(MAILGUN_DOMAIN, {
+		from: `Book Project <${FROM_EMAIL}>`,
+		to: [`${preferredName} <${toEmail}>`],
+		subject,
+		html
+	  });
+  
+	  logToFile("EMAIL_SENT", { to: toEmail, type: "account_disabled", id: data.id });
+	  return true;
+	} catch (error) {
+	  logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+	  console.error("Error sending account disable confirmation email:", error.message);
+	  return false;
+	}
+}
+
 module.exports = { sendVerificationEmail, sendPasswordResetEmail };
