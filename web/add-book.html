@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>The Book Project</title>
+    <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/Navbar-With-Button-icons.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Add a Book</h1>
+        <p>On this page you can add a new book to your book collection.</p>
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Step 1: Lookup by ISBN</h4><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars text-body-secondary position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" style="font-size: 30px;" title="This functionality makes use of Artificial intelligence (AI).">
+                    <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
+                </svg>
+                <div>
+                    <div class="row">
+                        <div class="col">
+                            <p>Enter the ISBN of the book you want to add. Using external sources, The Book Project will attempt to retrieve information about this book, and pre-fill the forms below.</p>
+                            <form id="isbnLookupForm" method="post">
+                                <div class="mb-1"><label class="form-label" for="loginEmail"><strong>ISBN:</strong></label><input class="form-control" type="email" id="isbnInput" name="isbnInput" placeholder="Enter ISBN" required="" minlength="5" maxlength="255" inputmode="email" autocomplete="on" pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" autofocus=""><small class="form-text" id="isbnHelpText"></small></div><button class="btn btn-primary mb-1" type="button">Lookup ISBN</button>
+                                <p>An ISBN (International Standard Book Number) uniquely identifies a book edition. It's a 10-digit number for books published before 2007 and a 13-digit standard for those published since.</p>
+                            </form>
+                        </div>
+                        <div class="col">
+                            <div class="alert alert-warning mb-0" role="alert"><span><strong>How We Retrieve Book Information:</strong></span>
+                                <p class="mb-1">We collect book information using external data sources like Google Books and Open Library. We then use AI to integrate and organise this data to automatically fill in the form fields below. For more information on how we use AI, please see our <a class="alert-link alert-link" href="privacy-policy.html">Privacy Policy</a>.</p><span><strong>Important Notice:</strong></span>
+                                <p class="mb-0">The information we obtain from these sources may not always be accurate, and some details might be missing. Feel free to modify any retrieved information before saving the book.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/bs-init.js"></script>
+</body>
+
+</html>
