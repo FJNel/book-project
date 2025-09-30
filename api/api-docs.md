@@ -1013,8 +1013,8 @@ For any endpoint that requires authentication, the following header must be incl
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
-|` title` | String | **Yes** | The book's title. Must be between 1 and 255 characters. |
-| `subtitle` | String | No | The book's subtitle. Must be between 1 and 255 characters if provided. |
+|` title` | String | **Yes** | The book's title. Must be between 2 and 255 characters. |
+| `subtitle` | String | No | The book's subtitle. Must be between 2 and 255 characters if provided. |
 | `isbn` | String | No | The book's ISBN. Must be a valid ISBN-10 or ISBN-13 format if provided. Must be unique within the user's collection. |
 | `publicationYear` | Integer | No | The year the book was published. Must be a four-digit year between 1000 and the current year. |
 | `language` | String | No | The two letter ISO 639-1 code for the book's language (e.g., "`en`" for English, "`fr`" for French). |
