@@ -122,6 +122,8 @@ async function initializeApp() {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
         //This block will always execute, hiding the now-visible modal.
+        //Simulate a short delay to ensure users see the loading modal briefly
+        await new Promise(resolve => setTimeout(resolve, 500));
         pageLoadingModal.hide();
         console.log('[Initialization] Page loading modal hidden.');
     }
