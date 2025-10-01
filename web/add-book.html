@@ -11,6 +11,21 @@
 </head>
 
 <body>
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header d-flex justify-content-center">
+                    <h4 class="modal-title text-center">Page Loading</h4>
+                </div>
+                <div class="modal-body d-flex justify-content-center align-items-center">
+                    <div>
+                        <p class="text-center">Please wait while the page is loading...</p>
+                        <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <h1>Add a Book</h1>
         <p>On this page you can add a new book to your book collection.</p>
@@ -186,7 +201,7 @@
             </div>
         </form>
         <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="bookCoverPreview" style="display:none;">
-            <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title">Book Cover Preview</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -194,10 +209,7 @@
                     <div class="modal-body">
                         <p>Here is a preview of your book cover. If the URL for your Book Cover Image is correct, it will be displayed below. If there's an issue with the URL, you will see either the text "Book Cover" or an image indicating "No Book Cover Available".</p>
                         <div class="card shadow" id="bookCoverPreviewCard">
-                            <div class="card-body">
-                                <h4 id="bookCoverPreviewTitle" class="card-title">Book Title</h4>
-                                <h6 class="text-muted mb-2 card-subtitle" id="bookCoverPreviewSubtitle">Book Subtitle</h6><img class="rounded img-fluid" id="bookCoverPreviewImage" alt="Book Cover" src="assets/img/BookCoverPlaceholder.png">
-                            </div>
+                            <div class="card-body"><img class="rounded img-fluid" id="bookCoverPreviewImage" alt="Book Cover" src="assets/img/BookCoverPlaceholder.png"></div>
                         </div>
                     </div>
                 </div>
