@@ -8,10 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordInput = document.getElementById('passwordPassword');
     const emailHelp = document.getElementById('passwordEmailHelp');
     const passwordHelp = document.getElementById('passwordPasswordHelp');
-    const resetButton = document.querySelector('#emailVerificationForm + button'); // Selects the button after the form
     const successAlert = document.getElementById('passwordAlertSuccess');
     const errorAlert = document.getElementById('passwordAlertError');
-    const resetForm = document.getElementById('emailVerificationForm');
+    const resetForm = document.getElementById('resetPasswordForm');
+    const resetButton = document.getElementById('resetPasswordButton');
+    const resetSpinner = document.getElementById('resetPasswordSpinner');
+    const resetButtonText = document.createTextNode('Reset Password');
+    resetButton.appendChild(resetButtonText);
 
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
@@ -47,11 +50,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return urlParams.get(param);
     };
 
+    // --- Toggle Spinner on Button ---
+    function toggleSpinner(show) {
+        if (show) {
+            console.log('[UI] Showing password reset spinner.');
+            resetSpinner.style.display = 'inline-block';
+            resetButtonText.textContent = ''; // Clear button text
+            resetButton.disabled = true;
+        } else {
+            console.log('[UI] Hiding password reset spinner.');
+            resetSpinner.style.display = 'none';
+            resetButtonText.textContent = 'Reset Password'; // Restore button text
+            resetButton.disabled = false;
+        }
+    }
+
     // --- UI Initialization and State Management ---
     let desktopModalShown = false;
     function initializeUI() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
+        toggleSpinner(false);
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
         const token = getQueryParam('token');
@@ -118,12 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        toggleSpinner(true);
+
         const email = emailInput.value.trim();
         const newPassword = passwordInput.value;
         const token = getQueryParam('token');
 
         if (!token) {
             showAlert('error', getLangString("INVALID_TOKEN"));
+            toggleSpinner(false);
             return;
         }
 
@@ -156,6 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('[API] Network or fetch error during password reset:', error);
             showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+        } finally {
+            toggleSpinner(false);
         }
     }
 
