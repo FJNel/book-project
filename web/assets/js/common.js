@@ -101,15 +101,32 @@ function showViewportErrorModal() {
 
 // Run checks on page load
 async function initializeApp() {
-    const apiHealthy = await checkApiHealth();
-    const viewportOk = checkViewport();
-    const loggedIn = checkLoginStatus();
+    const pageLoadingModalElement = document.getElementById('pageLoadingModal');
+    const pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
 
-    if (apiHealthy && viewportOk && !loggedIn) {
-        console.log('[Initialization] All checks passed. Application is ready.');
-        // Proceed with application initialization
-    } else {
-        console.warn('[Initialization] One or more checks failed. Application may not function correctly.');
+    try {
+        // Show the loading modal immediately
+        pageLoadingModal.show();
+        console.log('[Initialization] Page loading modal shown.');
+
+        // Run the original checks
+        const apiHealthy = await checkApiHealth();
+        const viewportOk = checkViewport();
+        const loggedIn = checkLoginStatus();
+
+        if (apiHealthy && viewportOk) {
+            console.log('[Initialization] All checks passed. Application is ready.');
+        } else {
+            console.warn('[Initialization] One or more checks failed. Application may not function correctly.');
+        }
+
+    } catch (error) {
+        console.error('[Initialization] An unexpected error occurred:', error);
+    } finally {
+        // This block will always execute, ensuring the modal is hidden
+        // after all checks are complete or if an error was caught.
+        pageLoadingModal.hide();
+        console.log('[Initialization] Page loading modal hidden.');
     }
 }
 
