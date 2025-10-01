@@ -4,11 +4,14 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Selection ---
-    const emailInput = document.getElementById('resendEmail'); // Note: ID in HTML is resendEmail
+    const emailInput = document.getElementById('resendEmail');
     const verifyButton = document.getElementById('verifyButton');
     const successAlert = document.getElementById('emailVerificationAlertSuccess');
     const errorAlert = document.getElementById('emailVerificationAlertError');
     const verificationForm = document.getElementById('emailVerificationForm');
+    const verifySpinner = document.getElementById('verifySpinner');
+    const verifyButtonText = document.createTextNode('Verify Email');
+    verifyButton.appendChild(verifyButtonText);
 
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
@@ -44,11 +47,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return urlParams.get(param);
     };
 
+    // --- Spinner Toggle ---
+    function toggleSpinner(show) {
+        if (show) {
+            console.log('[UI] Showing verification spinner.');
+            verifySpinner.style.display = 'inline-block';
+            verifyButtonText.textContent = ''; // Clear button text
+            verifyButton.disabled = true;
+        } else {
+            console.log('[UI] Hiding verification spinner.');
+            verifySpinner.style.display = 'none';
+            verifyButtonText.textContent = 'Verify Email'; // Restore button text
+            verifyButton.disabled = false;
+        }
+    }
+
     // --- UI Initialization and State Management ---
-    let desktopModalShown = false;
     function initializeUI() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
+        toggleSpinner(false);
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
         const token = getQueryParam('token');
@@ -99,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        toggleSpinner(true);
+
         try {
             const response = await apiFetch(`/auth/verify-email`, {
                 method: 'POST',
@@ -123,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('[API] Network or fetch error during verification:', error);
             showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+        } finally {
+            toggleSpinner(false);
         }
     }
 
