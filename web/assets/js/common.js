@@ -123,8 +123,12 @@ async function initializeApp() {
         //This block will always execute, hiding the now-visible modal.
         //Simulate a short delay to ensure users see the loading modal briefly
         // await new Promise(resolve => setTimeout(resolve, 500));
-        if (window.pageLoadingModal) window.pageLoadingModal.hide();
-        console.log('[Initialization] Page loading modal hidden.');
+        if (window.pageLoadingModal) {
+            window.pageLoadingModal.hide();
+            console.log('[Initialization] Page loading modal hidden.');
+        } else {
+            console.warn('[Initialization] pageLoadingModal not found in DOM.');
+        }
     }
 }
 
