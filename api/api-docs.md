@@ -1027,7 +1027,6 @@ CREATE TABLE books (
   title VARCHAR(255) NOT NULL,
   subtitle VARCHAR(255),
   isbn VARCHAR(20),
-  language VARCHAR(50),
   publisher_id INT REFERENCES publishers(id),
   series_id INT REFERENCES series(id),
   type_id INT REFERENCES book_types(id),
@@ -1051,6 +1050,12 @@ CREATE TABLE book_copies (
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
+CREATE TABLE book_languages (
+  book_id INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  language_code VARCHAR(2) NOT NULL,
+  PRIMARY KEY (book_id, language_code)
+);
+
 
 ### Nested Related Entities
 
@@ -1090,8 +1095,8 @@ For each `author` object:
 CREATE TABLE authors (
     id          SERIAL PRIMARY KEY,
     full_name   VARCHAR(255) NOT NULL,
-    birth_year  INT,
-    death_year  INT,
+    DOB         DATE,
+    DOD         DATE,
     biography   TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1102,6 +1107,8 @@ CREATE TABLE book_authors (
     role       VARCHAR(100), -- e.g., "Author", "Editor", "Illustrator"
     PRIMARY KEY (book_id, author_id)
 );
+
+
 
 #### Publishers
 
@@ -1125,6 +1132,7 @@ CREATE TABLE book_publishers (
     publisher_id INT NOT NULL REFERENCES publishers(id) ON DELETE CASCADE,
     PRIMARY KEY (book_id, publisher_id)
 );
+
 
 #### Series
 
