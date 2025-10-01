@@ -126,11 +126,21 @@ async function initializeApp() {
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
-        if (window.pageLoadingModal) {
-            window.pageLoadingModal.hide();
-            console.log('[Page Loading] Page loading modal hidden after app initialization.');
+        const modalElement = document.getElementById('pageLoadingModal');
+        if (modalElement) {
+            const pageLoadingModal = bootstrap.Modal.getInstance(modalElement);
+            if (pageLoadingModal) {
+                //Wait for a short moment to ensure smooth transition
+                await new Promise(resolve => setTimeout(resolve, 300));
+                pageLoadingModal.hide();
+                console.log('[Page Loading] Page loading modal instance found and hidden.');
+            } else {
+                 console.warn('[Page Loading] Could not find a modal instance for the element.');
+            }
+        } else {
+            console.warn('[Page Loading] Page loading modal element NOT found in DOM.');
         }
-        console.log('[Initialization] App initialization complete.');
+        console.log('[Page Loading] App initialization complete.');
     }
 }
 
