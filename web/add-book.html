@@ -38,7 +38,7 @@
                 </svg>
                 <div>
                     <div class="row">
-                        <div class="col">
+                        <div class="col-12 col-md-6 mb-3 mb-md-0">
                             <p>Enter the ISBN of the book you want to add. Using external sources, The Book Project will attempt to retrieve information about this book, and pre-fill the form fields below.</p>
                             <form id="isbnLookupForm" method="post">
                                 <div class="mb-1"><label class="form-label" for="loginEmail"><strong>ISBN</strong><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the ISBN of your book without any special characters or spaces.">
@@ -50,7 +50,7 @@
                             </form>
                             <p class="text-secondary mb-0">An ISBN is a unique number used to identify a specific version or edition of a book. Before 2007, books were assigned 10-digit ISBNs, but since 2007, all books use 13-digit ISBNs. The 13-digit ISBN often also serves as the book’s barcode. You can usually find the ISBN on the back cover of the book, near the barcode.</p>
                         </div>
-                        <div class="col">
+                        <div class="col-12 col-md-6">
                             <div class="alert alert-warning mb-0" role="alert"><span><strong>How We Retrieve Book Information:</strong></span>
                                 <p class="mb-1">We collect book information using external data sources like Google Books and Open Library. We then use AI to integrate and organise this data to automatically fill in the form fields below. For more information on how we use AI, please see our <a class="alert-link alert-link" href="privacy-policy">Privacy Policy</a>.</p><span><strong>Important Notice:</strong></span>
                                 <p class="mb-0">The information we obtain from these sources may not always be accurate, and some details might be missing. Feel free to modify any retrieved information before saving the book.</p>
@@ -95,7 +95,7 @@
                     <p>Here you can enter the general details about this book (title, subtitle, etc.). These details describe the work itself, not a specific physical copy.&nbsp;In a later step, you’ll be able to add information about the individual copies you own.</p>
                     <div>
                         <div class="row">
-                            <div class="col">
+                            <div class="col-12 col-md-6 mb-1 mb-md-0">
                                 <div>
                                     <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Title</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The main title of the book. Required. Must be between 2 and 255 characters.">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
@@ -111,7 +111,7 @@
                                         </svg><input class="form-control" type="text" id="bookISBN" name="bookISBN" placeholder="9780007203581" autocomplete="off" minlength="10" maxlength="13" pattern="^(?:\d{9}[\dXx]|\d{13})$"><small class="form-text" id="bookISBNHelp"></small></div>
                                 </div>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6 order-first order-md-3 mb-3 mb-md-1">
                                 <div class="alert alert-info mb-0" role="alert"><span><strong>Understanding Our Book System:</strong></span>
                                     <p class="mb-1">In this system, a <strong>Book</strong> refers to a specific edition of a work, usually uniquely identified by its <strong>ISBN</strong>.&nbsp;For example, the hardcover edition and the paperback edition of&nbsp;<em>The Fellowship of the Ring</em> are considered different books.</p>
                                     <p class="mb-0">A <strong>Book Copy</strong> refers to an individual copy of one of those editions that&nbsp;you personally own. You might own two paperback copies of the same edition, or one paperback and one hardcover (different ISBNs).</p>
@@ -119,19 +119,19 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="mb-3"><label class="form-label mt-1 pt-0" for="loginEmail"><strong>Publication Year</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The year the book was published. Must be a four-digit year between 1000 and the current year.">
                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                     </svg><input class="form-control" type="number" id="bookPublicationYear" name="bookPublicationYear" min="1000" max="9999" step="1" placeholder="2005"><small class="form-text" id="bookPublicationYearHelp"></small></div>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Number of Pages</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The number of pages in the book.">
                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                     </svg><input class="form-control" type="number" id="bookPages" name="bookPublicationYear" min="1" max="99999" step="1" placeholder="423"><small class="form-text" id="bookPagesHelp"></small></div>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Book Language</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The language that the book was published in.">
                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
@@ -141,7 +141,7 @@
                                     </div><small class="form-text" id="bookLanguageHelp"></small>
                                 </div>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6 col-xl-3">
                                 <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Book Cover Image URL</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A link to the cover image of this book.">
                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
@@ -167,7 +167,7 @@
                     <p>Here you can select or add the book's book type.&nbsp;Book type simply refers to the physical form of the book. You are free to be as detailed as you wish with your book types. For better classification, we suggest defining the book types based on their physical characteristics. For example, Hardcover, Softcover, Magazine, Dictionary, Pamphlet, and so on.</p>
                     <div>
                         <div class="row">
-                            <div class="col">
+                            <div class="col-12 col-md-6 mb-3 mb-md-0">
                                 <div class="mb-3"><label class="form-label mt-0" for="loginEmail"><strong>Book Type</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The Book Type of this Book.">
                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
@@ -178,7 +178,7 @@
                                 </div><label class="form-label mb-1" for="loginEmail"><strong>Selected Book Type Description:</strong></label>
                                 <p class="mb-0" id="bookBookTypeDescriptionDisplay">No Book Type selected.</p>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6">
                                 <div class="card">
                                     <div class="card-body shadow-sm" id="createBookTypeCard">
                                         <h4 class="card-title">Create a new Book Type</h4>
