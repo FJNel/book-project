@@ -140,33 +140,12 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/bs-init.js"></script>
-    <!-- <script> 
-        //Show loading modal while the page is loading using BS5 JS
-        document.addEventListener('DOMContentLoaded', function() {
-            const pageLoadingModalElement = document.getElementById('pageLoadingModal');
-            if (pageLoadingModalElement) {
-                //Create and show the modal immediately
-                const pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
-                pageLoadingModal.show();
-                console.log("[Initialization] Page loading modal shown.");
-                //Expose the modal instance globally for later hiding
-                window.pageLoadingModal = pageLoadingModal;
-            }
-        });        
-    </script> -->
+    <script src="assets/js/page-loading.js"></script>
     <!-- Include the API Interceptor first! -->
     <script src="assets/js/http-interceptor.js"></script>
     <script src="assets/js/common.js"></script>
     <script src="assets/js/verify-email.js"></script>
-    <script>
-        //Once everything is loaded, hide the loading modal
-        window.addEventListener('load', function() {
-            if (window.pageLoadingModal) {
-                window.pageLoadingModal.hide();
-                console.log("[Initialization] Page loading modal hidden.");
-            }
-        });
-    </script>   
+      
 </body>
 
 </html>

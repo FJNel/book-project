@@ -110,21 +110,7 @@ function showApiErrorModal() {
 
 //Run checks on page load
 async function initializeApp() {
-    // Show loading modal
-    // const pageLoadingModalElement = document.getElementById('pageLoadingModal');
-    // let pageLoadingModal;
-    // if (pageLoadingModalElement) {
-    //     console.log('[Initialization] pageLoadingModal element found in DOM. Showing modal.');
-    //     pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
-    //     pageLoadingModal.show();
-    //     console.log('[Initialization] Page loading modal shown.');
-    // } else {
-    //     console.warn('[Initialization] pageLoadingModal element not found in DOM.');
-    // }
-
     try {
-        console.log('[Initialization] Page is loading...');
-
         // Run the original checks
         const apiHealthy = await checkApiHealth();
         //Deprecated:
@@ -140,16 +126,7 @@ async function initializeApp() {
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
-        //This block will always execute, hiding the now-visible modal.
-        //Simulate a short delay to ensure users see the loading modal briefly
-        // await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
-        // if (pageLoadingModal) {
-        //     console.log('[Initialization] Page loading finished! Hiding page loading modal.');
-        //     pageLoadingModal.hide();
-        //     console.log('[Initialization] Page loading modal hidden.');
-        // } else {
-        //     console.warn('[Initialization] pageLoadingModal not found in DOM.');
-        // }
+        console.log('[Initialization] App initialization complete.');
     }
 }
 
