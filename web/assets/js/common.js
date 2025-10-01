@@ -102,7 +102,6 @@ function showViewportErrorModal() {
 //Run checks on page load
 async function initializeApp() {
     const pageLoadingModalElement = document.getElementById('pageLoadingModal');
-    const pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
 
     try {
         console.log('[Initialization] Page is loading, modal is visible by default.');
@@ -124,7 +123,7 @@ async function initializeApp() {
         //This block will always execute, hiding the now-visible modal.
         //Simulate a short delay to ensure users see the loading modal briefly
         await new Promise(resolve => setTimeout(resolve, 500));
-        pageLoadingModal.hide();
+        if (window.pageLoadingModal) window.pageLoadingModal.hide();
         console.log('[Initialization] Page loading modal hidden.');
     }
 }
