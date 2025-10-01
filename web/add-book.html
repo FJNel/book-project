@@ -94,68 +94,54 @@
                     <h4 class="card-title">Step 2: Enter Book Details</h4>
                     <p>Here you can enter the general details about this book (title, subtitle, etc.). These details describe the work itself, not a specific physical copy.&nbsp;In a later step, you’ll be able to add information about the individual copies you own.</p>
                     <div>
-                        <div class="row">
-                            <div class="col-12 col-md-6 mb-1 mb-md-0">
+                        <div class="row align-items-start">
+                            <div class="col-12 col-md-8">
                                 <div>
                                     <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Title</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The main title of the book. Required. Must be between 2 and 255 characters.">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg><input class="form-control" type="text" id="bookTitle" name="bookTitle" placeholder="The Fellowship of the Ring" autofocus="" autocomplete="off" required="" minlength="2" maxlength="255"><small class="form-text" id="bookTitleHelp"></small></div>
-                                    <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Subtitle</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="An optional subtitle that expands on the title. Must be between 2 and 255 characters.">
+                                    <div class="mb-3"><label class="form-label ms-0" for="loginEmail"><strong>Subtitle</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="An optional subtitle that expands on the title. Must be between 2 and 255 characters.">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg><input class="form-control" type="text" id="bookSubtitle" name="bookSubtitle" placeholder="The Lord of the Rings Part 1" autocomplete="off" minlength="2" maxlength="255"><small class="form-text" id="bookSubtitleHelp"></small></div>
-                                    <div class="mb-2"><label class="form-label" for="loginEmail"><strong>ISBN</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The ISBN of this Book. It must be either 10 or 13 digits, without spaces or any other special characters..">
+                                    <div class="mb-3"><label class="form-label" for="loginEmail"><strong>ISBN</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The ISBN of this Book. It must be either 10 or 13 digits, without spaces or any other special characters..">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg><input class="form-control" type="text" id="bookISBN" name="bookISBN" placeholder="9780007203581" autocomplete="off" minlength="10" maxlength="13" pattern="^(?:\d{9}[\dXx]|\d{13})$"><small class="form-text" id="bookISBNHelp"></small></div>
+                                    <div class="mb-3"><label class="form-label pt-0" for="loginEmail"><strong>Publication Year</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The year the book was published. Must be a four-digit year between 1000 and the current year.">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                        </svg><input class="form-control" type="number" id="bookPublicationYear" name="bookPublicationYear" min="1000" max="9999" step="1" placeholder="2005"><small class="form-text" id="bookPublicationYearHelp"></small></div>
+                                    <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Number of Pages</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The number of pages in the book.">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                        </svg><input class="form-control" type="number" id="bookPages" name="bookPublicationYear" min="1" max="99999" step="1" placeholder="423"><small class="form-text" id="bookPagesHelp"></small></div>
+                                    <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Book Language</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The language that the book was published in.">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                        </svg>
+                                        <div class="dropdown" id="bookLanguage"><button class="btn btn-outline-secondary dropdown-toggle" aria-expanded="false" data-bs-toggle="dropdown" type="button">Select Language</button>
+                                            <div class="dropdown-menu"><a class="dropdown-item" href="#">Afrikaans</a><a class="dropdown-item" href="#">English</a><a class="dropdown-item" href="#">Other</a></div>
+                                        </div><small class="form-text" id="bookLanguageHelp"></small>
+                                    </div>
+                                    <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Book Cover Image URL</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A link to the cover image of this book.">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                        </svg>
+                                        <div class="input-group"><input class="form-control" type="text" id="bookCoverURL" name="bookCoverURL" inputmode="url"><button class="btn btn-secondary" id="previewBookCoverButton" type="button" data-bs-target="#bookCoverPreview" data-bs-toggle="modal">Preview</button></div><small class="form-text" id="bookCoverURLHelp"></small>
+                                    </div>
+                                    <div class="mb-0"><label class="form-label" for="loginEmail"><strong>Book Description</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A brief description or summary of the book. Can be up to 2000 characters.">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                        </svg><textarea class="form-control" id="bookDescription" name="bookDescription" placeholder="The Fellowship of the Ring is the first part of JRR Tolkien's epic masterpiece The Lord of the Rings. This 50th anniversary edition features special packaging and is the first paperback edition to include the definitive edition of the text." autocomplete="off" spellcheck="true" minlength="2" maxlength="2000"></textarea><small class="form-text" id="bookDescriptionHelp"></small></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6 order-first order-md-3 mb-3 mb-md-1">
+                            <div class="col-12 col-md-4 top-0 order-first order-md-last mb-3 mb-md-0 sticky-md-top">
                                 <div class="alert alert-info mb-0" role="alert"><span><strong>Understanding Our Book System:</strong></span>
                                     <p class="mb-1">In this system, a <strong>Book</strong> refers to a specific edition of a work, usually uniquely identified by its <strong>ISBN</strong>.&nbsp;For example, the hardcover edition and the paperback edition of&nbsp;<em>The Fellowship of the Ring</em> are considered different books.</p>
                                     <p class="mb-0">A <strong>Book Copy</strong> refers to an individual copy of one of those editions that&nbsp;you personally own. You might own two paperback copies of the same edition, or one paperback and one hardcover (different ISBNs).</p>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-12 col-md-6 col-xl-3">
-                                <div class="mb-3"><label class="form-label mt-1 pt-0" for="loginEmail"><strong>Publication Year</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The year the book was published. Must be a four-digit year between 1000 and the current year.">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                    </svg><input class="form-control" type="number" id="bookPublicationYear" name="bookPublicationYear" min="1000" max="9999" step="1" placeholder="2005"><small class="form-text" id="bookPublicationYearHelp"></small></div>
-                            </div>
-                            <div class="col-12 col-md-6 col-xl-3">
-                                <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Number of Pages</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The number of pages in the book.">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                    </svg><input class="form-control" type="number" id="bookPages" name="bookPublicationYear" min="1" max="99999" step="1" placeholder="423"><small class="form-text" id="bookPagesHelp"></small></div>
-                            </div>
-                            <div class="col-12 col-md-6 col-xl-3">
-                                <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Book Language</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The language that the book was published in.">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                    </svg>
-                                    <div class="dropdown" id="bookLanguage"><button class="btn btn-outline-secondary dropdown-toggle" aria-expanded="false" data-bs-toggle="dropdown" type="button">Select Language</button>
-                                        <div class="dropdown-menu"><a class="dropdown-item" href="#">Afrikaans</a><a class="dropdown-item" href="#">English</a><a class="dropdown-item" href="#">Other</a></div>
-                                    </div><small class="form-text" id="bookLanguageHelp"></small>
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-6 col-xl-3">
-                                <div class="mb-3"><label class="form-label mt-1" for="loginEmail"><strong>Book Cover Image URL</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A link to the cover image of this book.">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                    </svg>
-                                    <div class="input-group"><input class="form-control" type="text" id="bookCoverURL" name="bookCoverURL" inputmode="url"><button class="btn btn-secondary" id="previewBookCoverButton" type="button" data-bs-target="#bookCoverPreview" data-bs-toggle="modal">Preview</button></div><small class="form-text" id="bookCoverURLHelp"></small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <div class="mb-0"><label class="form-label" for="loginEmail"><strong>Book Description</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A brief description or summary of the book. Can be up to 2000 characters.">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                    </svg><textarea class="form-control" id="bookDescription" name="bookDescription" placeholder="The Fellowship of the Ring is the first part of JRR Tolkien's epic masterpiece The Lord of the Rings. This 50th anniversary edition features special packaging and is the first paperback edition to include the definitive edition of the text." autocomplete="off" spellcheck="true" minlength="2" maxlength="2000"></textarea><small class="form-text" id="bookDescriptionHelp"></small></div>
                             </div>
                         </div>
                     </div>
@@ -191,7 +177,7 @@
                                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                     <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                                 </svg><textarea class="form-control" id="booktypeCreateDescription" autocomplete="off" maxlength="500" minlength="2" name="bookDescription" placeholder="A Magazine is a publication, usually a periodical publication, which is printed or electronically published. Magazines are generally published on a regular schedule and contain a variety of content." spellcheck="true"></textarea><small class="form-text" id="booktypeCreateDescriptionHelp"></small></div>
-                                            <div class="d-flex justify-content-end align-items-end"><button class="btn btn-primary ms-1 me-1 mt-1 mb-1" id="booktypeCreateButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="booktypeCreateSpinner"></span></button></div>
+                                            <div class="d-flex justify-content-end align-items-end"><button class="btn btn-primary mt-2" id="booktypeCreateButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="booktypeCreateSpinner"></span></button></div>
                                         </form>
                                     </div>
                                 </div>
