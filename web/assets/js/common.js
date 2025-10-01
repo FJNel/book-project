@@ -126,6 +126,10 @@ async function initializeApp() {
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
+        if (window.pageLoadingModal) {
+            window.pageLoadingModal.hide();
+            console.log('[Page Loading] Page loading modal hidden after app initialization.');
+        }
         console.log('[Initialization] App initialization complete.');
     }
 }
