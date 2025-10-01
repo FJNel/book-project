@@ -36,6 +36,21 @@
             </div>
         </div>
     </section>
+    <div class="modal fade bg-black bg-opacity-75" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header d-flex justify-content-center">
+                    <h4 class="modal-title text-center">Page Loading</h4>
+                </div>
+                <div class="modal-body d-flex justify-content-center align-items-center">
+                    <div>
+                        <p class="text-center">Please wait while the page is loading...</p>
+                        <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="apiErrorModal">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -100,7 +115,7 @@
                 </div>
                 <div class="modal-body">
                     <p class="mb-2">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
-                    <p class="mb-0"><em>Close this window to return to the login or registration page.</em></p>
+                    <p class="mb-0"><em>Close this window to go to the login or registration page.</em></p>
                 </div>
             </div>
         </div>
@@ -194,7 +209,7 @@
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="loginButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="loginSpinner"></span></button></div>
+                <div class="modal-footer"><button class="btn btn-secondary me-1" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="loginButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="loginSpinner"></span></button></div>
             </div>
         </div>
     </div>

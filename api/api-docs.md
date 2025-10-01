@@ -1065,6 +1065,15 @@ For the `bookType` object:
 |-----------|------|----------|-------------------------|
 | `id` | Integer | **Yes** | The ID of an existing book type to link. Must belong to the authenticated user. |
 
+CREATE TABLE book_types (
+    id          SERIAL PRIMARY KEY,
+    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 #### Authors
 
 - Accepts an array of author objects. **Note:** It is uncommon for a book to have multiple authors, but this implementation allows it for flexibility.
