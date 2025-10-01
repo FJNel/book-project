@@ -46,21 +46,25 @@ function checkViewport() {
         }
     }
 
-    
-    //Require desktop for all other pages
-    // if (window.innerWidth >= 1200) {
-    //     console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
-    //     return true;
-    // } else {
-    //     console.warn('[Viewport Check] Viewport too small:', window.innerWidth);
-    //     showViewportErrorModal();
-    //     return false;
-    // }
+    // Require desktop for all other pages
+    if (window.innerWidth >= 1200) {
+        console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
+        return true;
+    } else {
+        console.warn('[Viewport Check] Viewport too small:', window.innerWidth);
+        showViewportErrorModal();
+        return false;
+    }
 }
 
 // Checks if the user is logged in
 function checkLoginStatus() {
+    //Deprecated: The HTTP interceptor will handle this
+    //If the token is invalid, the user will be logged out automatically by the interceptor
+    return true;
+
     const token = localStorage.getItem('accessToken');
+
     
     //Check if token refresh token is still valid
     //Not needed: The HTTP interceptor will handle this
@@ -106,26 +110,28 @@ function showApiErrorModal() {
 
 //Run checks on page load
 async function initializeApp() {
-    const pageLoadingModalElement = document.getElementById('pageLoadingModal');
-    let pageLoadingModal;
-    if (pageLoadingModalElement) {
-        pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement, { backdrop: 'static', keyboard: false });
-        pageLoadingModal.show();
-        window.pageLoadingModal = pageLoadingModal;
-        console.log('[Initialization] Page loading modal shown.');
-    } else {
-        console.warn('[Initialization] pageLoadingModal element not found in DOM.');
-    }
+    // Show loading modal
+    // const pageLoadingModalElement = document.getElementById('pageLoadingModal');
+    // let pageLoadingModal;
+    // if (pageLoadingModalElement) {
+    //     console.log('[Initialization] pageLoadingModal element found in DOM. Showing modal.');
+    //     pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
+    //     pageLoadingModal.show();
+    //     console.log('[Initialization] Page loading modal shown.');
+    // } else {
+    //     console.warn('[Initialization] pageLoadingModal element not found in DOM.');
+    // }
 
     try {
-        console.log('[Initialization] Page is loading, modal is visible by default.');
+        console.log('[Initialization] Page is loading...');
 
         // Run the original checks
         const apiHealthy = await checkApiHealth();
-        const viewportOk = checkViewport();
-        const loggedIn = checkLoginStatus();
+        //Deprecated:
+        const viewportOk = true; //checkViewport();
+        const loggedIn = true; //checkLoginStatus();
 
-        if (apiHealthy && viewportOk) {
+        if (apiHealthy && viewportOk && loggedIn) {
             console.log('[Initialization] All checks passed. Application is ready.');
         } else {
             console.warn('[Initialization] One or more checks failed. Application may not function correctly.');
@@ -137,12 +143,13 @@ async function initializeApp() {
         //This block will always execute, hiding the now-visible modal.
         //Simulate a short delay to ensure users see the loading modal briefly
         // await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
-        if (pageLoadingModal) {
-            pageLoadingModal.hide();
-            console.log('[Initialization] Page loading modal hidden.');
-        } else {
-            console.warn('[Initialization] pageLoadingModal not found in DOM.');
-        }
+        // if (pageLoadingModal) {
+        //     console.log('[Initialization] Page loading finished! Hiding page loading modal.');
+        //     pageLoadingModal.hide();
+        //     console.log('[Initialization] Page loading modal hidden.');
+        // } else {
+        //     console.warn('[Initialization] pageLoadingModal not found in DOM.');
+        // }
     }
 }
 

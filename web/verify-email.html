@@ -158,8 +158,15 @@
     <script src="assets/js/http-interceptor.js"></script>
     <script src="assets/js/common.js"></script>
     <script src="assets/js/verify-email.js"></script>
-    
-
+    <script>
+        //Once everything is loaded, hide the loading modal
+        window.addEventListener('load', function() {
+            if (window.pageLoadingModal) {
+                window.pageLoadingModal.hide();
+                console.log("[Initialization] Page loading modal hidden.");
+            }
+        });
+    </script>   
 </body>
 
 </html>
