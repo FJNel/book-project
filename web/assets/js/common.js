@@ -132,7 +132,7 @@ async function initializeApp() {
         const loggedIn = true; //checkLoginStatus();
 
         if (apiHealthy && viewportOk && loggedIn) {
-            console.log('[Initialization] All checks passed. Application is ready.');
+            console.log('[Initialization] All checks passed.');
         } else {
             console.warn('[Initialization] One or more checks failed. Application may not function correctly.');
         }
