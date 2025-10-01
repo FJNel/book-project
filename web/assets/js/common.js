@@ -99,15 +99,13 @@ function showViewportErrorModal() {
     desktopErrorModal.show();
 }
 
-// Run checks on page load
+//Run checks on page load
 async function initializeApp() {
     const pageLoadingModalElement = document.getElementById('pageLoadingModal');
     const pageLoadingModal = new bootstrap.Modal(pageLoadingModalElement);
 
     try {
-        // Show the loading modal immediately
-        pageLoadingModal.show();
-        console.log('[Initialization] Page loading modal shown.');
+        console.log('[Initialization] Page is loading, modal is visible by default.');
 
         // Run the original checks
         const apiHealthy = await checkApiHealth();
@@ -123,8 +121,7 @@ async function initializeApp() {
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
-        // This block will always execute, ensuring the modal is hidden
-        // after all checks are complete or if an error was caught.
+        //This block will always execute, hiding the now-visible modal.
         pageLoadingModal.hide();
         console.log('[Initialization] Page loading modal hidden.');
     }

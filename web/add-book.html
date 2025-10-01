@@ -29,7 +29,7 @@
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg></label>
-                                    <div class="input-group"><input class="form-control" type="text" id="isbnInput" name="isbnInput" placeholder="Enter ISBN"><button class="btn btn-primary booktypeCreateButton" id="lookupISBNButton" type="button">Lookup ISBN</button></div><small class="form-text" id="isbnHelpText"></small>
+                                    <div class="input-group"><input class="form-control" type="text" id="isbnInput" name="isbnInput" placeholder="Enter ISBN"><button class="btn btn-primary booktypeCreateButton" id="lookupISBNButton" type="button" data-bs-target="#lookupByISBNLoadingModal" data-bs-toggle="modal">Lookup ISBN</button></div><small class="form-text" id="isbnHelpText"></small>
                                 </div>
                             </form>
                             <p class="text-secondary mb-0">An ISBN is a unique number used to identify a specific version or edition of a book. Before 2007, books were assigned 10-digit ISBNs, but since 2007, all books use 13-digit ISBNs. The 13-digit ISBN often also serves as the book’s barcode. You can usually find the ISBN on the back cover of the book, near the barcode.</p>
@@ -157,10 +157,10 @@
                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                     </svg>
                                     <div class="dropdown" id="bookBookTypeDropdown"><button class="btn btn-outline-secondary dropdown-toggle" aria-expanded="false" data-bs-toggle="dropdown" type="button">Select Book Type</button>
-                                        <div class="dropdown-menu"><a class="dropdown-item" href="#">Afrikaans</a><a class="dropdown-item" href="#">English</a><a class="dropdown-item" href="#">Other</a></div>
+                                        <div class="dropdown-menu"><a class="dropdown-item" href="#">Magazine</a><a class="dropdown-item" href="#">Hardcover</a><a class="dropdown-item" href="#">Other</a></div>
                                     </div><small class="form-text" id="bookLanguageHelp-1"></small>
                                 </div><label class="form-label mb-1" for="loginEmail"><strong>Selected Book Type Description:</strong></label>
-                                <p class="mb-0" id="bookBookTypeDescriptionDisplay">No description provided.</p>
+                                <p class="mb-0" id="bookBookTypeDescriptionDisplay">No Book Type selected.</p>
                             </div>
                             <div class="col">
                                 <div class="card">
@@ -204,7 +204,7 @@
             </div>
         </div>
     </div>
-    <div class="modal fade bg-black bg-opacity-75" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
+    <div class="modal fade bg-black bg-opacity-75 show" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
         <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header d-flex justify-content-center">
