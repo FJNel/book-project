@@ -29,6 +29,9 @@ async function checkApiHealth() {
 }
 
 function checkViewport() {
+    //Deprecated: The UI has been redesigned to be mobile-friendly
+    return true;
+
     const path = window.location.pathname;
     if (
         path === '/verify-email.html' || path === '/verify-email' ||
@@ -43,14 +46,16 @@ function checkViewport() {
         }
     }
 
-    if (window.innerWidth >= 1200) {
-        console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
-        return true;
-    } else {
-        console.warn('[Viewport Check] Viewport too small:', window.innerWidth);
-        showViewportErrorModal();
-        return false;
-    }
+    
+    //Require desktop for all other pages
+    // if (window.innerWidth >= 1200) {
+    //     console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
+    //     return true;
+    // } else {
+    //     console.warn('[Viewport Check] Viewport too small:', window.innerWidth);
+    //     showViewportErrorModal();
+    //     return false;
+    // }
 }
 
 // Checks if the user is logged in
@@ -93,11 +98,11 @@ function showApiErrorModal() {
 }
 
 // Show modal if viewport is too small
-function showViewportErrorModal() {
-    console.log('[Modal] Showing Desktop Error Modal');
-    const desktopErrorModal = new bootstrap.Modal(document.getElementById('desktopErrorModal'));
-    desktopErrorModal.show();
-}
+// function showViewportErrorModal() {
+//     console.log('[Modal] Showing Desktop Error Modal');
+//     const desktopErrorModal = new bootstrap.Modal(document.getElementById('desktopErrorModal'));
+//     desktopErrorModal.show();
+// }
 
 //Run checks on page load
 async function initializeApp() {
@@ -132,8 +137,8 @@ async function initializeApp() {
         //This block will always execute, hiding the now-visible modal.
         //Simulate a short delay to ensure users see the loading modal briefly
         // await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
-        if (window.pageLoadingModal) {
-            window.pageLoadingModal.hide();
+        if (pageLoadingModal) {
+            pageLoadingModal.hide();
             console.log('[Initialization] Page loading modal hidden.');
         } else {
             console.warn('[Initialization] pageLoadingModal not found in DOM.');
