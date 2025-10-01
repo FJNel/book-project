@@ -5,7 +5,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Selection ---
     const emailInput = document.getElementById('resendEmail'); // Note: ID in HTML is resendEmail
-    const verifyButton = document.getElementById('verifyEmailButton');
+    const verifyButton = document.getElementById('verifyButton');
     const successAlert = document.getElementById('emailVerificationAlertSuccess');
     const errorAlert = document.getElementById('emailVerificationAlertError');
     const verificationForm = document.getElementById('emailVerificationForm');
