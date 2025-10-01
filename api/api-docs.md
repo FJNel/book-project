@@ -1019,7 +1019,7 @@ For any endpoint that requires authentication, the following header must be incl
 | `publicationYear` | Integer | No | The year the book was published. Must be a four-digit year between 1000 and the current year. |
 | `language` | String | No | The two letter ISO 639-1 code for the book's language (e.g., "`en`" for English, "`fr`" for French). |
 | `pages` | Integer | No | The number of pages in the book. Must be a positive integer if provided. |
-| `description` | String | No | A brief description or summary of the book. Can be up to 1000 characters. |
+| `description` | String | No | A brief description or summary of the book. Can be up to 2000 characters. |
 | `coverImageUrl` | String | No | A URL to an image of the book's cover. Must be a valid URL format if provided. |
 
 CREATE TABLE books (
