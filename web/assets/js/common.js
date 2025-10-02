@@ -94,31 +94,35 @@ function checkLoginStatus() {
     }
 }
 
+let pageLoadingModalInstance;
+
 function showPageLoadingModal() {
     console.log('[Modal] Showing Page Loading Modal');
-    const pageLoadingModal = new bootstrap.Modal(document.getElementById('pageLoadingModal'), {
-        backdrop: 'static',
-        keyboard: false
-    });
-    pageLoadingModal.show();
+    const modalElement = document.getElementById('pageLoadingModal');
+
+    if (!pageLoadingModalInstance) {
+        pageLoadingModalInstance = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+    }
+    pageLoadingModalInstance.show();
     console.log('[Modal] Page Loading Modal shown.');
 }
 
 function hidePageLoadingModal() {
     console.log('[Modal] Hiding Page Loading Modal');
-    const modalElement = document.getElementById('pageLoadingModal');
-    if (modalElement) {
-        const pageLoadingModal = bootstrap.Modal.getInstance(modalElement);
-        if (pageLoadingModal) {
-            pageLoadingModal.hide();
-            console.log('[Modal] Page Loading Modal hidden.');
-        } else {
-            console.warn('[Modal] Could not find a modal instance for the element.');
-        }
+    if (pageLoadingModalInstance) {        
+        pageLoadingModalInstance.hide();
+        modalElement = document.getElementById('pageLoadingModal');
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            pageLoadingModalInstance.dispose();
+            pageLoadingModalInstance = null;
+        }, { once: true });
+        console.log('[Modal] Page Loading Modal hidden.');
     } else {
-        console.warn('[Modal] Page Loading Modal element NOT found in DOM.');
+        console.warn('[Modal] No modal instance to hide.');
     }
-
 }
 
 // Show modal if API is unreachable
