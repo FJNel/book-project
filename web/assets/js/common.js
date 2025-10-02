@@ -110,9 +110,12 @@ function showPageLoadingModal() {
     console.log('[Modal] Page Loading Modal shown.');
 }
 
-function hidePageLoadingModal() {
+async function hidePageLoadingModal() {
     console.log('[Modal] Hiding Page Loading Modal');
-    if (pageLoadingModalInstance) {        
+    if (pageLoadingModalInstance) {    
+        //Add a delay for UX
+        await new Promise(resolve => setTimeout(resolve, 500)); //wait for 0.5s
+        
         pageLoadingModalInstance.hide();
         modalElement = document.getElementById('pageLoadingModal');
         modalElement.addEventListener('hidden.bs.modal', () => {
@@ -156,7 +159,7 @@ async function initializeApp() {
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
-        hidePageLoadingModal();
+        await hidePageLoadingModal();
     }
 }
 
