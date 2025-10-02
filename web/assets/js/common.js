@@ -94,6 +94,33 @@ function checkLoginStatus() {
     }
 }
 
+function showPageLoadingModal() {
+    console.log('[Modal] Showing Page Loading Modal');
+    const pageLoadingModal = new bootstrap.Modal(document.getElementById('pageLoadingModal'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+    pageLoadingModal.show();
+    console.log('[Modal] Page Loading Modal shown.');
+}
+
+function hidePageLoadingModal() {
+    console.log('[Modal] Hiding Page Loading Modal');
+    const modalElement = document.getElementById('pageLoadingModal');
+    if (modalElement) {
+        const pageLoadingModal = bootstrap.Modal.getInstance(modalElement);
+        if (pageLoadingModal) {
+            pageLoadingModal.hide();
+            console.log('[Modal] Page Loading Modal hidden.');
+        } else {
+            console.warn('[Modal] Could not find a modal instance for the element.');
+        }
+    } else {
+        console.warn('[Modal] Page Loading Modal element NOT found in DOM.');
+    }
+
+}
+
 // Show modal if API is unreachable
 function showApiErrorModal() {
     console.log('[Modal] Showing API Error Modal');
@@ -111,36 +138,21 @@ function showApiErrorModal() {
 //Run checks on page load
 async function initializeApp() {
     try {
+        showPageLoadingModal();
         // Run the original checks
         const apiHealthy = await checkApiHealth();
         //Deprecated:
-        const viewportOk = true; //checkViewport();
-        const loggedIn = true; //checkLoginStatus();
 
-        if (apiHealthy && viewportOk && loggedIn) {
+        if (apiHealthy) {
             console.log('[Initialization] All checks passed.');
         } else {
-            console.warn('[Initialization] One or more checks failed. Application may not function correctly.');
+            console.warn('[Initialization] API health check failed. Application may not function correctly.');
         }
 
     } catch (error) {
         console.error('[Initialization] An unexpected error occurred:', error);
     } finally {
-        const modalElement = document.getElementById('pageLoadingModal');
-        if (modalElement) {
-            const pageLoadingModal = bootstrap.Modal.getInstance(modalElement);
-            if (pageLoadingModal) {
-                //Wait for a short moment to ensure smooth transition
-                await new Promise(resolve => setTimeout(resolve, 300));
-                pageLoadingModal.hide();
-                console.log('[Page Loading] Page loading modal instance found and hidden.');
-            } else {
-                 console.warn('[Page Loading] Could not find a modal instance for the element.');
-            }
-        } else {
-            console.warn('[Page Loading] Page loading modal element NOT found in DOM.');
-        }
-        console.log('[Page Loading] App initialization complete.');
+        hidePageLoadingModal();
     }
 }
 
