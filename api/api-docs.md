@@ -1112,10 +1112,11 @@ CREATE TABLE book_authors (
 
 #### Publishers
 
-- Accepts an integer array of publisher `id`s. **Note:** It is uncommon for a book to have multiple publishers, but this implementation allows it for flexibility.
+- Accepts a single publisher `id`. **Note:** Since books are usually identified by ISBN, a book can only have one publisher.
+- The `id` must reference an existing publisher.
 - To create new publishers, use the `POST /publishers/` endpoint.
 
-For each `publisher` `id` in the array:
+For the `publisher` object:
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `id` | Integer | **Yes** | The ID of an existing publisher to link. Must belong to the authenticated user. |
@@ -1126,11 +1127,6 @@ CREATE TABLE publishers (
     founded_year INT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE book_publishers (
-    book_id      INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    publisher_id INT NOT NULL REFERENCES publishers(id) ON DELETE CASCADE,
-    PRIMARY KEY (book_id, publisher_id)
 );
 
 
