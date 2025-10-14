@@ -48,7 +48,7 @@ app.use(helmet()); //Set HTTP headers for security
 app.use(express.json()); //Parse JSON request bodies
 // Allow requests from other domains (CORS)
 const corsOptions = {
-  origin: ['https://fjnel.co.za', 'http://127.0.0.1:8000'], // Allow only your frontend
+  origin: ['https://bookproject.fjnel.co.za', 'http://127.0.0.1:8000'], // Allow only your frontend
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
