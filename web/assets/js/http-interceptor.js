@@ -61,6 +61,12 @@ async function apiFetch(path, options = {}) {
 		return response;
 	}
 
+	// Only attempt refresh for protected endpoints (not login/register)
+	if (PUBLIC_PATHS.includes(path) && path !== '/auth/refresh-token') {
+		console.warn('[HTTP Interceptor] 401 on public endpoint:', path, 'Passing error back to caller.');
+		return response;
+	}
+
 	//If we tried to refresh-token and it failed, don't try again
 	if (path === '/auth/refresh-token') {
 		console.error('[HTTP Interceptor] Refresh token request failed. Since this is a refresh token request, not retrying. Must be handled by caller.');
