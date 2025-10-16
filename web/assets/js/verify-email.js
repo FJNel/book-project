@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show only the invalid link modal
             invalidLinkModal.show();
             invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
-                window.location.href = 'https://fjnel.co.za';
+                window.location.href = 'https://bookproject.fjnel.co.za?action=request-verification-email';
             }, { once: true });
             // Do NOT show desktop modal
             return;
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showAlert('success', `<strong>${message}</strong> You can now log in.`);
                 setTimeout(() => {
                     console.log('[Redirect] Redirecting to homepage...');
-                    window.location.href = 'https://fjnel.co.za';
+                    window.location.href = 'https://bookproject.fjnel.co.za?action=login';
                 }, 5000);
             } else {
                 const message = `<strong>${getLangString(data.message)}:</strong>`;

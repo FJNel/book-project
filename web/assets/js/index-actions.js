@@ -1,13 +1,16 @@
 //Allows the URL path to specify an action to perform on the index page
 //E.g. ?action=login, ?action=register, ?action=request-password-reset, ?action=request-verification-email
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 	const urlParams = new URLSearchParams(window.location.search);
-	const action = urlParams.get('action');
+	let action = urlParams.get('action');
 	if (action) {
+		action = action.toLowerCase();
 		console.log('[Index Actions] Detected action in URL:', action);
 
 		//Show the appropriate modal based on the action
+		//Wait for loading to complete and loading modal to hide
+		await new Promise(resolve => setTimeout(resolve, 500)); //wait for 0.5s
 		switch (action) {
 			case 'login':
 				console.log('[Index Actions] Showing login modal.');

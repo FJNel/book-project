@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[UI] invalidLinkModal not found in DOM.');
             //Fallback use alert
             alert('The password reset link is invalid. Please request a new link.');
-            window.location.href = 'https://fjnel.co.za';
+            window.location.href = 'https://bookproject.fjnel.co.za?action=request-password-reset';
             return;
         }
         const invalidLinkModal = new bootstrap.Modal(invalidLinkModalEl);
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show only the invalid link modal
             invalidLinkModal.show();
             invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
-                window.location.href = 'https://fjnel.co.za';
+                window.location.href = 'https://bookproject.fjnel.co.za?action=request-password-reset';
             }, { once: true });
             // Do NOT show desktop modal
             return;
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showAlert('success', `<strong>${message}</strong> You can now log in with your new password.`);
                 setTimeout(() => {
                     console.log('[Redirect] Redirecting to homepage...');
-                    window.location.href = 'https://fjnel.co.za';
+                    window.location.href = 'https://bookproject.fjnel.co.za?action=login';
                 }, 5000);
             } else {
                 const message = `<strong>${getLangString(data.message)}:</strong>`;

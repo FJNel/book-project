@@ -144,7 +144,7 @@ function showSessionExpiredModal() {
 		console.error('[Session Expired Modal] Modal element not found in DOM.');
 		//Fallback
 		alert('Your session has expired. Please log in again.');
-		window.location.href = 'https://fjnel.co.za';
+		window.location.href = 'https://bookproject.fjnel.co.za?action=login';
 		return;
 	}
 
@@ -153,6 +153,6 @@ function showSessionExpiredModal() {
 
 	//Redirect to homepage on modal close
 	modal.addEventListener('hidden.bs.modal', () => {
-		window.location.href = 'https://fjnel.co.za';
+		window.location.href = 'https://bookproject.fjnel.co.za?action=login';
 	}, { once: true });
 }

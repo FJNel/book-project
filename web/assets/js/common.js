@@ -87,7 +87,7 @@ function checkLoginStatus() {
         ) {
             console.log('[Login Check] Redirecting to homepage.');
 
-            window.location.href = 'https://fjnel.co.za';
+            window.location.href = 'https://bookproject.fjnel.co.za';
         }
         console.log('[Login Check] Already on page that does not require login.');
         return false;
