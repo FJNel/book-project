@@ -50,9 +50,9 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 			  </a>
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
-			  If you did not sign up for this account, please contact the system administrator at
+			  If you did not register this account, please contact the system administrator at
 			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
-			  to ensure the safety of your account.<br>
+			  to assist you in resolving this matter.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
@@ -261,6 +261,12 @@ async function sendWelcomeEmail(toEmail, preferredName) {
                 Log In
               </a>
             </div>
+			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
+			  If you did not verify this email address, please contact the system administrator at
+			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
+			  to assist you in resolving this matter.<br>
+			  This link will expire in <strong>${expiresIn} minutes</strong>.
+			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
               &copy; ${year} Book Project. All rights reserved.
@@ -321,6 +327,12 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
                 Log In
               </a>
             </div>
+			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
+			  If you did not reset your password, please contact the system administrator at
+			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
+			  to secure your account.<br>
+			  This link will expire in <strong>${expiresIn} minutes</strong>.
+			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
               &copy; ${year} Book Project. All rights reserved.
