@@ -370,6 +370,8 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 - If the token is valid (not expired or already used) and matches the email, the user's account will be marked as verified. They can then log in.
 - If the token is invalid or expired, or the email does not match, an error message will be returned.
+- On successful verification, the system sends a welcome email, including a “Log In” button linking to `https://bookproject.fjnel.co.za/?action=login`.
+- Verification emails include a security notice: “If you did not create an account, please contact the system administrator at support@fjnel.co.za to ensure the safety of your account.”
 
 ### Examples
 
@@ -657,6 +659,8 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
 
 - If the token is valid (not expired or already used) and matches the email, the user's password will be updated. All existing refresh tokens for the user will be revoked, requiring re-authentication.
 - If the token is invalid or expired, or the email does not match, an error message will be returned.
+- On successful reset, the system sends a confirmation email, including a “Log In” button linking to `https://bookproject.fjnel.co.za/?action=login`.
+- Password reset emails include a security notice: “If you did not request a password reset, please contact the system administrator at support@fjnel.co.za to ensure the safety of your account.”
 
 ### Examples
 

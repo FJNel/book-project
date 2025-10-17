@@ -19,7 +19,7 @@ const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { logUserAction, logToFile } = require("../utils/logging");
-const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/email");
+const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, requiresAuth } = require("../utils/jwt");
 const { v4: uuidv4 } = require("uuid");
 
@@ -44,48 +44,48 @@ const rateLimitHandler = (req, res, next, options) => {
 };
 
 const registerLimiter = rateLimit({
-	windowMs: 10 * 60 * 1000, //10 minutes
-	max: 5, // 5 requests
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false,
-  handler: rateLimitHandler
-  });
+    windowMs: 10 * 60 * 1000, //10 minutes
+    max: 5, // 5 requests
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false,
+    handler: rateLimitHandler
+});
 
 const emailVerificationLimiter = rateLimit({
-	windowMs: 5 * 60 * 1000, //5 minutes
-	max: 5, // 5 requests
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false,
-  handler: rateLimitHandler
-  });
+    windowMs: 5 * 60 * 1000, //5 minutes
+    max: 5, // 5 requests
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false,
+    handler: rateLimitHandler
+});
 
-  const passwordVerificationLimiter = rateLimit({
-	windowMs: 5 * 60 * 1000, //5 minutes
-	max: 1, // 1 request
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false,
-  handler: rateLimitHandler
-  });
+const passwordVerificationLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, //5 minutes
+    max: 1, // 1 request
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false,
+    handler: rateLimitHandler
+});
 
-  const passwordResetLimiter = rateLimit({
-	windowMs: 5 * 60 * 1000, //5 minutes
-	max: 1, // 1 request
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false,
-  handler: rateLimitHandler
-  });
+const passwordResetLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, //5 minutes
+    max: 1, // 1 request
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false,
+    handler: rateLimitHandler
+});
 
 const loginLimiter = rateLimit({
-	windowMs: 10 * 60 * 1000, //10 minutes
-	max: 10, // 10 requests
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false,
-  handler: rateLimitHandler
+    windowMs: 10 * 60 * 1000, //10 minutes
+    max: 10, // 10 requests
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false,
+    handler: rateLimitHandler
 });
 
 // Helper: get an active (unexpired, unused) email verification token for a user, or create a new one
 async function ensureActiveVerificationToken(userId, client = null) {
-	const q = client || pool;
+    const q = client || pool;
 	// Try get an existing non-expired, unused token
 	const existing = await q.query(
 		`SELECT token, expires_at
@@ -112,14 +112,14 @@ async function ensureActiveVerificationToken(userId, client = null) {
 		[userId, token, expiresAt]
 	);
 	return { token, expiresAt, reused: false };
-}
+} // ensureActiveVerificationToken
 
 // CAPTCHA Helper (v3)
 async function verifyCaptcha(token, ip) {
-	if (!RECAPTCHA_SECRET) {
-		logToFile("CAPTCHA_MISCONFIGURED", { message: "RECAPTCHA_SECRET is not set in environment variables" }, "warn");
-		return false;
-	}
+    if (!RECAPTCHA_SECRET) {
+        logToFile("CAPTCHA_MISCONFIGURED", { message: "RECAPTCHA_SECRET is not set in environment variables" }, "warn");
+        return false;
+    }
 
 	if (!token) {
 		return false;
@@ -156,7 +156,7 @@ async function verifyCaptcha(token, ip) {
 		logToFile("CAPTCHA_VERIFICATION_ERROR", { message: e.message }, "error");
 		return false;
 	}
-}
+} // verifyCaptcha
 
 
 
@@ -359,7 +359,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 		client.release();
 	}
 
-});
+}); // router.post("/register")
 
 
 
@@ -370,7 +370,7 @@ async function maybeDelay(start, minMs, jitterMs = 400) {
     if (elapsed < totalMin) {
         await new Promise(resolve => setTimeout(resolve, totalMin - elapsed));
     }
-}
+} // maybeDelay
 
 // POST auth/resend-verification: Resend email verification for existing, unverified users
 router.post("/resend-verification", emailVerificationLimiter, async (req, res) => {
@@ -472,7 +472,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 		await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     }
-});
+}); // router.post("/resend-verification")
 
 
 
@@ -504,7 +504,7 @@ router.post("/verify-email", async (req, res) => {
 
   try {
     // Find user by email
-    const userRes = await pool.query("SELECT id, is_verified FROM users WHERE email = $1", [email]);
+    const userRes = await pool.query("SELECT id, is_verified, preferred_name FROM users WHERE email = $1", [email]);
     if (userRes.rows.length === 0) {
       await logUserAction({
         userId: null,
@@ -596,6 +596,13 @@ router.post("/verify-email", async (req, res) => {
       });
       logToFile("EMAIL_VERIFICATION", { user_id: user.id, email, verified: true }, "info");
 
+      // Send welcome email (best-effort)
+      try {
+        await sendWelcomeEmail(email, user.preferred_name);
+      } catch (e) {
+        logToFile("EMAIL_SEND_ERROR", { to: email, context: "welcome_after_verify", error: e.message }, "error");
+      }
+
       return successResponse(res, 200, "EMAIL_VERIFICATION_SUCCESS", {
         id: user.id,
         email
@@ -633,7 +640,7 @@ router.post("/verify-email", async (req, res) => {
       "INTERNAL_SERVER_ERROR_EMAIL_DETAIL"
     ]);
   }
-});
+}); // router.post("/verify-email")
 
 
 
@@ -719,7 +726,7 @@ router.post("/login", loginLimiter, async (req, res) => {
         logToFile("LOGIN_ATTEMPT", { error: e.message, email }, "error");
         return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGIN_DETAIL"]);
     }
-});
+}); // router.post("/login")
 
 
 
@@ -762,7 +769,7 @@ router.post("/logout", requiresAuth, async (req, res) => {
 	logToFile("LOGOUT", { user_id: payload.id, outcome: "SUCCESS" });
 
 	return successResponse(res, 200, "LOGOUT_SUCCESS", {});
-});
+}); // router.post("/logout")
 
 
 
@@ -810,7 +817,7 @@ router.post("/refresh-token", async (req, res) => {
 	} catch (e) {
 		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_REFRESH_TOKEN_DETAIL"]);
 	}
-});
+}); // router.post("/refresh-token")
 
 
 
@@ -927,7 +934,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
         await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     }
-});
+}); // router.post("/request-password-reset")
 
 //POST auth/reset-password: Reset password using the token sent to user's email
 router.post("/reset-password", passwordResetLimiter, async (req, res) => {
@@ -968,7 +975,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 
     try {
         // Find user by email
-        const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        const userRes = await pool.query("SELECT id, preferred_name FROM users WHERE email = $1", [email]);
         if (userRes.rows.length === 0) {
             await logUserAction({
                 userId: null,
@@ -1051,6 +1058,13 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
             });
             logToFile("PASSWORD_RESET_SUCCESS", { user_id: user.id, email, reset: true }, "info");
 
+            // Send password reset success confirmation (best-effort)
+            try {
+                await sendPasswordResetSuccessEmail(email, userRes.rows[0].preferred_name);
+            } catch (e) {
+                logToFile("EMAIL_SEND_ERROR", { to: email, context: "password_reset_success", error: e.message }, "error");
+            }
+
             return successResponse(res, 200, "PASSWORD_RESET_SUCCESS", {
                 id: user.id,
                 email
@@ -1088,7 +1102,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
             "INTERNAL_SERVER_ERROR_PASSWORD_RESET_DETAIL"
         ]);
     }
-});
+}); // router.post("/reset-password")
 
 
 async function verifyGoogleIdToken(idToken) {
@@ -1098,7 +1112,7 @@ async function verifyGoogleIdToken(idToken) {
   });
   const payload = ticket.getPayload();
   return payload;
-}
+} // verifyGoogleIdToken
 
 router.post("/google", async (req, res) => {
   const { idToken } = req.body || {};
@@ -1224,6 +1238,6 @@ router.post("/google", async (req, res) => {
   } finally {
     client.release();
   }
-});
+}); // router.post("/google")
 
 module.exports = router;

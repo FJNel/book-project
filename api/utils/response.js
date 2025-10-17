@@ -1,10 +1,10 @@
 // This document provides a standard response format for API responses.
 
 function getResponseTime(request) {
-  if (!request._startTime) return null;
-  const diff = process.hrtime(request._startTime);
-  return (diff[0] * 1000 + diff[1] / 1e6).toFixed(2); // ms
-}
+    if (!request._startTime) return null;
+    const diff = process.hrtime(request._startTime);
+    return (diff[0] * 1000 + diff[1] / 1e6).toFixed(2); // ms
+} // getResponseTime
 
 //Success Response
 // {
@@ -17,15 +17,15 @@ function getResponseTime(request) {
 // 	"errors": [] // Always an empty array on success
 // }
 function successResponse(res, httpCode = 200, message = "Success", data = {}) {
-  return res.status(httpCode).json({
-    status: "success",
-    httpCode,
-    responseTime: getResponseTime(res.req),
-    message,
-    data,
-    errors: []
-  });
-}
+    return res.status(httpCode).json({
+        status: "success",
+        httpCode,
+        responseTime: getResponseTime(res.req),
+        message,
+        data,
+        errors: []
+    });
+} // successResponse
 
 //Error Response
 // {
@@ -40,27 +40,27 @@ function successResponse(res, httpCode = 200, message = "Success", data = {}) {
 //   	]
 // }
 function errorResponse(res, httpCode = 500, message = "An error occurred", errors = []) {
-  if (!Array.isArray(errors)) {
-    errors = [errors];
-  }
-  //Flatten nested error arrays
-  try {
-    errors = errors.flat ? errors.flat(Infinity) : errors;
-  } catch (_) {
-    // ignore if not supported; leave as-is
-  }
-  errors = errors
-    .filter(Boolean)
-    .map((e) => (typeof e === "string" ? e : (e && e.message) || String(e)));
+    if (!Array.isArray(errors)) {
+        errors = [errors];
+    }
+    // Flatten nested error arrays
+    try {
+        errors = errors.flat ? errors.flat(Infinity) : errors;
+    } catch (_) {
+        // ignore if not supported; leave as-is
+    }
+    errors = errors
+        .filter(Boolean)
+        .map((e) => (typeof e === "string" ? e : (e && e.message) || String(e)));
 
-  return res.status(httpCode).json({
-    status: "error",
-    httpCode,
-    responseTime: getResponseTime(res.req),
-    message,
-    data: {},
-    errors
-  });
-}
+    return res.status(httpCode).json({
+        status: "error",
+        httpCode,
+        responseTime: getResponseTime(res.req),
+        message,
+        data: {},
+        errors
+    });
+} // errorResponse
 
 module.exports = { successResponse, errorResponse };
