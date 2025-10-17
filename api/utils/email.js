@@ -265,7 +265,6 @@ async function sendWelcomeEmail(toEmail, preferredName) {
 			  If you did not verify this email address, please contact the system administrator at
 			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
 			  to assist you in resolving this matter.<br>
-			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
@@ -331,7 +330,6 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
 			  If you did not reset your password, please contact the system administrator at
 			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
 			  to secure your account.<br>
-			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
