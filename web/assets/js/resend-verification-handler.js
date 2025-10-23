@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             let captchaToken;
             try {
-                captchaToken = await window.recaptchaV3.getToken('resend-verification');
+                captchaToken = await window.recaptchaV3.getToken('resend_verification');
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for resend-verification:', e);
                 showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');

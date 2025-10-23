@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Obtain reCAPTCHA token
         let captchaToken;
         try {
-            captchaToken = await window.recaptchaV3.getToken('reset-password');
+            captchaToken = await window.recaptchaV3.getToken('reset_password');
         } catch (e) {
             console.error('[reCAPTCHA] Failed to obtain token for reset-password:', e);
             showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');

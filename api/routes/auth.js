@@ -290,7 +290,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 	let { email, captchaToken } = req.body || {};
 
 	//Verify CAPTCHA before doing anything else
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend-verification', 0.5);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend_verification', 0.5);
 	if (!captchaValid) {
 	logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
@@ -341,7 +341,7 @@ router.post("/verify-email", async (req, res) => {
   let { email, token, captchaToken } = req.body || {};
 
   // Verify CAPTCHA action for email verification
-  const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'verify-email');
+  const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'verify_email');
   if (!captchaValid) {
     logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
     return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
@@ -704,7 +704,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
     let { email, token, newPassword, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'reset-password');
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'reset_password');
     if (!captchaValid) {
         logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
         return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);

@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Obtain reCAPTCHA token (optional for backend; included for consistency)
         let captchaToken;
         try {
-            captchaToken = await window.recaptchaV3.getToken('verify-email');
+            captchaToken = await window.recaptchaV3.getToken('verify_email');
         } catch (e) {
             console.error('[reCAPTCHA] Failed to obtain token for verify-email:', e);
             showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
