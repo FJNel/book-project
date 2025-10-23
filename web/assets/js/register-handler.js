@@ -160,6 +160,15 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleSpinner(true);
 
         try {
+            let captchaToken;
+            try {
+                captchaToken = await window.recaptchaV3.getToken('register');
+            } catch (e) {
+                console.error('[reCAPTCHA] Failed to obtain token for register:', e);
+                showRegisterError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                return;
+            }
+
             const response = await apiFetch(`/auth/register`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -167,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     preferredName: preferredNameInput.value || null,
                     email: emailInput.value,
                     password: passwordInput.value,
-                    captchaToken: 'test-bypass-token'
+                    captchaToken
                 }),
             });
 

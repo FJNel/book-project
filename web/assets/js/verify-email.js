@@ -119,10 +119,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         toggleSpinner(true);
 
+        // Obtain reCAPTCHA token (optional for backend; included for consistency)
+        let captchaToken;
+        try {
+            captchaToken = await window.recaptchaV3.getToken('verify-email');
+        } catch (e) {
+            console.error('[reCAPTCHA] Failed to obtain token for verify-email:', e);
+            showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+            toggleSpinner(false);
+            return;
+        }
+
         try {
             const response = await apiFetch(`/auth/verify-email`, {
                 method: 'POST',
-                body: JSON.stringify({ email, token }),
+                body: JSON.stringify({ email, token, captchaToken }),
             });
 
             const data = await response.json();

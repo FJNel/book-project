@@ -115,7 +115,7 @@ async function ensureActiveVerificationToken(userId, client = null) {
 } // ensureActiveVerificationToken
 
 // CAPTCHA Helper (v3)
-async function verifyCaptcha(token, ip) {
+async function verifyCaptcha(token, ip, expectedAction = null) {
     if (!RECAPTCHA_SECRET) {
         logToFile("CAPTCHA_MISCONFIGURED", { message: "RECAPTCHA_SECRET is not set in environment variables" }, "warn");
         return false;
@@ -150,8 +150,10 @@ async function verifyCaptcha(token, ip) {
 		});
 		const data = await response.json();
 	// Log minimal info only; avoid dumping entire CAPTCHA payload
-	logToFile("CAPTCHA_VERIFICATION", { success: data?.success === true, score: data?.score }, "info");
-		return data.success && data.score && data.score >= 0.7; //Accept scores >= 0.7
+	const actionMatch = expectedAction ? (data?.action === expectedAction) : true;
+	const ok = (data?.success === true) && (data?.score >= 0.7) && actionMatch;
+	logToFile("CAPTCHA_VERIFICATION", { success: data?.success === true, score: data?.score, action: data?.action, expectedAction, actionMatch }, ok ? "info" : "warn");
+		return ok; // Accept scores >= 0.7 and matching action
 	} catch (e) {
 		logToFile("CAPTCHA_VERIFICATION_ERROR", { message: e.message }, "error");
 		return false;
@@ -165,7 +167,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 	let { captchaToken, fullName, preferredName, email, password } = req.body || {};
 
 	//Validate CAPTCHA before doing anything else
-	const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'register');
 	if (!captchaValid) {
 	await logUserAction({ userId: null, action: "USER_REGISTERED", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
 	logToFile("USER_REGISTERED", { reason: "CAPTCHA_FAILED", email }, "warn");
@@ -380,7 +382,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 	let { email, captchaToken } = req.body || {};
 
 	//Verify CAPTCHA before doing anything else
-	const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend-verification');
 	if (!captchaValid) {
 	await logUserAction({ userId: null, action: "EMAIL_VERIFICATION", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
 	logToFile("EMAIL_VERIFICATION", { reason: "CAPTCHA_FAILED", email }, "warn");
@@ -478,7 +480,16 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 
 //POST /auth/verify-email: Verifies a user's email address using the token sent via email
 router.post("/verify-email", async (req, res) => {
-  let { email, token } = req.body || {};
+  let { email, token, captchaToken } = req.body || {};
+
+  // Verify CAPTCHA action for email verification
+  const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'verify-email');
+  if (!captchaValid) {
+    await logUserAction({ userId: null, action: "EMAIL_VERIFICATION", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
+    logToFile("EMAIL_VERIFICATION", { reason: "CAPTCHA_FAILED", email }, "warn");
+    return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+  }
+  
   email = email ? email.trim().toLowerCase() : null;
   token = token ? token.trim() : null;
 
@@ -649,7 +660,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     const { captchaToken, email, password } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'login');
     if (!captchaValid) {
         await logUserAction({ userId: null, action: "LOGIN_ATTEMPT", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
         logToFile("LOGIN_ATTEMPT", { reason: "CAPTCHA_FAILED", email }, "warn");
@@ -829,7 +840,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
     let { email, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request-password-reset');
     if (!captchaValid) {
         await logUserAction({ userId: null, action: "PASSWORD_RESET_REQUEST", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
         logToFile("PASSWORD_RESET_REQUEST", { reason: "CAPTCHA_FAILED", email }, "warn");
@@ -941,7 +952,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
     let { email, token, newPassword, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'reset-password');
     if (!captchaValid) {
         await logUserAction({ userId: null, action: "PASSWORD_RESET_SUCCESS", status: "FAILURE", ip: req.ip, userAgent: req.get("user-agent"), errorMessage: "CAPTCHA_FAILED", details: { email } });
         logToFile("PASSWORD_RESET_SUCCESS", { reason: "CAPTCHA_FAILED", email }, "warn");

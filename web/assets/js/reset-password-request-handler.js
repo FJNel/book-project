@@ -127,13 +127,22 @@ document.addEventListener('DOMContentLoaded', () => {
 		toggleSpinner(true);
 
 		try {
-			const response = await apiFetch(`/auth/request-password-reset`, {
-				method: 'POST',
-				body: JSON.stringify({
-					email: emailInput.value.trim(),
-					captchaToken: 'test-bypass-token'
-				}),
-			});
+            let captchaToken;
+            try {
+                captchaToken = await window.recaptchaV3.getToken('request-password-reset');
+            } catch (e) {
+                console.error('[reCAPTCHA] Failed to obtain token for request-password-reset:', e);
+                showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                return;
+            }
+
+            const response = await apiFetch(`/auth/request-password-reset`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: emailInput.value.trim(),
+                    captchaToken
+                }),
+            });
 
 			// Handle Too Many Requests (429)
 			if (response.status === 429) {

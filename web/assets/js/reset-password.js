@@ -149,6 +149,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Obtain reCAPTCHA token
+        let captchaToken;
+        try {
+            captchaToken = await window.recaptchaV3.getToken('reset-password');
+        } catch (e) {
+            console.error('[reCAPTCHA] Failed to obtain token for reset-password:', e);
+            showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+            toggleSpinner(false);
+            return;
+        }
+
         try {
             const response = await apiFetch(`/auth/reset-password`, {
                 method: 'POST',
@@ -156,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     email,
                     token,
                     newPassword,
-                    captchaToken: 'test-bypass-token'
+                    captchaToken
                 }),
             });
 

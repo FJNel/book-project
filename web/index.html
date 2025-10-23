@@ -17,35 +17,36 @@
             <div class="row h-100">
                 <div class="col-sm-12 col-md-10 col-lg-8 col-xl-7 col-xxl-6 text-center d-flex d-sm-flex d-md-flex justify-content-center align-items-center justify-content-md-start align-items-md-center justify-content-xl-center mx-auto">
                     <div>
-                        <h1 class="fw-bold mb-3">Welcome to the Book Project</h1>
-                        <p class="lead mb-4">This application allow you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.</p>
+                        <h1 class="fw-bold mb-3" data-lang="welcome_title">Welcome to the Book Project</h1>
+                        <p class="lead mb-4" data-lang="welcome_message">This application allow you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.</p>
                     </div>
                 </div>
             </div>
             <div class="row h-100">
                 <div class="col-sm-12 col-md-10 col-lg-8 col-xl-7 col-xxl-6 text-center d-flex justify-content-center align-items-center mx-auto">
                     <div class="card shadow">
-                        <div class="card-body w-100"><button class="btn btn-danger disabled fs-4 w-100" type="button" disabled="">Continue with Google</button>
+                        <div class="card-body w-100"><button class="btn btn-danger disabled fs-4 w-100" type="button" disabled="" data-lang="google_signin_button">Continue with Google</button>
                             <div>
-                                <p class="text-center text-muted mt-3">OR</p>
+                                <p class="text-center text-muted mt-3" data-lang="or_divider">OR</p>
                             </div>
-                            <div class="mb-2"><button class="btn btn-primary fs-4 w-100" type="button" data-bs-target="#loginModal" data-bs-toggle="modal">Login</button></div>
-                            <div><button class="btn btn-outline-primary fs-4 w-100" type="button" data-bs-target="#registerModal" data-bs-toggle="modal">Register</button></div>
+                            <div class="mb-2"><button class="btn btn-primary fs-4 w-100" type="button" data-bs-target="#loginModal" data-bs-toggle="modal" data-lang="login_button">Login</button></div>
+                            <div><button class="btn btn-outline-primary fs-4 w-100" type="button" data-bs-target="#registerModal" data-bs-toggle="modal" data-lang="register_button">Register</button></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+    <div id="recaptcha-root" class="hidden" data-sitekey="6LeedsorAAAAALv_xUltcVyeYvCInfhGVl7qkeMA"></div>
     <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
         <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header d-flex justify-content-center">
-                    <h4 class="modal-title text-center">Page Loading</h4>
+                    <h4 class="modal-title text-center" data-lang="page_loading_heading">Page Loading</h4>
                 </div>
                 <div class="modal-body d-flex justify-content-center align-items-center">
                     <div>
-                        <p class="text-center">Please wait while the page is loading...</p>
+                        <p class="text-center" data-lang="page_loading_text">Please wait while the page is loading...</p>
                         <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
                     </div>
                 </div>
@@ -56,17 +57,17 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">API Connection Error</h4>
+                    <h4 class="modal-title" data-lang="api_error_heading">API Connection Error</h4>
                 </div>
                 <div class="modal-body">
-                    <h5>Unable to Connect</h5>
-                    <p>We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
-                    <h5>What you can do</h5>
+                    <h5 data-lang="api_error_heading_2_1">Unable to Connect</h5>
+                    <p data-lang="api_error_1">We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
+                    <h5 data-lang="api_error_heading_2_2">What you can do</h5>
                     <ul>
-                        <li><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
-                        <li><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
+                        <li data-lang="api_error_li1"><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
+                        <li data-lang="api_error_li2"><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
                     </ul>
-                    <p class="mb-0"><em>If the problem continues, please contact the System Administrator.</em></p>
+                    <p class="mb-0" data-lang="api_error_footer"><em>If the problem continues, please contact the System Administrator at </em><a href="mailto:support@fjnel.co.za?subject=The%20Book%20Project%3A%20API%20Connection%20Error">support@fjnel.co.za</a></p>
                 </div>
             </div>
         </div>
@@ -94,16 +95,16 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    <h4 class="modal-title" data-lang="session_expired_heading">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+                    <p class="mb-0" data-lang="session_expired_text">Your session has ended for security reasons. This might happen due to:</p>
                     <ul>
-                        <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
-                        <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
-                        <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+                        <li data-lang="session_expired_li1"><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+                        <li data-lang="session_expired_li2"><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+                        <li data-lang="session_expired_li3"><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
                     </ul>
-                    <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+                    <p class="mb-0" data-lang="session_expired_footer"><em>Close this window to go back to the page where you can log in.</em></p>
                 </div>
             </div>
         </div>
@@ -112,11 +113,11 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Not Logged In!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    <h4 class="modal-title" data-lang="not_logged_in_heading">Not Logged In!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-2">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
-                    <p class="mb-0"><em>Close this window to go to the login or registration page.</em></p>
+                    <p class="mb-2" data-lang="not_logged_in_text">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
+                    <p class="mb-0" data-lang="not_logged_in_footer"><em>Close this window to go to the login or registration page.</em></p>
                 </div>
             </div>
         </div>
@@ -125,18 +126,18 @@
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Continue with Google Unavailable</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
+                    <h4 class="modal-title" data-lang="google_error_heading">Continue with Google Unavailable</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>The Continue with Google window could not be opened, or something went wrong while it was open. This is typically caused by a pop-up blocker in your browser.&nbsp;Please check your browser's address bar for a pop-up blocked icon and allow pop-ups from this site.</p>
-                    <p><em>If you're still having trouble, you can use one of the options below to access your account.</em></p>
-                    <h5>How to access your account now</h5>
+                    <p data-lang="google_error_p1">The Continue with Google window could not be opened, or something went wrong while it was open. This is typically caused by a pop-up blocker in your browser.&nbsp;Please check your browser's address bar for a pop-up blocked icon and allow pop-ups from this site.</p>
+                    <p data-lang="google_error_p2"><em>If you're still having trouble, you can use one of the options below to access your account.</em></p>
+                    <h5 data-lang="google_error_h1">How to access your account now</h5>
                     <ul>
-                        <li><strong>New User?</strong>&nbsp;Please register an account manually with your email and a password.</li>
-                        <li><strong>Have an Account?&nbsp;</strong>You can log in directly using your email and password.</li>
-                        <li><strong>No Password Set?&nbsp;</strong>If you've used Google before but don't have a password, use the "Forgot Password?" link in the login window to create one, and then log in.</li>
+                        <li data-lang="google_error_li1"><strong>New User?</strong>&nbsp;Please register an account manually with your email and a password.</li>
+                        <li data-lang="google_error_li2"><strong>Have an Account?&nbsp;</strong>You can log in directly using your email and password.</li>
+                        <li data-lang="google_error_li3"><strong>No Password Set?&nbsp;</strong>If you've used Google before but don't have a password, use the "Forgot Password?" link in the login window to create one, and then log in.</li>
                     </ul>
-                    <p><em>If this is a recurring issue, please contact the System Administrator.</em></p>
+                    <p data-lang="google_error_footer"><em>If this is a recurring issue, please contact the System Administrator at&nbsp;</em><a href="mailto:support@fjnel.co.za?subject=The%20Book%20Project%3A%20Continue%20with%20Google%20Unavailable">support@fjnel.co.za</a></p>
                 </div>
             </div>
         </div>
@@ -145,7 +146,7 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header text-center">
-                    <h4 class="modal-title text-center w-100">Logged in Successfully!</h4>
+                    <h4 class="modal-title text-center w-100" data-lang="google_error_heading">Logged in Successfully!</h4>
                 </div>
                 <div class="modal-body">
                     <p class="lead text-center w-100" id="loginSuccessModalText"><strong>Welcome back to the Book Project, {name}!</strong></p>
@@ -261,6 +262,7 @@
     <!-- Include the API Interceptor first! -->
     <script src="assets/js/http-interceptor.js"></script>
     <script src="assets/js/common.js"></script>
+    <script src="assets/js/recaptcha-v3.js"></script>
     <script src="assets/js/login-handler.js"></script>
     <script src="assets/js/register-handler.js"></script>
     <script src="assets/js/reset-password-request-handler.js"></script>

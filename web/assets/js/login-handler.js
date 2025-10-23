@@ -157,12 +157,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = loginPasswordInput.value;
 
         try {
+            let captchaToken;
+            try {
+                captchaToken = await window.recaptchaV3.getToken('login');
+            } catch (e) {
+                console.error('[reCAPTCHA] Failed to obtain token for login:', e);
+                showLoginError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                return;
+            }
+
             const response = await apiFetch(`/auth/login`, {
                 method: 'POST',
                 body: JSON.stringify({
                     email: email,
                     password: password,
-                    captchaToken: 'test-bypass-token' // Temporary bypass for development
+                    captchaToken
                 }),
             });
 

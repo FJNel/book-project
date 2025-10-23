@@ -129,11 +129,20 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleSpinner(true);
 
         try {
+            let captchaToken;
+            try {
+                captchaToken = await window.recaptchaV3.getToken('resend-verification');
+            } catch (e) {
+                console.error('[reCAPTCHA] Failed to obtain token for resend-verification:', e);
+                showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                return;
+            }
+
             const response = await apiFetch(`/auth/resend-verification`, {
                 method: 'POST',
                 body: JSON.stringify({
                     email: emailInput.value.trim(),
-                    captchaToken: 'test-bypass-token'
+                    captchaToken
                 }),
             });
 
