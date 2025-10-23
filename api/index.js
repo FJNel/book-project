@@ -29,12 +29,12 @@ app.use((req, res, next) => {
         logToFile("HTTP_REQUEST", {
             method: req.method,
             path: req.originalUrl || req.url,
-            status: res.statusCode,
+            http_status: res.statusCode,
             duration_ms: durationMs,
             ip: req.ip,
             user_agent: req.get("user-agent"),
             user_id: (req.user && req.user.id) || null,
-            request_object: sanitizeInput(req.body || {}),
+            request: sanitizeInput(req.body || {}),
         });
     });
     next();

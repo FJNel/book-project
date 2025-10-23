@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { logUserAction, logToFile } = require("../utils/logging");
+const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName } = require("../utils/validators");
 
 
@@ -35,16 +35,7 @@ router.get("/me", requiresAuth, async (req, res) => {
 
         // If no user found or user is disabled
         if (result.rows.length === 0) {
-            await logUserAction({
-                userId,
-                action: "GET_PROFILE",
-                status: "FAILURE",
-                ip: req.ip,
-                userAgent: req.get("user-agent"),
-                errorMessage: "User not found or disabled",
-                details: {},
-            });
-            logToFile("GET_PROFILE", { reason: "NOT_FOUND", user_id: userId }, "warn");
+            logToFile("GET_PROFILE", { status: "FAILURE", reason: "NOT_FOUND", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
             return errorResponse(res, 404, "USER_NOT_FOUND", ["USER_NOT_FOUND_DETAIL"]);
         }
 
@@ -62,29 +53,12 @@ router.get("/me", requiresAuth, async (req, res) => {
         };
 
         // Log successful retrieval
-        await logUserAction({
-            userId,
-            action: "GET_PROFILE",
-            status: "SUCCESS",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            details: {},
-        });
 
         // Return user profile
-        logToFile("GET_PROFILE", { user_id: userId, outcome: "SUCCESS" }, "info");
+        logToFile("GET_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
         return successResponse(res, 200, "USER_RETRIEVED_SUCCESS", userProfile);
     } catch (e) {
-        await logUserAction({
-            userId,
-            action: "GET_PROFILE",
-            status: "FAILURE",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            errorMessage: e.message,
-            details: {},
-        });
-        logToFile("GET_PROFILE_ERROR", { error: e.message, user_id: userId }, "error");
+        logToFile("GET_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
         return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_GET_USER"]);
     }
 }); // router.get("/me")
@@ -109,16 +83,7 @@ router.put("/me", requiresAuth, async (req, res) => {
 
     // If validation errors exist, log and return them
     if (errors.length > 0) {
-        await logUserAction({
-            userId,
-            action: "UPDATE_PROFILE",
-            status: "FAILURE",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            errorMessage: "Validation Error",
-            details: { errors },
-        });
-        logToFile("UPDATE_PROFILE", { reason: "VALIDATION", user_id: userId, errors }, "warn");
+        logToFile("UPDATE_PROFILE", { status: "FAILURE", reason: "VALIDATION", user_id: userId, ip: req.ip, user_agent: req.get("user-agent"), errors }, "warn");
         return errorResponse(res, 400, "VALIDATION_ERROR", errors);
     }
 
@@ -169,28 +134,11 @@ router.put("/me", requiresAuth, async (req, res) => {
             updatedAt: result.rows[0].updated_at,
         };
 
-        await logUserAction({
-            userId,
-            action: "USER_UPDATED_PROFILE",
-            status: "SUCCESS",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            details: { updatedFields: { fullName, preferredName } },
-        });
-        logToFile("UPDATE_PROFILE", { user_id: userId, outcome: "SUCCESS" }, "info");
+        logToFile("UPDATE_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
         return successResponse(res, 200, "USER_UPDATED_SUCCESS", updatedUser);
     } catch (e) {
-        await logUserAction({
-            userId,
-            action: "UPDATE_PROFILE",
-            status: "FAILURE",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            errorMessage: e.message,
-            details: {},
-        });
-        logToFile("UPDATE_PROFILE_ERROR", { error: e.message, user_id: userId }, "error");
+        logToFile("UPDATE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
         return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_UPDATE_USER"]);
     }
 }); // router.put("/me")
@@ -225,31 +173,14 @@ router.delete("/me", requiresAuth, async (req, res) => {
 
         await client.query("COMMIT");
 
-        await logUserAction({
-            userId,
-            action: "DISABLE_PROFILE",
-            status: "SUCCESS",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            details: {},
-        });
-        logToFile("DISABLE_PROFILE", { user_id: userId, outcome: "SUCCESS" }, "info");
+        logToFile("DISABLE_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
         // Send confirmation email to user (pseudo-code, implement email sending as needed)
 
         return successResponse(res, 200, "USER_DISABLED_SUCCESS", {});
     } catch (e) {
         await client.query("ROLLBACK");
-        await logUserAction({
-            userId,
-            action: "DISABLE_PROFILE",
-            status: "FAILURE",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-            errorMessage: e.message,
-            details: {},
-        });
-        logToFile("DISABLE_PROFILE_ERROR", { error: e.message, user_id: userId }, "error");
+        logToFile("DISABLE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
         return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_DISABLE_USER"]);
     } finally {
         client.release();

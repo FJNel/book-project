@@ -18,6 +18,7 @@ To interact with the API, you can use tools like Postman or curl, or access it p
   - [Error Response](#error-response)
 - [Root Endpoint (Health Check)](#root-endpoint-health-check)
 - [Authentication](#authentication)
+    - [CAPTCHA Protection Overview](#captcha-protection-overview)
   - [Register](#register)
     - [Rate Limiting](#rate-limiting)
     - [CAPTCHA Protection](#captcha-protection)
@@ -31,37 +32,38 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Notes](#notes-1)
     - [Examples](#examples-1)
   - [Verify Email](#verify-email)
-    - [Required Parameters (Query String)](#required-parameters-query-string)
+    - [CAPTCHA Protection](#captcha-protection-1)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-2)
     - [Notes](#notes-2)
     - [Examples](#examples-2)
   - [Login](#login)
     - [Rate Limiting](#rate-limiting-2)
-    - [CAPTCHA Protection](#captcha-protection-1)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-2)
+    - [CAPTCHA Protection](#captcha-protection-2)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-3)
     - [Notes](#notes-3)
     - [Examples](#examples-3)
   - [Refresh Token](#refresh-token)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-3)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-4)
     - [Examples](#examples-4)
   - [Logout](#logout)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-4)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-5)
     - [Required Headers](#required-headers)
     - [Notes](#notes-4)
     - [Examples](#examples-5)
   - [Request Password Reset Email](#request-password-reset-email)
     - [Rate Limiting](#rate-limiting-3)
-    - [CAPTCHA Protection](#captcha-protection-2)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-5)
+    - [CAPTCHA Protection](#captcha-protection-3)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-6)
     - [Notes](#notes-5)
     - [Examples](#examples-6)
   - [Reset Password](#reset-password)
     - [Rate Limiting](#rate-limiting-4)
-    - [CAPTCHA Protection](#captcha-protection-3)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-6)
+    - [CAPTCHA Protection](#captcha-protection-4)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-7)
     - [Notes](#notes-6)
     - [Examples](#examples-7)
   - [Google OAuth2 Verification](#google-oauth2-verification)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-7)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-8)
     - [Notes](#notes-7)
     - [Examples](#examples-8)
 - [User Management](#user-management)
@@ -70,33 +72,33 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Notes](#notes-8)
     - [Examples](#examples-9)
   - [Update Current User Profile](#update-current-user-profile)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-8)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-9)
     - [Notes](#notes-9)
     - [Examples](#examples-10)
   - [Disable Current User Profile](#disable-current-user-profile)
     - [Notes](#notes-10)
     - [Examples](#examples-11)
   - [Request Email Change](#request-email-change)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-9)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-10)
     - [Notes](#notes-11)
   - [Verify Email Change](#verify-email-change)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-10)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-11)
     - [Notes](#notes-12)
   - [Request Account Deletion](#request-account-deletion)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-11)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-12)
     - [Notes](#notes-13)
 - [Admin User Management](#admin-user-management)
 - [Book Management (Normal Users)](#book-management-normal-users)
   - [Required Headers](#required-headers-2)
   - [Create a Book and link it to Related Entities](#create-a-book-and-link-it-to-related-entities)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-12)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-13)
     - [Nested Related Entities](#nested-related-entities)
     - [Examples](#examples-12)
   - [Create a Book without linking Related Entities](#create-a-book-without-linking-related-entities)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-13)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-14)
     - [Notes](#notes-14)
   - [Retrieve all Books](#retrieve-all-books)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-14)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-15)
     - [Notes](#notes-15)
     - [Examples](#examples-13)
   - [Retrieve all Book Attributes for Filtering](#retrieve-all-book-attributes-for-filtering)
@@ -106,7 +108,7 @@ To interact with the API, you can use tools like Postman or curl, or access it p
     - [Notes](#notes-17)
     - [Examples](#examples-15)
   - [ISBN Lookup](#isbn-lookup)
-    - [Required Parameters (JSON Body)](#required-parameters-json-body-15)
+    - [Required Parameters (JSON Body)](#required-parameters-json-body-16)
     - [Notes](#notes-18)
     - [Examples](#examples-16)
   - [Planned endpoints:](#planned-endpoints)
@@ -121,11 +123,19 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 
 # Logging
 
-The API uses a hybrid logging approach:
+The API uses file-based structured logging (Winston) with size-based rotation. Database logging has been removed to avoid duplication and simplify operations.
 
-- Significant actions (user registration, login, logout, password reset requests, profile updates, token refresh, email verification events, etc.) are logged in a dedicated database table `user_logs`.
-- In addition, all HTTP requests are logged to rotating log files (via a Winston-based logger) with method, path, status, response time, and limited metadata. This is helpful for monitoring and debugging.
-- Sensitive information (passwords, tokens, secrets, Authorization headers, etc.) is never logged. Potentially secret-like fields are redacted in both file and DB logs.
+- All HTTP requests are logged with: `event=HTTP_REQUEST`, `method`, `path`, `http_status`, `duration_ms`, `ip`, `user_agent`, and a sanitized `request` payload.
+- Significant actions (e.g., registration, login, logout, email verification, password reset, profile update) are logged under an action-specific `event` (e.g., `LOGIN_ATTEMPT`, `USER_REGISTERED`) with a consistent payload.
+- Sensitive information is redacted before logging (passwords, tokens, secrets, Authorization headers, large strings).
+
+Log entry conventions:
+- Top-level fields: `event`, `level`, `timestamp`, `status` (one of `SUCCESS`, `FAILURE`, `INFO`)
+- Common context: `user_id`, `ip`, `user_agent`, `http_status` (where applicable)
+- Error fields: `error_message` (normalized from any `error`)
+- Additional context lives under `details`
+
+Deprecated: `logToFile` (legacy DB logger) is no-op and should not be used. Use `logToFile(event, data, level)` everywhere.
 
 # Response Format
 
@@ -191,6 +201,17 @@ Failed requests will return a `4xx` or `5xx` HTTP status code and provide detail
 # Authentication
 
 The `/auth/` route is used for all authentication-related operations, including user registration, login, logout, password reset, and token refresh.
+
+### CAPTCHA Protection Overview
+
+This API uses reCAPTCHA v3 to mitigate abuse. Clients must include a `captchaToken` issued by Google reCAPTCHA v3 in the JSON body for protected endpoints. The server verifies the token with Google, enforces a minimum score (≥ 0.7), and checks that the action matches the expected action for the endpoint. If verification fails, the API returns `400` with `message: "CAPTCHA_VERIFICATION_FAILED"`.
+
+- `POST /auth/register` → action: `register`
+- `POST /auth/login` → action: `login`
+- `POST /auth/resend-verification` → action: `resend-verification`
+- `POST /auth/verify-email` → action: `verify-email`
+- `POST /auth/request-password-reset` → action: `request-password-reset`
+- `POST /auth/reset-password` → action: `reset-password`
 
 ## Register
 
@@ -333,7 +354,8 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 ```json
 {
- "email": "peter@example.com"
+  "email": "peter@example.com",
+  "captchaToken": "<recaptcha-v3-token>"
 }
 ```
 
@@ -355,16 +377,22 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 ## Verify Email
 
-**Endpoint:** `GET /auth/verify-email`  
+**Endpoint:** `POST /auth/verify-email`  
 **Access:** Public  
 **Description:** Verifies a user's email address using the token that was sent via email.
 
-### Required Parameters (Query String)
+### CAPTCHA Protection
+
+- reCAPTCHA v3 enforced; expected action: `verify-email` (score ≥ 0.7)
+- Include `captchaToken` in the JSON body
+
+### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
 | `email` | String | **Yes** | The email address that the verification token was sent to. It must be between 5 and 255 characters and follow standard email formatting rules. |
 | `token` | String | **Yes** | The verification token sent to the user's email address. |
+| `captchaToken` | String | **Yes** | reCAPTCHA v3 token issued on the client for action `verify-email`. |
 
 ### Notes
 
@@ -379,8 +407,9 @@ To ensure that this endpoint is not abused, it is rate-limited.
 
 ```json
 {
- "email": "peter@example.com",
- "token": "<verification-token>"
+  "email": "peter@example.com",
+  "token": "<verification-token>",
+  "captchaToken": "<recaptcha-v3-token>"
 }
 ```
 
@@ -1551,5 +1580,6 @@ Stories are not supported in this endpoint. Use the `POST /stories/` endpoint to
 `GET /admin/locations-acquired/` - List all acquisition locations for all users (admin only, with pagination and filtering)
 `GET /admin/locations-acquired/:id` - Get a specific acquisition location by ID (admin only)
 `DELETE /admin/locations-acquired/:id` - Delete a specific acquisition location by ID (admin only)
+
 
 

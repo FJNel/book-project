@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { requiresAuth, requireRole } = require("../utils/jwt");
+const { logToFile } = require("../utils/logging");
 
 // Middleware to ensure the user is an authenticated admin
 const adminAuth = [requiresAuth, requireRole(["admin"])];
@@ -11,6 +12,15 @@ const adminAuth = [requiresAuth, requireRole(["admin"])];
  * Returns a 300 status code as requested.
  */
 const notImplemented = (req, res) => {
+    logToFile("ADMIN_ENDPOINT", {
+        status: "INFO",
+        user_id: req.user?.id || null,
+        ip: req.ip,
+        user_agent: req.get("user-agent"),
+        path: req.originalUrl,
+        method: req.method,
+        reason: "NOT_YET_IMPLEMENTED",
+    }, "info");
     return res.status(300).json({
         status: "redirect",
         httpCode: 300,

@@ -1,9 +1,8 @@
-// Centralized logging: rotating file logs (Winston) + DB user action logs
+// Centralized file logging with consistent structure
 
 const fs = require("fs");
 const path = require("path");
 const winston = require("winston");
-const pool = require("../db");
 
 // ----- Setup log directory -----
 const LOG_DIR = path.join(__dirname, "..", "logs");
@@ -87,54 +86,63 @@ function sanitizeInput(value, keyHint = null) {
 } // sanitizeInput
 
 // ----- File logging -----
-function logToFile(event, data = {}, level = "info") {
-    const safePayload = sanitizeInput(data || {});
-    logger.log({
-        level,
+function normalizeLog(event, data = {}, level = "info") {
+    const payload = sanitizeInput(data || {});
+
+    // Normalize common fields
+    const entry = {
         event,
+        level,
         timestamp: new Date().toISOString(),
-        ...safePayload,
-    });
+    };
+
+    // Standardize status strings
+    if (payload.status && typeof payload.status === "string") {
+        const s = payload.status.toUpperCase();
+        entry.status = VALID_STATUSES.has(s) ? s : "INFO";
+    }
+
+    // Normalize error field name
+    if (payload.error) entry.error_message = redactIfSecretLike(payload.error);
+    if (payload.error_message) entry.error_message = redactIfSecretLike(payload.error_message);
+
+    // Normalize reason
+    if (payload.reason) entry.error_reason = payload.reason;
+
+    // HTTP specific renames for consistency if provided
+    if (payload.statusCode && !payload.http_status) entry.http_status = payload.statusCode;
+    if (payload.status && typeof payload.status === "number") entry.http_status = payload.status; // avoid clash with status string
+
+    // Flatten known fields
+    if (payload.user_id !== undefined) entry.user_id = payload.user_id;
+    if (payload.ip !== undefined) entry.ip = payload.ip;
+    if (payload.user_agent !== undefined) entry.user_agent = payload.user_agent;
+    if (payload.method !== undefined) entry.method = payload.method;
+    if (payload.path !== undefined) entry.path = payload.path;
+    if (payload.duration_ms !== undefined) entry.duration_ms = payload.duration_ms;
+
+    // Keep any other fields under details to avoid collisions
+    const reserved = new Set(["status","error","error_message","error_reason","reason","statusCode","http_status","user_id","ip","user_agent","method","path","duration_ms"]);
+    const details = {};
+    for (const [k, v] of Object.entries(payload)) {
+        if (!reserved.has(k)) details[k] = v;
+    }
+    if (Object.keys(details).length) entry.details = details;
+
+    return entry;
+}
+
+function logToFile(event, data = {}, level = "info") {
+    const entry = normalizeLog(event, data, level);
+    logger.log(entry);
 } // logToFile
 
-// ----- DB logging (user_logs) -----
-async function logUserAction({
-    userId = null,
-    action,
-    status,
-    ip,
-    userAgent,
-    errorMessage,
-    details,
-}) {
-    try {
-        const safeDetails = sanitizeInput(details || {});
-        const safeError = typeof errorMessage === "string" ? redactIfSecretLike(errorMessage) : null;
-
-        await pool.query(
-            `INSERT INTO user_logs (user_id, action, status, ip_address, user_agent, error_message, details)
-             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
-            [
-                userId || null,
-                action,
-                status,
-                ip || null,
-                userAgent || null,
-                safeError,
-                Object.keys(safeDetails).length ? JSON.stringify(safeDetails) : null,
-            ]
-        );
-    } catch (err) {
-        logToFile("DB_LOG_ERROR", {
-            error: err && err.message ? err.message : String(err),
-            userId,
-            action,
-            status,
-            ip,
-            userAgent,
-        }, "error");
-    }
-} // logUserAction
+// Backwards-compatible shim: route-level user action logs now go to file only
+// DEPRECATED: __REMOVED__ is a no-op to prevent double-logging.
+// Use logToFile(event, data, level) directly everywhere.
+function __REMOVED__(_) {
+    // intentionally no-op
+}
 
 // ----- Utils -----
 function ensureLogsDir(dir) {
@@ -147,8 +155,9 @@ function ensureLogsDir(dir) {
 } // ensureLogsDir
 
 module.exports = {
-  logUserAction,
+  __REMOVED__,
   logToFile,
   logger,
   sanitizeInput,
 };
+
