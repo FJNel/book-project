@@ -82,3 +82,9 @@
   window.recaptchaV3 = { init, getToken, ensureLoaded };
 })();
 
+// Preload reCAPTCHA as soon as the DOM is ready so first use is fast
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.recaptchaV3 && typeof window.recaptchaV3.ensureLoaded === 'function') {
+    window.recaptchaV3.ensureLoaded().catch(() => {/* ignore preload errors; will retry on demand */});
+  }
+});

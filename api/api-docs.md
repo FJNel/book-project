@@ -19,6 +19,7 @@ To interact with the API, you can use tools like Postman or curl, or access it p
 - [Root Endpoint (Health Check)](#root-endpoint-health-check)
 - [Authentication](#authentication)
     - [CAPTCHA Protection Overview](#captcha-protection-overview)
+    - [Email Dispatch](#email-dispatch)
   - [Register](#register)
     - [Rate Limiting](#rate-limiting)
     - [CAPTCHA Protection](#captcha-protection)
@@ -212,6 +213,14 @@ This API uses reCAPTCHA v3 to mitigate abuse. Clients must include a `captchaTok
 - `POST /auth/verify-email` → action: `verify-email`
 - `POST /auth/request-password-reset` → action: `request-password-reset`
 - `POST /auth/reset-password` → action: `reset-password`
+
+### Email Dispatch
+
+Many authentication flows trigger transactional emails (verification links, password reset links, welcome messages). Emails are dispatched asynchronously via an in‑memory queue with limited retries and exponential backoff. This improves perceived performance - endpoints respond immediately after core work (e.g., DB writes) while the email sends in the background.
+
+- Dispatch is best‑effort; check your inbox and spam folder.
+- If delivery fails after all retries, it is logged server‑side and can be retried manually.
+- API responses will not be delayed by email provider latency.
 
 ## Register
 

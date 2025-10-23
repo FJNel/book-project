@@ -19,7 +19,7 @@ const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { logToFile } = require("../utils/logging");
-const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
+const { enqueueEmail } = require("../utils/email-queue");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, requiresAuth } = require("../utils/jwt");
 const { v4: uuidv4 } = require("uuid");
 
@@ -211,15 +211,13 @@ router.post("/register", registerLimiter, async (req, res) => {
 					logToFile("EMAIL_VERIFICATION", { status: "INFO", user_id: existingUser.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN", ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 					//SEND EMAIL HERE
-					const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-					const emailSent = await sendVerificationEmail(email, token, preferredName, expiresIn);
-
-					if (!emailSent) {
-						logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: "Failed to send verification email", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id, details: { trigger: "REGISTER_ATTEMPT" } }, "error");
-						return errorResponse(res, 500, "FAILED_TO_SEND_VERIFICATION_EMAIL", [
-						  "FAILED_TO_SEND_VERIFICATION_EMAIL_DETAIL"
-						]);
-					  }
+                const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+                enqueueEmail({
+                    type: 'verification',
+                    params: { toEmail: email, token, preferredName, expiresIn },
+                    context: 'REGISTER_ATTEMPT',
+                    userId: existingUser.id
+                });
 
 					return successResponse(res, 200, "ACCOUNT_ALREADY_EXISTS", {});
 				} catch (e) {
@@ -256,16 +254,13 @@ router.post("/register", registerLimiter, async (req, res) => {
 	logToFile("USER_REGISTERED", { status: "SUCCESS", user_id: newUser.id, email: newUser.email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 		//SEND EMAIL HERE
-		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-		const emailSent = await sendVerificationEmail(email, token, preferredName, expiresIn);
-
-		if (!emailSent) {
-			logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: "Failed to send verification email", email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-			return errorResponse(res, 500, "FAILED_TO_SEND_VERIFICATION_EMAIL", [
-				"FAILED_TO_SEND_VERIFICATION_EMAIL_DETAIL",
-				"FAILED_TO_SEND_VERIFICATION_EMAIL_DETAIL_2"
-			]);
-		}
+        const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+        enqueueEmail({
+            type: 'verification',
+            params: { toEmail: email, token, preferredName, expiresIn },
+            context: 'REGISTER_NEW',
+            userId: newUser.id
+        });
 
 		return successResponse(res, 201, "REGISTRATION_SUCCESS", 
 			{   id: newUser.id,
@@ -287,19 +282,10 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 
 
-async function maybeDelay(start, minMs, jitterMs = 400) {
-    const elapsed = Date.now() - start;
-    const randomMs = Math.floor(Math.random() * jitterMs); // 0 to jitterMs-1
-    const totalMin = minMs + randomMs;
-    if (elapsed < totalMin) {
-        await new Promise(resolve => setTimeout(resolve, totalMin - elapsed));
-    }
-} // maybeDelay
+// Removed timing delay helper to speed up responses
 
 // POST auth/resend-verification: Resend email verification for existing, unverified users
 router.post("/resend-verification", emailVerificationLimiter, async (req, res) => {
-    const start = Date.now();
-	const MIN_RESPONSE_MS = 600; //Mitigates timing attacks
 
 	let { email, captchaToken } = req.body || {};
 
@@ -325,8 +311,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
         if (userRes.rows.length === 0 || userRes.rows[0].is_verified) {
             // Log attempt, but respond generically
             logToFile("EMAIL_VERIFICATION", { status: "INFO", reason: "NONEXISTENT_OR_VERIFIED", email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-            await maybeDelay(start, MIN_RESPONSE_MS);
-			return successResponse(res, 200, generalMessage);
+            return successResponse(res, 200, generalMessage);
         }
 
         const user = userRes.rows[0];
@@ -335,20 +320,16 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 
         // Send email
         const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-        const emailSent = await sendVerificationEmail(email, token, user.preferred_name, expiresIn);
-
-        if (!emailSent) {
-            logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: "Failed to send verification email", email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-            // Still respond generically
-			await maybeDelay(start, MIN_RESPONSE_MS);
-            return successResponse(res, 200, generalMessage);
-        }
-		await maybeDelay(start, MIN_RESPONSE_MS);
+        enqueueEmail({
+            type: 'verification',
+            params: { toEmail: email, token, preferredName: user.preferred_name, expiresIn },
+            context: 'RESEND_ENDPOINT',
+            userId: user.id
+        });
         return successResponse(res, 200, generalMessage);
     } catch (e) {
         logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
         // Still respond generically
-		await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     }
 }); // router.post("/resend-verification")
@@ -438,12 +419,13 @@ router.post("/verify-email", async (req, res) => {
       await client.query("COMMIT");
       logToFile("EMAIL_VERIFICATION", { status: "SUCCESS", user_id: user.id, email, verified: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-      // Send welcome email (best-effort)
-      try {
-        await sendWelcomeEmail(email, user.preferred_name);
-      } catch (e) {
-        logToFile("EMAIL_SEND_ERROR", { status: "FAILURE", to: email, context: "welcome_after_verify", error_message: e.message }, "error");
-      }
+      // Send welcome email (best-effort, fire-and-forget)
+      enqueueEmail({
+        type: 'welcome',
+        params: { toEmail: email, preferredName: user.preferred_name },
+        context: 'welcome_after_verify',
+        userId: user.id
+      });
 
       return successResponse(res, 200, "EMAIL_VERIFICATION_SUCCESS", {
         id: user.id,
@@ -641,8 +623,6 @@ router.post("/refresh-token", async (req, res) => {
 
 //POST auth/request-password-reset: Request a password reset email
 router.post("/request-password-reset", passwordVerificationLimiter, async (req, res) => {
-    const start = Date.now();
-    const MIN_RESPONSE_MS = 600; // Mitigate timing attacks
 
     let { email, captchaToken } = req.body || {};
 
@@ -670,7 +650,6 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
         if (userRes.rows.length === 0) {
             // Log attempt, but respond generically
             logToFile("PASSWORD_RESET_REQUEST", { status: "INFO", reason: "NONEXISTENT_EMAIL", email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-            await maybeDelay(start, MIN_RESPONSE_MS);
             return successResponse(res, 200, generalMessage);
         }
 
@@ -707,12 +686,15 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
 
         // Send password reset email (implement sendPasswordResetEmail similar to sendVerificationEmail)
         const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-        await sendPasswordResetEmail(email, token, user.preferred_name, expiresIn);
-        await maybeDelay(start, MIN_RESPONSE_MS);
+        enqueueEmail({
+            type: 'password_reset',
+            params: { toEmail: email, token, preferredName: user.preferred_name, expiresIn },
+            context: 'REQUEST_PASSWORD_RESET',
+            userId: user.id
+        });
         return successResponse(res, 200, generalMessage);
     } catch (e) {
         logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-        await maybeDelay(start, MIN_RESPONSE_MS);
         return successResponse(res, 200, generalMessage);
     }
 }); // router.post("/request-password-reset")
@@ -802,12 +784,13 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
             await client.query("COMMIT");
             logToFile("PASSWORD_RESET_SUCCESS", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-            // Send password reset success confirmation (best-effort)
-            try {
-                await sendPasswordResetSuccessEmail(email, userRes.rows[0].preferred_name);
-            } catch (e) {
-                logToFile("EMAIL_SEND_ERROR", { status: "FAILURE", to: email, context: "password_reset_success", error_message: e.message }, "error");
-            }
+            // Send password reset success confirmation (best-effort, fire-and-forget)
+            enqueueEmail({
+                type: 'password_reset_success',
+                params: { toEmail: email, preferredName: userRes.rows[0].preferred_name },
+                context: 'password_reset_success',
+                userId: user.id
+            });
 
             return successResponse(res, 200, "PASSWORD_RESET_SUCCESS", {
                 id: user.id,

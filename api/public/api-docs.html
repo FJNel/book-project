@@ -158,6 +158,8 @@
 <li><a href="#root-endpoint-health-check">Root Endpoint (Health Check)</a></li>
 <li><a href="#authentication">Authentication</a>
 <ul>
+<li><a href="#captcha-protection-overview">CAPTCHA Protection Overview</a></li>
+<li><a href="#email-dispatch">Email Dispatch</a></li>
 <li><a href="#register">Register</a>
 <ul>
 <li><a href="#rate-limiting">Rate Limiting</a></li>
@@ -178,7 +180,8 @@
 </li>
 <li><a href="#verify-email">Verify Email</a>
 <ul>
-<li><a href="#required-parameters-query-string">Required Parameters (Query String)</a></li>
+<li><a href="#captcha-protection-1">CAPTCHA Protection</a></li>
+<li><a href="#required-parameters-json-body-2">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-2">Notes</a></li>
 <li><a href="#examples-2">Examples</a></li>
 </ul>
@@ -186,21 +189,21 @@
 <li><a href="#login">Login</a>
 <ul>
 <li><a href="#rate-limiting-2">Rate Limiting</a></li>
-<li><a href="#captcha-protection-1">CAPTCHA Protection</a></li>
-<li><a href="#required-parameters-json-body-2">Required Parameters (JSON Body)</a></li>
+<li><a href="#captcha-protection-2">CAPTCHA Protection</a></li>
+<li><a href="#required-parameters-json-body-3">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-3">Notes</a></li>
 <li><a href="#examples-3">Examples</a></li>
 </ul>
 </li>
 <li><a href="#refresh-token">Refresh Token</a>
 <ul>
-<li><a href="#required-parameters-json-body-3">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-4">Required Parameters (JSON Body)</a></li>
 <li><a href="#examples-4">Examples</a></li>
 </ul>
 </li>
 <li><a href="#logout">Logout</a>
 <ul>
-<li><a href="#required-parameters-json-body-4">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-5">Required Parameters (JSON Body)</a></li>
 <li><a href="#required-headers">Required Headers</a></li>
 <li><a href="#notes-4">Notes</a></li>
 <li><a href="#examples-5">Examples</a></li>
@@ -209,8 +212,8 @@
 <li><a href="#request-password-reset-email">Request Password Reset Email</a>
 <ul>
 <li><a href="#rate-limiting-3">Rate Limiting</a></li>
-<li><a href="#captcha-protection-2">CAPTCHA Protection</a></li>
-<li><a href="#required-parameters-json-body-5">Required Parameters (JSON Body)</a></li>
+<li><a href="#captcha-protection-3">CAPTCHA Protection</a></li>
+<li><a href="#required-parameters-json-body-6">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-5">Notes</a></li>
 <li><a href="#examples-6">Examples</a></li>
 </ul>
@@ -218,15 +221,15 @@
 <li><a href="#reset-password">Reset Password</a>
 <ul>
 <li><a href="#rate-limiting-4">Rate Limiting</a></li>
-<li><a href="#captcha-protection-3">CAPTCHA Protection</a></li>
-<li><a href="#required-parameters-json-body-6">Required Parameters (JSON Body)</a></li>
+<li><a href="#captcha-protection-4">CAPTCHA Protection</a></li>
+<li><a href="#required-parameters-json-body-7">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-6">Notes</a></li>
 <li><a href="#examples-7">Examples</a></li>
 </ul>
 </li>
 <li><a href="#google-oauth2-verification">Google OAuth2 Verification</a>
 <ul>
-<li><a href="#required-parameters-json-body-7">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-8">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-7">Notes</a></li>
 <li><a href="#examples-8">Examples</a></li>
 </ul>
@@ -244,7 +247,7 @@
 </li>
 <li><a href="#update-current-user-profile">Update Current User Profile</a>
 <ul>
-<li><a href="#required-parameters-json-body-8">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-9">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-9">Notes</a></li>
 <li><a href="#examples-10">Examples</a></li>
 </ul>
@@ -257,19 +260,19 @@
 </li>
 <li><a href="#request-email-change">Request Email Change</a>
 <ul>
-<li><a href="#required-parameters-json-body-9">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-10">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-11">Notes</a></li>
 </ul>
 </li>
 <li><a href="#verify-email-change">Verify Email Change</a>
 <ul>
-<li><a href="#required-parameters-json-body-10">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-11">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-12">Notes</a></li>
 </ul>
 </li>
 <li><a href="#request-account-deletion">Request Account Deletion</a>
 <ul>
-<li><a href="#required-parameters-json-body-11">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-12">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-13">Notes</a></li>
 </ul>
 </li>
@@ -281,20 +284,20 @@
 <li><a href="#required-headers-2">Required Headers</a></li>
 <li><a href="#create-a-book-and-link-it-to-related-entities">Create a Book and link it to Related Entities</a>
 <ul>
-<li><a href="#required-parameters-json-body-12">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-13">Required Parameters (JSON Body)</a></li>
 <li><a href="#nested-related-entities">Nested Related Entities</a></li>
 <li><a href="#examples-12">Examples</a></li>
 </ul>
 </li>
 <li><a href="#create-a-book-without-linking-related-entities">Create a Book without linking Related Entities</a>
 <ul>
-<li><a href="#required-parameters-json-body-13">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-14">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-14">Notes</a></li>
 </ul>
 </li>
 <li><a href="#retrieve-all-books">Retrieve all Books</a>
 <ul>
-<li><a href="#required-parameters-json-body-14">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-15">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-15">Notes</a></li>
 <li><a href="#examples-13">Examples</a></li>
 </ul>
@@ -313,7 +316,7 @@
 </li>
 <li><a href="#isbn-lookup">ISBN Lookup</a>
 <ul>
-<li><a href="#required-parameters-json-body-15">Required Parameters (JSON Body)</a></li>
+<li><a href="#required-parameters-json-body-16">Required Parameters (JSON Body)</a></li>
 <li><a href="#notes-18">Notes</a></li>
 <li><a href="#examples-16">Examples</a></li>
 </ul>
@@ -331,12 +334,20 @@
 <li><a href="#book-acquisition-location-management">Book Acquisition Location Management</a></li>
 </ul>
 <h1 id="logging">Logging</h1>
-<p>The API uses a hybrid logging approach:</p>
+<p>The API uses file-based structured logging (Winston) with size-based rotation. Database logging has been removed to avoid duplication and simplify operations.</p>
 <ul>
-<li>Significant actions (user registration, login, logout, password reset requests, profile updates, token refresh, email verification events, etc.) are logged in a dedicated database table <code>user_logs</code>.</li>
-<li>In addition, all HTTP requests are logged to rotating log files (via a Winston-based logger) with method, path, status, response time, and limited metadata. This is helpful for monitoring and debugging.</li>
-<li>Sensitive information (passwords, tokens, secrets, Authorization headers, etc.) is never logged. Potentially secret-like fields are redacted in both file and DB logs.</li>
+<li>All HTTP requests are logged with: <code>event=HTTP_REQUEST</code>, <code>method</code>, <code>path</code>, <code>http_status</code>, <code>duration_ms</code>, <code>ip</code>, <code>user_agent</code>, and a sanitized <code>request</code> payload.</li>
+<li>Significant actions (e.g., registration, login, logout, email verification, password reset, profile update) are logged under an action-specific <code>event</code> (e.g., <code>LOGIN_ATTEMPT</code>, <code>USER_REGISTERED</code>) with a consistent payload.</li>
+<li>Sensitive information is redacted before logging (passwords, tokens, secrets, Authorization headers, large strings).</li>
 </ul>
+<p>Log entry conventions:</p>
+<ul>
+<li>Top-level fields: <code>event</code>, <code>level</code>, <code>timestamp</code>, <code>status</code> (one of <code>SUCCESS</code>, <code>FAILURE</code>, <code>INFO</code>)</li>
+<li>Common context: <code>user_id</code>, <code>ip</code>, <code>user_agent</code>, <code>http_status</code> (where applicable)</li>
+<li>Error fields: <code>error_message</code> (normalized from any <code>error</code>)</li>
+<li>Additional context lives under <code>details</code></li>
+</ul>
+<p>Deprecated: <code>logToFile</code> (legacy DB logger) is no-op and should not be used. Use <code>logToFile(event, data, level)</code> everywhere.</p>
 <h1 id="response-format">Response Format</h1>
 <p>All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically.</p>
 <h2 id="success-response">Success Response</h2>
@@ -385,6 +396,23 @@
 </code></pre>
 <h1 id="authentication">Authentication</h1>
 <p>The <code>/auth/</code> route is used for all authentication-related operations, including user registration, login, logout, password reset, and token refresh.</p>
+<h3 id="captcha-protection-overview">CAPTCHA Protection Overview</h3>
+<p>This API uses reCAPTCHA v3 to mitigate abuse. Clients must include a <code>captchaToken</code> issued by Google reCAPTCHA v3 in the JSON body for protected endpoints. The server verifies the token with Google, enforces a minimum score (≥ 0.7), and checks that the action matches the expected action for the endpoint. If verification fails, the API returns <code>400</code> with <code>message: &quot;CAPTCHA_VERIFICATION_FAILED&quot;</code>.</p>
+<ul>
+<li><code>POST /auth/register</code> → action: <code>register</code></li>
+<li><code>POST /auth/login</code> → action: <code>login</code></li>
+<li><code>POST /auth/resend-verification</code> → action: <code>resend-verification</code></li>
+<li><code>POST /auth/verify-email</code> → action: <code>verify-email</code></li>
+<li><code>POST /auth/request-password-reset</code> → action: <code>request-password-reset</code></li>
+<li><code>POST /auth/reset-password</code> → action: <code>reset-password</code></li>
+</ul>
+<h3 id="email-dispatch">Email Dispatch</h3>
+<p>Many authentication flows trigger transactional emails (verification links, password reset links, welcome messages). Emails are dispatched asynchronously via an in‑memory queue with limited retries and exponential backoff. This improves perceived performance - endpoints respond immediately after core work (e.g., DB writes) while the email sends in the background.</p>
+<ul>
+<li>Dispatch is best‑effort; check your inbox and spam folder.</li>
+<li>If delivery fails after all retries, it is logged server‑side and can be retried manually.</li>
+<li>API responses will not be delayed by email provider latency.</li>
+</ul>
 <h2 id="register">Register</h2>
 <p><strong>Endpoint:</strong> <code>POST /auth/register</code>
 <strong>Access:</strong> Public (Rate Limited) (CAPTCHA Protected) (Email Verification Required)
@@ -552,7 +580,8 @@
 <h3 id="examples-1">Examples</h3>
 <p><strong>Example Request (JSON Object):</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
- <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;recaptcha-v3-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <p><strong>Example Success Response (200 OK):</strong></p>
@@ -569,10 +598,15 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h2 id="verify-email">Verify Email</h2>
-<p><strong>Endpoint:</strong> <code>GET /auth/verify-email</code><br>
+<p><strong>Endpoint:</strong> <code>POST /auth/verify-email</code><br>
 <strong>Access:</strong> Public<br>
 <strong>Description:</strong> Verifies a user's email address using the token that was sent via email.</p>
-<h3 id="required-parameters-query-string">Required Parameters (Query String)</h3>
+<h3 id="captcha-protection-1">CAPTCHA Protection</h3>
+<ul>
+<li>reCAPTCHA v3 enforced; expected action: <code>verify-email</code> (score ≥ 0.7)</li>
+<li>Include <code>captchaToken</code> in the JSON body</li>
+</ul>
+<h3 id="required-parameters-json-body-2">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -595,18 +629,27 @@
 <td><strong>Yes</strong></td>
 <td>The verification token sent to the user's email address.</td>
 </tr>
+<tr>
+<td><code>captchaToken</code></td>
+<td>String</td>
+<td><strong>Yes</strong></td>
+<td>reCAPTCHA v3 token issued on the client for action <code>verify-email</code>.</td>
+</tr>
 </tbody>
 </table>
 <h3 id="notes-2">Notes</h3>
 <ul>
 <li>If the token is valid (not expired or already used) and matches the email, the user's account will be marked as verified. They can then log in.</li>
 <li>If the token is invalid or expired, or the email does not match, an error message will be returned.</li>
+<li>On successful verification, the system sends a welcome email, including a “Log In” button linking to <code>https://bookproject.fjnel.co.za/?action=login</code>.</li>
+<li>Verification emails include a security notice: “If you did not create an account, please contact the system administrator at <a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a> to ensure the safety of your account.”</li>
 </ul>
 <h3 id="examples-2">Examples</h3>
 <p><strong>Example Request:</strong></p>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
- <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
- <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;peter@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;recaptcha-v3-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <p><strong>Example Success Response (200 OK):</strong></p>
@@ -642,9 +685,9 @@
 <h3 id="rate-limiting-2">Rate Limiting</h3>
 <p>To ensure that this endpoint is not abused, it is rate-limited.<br>
 <strong>Limit:</strong> Maximum of 10 requests per IP address every 10 minutes.</p>
-<h3 id="captcha-protection-1">CAPTCHA Protection</h3>
+<h3 id="captcha-protection-2">CAPTCHA Protection</h3>
 <p>To prevent automated login attempts, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully log in. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
-<h3 id="required-parameters-json-body-2">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-3">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -726,7 +769,7 @@
 <p><strong>Endpoint:</strong> <code>POST /auth/refresh-token</code><br>
 <strong>Access:</strong> Public<br>
 <strong>Description:</strong> Generates a new access token using a valid refresh token.</p>
-<h3 id="required-parameters-json-body-3">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-4">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -767,7 +810,7 @@
 <p><strong>Endpoint:</strong> <code>POST /auth/logout</code><br>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Logs out the user by invalidating their refresh token. This logs the user out from all devices.</p>
-<h3 id="required-parameters-json-body-4">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-5">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -836,9 +879,9 @@
 <h3 id="rate-limiting-3">Rate Limiting</h3>
 <p>To ensure that this endpoint is not abused, it is rate-limited.<br>
 <strong>Limit:</strong> Maximum of 1 request per IP address every 5 minutes.</p>
-<h3 id="captcha-protection-2">CAPTCHA Protection</h3>
+<h3 id="captcha-protection-3">CAPTCHA Protection</h3>
 <p>To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully request a password reset. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
-<h3 id="required-parameters-json-body-5">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-6">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -892,9 +935,9 @@
 <h3 id="rate-limiting-4">Rate Limiting</h3>
 <p>To ensure that this endpoint is not abused, it is rate-limited.<br>
 <strong>Limit:</strong> Maximum of 1 request per IP address every 5 minutes.</p>
-<h3 id="captcha-protection-3">CAPTCHA Protection</h3>
+<h3 id="captcha-protection-4">CAPTCHA Protection</h3>
 <p>To prevent automated requests, this endpoint is protected by CAPTCHA. Users must complete a CAPTCHA challenge to successfully reset their password. The <code>captchaToken</code> as provided by the client must be included in the request body.</p>
-<h3 id="required-parameters-json-body-6">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-7">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -935,6 +978,8 @@
 <ul>
 <li>If the token is valid (not expired or already used) and matches the email, the user's password will be updated. All existing refresh tokens for the user will be revoked, requiring re-authentication.</li>
 <li>If the token is invalid or expired, or the email does not match, an error message will be returned.</li>
+<li>On successful reset, the system sends a confirmation email, including a “Log In” button linking to <code>https://bookproject.fjnel.co.za/?action=login</code>.</li>
+<li>Password reset emails include a security notice: “If you did not request a password reset, please contact the system administrator at <a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a> to ensure the safety of your account.”</li>
 </ul>
 <h3 id="examples-7">Examples</h3>
 <p><strong>Example Request (JSON Object):</strong></p>
@@ -959,7 +1004,7 @@
 <p><strong>Endpoint:</strong> <code>POST /auth/google</code><br>
 <strong>Access:</strong> Public
 <strong>Description:</strong> Verifies a Google OAuth2 token and logs in or registers the user.</p>
-<h3 id="required-parameters-json-body-7">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-8">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1070,7 +1115,7 @@
 <p><strong>Endpoint:</strong> <code>PUT /users/me</code><br>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Updates the profile information of the currently authenticated user.</p>
-<h3 id="required-parameters-json-body-8">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-9">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1176,7 +1221,7 @@
 <p><strong>Endpoint:</strong> <code>POST /users/me/request-email-change</code><br>
 <strong>Access:</strong> Authenticated Users
 <strong>Description:</strong> Requests an email change for the currently authenticated user. A verification email will be sent to the new email address.</p>
-<h3 id="required-parameters-json-body-9">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-10">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1211,7 +1256,7 @@
 <p><strong>Endpoint:</strong> <code>POST /auth/verify-email-change</code><br>
 <strong>Access:</strong> Public
 <strong>Description:</strong> Verifies the email change request for the currently authenticated user. This endpoint must be called with the token received in the verification email.</p>
-<h3 id="required-parameters-json-body-10">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-11">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1252,7 +1297,7 @@
 <p><strong>Endpoint:</strong> <code>POST /users/me/request-account-deletion</code><br>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Requests permanent deletion of the currently authenticated user's account and all associated data. This action is irreversible and will remove all user data from the system after a grace period.</p>
-<h3 id="required-parameters-json-body-11">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-12">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1337,7 +1382,7 @@
 <li>This endpoint does not support creation of related entities. Use their respective endpoints to create authors, publishers, series, storage locations, or book types.</li>
 <li>This endpoint does not support updating existing books. Use the <code>PUT /books/:id</code> endpoint for updates.</li>
 </ul>
-<h3 id="required-parameters-json-body-12">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-13">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1352,13 +1397,13 @@
 <td><code> title</code></td>
 <td>String</td>
 <td><strong>Yes</strong></td>
-<td>The book's title. Must be between 1 and 255 characters.</td>
+<td>The book's title. Must be between 2 and 255 characters.</td>
 </tr>
 <tr>
 <td><code>subtitle</code></td>
 <td>String</td>
 <td>No</td>
-<td>The book's subtitle. Must be between 1 and 255 characters if provided.</td>
+<td>The book's subtitle. Must be between 2 and 255 characters if provided.</td>
 </tr>
 <tr>
 <td><code>isbn</code></td>
@@ -1388,7 +1433,7 @@
 <td><code>description</code></td>
 <td>String</td>
 <td>No</td>
-<td>A brief description or summary of the book. Can be up to 1000 characters.</td>
+<td>A brief description or summary of the book. Can be up to 2000 characters.</td>
 </tr>
 <tr>
 <td><code>coverImageUrl</code></td>
@@ -1403,7 +1448,6 @@ id SERIAL PRIMARY KEY,
 title VARCHAR(255) NOT NULL,
 subtitle VARCHAR(255),
 isbn VARCHAR(20),
-language VARCHAR(50),
 publisher_id INT REFERENCES publishers(id),
 series_id INT REFERENCES series(id),
 type_id INT REFERENCES book_types(id),
@@ -1426,6 +1470,11 @@ notes TEXT,
 borrower_id INT REFERENCES users(id),
 created_at TIMESTAMP DEFAULT now(),
 updated_at TIMESTAMP DEFAULT now()
+);
+CREATE TABLE book_languages (
+book_id INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+language_code VARCHAR(2) NOT NULL,
+PRIMARY KEY (book_id, language_code)
 );</p>
 <h3 id="nested-related-entities">Nested Related Entities</h3>
 <h4 id="book-type">Book Type</h4>
@@ -1453,6 +1502,14 @@ updated_at TIMESTAMP DEFAULT now()
 </tr>
 </tbody>
 </table>
+<p>CREATE TABLE book_types (
+id          SERIAL PRIMARY KEY,
+user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+name        VARCHAR(100) NOT NULL,
+description TEXT,
+created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);</p>
 <h4 id="authors">Authors</h4>
 <ul>
 <li>Accepts an array of author objects. <strong>Note:</strong> It is uncommon for a book to have multiple authors, but this implementation allows it for flexibility.</li>
@@ -1488,8 +1545,8 @@ updated_at TIMESTAMP DEFAULT now()
 <p>CREATE TABLE authors (
 id          SERIAL PRIMARY KEY,
 full_name   VARCHAR(255) NOT NULL,
-birth_year  INT,
-death_year  INT,
+DOB         DATE,
+DOD         DATE,
 biography   TEXT,
 created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
 updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1502,10 +1559,11 @@ PRIMARY KEY (book_id, author_id)
 );</p>
 <h4 id="publishers">Publishers</h4>
 <ul>
-<li>Accepts an integer array of publisher <code>id</code>s. <strong>Note:</strong> It is uncommon for a book to have multiple publishers, but this implementation allows it for flexibility.</li>
+<li>Accepts a single publisher <code>id</code>. <strong>Note:</strong> Since books are usually identified by ISBN, a book can only have one publisher.</li>
+<li>The <code>id</code> must reference an existing publisher.</li>
 <li>To create new publishers, use the <code>POST /publishers/</code> endpoint.</li>
 </ul>
-<p>For each <code>publisher</code> <code>id</code> in the array:</p>
+<p>For the <code>publisher</code> object:</p>
 <table>
 <thead>
 <tr>
@@ -1530,11 +1588,6 @@ name        VARCHAR(255) NOT NULL UNIQUE,
 founded_year INT,
 created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
 updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE book_publishers (
-book_id      INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-publisher_id INT NOT NULL REFERENCES publishers(id) ON DELETE CASCADE,
-PRIMARY KEY (book_id, publisher_id)
 );</p>
 <h4 id="series">Series</h4>
 <ul>
@@ -1724,7 +1777,7 @@ PRIMARY KEY (user_id, book_id, tag_id)
 <p><strong>Endpoint:</strong> <code>POST /books/</code><br>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Creates a new book without linking any related entities. This endpoint creates a record in the <code>books</code> table with the provided details. It does not create a record in the <code>book_copies</code> table. To add physical copies of the book owned by the user, they must use the <code>POST /book-copies/</code> endpoint after the book is created.</p>
-<h3 id="required-parameters-json-body-13">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-14">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1799,7 +1852,7 @@ PRIMARY KEY (user_id, book_id, tag_id)
 <p><strong>Endpoint:</strong> <code>GET /books/</code><br>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Retrieves a paginated list of all books owned by the authenticated user, with optional filtering, sorting, and search. Both <code>books</code> and their associated <code>book_copies</code> records are included: The response reflects only the copies owned by the currently authenticated user.</p>
-<h3 id="required-parameters-json-body-14">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-15">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
@@ -1982,7 +2035,7 @@ PRIMARY KEY (user_id, book_id, tag_id)
 <p><strong>Endpoint:</strong> <code>GET /books/fetch-isbn</code>
 <strong>Access:</strong> Authenticated Users<br>
 <strong>Description:</strong> Fetches book details from multiple external APIs using an ISBN number. It returns consistently formatted book information that can be used to pre-fill book creation forms, reducing manual data entry. The user can then review and modify the information before creating the book in their collection.</p>
-<h3 id="required-parameters-json-body-15">Required Parameters (JSON Body)</h3>
+<h3 id="required-parameters-json-body-16">Required Parameters (JSON Body)</h3>
 <table>
 <thead>
 <tr>
