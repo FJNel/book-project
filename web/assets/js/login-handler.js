@@ -209,29 +209,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const successModalText = document.getElementById('loginSuccessModalText');
         successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
     
-        // Helper: start redirect only after success modal is fully visible
-        let redirectTimerId;
-        const startRedirectTimer = () => {
-            redirectTimerId = setTimeout(() => {
+        // Hide the login modal and show the success modal after it's fully hidden
+        loginModalEl.addEventListener('hidden.bs.modal', function onLoginHidden() {
+            loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
+            loginSuccessModal.show();
+        });
+    
+        loginModal.hide(); // This will trigger the event above
+    
+        // When success modal finishes showing, then begin redirect timer
+        loginSuccessModalEl.addEventListener('shown.bs.modal', function onSuccessShown() {
+            loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
+            setTimeout(() => {
                 console.log('[Redirect] Redirecting to books.html...');
                 window.location.href = 'books.html';
             }, 3000);
-        };
-    
-        // When success modal finishes showing, then begin redirect timer
-        const onSuccessShown = () => {
-            loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
-            startRedirectTimer();
-        };
-        loginSuccessModalEl.addEventListener('shown.bs.modal', onSuccessShown, { once: true });
-    
-        // Always hide the login modal first, then show the success modal after it's hidden
-        const onLoginHidden = () => {
-            loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
-            loginSuccessModal.show();
-        };
-        loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
-        loginModal.hide();
+        });
     }
 
     /**
