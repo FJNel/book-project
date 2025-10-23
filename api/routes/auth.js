@@ -627,7 +627,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
     let { email, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request-password-reset', 0.5);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request_password_reset', 0.5);
     if (!captchaValid) {
         logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
         return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
