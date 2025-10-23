@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loginForm.addEventListener('submit', handleLogin);
-    // loginButton.addEventListener('click', handleLogin);
+    loginButton.addEventListener('click', handleLogin);
 
     loginEmailInput.addEventListener('input', clearLoginErrors);
     loginPasswordInput.addEventListener('input', clearLoginErrors);
