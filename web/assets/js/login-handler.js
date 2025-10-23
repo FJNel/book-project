@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginSuccessAlert = document.getElementById('loginSuccessAlert');
     const loginErrorResendVerificationAlert = document.getElementById('loginErrorResendVerificationAlert');
 
+    // Prevent duplicate submits (click + submit/Enter)
+    let isSubmitting = false;
+
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {}; // To store language strings
@@ -80,13 +83,78 @@ document.addEventListener('DOMContentLoaded', () => {
         if (show) {
             console.log('[UI] Showing login spinner.');
             loginSpinner.style.display = 'inline-block';
-            loginButtonText.textContent = ''; // Clear the text
+            loginButtonText.textContent = '';
             loginButton.disabled = true;
         } else {
             console.log('[UI] Hiding login spinner.');
             loginSpinner.style.display = 'none';
-            loginButtonText.textContent = 'Login'; // Restore the text
+            loginButtonText.textContent = 'Login';
             loginButton.disabled = false;
+        }
+    }
+
+    // Utility: cleanup any lingering backdrops/focus locks before showing next modal
+    // Utility: cleanup any lingering backdrops/focus locks before showing next modal
+    function cleanupModalArtifacts() {
+        document.body.classList.remove('modal-open');
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        loginModalEl.setAttribute('aria-hidden', 'true');
+    }
+
+    function forceHideModal(el) {
+        const inst = bootstrap.Modal.getInstance(el) || bootstrap.Modal.getOrCreateInstance(el);
+        try { inst.hide(); } catch {}
+        // Hard cleanup in case hidden event doesn't fire
+        el.classList.remove('show');
+        el.style.display = 'none';
+        el.setAttribute('aria-hidden', 'true');
+        cleanupModalArtifacts();
+    }
+
+    async function handleLogin(event) {
+        event.preventDefault();
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        console.log('[Login] Login process initiated.');
+        if (!validateForm()) {
+            isSubmitting = false;
+            return;
+        }
+
+        toggleSpinner(true);
+        const email = loginEmailInput.value.trim();
+        const password = loginPasswordInput.value;
+
+        try {
+            let captchaToken;
+            try {
+                captchaToken = await window.recaptchaV3.getToken('login');
+            } catch (e) {
+                console.error('[reCAPTCHA] Failed to obtain token for login:', e);
+                showLoginError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                return;
+            }
+
+            const response = await apiFetch(`/auth/login`, {
+                method: 'POST',
+                body: JSON.stringify({ email, password, captchaToken }),
+            });
+
+            const data = await response.json();
+            console.log('[API] Received response:', { status: response.status, data });
+
+            if (response.ok && data.message === 'LOGIN_SUCCESS') {
+                handleLoginSuccess(data);
+            } else {
+                handleLoginError(response.status, data);
+            }
+        } catch (error) {
+            console.error('[API] Network or fetch error:', error);
+            showLoginError('<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+        } finally {
+            toggleSpinner(false);
+            isSubmitting = false;
         }
     }
 
@@ -141,58 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
-    // --- Main Login Handler ---
-    /**
-     * Handles the login button click event.
-     * @param {Event} event - The form submission event.
-     */
-    async function handleLogin(event) {
-        event.preventDefault();
-        console.log('[Login] Login process initiated.');
-
-        if (!validateForm()) {
-            return;
-        }
-
-        toggleSpinner(true);
-        const email = loginEmailInput.value.trim();
-        const password = loginPasswordInput.value;
-
-        try {
-            let captchaToken;
-            try {
-                captchaToken = await window.recaptchaV3.getToken('login');
-            } catch (e) {
-                console.error('[reCAPTCHA] Failed to obtain token for login:', e);
-                showLoginError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
-                return;
-            }
-
-            const response = await apiFetch(`/auth/login`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    email: email,
-                    password: password,
-                    captchaToken
-                }),
-            });
-
-            const data = await response.json();
-            console.log('[API] Received response:', { status: response.status, data });
-
-            if (response.ok && data.message === 'LOGIN_SUCCESS') {
-                handleLoginSuccess(data);
-            } else {
-                handleLoginError(response.status, data);
-            }
-        } catch (error) {
-            console.error('[API] Network or fetch error:', error);
-            showLoginError('<strong>Connection Error:</strong> Could not connect to the server. Please check your internet connection and try again.');
-        } finally {
-            toggleSpinner(false);
-        }
-    }
-
     /**
      * Handles a successful login response from the API.
      * @param {object} data The success response data.
@@ -200,31 +216,61 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLoginSuccess(data) {
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
     
-        // Store tokens in Local Storage
+        // Save tokens
         localStorage.setItem('accessToken', data.data.accessToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);
-        console.log('[Storage] Auth tokens saved to localStorage.');
     
-        // Update success modal message
+        // Remove ?action=login from URL so nothing re-opens the login modal later
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('action')) {
+                url.searchParams.delete('action');
+                window.history.replaceState({}, document.title, url.pathname + (url.search ? '?' + url.searchParams.toString() : '') + url.hash);
+            }
+        } catch {}
+    
+        // Update success modal text
         const successModalText = document.getElementById('loginSuccessModalText');
-        successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
+        if (successModalText) {
+            successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
+        }
     
-        // Hide the login modal and show the success modal after it's fully hidden
-        loginModalEl.addEventListener('hidden.bs.modal', function onLoginHidden() {
+        // Show success modal only after the login modal is fully hidden
+        const onLoginHidden = () => {
             loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
+            cleanupModalArtifacts();
             loginSuccessModal.show();
-        });
     
-        loginModal.hide(); // This will trigger the event above
+            // Start redirect timer when success modal is fully shown
+            const onSuccessShown = () => {
+                loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
+                setTimeout(() => {
+                    console.log('[Redirect] Redirecting to books.html...');
+                    window.location.href = 'books.html';
+                }, 3000);
+            };
+            loginSuccessModalEl.addEventListener('shown.bs.modal', onSuccessShown, { once: true });
+        };
     
-        // When success modal finishes showing, then begin redirect timer
-        loginSuccessModalEl.addEventListener('shown.bs.modal', function onSuccessShown() {
-            loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
-            setTimeout(() => {
-                console.log('[Redirect] Redirecting to books.html...');
-                window.location.href = 'books.html';
-            }, 3000);
-        });
+        // If already hidden, just proceed
+        if (!loginModalEl.classList.contains('show')) {
+            onLoginHidden();
+            return;
+        }
+    
+        // Normal path: wait for hidden, then show success
+        loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
+    
+        // Trigger hide via Bootstrap, plus a fallback force hide
+        forceHideModal(loginModalEl);
+    
+        // Fallback: if hidden event didn't fire, proceed anyway
+        setTimeout(() => {
+            if (!loginSuccessModalEl.classList.contains('show')) {
+                console.warn('[Login] Fallback: showing success modal after timeout.');
+                onLoginHidden();
+            }
+        }, 600);
     }
 
     /**
@@ -256,17 +302,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-    // --- Event Listeners ---
     loginForm.addEventListener('submit', handleLogin);
-    loginButton.addEventListener('click', handleLogin); // For buttons not in form context
+    // loginButton.addEventListener('click', handleLogin);
 
-    // Clear errors when the user starts typing again
     loginEmailInput.addEventListener('input', clearLoginErrors);
     loginPasswordInput.addEventListener('input', clearLoginErrors);
 
-
-    // --- App Initialization ---
     loadLanguageFile();
     initializeUI();
 });
