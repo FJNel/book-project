@@ -3,8 +3,10 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Selection ---
-    const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
-    const loginSuccessModal = new bootstrap.Modal(document.getElementById('loginSuccessModal'));
+    const loginModalEl = document.getElementById('loginModal');
+    const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalEl);
+    const loginSuccessModalEl = document.getElementById('loginSuccessModal');
+    const loginSuccessModal = bootstrap.Modal.getOrCreateInstance(loginSuccessModalEl);
 
     const loginForm = document.getElementById('loginForm');
     const loginEmailInput = document.getElementById('loginEmail');
@@ -210,8 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // CORRECTED: Access the user's name from data.data.user
         successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
         
-        loginModal.hide();
-        loginSuccessModal.show();
+        // Hide the login modal first; only show success once it is fully hidden
+        const wasShown = loginModalEl.classList.contains('show');
+        loginModalEl.addEventListener('hidden.bs.modal', () => {
+            loginSuccessModal.show();
+        }, { once: true });
+        if (wasShown) {
+            loginModal.hide();
+        } else {
+            // If it wasn't shown (edge case), just show success directly
+            loginSuccessModal.show();
+        }
     
         // Redirect after 3 seconds
         setTimeout(() => {
