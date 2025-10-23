@@ -207,28 +207,42 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('refreshToken', data.data.refreshToken);
         console.log('[Storage] Auth tokens saved to localStorage.');
     
-        // Update and show the success modal
+        // Update success modal message
         const successModalText = document.getElementById('loginSuccessModalText');
         // CORRECTED: Access the user's name from data.data.user
         successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
-        
+
+        // Helper: start redirect only after success modal is fully visible
+        let redirectTimerId;
+        const startRedirectTimer = () => {
+            redirectTimerId = setTimeout(() => {
+                console.log('[Redirect] Redirecting to books.html...');
+                window.location.href = 'books.html';
+            }, 3000);
+        };
+
+        // When success modal finishes showing, then begin redirect timer
+        const onSuccessShown = () => {
+            loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
+            startRedirectTimer();
+        };
+        loginSuccessModalEl.addEventListener('shown.bs.modal', onSuccessShown, { once: true });
+
         // Hide the login modal first; only show success once it is fully hidden
         const wasShown = loginModalEl.classList.contains('show');
-        loginModalEl.addEventListener('hidden.bs.modal', () => {
+        const showSuccess = () => {
             loginSuccessModal.show();
-        }, { once: true });
+        };
         if (wasShown) {
+            const onLoginHidden = () => {
+                loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
+                showSuccess();
+            };
+            loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
             loginModal.hide();
         } else {
-            // If it wasn't shown (edge case), just show success directly
-            loginSuccessModal.show();
+            showSuccess();
         }
-    
-        // Redirect after 3 seconds
-        setTimeout(() => {
-            console.log('[Redirect] Redirecting to books.html...');
-            window.location.href = 'books.html';
-        }, 3000);
     }
 
     /**
