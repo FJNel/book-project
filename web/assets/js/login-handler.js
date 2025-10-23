@@ -198,20 +198,17 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} data The success response data.
      */
     function handleLoginSuccess(data) {
-        // CORRECTED: Access the user's name from data.data.user
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
     
         // Store tokens in Local Storage
-        // CORRECTED: Access tokens from data.data
         localStorage.setItem('accessToken', data.data.accessToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);
         console.log('[Storage] Auth tokens saved to localStorage.');
     
         // Update success modal message
         const successModalText = document.getElementById('loginSuccessModalText');
-        // CORRECTED: Access the user's name from data.data.user
         successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
-
+    
         // Helper: start redirect only after success modal is fully visible
         let redirectTimerId;
         const startRedirectTimer = () => {
@@ -220,29 +217,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = 'books.html';
             }, 3000);
         };
-
+    
         // When success modal finishes showing, then begin redirect timer
         const onSuccessShown = () => {
             loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
             startRedirectTimer();
         };
         loginSuccessModalEl.addEventListener('shown.bs.modal', onSuccessShown, { once: true });
-
-        // Hide the login modal first; only show success once it is fully hidden
-        const wasShown = loginModalEl.classList.contains('show');
-        const showSuccess = () => {
+    
+        // Always hide the login modal first, then show the success modal after it's hidden
+        const onLoginHidden = () => {
+            loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
             loginSuccessModal.show();
         };
-        if (wasShown) {
-            const onLoginHidden = () => {
-                loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
-                showSuccess();
-            };
-            loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
-            loginModal.hide();
-        } else {
-            showSuccess();
-        }
+        loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
+        loginModal.hide();
     }
 
     /**
