@@ -91,6 +91,8 @@ function normalizeLog(event, data = {}, level = "info") {
 
     // Normalize common fields
     const entry = {
+        // Winston expects a message; mirror the event as message for portability
+        message: String(event || '').toUpperCase(),
         event,
         level,
         timestamp: new Date().toISOString(),
@@ -137,13 +139,6 @@ function logToFile(event, data = {}, level = "info") {
     logger.log(entry);
 } // logToFile
 
-// Backwards-compatible shim: route-level user action logs now go to file only
-// DEPRECATED: __REMOVED__ is a no-op to prevent double-logging.
-// Use logToFile(event, data, level) directly everywhere.
-function __REMOVED__(_) {
-    // intentionally no-op
-}
-
 // ----- Utils -----
 function ensureLogsDir(dir) {
     try {
@@ -155,9 +150,7 @@ function ensureLogsDir(dir) {
 } // ensureLogsDir
 
 module.exports = {
-  __REMOVED__,
   logToFile,
   logger,
   sanitizeInput,
 };
-

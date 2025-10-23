@@ -2,7 +2,8 @@ let messages = ["This is a backup message. Whoops!"];
 
 async function loadMessages() {
     try {
-        const response = await fetch('../data/404-messages.json');
+        // 404.html lives in `web/`, so assets are under `assets/`
+        const response = await fetch('assets/data/404-messages.json');
         if (response.ok) {
             messages = await response.json();
         } else {
@@ -30,7 +31,8 @@ function setupHomeButton() {
 	}
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-	setRandomMessage();
-	setupHomeButton();
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadMessages();
+    setRandomMessage();
+    setupHomeButton();
 });
