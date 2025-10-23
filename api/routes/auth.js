@@ -117,7 +117,7 @@ async function ensureActiveVerificationToken(userId, client = null) {
 } // ensureActiveVerificationToken
 
 // CAPTCHA Helper (v3)
-async function verifyCaptcha(token, ip, expectedAction = null) {
+async function verifyCaptcha(token, ip, expectedAction = null, minScore = 0.7) {
     if (!RECAPTCHA_SECRET) {
         logToFile("CAPTCHA_MISCONFIGURED", { message: "RECAPTCHA_SECRET is not set in environment variables" }, "warn");
         return false;
@@ -153,8 +153,8 @@ async function verifyCaptcha(token, ip, expectedAction = null) {
 		const data = await response.json();
 	// Log minimal info only; avoid dumping entire CAPTCHA payload
 	const actionMatch = expectedAction ? (data?.action === expectedAction) : true;
-	const ok = (data?.success === true) && (data?.score >= 0.7) && actionMatch;
-	logToFile("CAPTCHA_VERIFICATION", { success: data?.success === true, score: data?.score, action: data?.action, expectedAction, actionMatch }, ok ? "info" : "warn");
+	const ok = (data?.success === true) && (typeof data?.score === 'number' ? data.score >= minScore : true) && actionMatch;
+	logToFile("CAPTCHA_VERIFICATION", { status: ok ? "SUCCESS" : "FAILURE", score: data?.score, min_score: minScore, action: data?.action, expected_action: expectedAction, action_match: actionMatch }, ok ? "info" : "warn");
 		return ok; // Accept scores >= 0.7 and matching action
 	} catch (e) {
 		logToFile("CAPTCHA_VERIFICATION_ERROR", { message: e.message }, "error");
@@ -290,7 +290,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 	let { email, captchaToken } = req.body || {};
 
 	//Verify CAPTCHA before doing anything else
-	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend-verification');
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend-verification', 0.5);
 	if (!captchaValid) {
 	logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
@@ -627,7 +627,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
     let { email, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request-password-reset');
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request-password-reset', 0.5);
     if (!captchaValid) {
         logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
         return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
