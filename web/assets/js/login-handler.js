@@ -104,11 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function forceHideModal(el) {
         const inst = bootstrap.Modal.getInstance(el) || bootstrap.Modal.getOrCreateInstance(el);
         try { inst.hide(); } catch {}
-        // Hard cleanup in case hidden event doesn't fire
-        el.classList.remove('show');
-        el.style.display = 'none';
-        el.setAttribute('aria-hidden', 'true');
-        cleanupModalArtifacts();
     }
 
     async function handleLogin(event) {
@@ -260,11 +255,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
         // Normal path: wait for hidden, then show success
         loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
-    
-        // Trigger hide via Bootstrap, plus a fallback force hide
+        
+        // Trigger hide via Bootstrap, plus a fallback if event doesn’t fire
         forceHideModal(loginModalEl);
-    
-        // Fallback: if hidden event didn't fire, proceed anyway
+        
         setTimeout(() => {
             if (!loginSuccessModalEl.classList.contains('show')) {
                 console.warn('[Login] Fallback: showing success modal after timeout.');
