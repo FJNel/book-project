@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 require("dotenv").config();
+const config = require("./config");
 
 //Import standard response handlers
 const { successResponse, errorResponse } = require("./utils/response");
@@ -49,11 +50,11 @@ app.use(helmet()); // Set HTTP headers for security
 app.use(express.json()); // Parse JSON request bodies
 // Allow requests from other domains (CORS)
 const corsOptions = {
-    origin: ['https://bookproject.fjnel.co.za', 'http://127.0.0.1:8000'], // Allow only your frontend
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    optionsSuccessStatus: 204
+    origin: config.cors.allowedOrigins,
+    credentials: config.cors.credentials,
+    methods: config.cors.methods,
+    allowedHeaders: config.cors.allowedHeaders,
+    optionsSuccessStatus: config.cors.optionsSuccessStatus,
 };
 app.use(cors(corsOptions));
 
@@ -96,7 +97,7 @@ app.use((err, req, res, next) => {
 }); // global error handler
 
 //Server start
-const PORT = process.env.PORT || 4000;
+const PORT = config.port;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 }); // app.listen

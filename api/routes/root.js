@@ -6,6 +6,7 @@ const router = express.Router();
 
 //Import standard response handlers
 const { successResponse } = require("../utils/response");
+const config = require("../config");
 
 router.get("/", (req, res) => {
     const now = new Date();
@@ -20,8 +21,8 @@ router.get("/", (req, res) => {
     });
     return successResponse(res, 200, "API_IS_WORKING", {
       timestamp,
-      api_documentation_url: "https://api.fjnel.co.za/api-docs.html"
-    //   db_documentation_url: "https://api.fjnel.co.za/db_documentation.html",
+      api_documentation_url: config.api.docsUrl
+    //   db_documentation_url: `${config.api.baseUrl}/db_documentation.html`,
     });
 }); // router.get("/")
 

@@ -3,12 +3,14 @@
 const { logToFile } = require("./logging");
 const FormData = require("form-data");
 const Mailgun = require("mailgun.js");
+const config = require("../config");
 
-const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
-const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
-const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@fjnel.co.za";
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://fjnel.co.za";
-const MAILGUN_REGION = process.env.MAILGUN_REGION || "US"; // "EU" for EU domains
+const MAILGUN_API_KEY = config.mail.mailgunApiKey;
+const MAILGUN_DOMAIN = config.mail.mailgunDomain;
+const FROM_EMAIL = config.mail.fromEmail;
+const FRONTEND_URL = config.frontend.url;
+const MAILGUN_REGION = config.mail.mailgunRegion; // "EU" for EU domains
+const SUPPORT_EMAIL = config.mail.supportEmail;
 
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
@@ -24,7 +26,7 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 	  return false;
 	}
   
-	const verificationUrl = `${FRONTEND_URL}/verify-email?token=${verificationToken}`;
+	const verificationUrl = `${FRONTEND_URL}${config.frontend.verifyPath}?token=${verificationToken}`;
 	const subject = "Verify your email address for the Book Project";
 	const year = new Date().getFullYear();
   
@@ -51,7 +53,7 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not register this account, please contact the system administrator at
-			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
+			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to assist you in resolving this matter.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
@@ -90,7 +92,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 		return false;
 	}
 
-	const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
+	const resetUrl = `${FRONTEND_URL}${config.frontend.resetPath}?token=${resetToken}`;
 	const subject = "Reset your password for the Book Project";
 	const year = new Date().getFullYear();
 
@@ -124,7 +126,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not request a password reset, please contact the system administrator at
-			  <a href=\"mailto:support@fjnel.co.za\" style=\"color: #3182ce;\">support@fjnel.co.za</a>
+			  <a href=\"mailto:${SUPPORT_EMAIL}\" style=\"color: #3182ce;\">${SUPPORT_EMAIL}</a>
 			  to ensure the safety of your account.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
@@ -163,7 +165,7 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 	}
 	const subject = "Your Book Project account has been disabled";
 	const year = new Date().getFullYear();
-	const supportEmail = "support@fjnel.co.za"; // Change to your actual admin/support email
+	const supportEmail = SUPPORT_EMAIL; // Centralized support email
   
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -233,7 +235,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
         return false;
     }
 
-    const loginUrl = "https://bookproject.fjnel.co.za/?action=login";
+    const loginUrl = config.frontend.loginUrl;
     const subject = "Welcome to The Book Project";
     const year = new Date().getFullYear();
 
@@ -263,7 +265,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
             </div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not verify this email address, please contact the system administrator at
-			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
+			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to assist you in resolving this matter.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
@@ -298,7 +300,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
         return false;
     }
 
-    const loginUrl = "https://bookproject.fjnel.co.za/?action=login";
+    const loginUrl = config.frontend.loginUrl;
     const subject = "Your password has been reset";
     const year = new Date().getFullYear();
 
@@ -328,7 +330,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
             </div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not reset your password, please contact the system administrator at
-			  <a href="mailto:support@fjnel.co.za" style="color: #3182ce;">support@fjnel.co.za</a>
+			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to secure your account.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">

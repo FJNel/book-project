@@ -14,6 +14,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const rateLimit = require("express-rate-limit");
 const { OAuth2Client } = require("google-auth-library");
+const config = require("../config");
 
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
@@ -23,9 +24,9 @@ const { enqueueEmail } = require("../utils/email-queue");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, requiresAuth } = require("../utils/jwt");
 const { v4: uuidv4 } = require("uuid");
 
-const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 10;
-const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const SALT_ROUNDS = config.saltRounds;
+const RECAPTCHA_SECRET = config.recaptchaSecret;
+const googleClient = new OAuth2Client(config.google.clientId);
 
 // A reusable handler for when a rate limit is exceeded
 const rateLimitHandler = (req, res, next, options) => {
@@ -290,7 +291,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 	let { email, captchaToken } = req.body || {};
 
 	//Verify CAPTCHA before doing anything else
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend_verification', 0.5);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend_verification');
 	if (!captchaValid) {
 	logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
@@ -627,7 +628,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
     let { email, captchaToken } = req.body || {};
 
     // CAPTCHA check
-    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request_password_reset', 0.5);
+    const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request_password_reset');
     if (!captchaValid) {
         logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
         return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);

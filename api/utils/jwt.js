@@ -1,9 +1,10 @@
 const jwt = require("jsonwebtoken");
+const config = require("../config");
 
-const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || "default-access-secret";
-const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || "default-refresh-secret";
-const ACCESS_TOKEN_EXPIRES_IN = "15m"; // Short-lived
-const REFRESH_TOKEN_EXPIRES_IN = "7d"; // Long-lived
+const ACCESS_TOKEN_SECRET = config.jwt.accessSecret;
+const REFRESH_TOKEN_SECRET = config.jwt.refreshSecret;
+const ACCESS_TOKEN_EXPIRES_IN = config.jwt.accessExpiresIn; // Short-lived
+const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn; // Long-lived
 
 function generateAccessToken(user) {
     // Only include safe fields
