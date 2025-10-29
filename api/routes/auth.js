@@ -13,6 +13,7 @@ const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const rateLimit = require("express-rate-limit");
+const fetch = require("node-fetch");
 const { OAuth2Client } = require("google-auth-library");
 const config = require("../config");
 
@@ -840,7 +841,14 @@ router.post("/google", async (req, res) => {
   }
 
   //Save userID, email, fullName and preferredName from payload
-  const { email, email_verified, name, given_name, sub: providerUserId } = payload;
+  const {
+	email,
+	email_verified,
+	name: fullName,
+	given_name: rawPreferredName,
+	sub: providerUserId
+  } = payload;
+  const preferredName = rawPreferredName ? rawPreferredName : null;
 
   if (!email_verified) {
     return errorResponse(res, 400, "GOOGLE_EMAIL_NOT_VERIFIED", ["GOOGLE_EMAIL_NOT_VERIFIED_DETAIL"]);
@@ -850,14 +858,10 @@ router.post("/google", async (req, res) => {
     return errorResponse(res, 400, "GOOGLE_NO_USER_ID", ["GOOGLE_NO_USER_ID_DETAIL"]);
   }
 
-  if (!email || !name ) {
-    return errorResponse(res, 400, "GOOGLE_PROFILE_INCOMPLETE", ["GOOGLE_PROFILE_INCOMPLETE_DETAIL_1", "GOOGLE_PROFILE_INCOMPLETE_DETAIL_2",
-      "GOOGLE_PROFILE_INCOMPLETE_DETAIL_3"
-    ]);
-  }
-
-  if (!given_name) {
-    given_name = null;
+  if (!email || !fullName) {
+	return errorResponse(res, 400, "GOOGLE_PROFILE_INCOMPLETE", ["GOOGLE_PROFILE_INCOMPLETE_DETAIL_1", "GOOGLE_PROFILE_INCOMPLETE_DETAIL_2",
+	  "GOOGLE_PROFILE_INCOMPLETE_DETAIL_3"
+	]);
   }
 
   const client = await pool.connect();
@@ -897,8 +901,8 @@ router.post("/google", async (req, res) => {
         `INSERT INTO users (email, full_name, preferred_name, is_verified, role, created_at)
          VALUES ($1, $2, $3, true, 'user', NOW())
          RETURNING *`,
-        [email.toLowerCase(), name, given_name]
-      );
+		[email.toLowerCase(), fullName, preferredName]
+	  );
       user = insertUser.rows[0];
  
       await client.query(
