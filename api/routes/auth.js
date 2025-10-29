@@ -313,7 +313,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
         if (userRes.rows.length === 0 || userRes.rows[0].is_verified) {
             // Log attempt, but respond generically
             logToFile("EMAIL_VERIFICATION", { status: "INFO", reason: "NONEXISTENT_OR_VERIFIED", email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-            return successResponse(res, 200, generalMessage);
+			return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
         }
 
         const user = userRes.rows[0];
@@ -328,11 +328,11 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
             context: 'RESEND_ENDPOINT',
             userId: user.id
         });
-        return successResponse(res, 200, generalMessage);
+		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
     } catch (e) {
         logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
         // Still respond generically
-        return successResponse(res, 200, generalMessage);
+		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
     }
 }); // router.post("/resend-verification")
 
@@ -535,8 +535,51 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 //POST auth/logout: Revoke refreshToken to log user out
 router.post("/logout", requiresAuth, async (req, res) => {
-	//Use user id from refresh-token payload
-	const { refreshToken } = req.body || {};
+	const { refreshToken, allDevices } = req.body || {};
+	const normalizedAllDevices = typeof allDevices === "string" ? allDevices.trim().toLowerCase() : allDevices;
+	const logoutAllDevices = normalizedAllDevices === true
+		|| normalizedAllDevices === 1
+		|| normalizedAllDevices === "true"
+		|| normalizedAllDevices === "1"
+		|| normalizedAllDevices === "all";
+
+	if (logoutAllDevices) {
+		try {
+			const { rowCount } = await pool.query(
+				`UPDATE refresh_tokens
+				 SET revoked = true
+				 WHERE user_id = $1
+				   AND revoked = false
+				   AND expires_at > NOW()`,
+				[req.user.id]
+			);
+
+			logToFile("LOGOUT", {
+				status: "SUCCESS",
+				user_id: req.user.id,
+				scope: "all",
+				revoked_count: rowCount,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+
+			return successResponse(res, 200, "LOGOUT_SUCCESS", {
+				scope: "all",
+				revokedSessions: rowCount
+			});
+		} catch (e) {
+			logToFile("LOGOUT", {
+				status: "FAILURE",
+				error_message: e.message,
+				user_id: req.user.id,
+				scope: "all",
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGOUT_DETAIL"]);
+		}
+	}
+
 	if (!refreshToken || typeof refreshToken !== "string") {
 		return errorResponse(res, 400, "REFRESH_TOKEN_REQUIRED", ["REFRESH_TOKEN_REQUIRED_DETAIL"]);
 	}
@@ -548,14 +591,13 @@ router.post("/logout", requiresAuth, async (req, res) => {
 		return errorResponse(res, 401, "REFRESH_TOKEN_INVALID", ["REFRESH_TOKEN_INVALID_DETAIL"]);
 	}
 
-	if (payload.id !== req.user.id) {
+	if (payload.id !== req.user.id || !payload.fingerprint) {
 		return errorResponse(res, 403, "FORBIDDEN", ["FORBIDDEN_LOGOUT_DETAIL_1",
 			"FORBIDDEN_LOGOUT_DETAIL_2"]);
 	}
 
 	try {
-		// Revoke the refresh token
-		const result = await pool.query(
+		const { rowCount } = await pool.query(
 			`UPDATE refresh_tokens
 			 SET revoked = true
 			 WHERE user_id = $1
@@ -564,13 +606,31 @@ router.post("/logout", requiresAuth, async (req, res) => {
 			   AND expires_at > NOW()`,
 			[req.user.id, payload.fingerprint]
 		);
+
+		logToFile("LOGOUT", {
+			status: "SUCCESS",
+			user_id: payload.id,
+			scope: "single",
+			revoked_count: rowCount,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "LOGOUT_SUCCESS", {
+			scope: "single",
+			revokedSessions: rowCount
+		});
 	} catch (e) {
+		logToFile("LOGOUT", {
+			status: "FAILURE",
+			error_message: e.message,
+			user_id: payload.id,
+			scope: "single",
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
 		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGOUT_DETAIL"]);
 	}
-
-	logToFile("LOGOUT", { status: "SUCCESS", user_id: payload.id, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-
-	return successResponse(res, 200, "LOGOUT_SUCCESS", {});
 }); // router.post("/logout")
 
 
@@ -652,7 +712,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
         if (userRes.rows.length === 0) {
             // Log attempt, but respond generically
             logToFile("PASSWORD_RESET_REQUEST", { status: "INFO", reason: "NONEXISTENT_EMAIL", email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-            return successResponse(res, 200, generalMessage);
+			return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
         }
 
         const user = userRes.rows[0];
@@ -694,10 +754,10 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
             context: 'REQUEST_PASSWORD_RESET',
             userId: user.id
         });
-        return successResponse(res, 200, generalMessage);
+		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
     } catch (e) {
         logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-        return successResponse(res, 200, generalMessage);
+		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
     }
 }); // router.post("/request-password-reset")
 
