@@ -53,7 +53,7 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not register this account, please contact the system administrator at
-			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Registration" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to assist you in resolving this matter.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
@@ -126,7 +126,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not request a password reset, please contact the system administrator at
-			  <a href=\"mailto:${SUPPORT_EMAIL}\" style=\"color: #3182ce;\">${SUPPORT_EMAIL}</a>
+			  <a href=\"mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Password%20Reset%20Request\" style=\"color: #3182ce;\">${SUPPORT_EMAIL}</a>
 			  to ensure the safety of your account.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
@@ -265,7 +265,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
             </div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not verify this email address, please contact the system administrator at
-			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Activation" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to assist you in resolving this matter.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
@@ -330,7 +330,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
             </div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
 			  If you did not reset your password, please contact the system administrator at
-			  <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Password%20Reset%20Success" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
 			  to secure your account.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
