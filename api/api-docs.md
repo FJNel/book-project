@@ -356,6 +356,7 @@ To ensure that this endpoint is not abused, it is rate-limited.
 - If the email already exists but is not verified, a verification email is (re)sent and the request succeeds with 200 OK. No new account is created. The existing account details are not modified.
 - If the email does not exist or is already verified, the response will still indicate that a verification email has been sent.
 - If the email could not be sent due to a server error, the response will still indicate that a verification email has been sent to avoid revealing whether the email exists in the system.
+- Responses return translation keys: `message` is `RESEND_VERIFICATION_MESSAGE` and `data.disclaimer` is `RESEND_VERIFICATION_DISCLAIMER`.
 
 ### Examples
 
@@ -375,11 +376,10 @@ To ensure that this endpoint is not abused, it is rate-limited.
   "status": "success",
   "httpCode": 200,
   "responseTime": "60.15",
-  "message": {
-    "message": "If you have registered an account with this email address and it is unverified, you will receive a verification email.",
-    "disclaimer": "If you did not receive an email when you should have, please check your spam folder or try again later."
+  "message": "RESEND_VERIFICATION_MESSAGE",
+  "data": {
+    "disclaimer": "RESEND_VERIFICATION_DISCLAIMER"
   },
-  "data": {},
   "errors": []
 }
 ```
@@ -575,13 +575,14 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 
 **Endpoint:** `POST /auth/logout`  
 **Access:** Authenticated Users  
-**Description:** Logs out the user by invalidating their refresh token. This logs the user out from all devices.  
+**Description:** Logs out the authenticated user. Provide a refresh token to revoke a single session, or set `allDevices` to revoke every active session for the user.  
 
 ### Required Parameters (JSON Body)
 
 | Parameter | Type | Required | Description and Details |
 |-----------|------|----------|-------------------------|
-| `refreshToken` | String | **Yes** | The refresh token to be invalidated. |
+| `refreshToken` | String | Conditional | Required when logging out a single device. Must be the refresh token issued for the session being closed. Ignored when `allDevices` is truthy. |
+| `allDevices` | Boolean or String | Optional | When `true`, `"true"`, `"1"`, or `"all"`, revokes every non-expired refresh token for the user. |
 
 ### Required Headers
 
@@ -591,17 +592,18 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
 
 ### Notes
 
-- To log out, the user must provide their refresh token in the request body and a valid access token in the `Authorization` header. The tokens must belong to the same user.
-- If the refresh token is invalid or does not belong to the user, an error message will be returned.
-- If the access token is missing or invalid, an error will be returned.
+- A refresh token is only required when revoking a single session.
+- The API responds with localization keys. `message` is `LOGOUT_SUCCESS`; `data.scope` is either `"single"` or `"all"`; `data.revokedSessions` reports how many refresh tokens were revoked.
+- If the refresh token is invalid, expired, or belongs to another user, a 401/403 error is returned.
+- If the access token is missing or invalid, a 401 error is returned.
 
 ### Examples
 
-**Example Request (JSON Object):**
+**Example Request – Single Device (JSON Object):**
 
 ```json
 {
- "refreshToken": "<refresh-token>"
+  "refreshToken": "<refresh-token>"
 }
 ```
 
@@ -612,8 +614,35 @@ To prevent automated login attempts, this endpoint is protected by CAPTCHA. User
   "status": "success",
   "httpCode": 200,
   "responseTime": "20.45",
-  "message": "Logged out successfully.",
-  "data": {},
+  "message": "LOGOUT_SUCCESS",
+  "data": {
+    "scope": "single",
+    "revokedSessions": 1
+  },
+  "errors": []
+}
+```
+
+**Example Request – All Devices (JSON Object):**
+
+```json
+{
+  "allDevices": true
+}
+```
+
+**Example Success Response (200 OK):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "22.12",
+  "message": "LOGOUT_SUCCESS",
+  "data": {
+    "scope": "all",
+    "revokedSessions": 5
+  },
   "errors": []
 }
 ```
@@ -644,6 +673,7 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
 
 - The response is always a generic success message to prevent email enumeration. If the email does not exist, the response will still indicate that a password reset email has been sent.
 - If the email could not be sent due to a server error, the response will still indicate that a password reset email has been sent to avoid revealing whether the email exists in the system.
+- Responses use localization keys: `message` is `PASSWORD_RESET_MESSAGE` and `data.disclaimer` is `PASSWORD_RESET_DISCLAIMER`.
 
 ### Examples
 
@@ -663,8 +693,10 @@ To prevent automated requests, this endpoint is protected by CAPTCHA. Users must
   "status": "success",
   "httpCode": 200,
   "responseTime": "30.12",
-  "message": "Password reset email sent.",
-  "data": {},
+  "message": "PASSWORD_RESET_MESSAGE",
+  "data": {
+    "disclaimer": "PASSWORD_RESET_DISCLAIMER"
+  },
   "errors": []
 }
 ```
