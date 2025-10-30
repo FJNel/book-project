@@ -1,48 +1,4 @@
 {
-	"page_title": "The Book Project",
-
-
-
-	"welcome_title": "Welcome to the Book Project",
-	"welcome_message": "This application allow you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.",
-	"google_signin_button": "Continue with Google",
-	"or_divider": "Or",
-	"login_button": "Login",
-	"register_button": "Register",
-
-	"page_loading_heading": "Page Loading",
-	"page_loading_text": "Please wait while the page is loading...",
-
-	"api_error_heading": "API Connection Error",
-	"api_error_heading_2_1": "Unable to Connect",
-	"api_error_1": "We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.",
-	"api_error_heading_2_2": "What you can do",
-	"api_error_li1": "<strong>Check your internet connection:</strong> Make sure you are connected to the internet.",
-	"api_error_li2": "<strong>Please try again in a few minutes:</strong> This may be a temporary issue.",
-	"api_error_footer": "If the problem continues, please contact the System Administrator.",
-
-	"session_expired_heading": "Session Expired!",
-	"session_expired_text": "Your session has ended for security reasons. This might happen due to:",
-	"session_expired_li1": "<strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.",
-	"session_expired_li2": "<strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.",
-	"session_expired_li3": "<strong>Manual Logout:</strong> You manually logged out on all devices.",
-	"session_expired_footer": "Close this window to go back to the page where you can log in.",
-
-	"not_logged_in_heading": "Not Logged In!",
-	"not_logged_in_text": "To access The Book Project, please log in to your account. If you don't have an account yet, you can sign up using \"Continue with Google\" or create a new account on the home page.",
-	"not_logged_in_footer": "Close this window to go back to the page where you can log in or register.",
-
-	"google_error_heading": "Continue with Google Unavailable",
-	"google_error_p1": "The Continue with Google window could not be opened, or something went wrong while it was open. This is typically caused by a pop-up blocker in your browser. Please check your browser's address bar for a pop-up blocked icon and allow pop-ups from this site.",
-	"google_error_p2": "If you're still having trouble, you can use one of the options below to access your account.",
-	"google_error_h1": "How to access your account now",
-	"google_error_li1": "<strong>New User?</strong> Please register an account manually with your email and a password.",
-	"google_error_li2": "<strong>Have an Account?</strong> You can log in directly using your email and password.",
-	"google_error_li3": "<strong>No Password Set?</strong> If you've used Google before but don't have a password, use the \"Forgot Password?\" link in the login window to create one, and then log in.",
-	"google_error_footer": "If this is a recurring issue, please contact the System Administrator.",
-
-
-
 	"ENDPOINT_NOT_FOUND": "Endpoint Not Found",
 	"ENDPOINT_NOT_FOUND_DETAIL_1": "Endpoint not found!",
 	"ENDPOINT_NOT_FOUND_DETAIL_2": "Make sure that you are also using the correct request type!",
@@ -54,6 +10,7 @@
 	"INTERNAL_SERVER_ERROR_REFRESH_TOKEN_DETAIL":"An error occurred while refreshing the access token.",
 	"INTERNAL_SERVER_ERROR_PASSWORD_RESET_DETAIL":"An error occurred while resetting your password. Please try again.",
 	"INTERNAL_SERVER_ERROR_GOOGLE_LOGIN":"An error occurred during Google login. Please try again.",
+	"INTERNAL_SERVER_ERROR_AUTH_DETAIL":"An error occurred while validating your authentication. Please try again.",
 	"API_IS_WORKING": "The API is working!",
 	"CAPTCHA_VERIFICATION_FAILED":"CAPTCHA verification failed",
 	"CAPTCHA_VERIFICATION_FAILED_DETAIL_1":"Please refresh the page and try again.",
@@ -131,5 +88,17 @@
 	"PASSWORD_SPECIAL":"Password must include at least one special character.",
 	"TOO_MANY_REQUESTS":"Too many requests",
 	"TOO_MANY_REQUESTS_DETAIL":"You have exceeded the maximum number of requests. Please try again later.",
-	"INVALID_TOKEN": "The link you used is invalid. Please use the link from your email."
+	"INVALID_TOKEN": "The link you used is invalid. Please use the link from your email.",
+	"ACCOUNT_DISABLED": "Your account has been disabled.",
+	"ACCOUNT_DISABLED_DETAIL": "Please contact the system administrator if you believe this is a mistake.",
+	"NOTHING_TO_UPDATE": "No changes were provided.",
+	"NOTHING_TO_UPDATE_DETAIL": "Please provide at least one field to update.",
+	"NOT_IMPLEMENTED": "This functionality has not been implemented yet.",
+	"NOT_IMPLEMENTED_DETAIL": "This endpoint is reserved for future use.",
+	"NOT_YET_IMPLEMENTED": "This admin endpoint is not yet implemented.",
+	"USER_DISABLED_SUCCESS": "Your account has been disabled.",
+	"USER_NOT_FOUND": "User not found.",
+	"USER_NOT_FOUND_DETAIL": "The requested user record could not be located.",
+	"USER_RETRIEVED_SUCCESS": "User profile retrieved successfully.",
+	"USER_UPDATED_SUCCESS": "User profile updated successfully."
 }

@@ -73,10 +73,10 @@ app.use((req, res) => {
 	return errorResponse(
 		res,
 		404,
-		"ENDPOINT_NOT_FOUND",
+		"Endpoint Not Found",
 		[
-			"ENDPOINT_NOT_FOUND_DETAIL_1",
-			"ENDPOINT_NOT_FOUND_DETAIL_2"
+			"Endpoint not found!",
+			"Make sure that you are also using the correct request type!"
 		]
 	);
 }); // 404 handler
@@ -90,8 +90,8 @@ app.use((err, req, res, next) => {
 		stack: process.env.NODE_ENV === "production" ? undefined : err.stack
 	}, "error");
 
-	return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", [
-		"INTERNAL_SERVER_ERROR_DETAIL",
+	return errorResponse(res, 500, "Internal Server Error", [
+		"An unexpected error occurred",
 		err.message
 	]);
 }); // global error handler

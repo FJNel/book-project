@@ -9,15 +9,15 @@
 function validateFullName(fullName) {
 	const errors = [];
 	if (typeof fullName !== "string" || !fullName.trim()) {
-		errors.push("FULL_NAME_REQUIRED");
+		errors.push("Full Name must be provided.");
 		return errors;
 	}
 	const name = fullName.trim();
 	if (name.length < 2 || name.length > 255) {
-		errors.push("FULL_NAME_LENGTH");
+		errors.push("Full Name must be between 2 and 255 characters.");
 	}
 	if (!/^[A-Za-z\s\-.'’]+$/.test(name)) {
-		errors.push("FULL_NAME_INVALID_CHARACTERS");
+		errors.push("Full Name can only contain alphabetic characters, spaces, hyphens, full stops, and apostrophes.");
 	}
 	return errors;
 } // validateFullName
@@ -33,15 +33,15 @@ function validatePreferredName(preferredName) {
 		return errors; // Not required
 	}
 	if (typeof preferredName !== "string") {
-		errors.push("PREFERRED_NAME_STRING");
+		errors.push("Preferred Name must be a string.");
 		return errors;
 	}
 	const name = preferredName.trim();
 	if (name.length < 2 || name.length > 100) {
-		errors.push("PREFERRED_NAME_LENGTH");
+		errors.push("Preferred Name must be between 2 and 100 characters.");
 	}
 	if (!/^[A-Za-z]+$/.test(name)) {
-		errors.push("PREFERRED_NAME_CHARACTERS");
+		errors.push("Preferred Name can only contain alphabetic characters (no spaces or symbols).");
 	}
 	return errors;
 } // validatePreferredName
@@ -56,16 +56,16 @@ function validatePreferredName(preferredName) {
 function validateEmail(email) {
 	const errors = [];
 	if (typeof email !== "string" || !email.trim()) {
-		errors.push("EMAIL_REQUIRED");
+		errors.push("Email must be provided.");
 		return errors;
 	}
 	const e = email.trim();
 	if (e.length < 5 || e.length > 255) {
-		errors.push("EMAIL_LENGTH");
+		errors.push("Email must be between 5 and 255 characters.");
 	}
 	// Simple email regex for format validation
 	if (!/^(?=.{3,255}$)[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/.test(e)) {
-		errors.push("EMAIL_FORMAT");
+		errors.push("Email format is incorrect.");
 	}
 	return errors;
 } // validateEmail
@@ -79,24 +79,24 @@ function validateEmail(email) {
 function validatePassword(password) {
 	const errors = [];
 	if (typeof password !== "string" || !password.trim()) {
-		errors.push("PASSWORD_REQUIRED");
+		errors.push("Password must be provided.");
 		return errors;
 	}
 	const p = password.trim();
 	if (p.length < 10 || p.length > 100) {
-		errors.push("PASSWORD_LENGTH");
+		errors.push("Password must be between 10 and 100 characters.");
 	}
 	if (!/[A-Z]/.test(p)) {
-		errors.push("PASSWORD_UPPERCASE");
+		errors.push("Password must include at least one uppercase letter.");
 	}
 	if (!/[a-z]/.test(p)) {
-		errors.push("PASSWORD_LOWERCASE");
+		errors.push("Password must include at least one lowercase letter.");
 	}
 	if (!/[0-9]/.test(p)) {
-		errors.push("PASSWORD_NUMBER");
+		errors.push("Password must include at least one number.");
 	}
 	if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\;/']/.test(p)) {
-		errors.push("PASSWORD_SPECIAL");
+		errors.push("Password must include at least one special character.");
 	}
 	return errors;
 } // validatePassword

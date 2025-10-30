@@ -4,12 +4,13 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
+const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName } = require("../utils/validators");
 
 
 // Retrieve the profile information of the currently authenticated user
-router.get("/me", requiresAuth, async (req, res) => {
+router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 
 	try {
@@ -36,7 +37,7 @@ router.get("/me", requiresAuth, async (req, res) => {
 		// If no user found or user is disabled
 		if (result.rows.length === 0) {
 			logToFile("GET_PROFILE", { status: "FAILURE", reason: "NOT_FOUND", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-			return errorResponse(res, 404, "USER_NOT_FOUND", ["USER_NOT_FOUND_DETAIL"]);
+			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
 		}
 
 		// Construct user profile response
@@ -56,17 +57,17 @@ router.get("/me", requiresAuth, async (req, res) => {
 
 		// Return user profile
 		logToFile("GET_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
-		return successResponse(res, 200, "USER_RETRIEVED_SUCCESS", userProfile);
+		return successResponse(res, 200, "User profile retrieved successfully.", userProfile);
 	} catch (e) {
 		logToFile("GET_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_GET_USER"]);
+		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_GET_USER"]);
 	}
 }); // router.get("/me")
 
 
 // Update the profile information of the currently authenticated user
 // Only fullName and preferredName can be updated
-router.put("/me", requiresAuth, async (req, res) => {
+router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	// Get the user ID from the authenticated request
 	const userId = req.user.id;
 	// Extract fields to update from the request body
@@ -84,7 +85,7 @@ router.put("/me", requiresAuth, async (req, res) => {
 	// If validation errors exist, log and return them
 	if (errors.length > 0) {
 		logToFile("UPDATE_PROFILE", { status: "FAILURE", reason: "VALIDATION", user_id: userId, ip: req.ip, user_agent: req.get("user-agent"), errors }, "warn");
-		return errorResponse(res, 400, "VALIDATION_ERROR", errors);
+		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
 	// Build the update query dynamically
@@ -102,7 +103,7 @@ router.put("/me", requiresAuth, async (req, res) => {
 	}
 
 	if (updateFields.length === 0) {
-		return errorResponse(res, 400, "NOTHING_TO_UPDATE", ["NOTHING_TO_UPDATE_DETAIL"]);
+		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
 	}
 
 	// Construct the final SQL query
@@ -119,7 +120,7 @@ router.put("/me", requiresAuth, async (req, res) => {
 
 		if (result.rows.length === 0) {
 			// No user found or user is disabled
-			return errorResponse(res, 404, "USER_NOT_FOUND", ["USER_NOT_FOUND_DETAIL"]);
+			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
 		}
 
 		// Construct the updated user profile response
@@ -136,17 +137,17 @@ router.put("/me", requiresAuth, async (req, res) => {
 
 		logToFile("UPDATE_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-		return successResponse(res, 200, "USER_UPDATED_SUCCESS", updatedUser);
+		return successResponse(res, 200, "User profile updated successfully.", updatedUser);
 	} catch (e) {
 		logToFile("UPDATE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_UPDATE_USER"]);
+		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_UPDATE_USER"]);
 	}
 }); // router.put("/me")
 
 
 //Disable the currently authenticated user's profile (soft delete)
 //This action revokes all refresh tokens to force logout
-router.delete("/me", requiresAuth, async (req, res) => {
+router.delete("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const client = await pool.connect();
 
@@ -162,7 +163,7 @@ router.delete("/me", requiresAuth, async (req, res) => {
 		// If no rows were affected, the user doesn't exist or is already disabled.
 		if (updateUser.rowCount === 0) {
 			await client.query("ROLLBACK");
-			return errorResponse(res, 404, "USER_NOT_FOUND", ["USER_NOT_FOUND_DETAIL"]);
+			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
 		}
 
 		// Revoke all their refresh tokens to force logout
@@ -177,35 +178,35 @@ router.delete("/me", requiresAuth, async (req, res) => {
 
 		// Send confirmation email to user (pseudo-code, implement email sending as needed)
 
-		return successResponse(res, 200, "USER_DISABLED_SUCCESS", {});
+		return successResponse(res, 200, "Your account has been disabled.", {});
 	} catch (e) {
 		await client.query("ROLLBACK");
 		logToFile("DISABLE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_DISABLE_USER"]);
+		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_DISABLE_USER"]);
 	} finally {
 		client.release();
 	}
 }); // router.delete("/me")
 
-router.post("/me/request-email-change", requiresAuth, (req, res) => {
-	return errorResponse(res, 501, "NOT_IMPLEMENTED", ["NOT_IMPLEMENTED_DETAIL"]);
+router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, (req, res) => {
+	return errorResponse(res, 501, "This functionality has not been implemented yet.", ["This endpoint is reserved for future use."]);
 }); // router.post("/me/request-email-change")
 
-router.post("/me/request-account-deletion", requiresAuth, (req, res) => {
-	return errorResponse(res, 501, "NOT_IMPLEMENTED", ["NOT_IMPLEMENTED_DETAIL"]);
+router.post("/me/request-account-deletion", requiresAuth, authenticatedLimiter, (req, res) => {
+	return errorResponse(res, 501, "This functionality has not been implemented yet.", ["This endpoint is reserved for future use."]);
 }); // router.post("/me/request-account-deletion")
 
 module.exports = router;
 
 /*
 {
-	"USER_RETRIEVED_SUCCESS": "User profile retrieved successfully.",
-	"USER_UPDATED_SUCCESS": "User profile updated successfully.",
-	"USER_DISABLED_SUCCESS": "Your account has been successfully disabled.",
-	"USER_NOT_FOUND": "User not found.",
-	"USER_NOT_FOUND_DETAIL": "The requested user profile could not be found or may be disabled.",
-	"NOTHING_TO_UPDATE": "No fields to update.",
-	"NOTHING_TO_UPDATE_DETAIL": "Please provide at least one field (fullName or preferredName) to update.",
+	"User profile retrieved successfully.": "User profile retrieved successfully.",
+	"User profile updated successfully.": "User profile updated successfully.",
+	"Your account has been disabled.": "Your account has been successfully disabled.",
+	"User not found.": "User not found.",
+	"The requested user record could not be located.": "The requested user profile could not be found or may be disabled.",
+	"No changes were provided.": "No fields to update.",
+	"Please provide at least one field to update.": "Please provide at least one field (fullName or preferredName) to update.",
 	"DATABASE_ERROR_GET_USER": "An error occurred while retrieving the user profile.",
 	"DATABASE_ERROR_UPDATE_USER": "An error occurred while updating the user profile.",
 	"DATABASE_ERROR_DISABLE_USER": "An error occurred while disabling the user account."

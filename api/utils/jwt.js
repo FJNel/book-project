@@ -1,5 +1,8 @@
 const jwt = require("jsonwebtoken");
 const config = require("../config");
+const pool = require("../db");
+const { errorResponse } = require("./response");
+const { logToFile } = require("./logging");
 
 const ACCESS_TOKEN_SECRET = config.jwt.accessSecret;
 const REFRESH_TOKEN_SECRET = config.jwt.refreshSecret;
@@ -11,11 +14,7 @@ function generateAccessToken(user) {
 	return jwt.sign(
 		{
 			id: user.id,
-			//   email: user.email,
 			role: user.role
-			//   isVerified: user.is_verified,
-			//   preferredName: user.preferred_name,
-			//   fullName: user.full_name
 		},
 		ACCESS_TOKEN_SECRET,
 		{ expiresIn: ACCESS_TOKEN_EXPIRES_IN }
@@ -42,45 +41,96 @@ function verifyRefreshToken(token) {
 	return jwt.verify(token, REFRESH_TOKEN_SECRET);
 } // verifyRefreshToken
 
-function requiresAuth(req, res, next) {
+async function requiresAuth(req, res, next) {
 	const authHeader = req.headers.authorization;
 	if (!authHeader || !authHeader.startsWith("Bearer ")) {
-		return res.status(401).json({
-			status: "error",
-			httpCode: 401,
-			message: "AUTHENTICATION_REQUIRED",
-			data: {},
-			errors: ["AUTHENTICATION_REQUIRED_DETAILS"]
-		});
+		logToFile("AUTH_CHECK", {
+			status: "FAILURE",
+			reason: "MISSING_AUTH_HEADER",
+			ip: req.ip,
+			path: req.originalUrl,
+			user_agent: req.get("user-agent")
+		}, "warn");
+		return errorResponse(res, 401, "Authentication required for this action.", ["Missing or invalid Authorization header."]);
 	}
+
 	const token = authHeader.split(" ")[1];
+	let payload;
+
 	try {
-		const payload = jwt.verify(token, ACCESS_TOKEN_SECRET);
-		req.user = payload; // Attach user info to request
-		next();
+		payload = jwt.verify(token, ACCESS_TOKEN_SECRET);
 	} catch (err) {
-		return res.status(401).json({
-			status: "error",
-			httpCode: 401,
-			message: "ACCESS_TOKEN_ERROR",
-			data: {},
-			errors: ["ACCESS_TOKEN_FAILED"]
-		});
+		logToFile("AUTH_CHECK", {
+			status: "FAILURE",
+			reason: "ACCESS_TOKEN_INVALID",
+			error_message: err.message,
+			ip: req.ip,
+			path: req.originalUrl,
+			user_agent: req.get("user-agent")
+		}, "warn");
+		return errorResponse(res, 401, "Invalid or expired access token.", ["Authentication failed."]);
+	}
+
+	try {
+		const { rows } = await pool.query("SELECT id, role, is_disabled FROM users WHERE id = $1", [payload.id]);
+		if (rows.length === 0) {
+			logToFile("AUTH_CHECK", {
+				status: "FAILURE",
+				reason: "User not found.",
+				user_id: payload.id,
+				ip: req.ip,
+				path: req.originalUrl,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 401, "Authentication required for this action.", ["Missing or invalid Authorization header."]);
+		}
+
+		const user = rows[0];
+		if (user.is_disabled) {
+			logToFile("AUTH_CHECK", {
+				status: "FAILURE",
+				reason: "Your account has been disabled.",
+				user_id: user.id,
+				ip: req.ip,
+				path: req.originalUrl,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 403, "Your account has been disabled.", ["Please contact the system administrator if you believe this is a mistake."]);
+		}
+
+		req.user = {
+			id: user.id,
+			role: user.role
+		};
+		return next();
+	} catch (dbErr) {
+		logToFile("AUTH_CHECK", {
+			status: "FAILURE",
+			reason: "Database Error",
+			error_message: dbErr.message,
+			user_id: payload.id,
+			ip: req.ip,
+			path: req.originalUrl,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["An error occurred while validating your authentication. Please try again."]);
 	}
 } // requiresAuth
 
 function requireRole(roles) {
 	return function (req, res, next) {
 		if (!req.user || !roles.includes(req.user.role)) {
-			return res.status(403).json({
-				status: "error",
-				httpCode: 403,
-				message: "FORBIDDEN_NO_PERMISSIONS",
-				data: {},
-				errors: ["FORBIDDEN_NO_PERMISSIONS_DETAIL_1"]
-			});
+			logToFile("AUTH_CHECK", {
+				status: "FAILURE",
+				reason: "FORBIDDEN_ROLE",
+				user_id: req.user ? req.user.id : null,
+				path: req.originalUrl,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 403, "Forbidden: Insufficient permissions.", ["You do not have permission to access this resource or endpoint."]);
 		}
-		next();
+		return next();
 	};
 } // requireRole
 
@@ -92,3 +142,4 @@ module.exports = {
   requiresAuth,
   requireRole
 };
+

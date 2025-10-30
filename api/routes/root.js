@@ -19,7 +19,7 @@ router.get("/", (req, res) => {
 			minute: "2-digit",
 			second: "2-digit",
 		});
-		return successResponse(res, 200, "API_IS_WORKING", {
+		return successResponse(res, 200, "The API is working!", {
 			timestamp,
 			api_documentation_url: config.api.docsUrl
 		//   db_documentation_url: `${config.api.baseUrl}/db_documentation.html`,

@@ -2,10 +2,12 @@ const express = require("express");
 const router = express.Router();
 
 const { requiresAuth, requireRole } = require("../utils/jwt");
+const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { t } = require("../utils/i18n");
 const { logToFile } = require("../utils/logging");
 
 // Middleware to ensure the user is an authenticated admin
-const adminAuth = [requiresAuth, requireRole(["admin"])];
+const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"])];
 
 /**
  * A reusable handler for endpoints that are not yet implemented.
@@ -19,12 +21,12 @@ const notImplemented = (req, res) => {
 		user_agent: req.get("user-agent"),
 		path: req.originalUrl,
 		method: req.method,
-		reason: "NOT_YET_IMPLEMENTED",
+		reason: "This admin endpoint is not yet implemented.",
 	}, "info");
 	return res.status(300).json({
 		status: "redirect",
 		httpCode: 300,
-		message: "NOT_YET_IMPLEMENTED",
+		message: t("This admin endpoint is not yet implemented."),
 		data: {
 			endpoint: `${req.method} ${req.originalUrl}`
 		},

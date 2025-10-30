@@ -1,5 +1,7 @@
 // This document provides a standard response format for API responses.
 
+const { t } = require("./i18n");
+
 function getResponseTime(request) {
 	if (!request._startTime) return null;
 	const diff = process.hrtime(request._startTime);
@@ -17,11 +19,12 @@ function getResponseTime(request) {
 // 	"errors": [] // Always an empty array on success
 // }
 function successResponse(res, httpCode = 200, message = "Success", data = {}) {
+	const resolvedMessage = t(message);
 	return res.status(httpCode).json({
 		status: "success",
 		httpCode,
 		responseTime: getResponseTime(res.req),
-		message,
+		message: resolvedMessage,
 		data,
 		errors: []
 	});
@@ -49,17 +52,25 @@ function errorResponse(res, httpCode = 500, message = "An error occurred", error
 	} catch (_) {
 		// ignore if not supported; leave as-is
 	}
-	errors = errors
+	const resolvedErrors = errors
 		.filter(Boolean)
-		.map((e) => (typeof e === "string" ? e : (e && e.message) || String(e)));
+		.map((e) => {
+			if (typeof e === "string") {
+				return t(e);
+			}
+			if (e && typeof e.message === "string") {
+				return e.message;
+			}
+			return String(e);
+		});
 
 	return res.status(httpCode).json({
 		status: "error",
 		httpCode,
 		responseTime: getResponseTime(res.req),
-		message,
+		message: t(message),
 		data: {},
-		errors
+		errors: resolvedErrors
 	});
 } // errorResponse
 

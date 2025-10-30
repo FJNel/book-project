@@ -16,6 +16,8 @@ const rateLimit = require("express-rate-limit");
 const fetch = require("node-fetch");
 const { OAuth2Client } = require("google-auth-library");
 const config = require("../config");
+const { rateLimitHandler, authenticatedLimiter } = require("../utils/rate-limiters");
+const { t } = require("../utils/i18n");
 
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
@@ -29,23 +31,6 @@ const SALT_ROUNDS = config.saltRounds;
 const RECAPTCHA_SECRET = config.recaptchaSecret;
 const googleClient = new OAuth2Client(config.google.clientId);
 
-// A reusable handler for when a rate limit is exceeded
-const rateLimitHandler = (req, res, next, options) => {
-	const errorMessage = `Rate limit exceeded for ${req.ip}`;
-	// Structured log
-	logToFile("RATE_LIMIT_EXCEEDED", {
-		status: "FAILURE",
-		path: req.path,
-		ip: req.ip,
-		user_agent: req.get("user-agent"),
-		limit: options.max,
-		window_seconds: options.windowMs / 1000,
-		error_message: errorMessage
-	}, "warn");
-
-	// Use your existing JSON error response utility
-	return errorResponse(res, 429, "TOO_MANY_REQUESTS", ["TOO_MANY_REQUESTS_DETAIL"]);
-};
 
 const registerLimiter = rateLimit({
 		windowMs: 10 * 60 * 1000, //10 minutes
@@ -132,11 +117,6 @@ async function verifyCaptcha(token, ip, expectedAction = null, minScore = 0.7) {
 		return false;
 	}
 
-	//Temporary for development testing
-	if (token === "test-bypass-token") {
-		return true;
-	}
-
 	try {
 		const params = new URLSearchParams();
 		params.append("secret", RECAPTCHA_SECRET);
@@ -174,7 +154,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'register');
 	if (!captchaValid) {
 	logToFile("USER_REGISTERED", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 
 	//Sanitize and validate inputs
@@ -193,7 +173,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 	if (errors.length > 0) {
 		logToFile("USER_REGISTERED", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "VALIDATION_ERROR", errors);
+		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
 	//Check if Email is Unique
@@ -202,8 +182,8 @@ router.post("/register", registerLimiter, async (req, res) => {
 			if (userRes.rows.length > 0) {
 				const existingUser = userRes.rows[0];
 				if (existingUser.is_verified) {
-					logToFile("USER_REGISTERED", { status: "FAILURE", reason: "EMAIL_IN_USE", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id }, "warn");
-					return errorResponse(res, 409, "EMAIL_IN_USE", ["EMAIL_IN_USE_DETAIL"]);
+					logToFile("USER_REGISTERED", { status: "FAILURE", reason: "Email already in use", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id }, "warn");
+					return errorResponse(res, 409, "Email already in use", ["The provided email is already associated with another account. Please log in or use a different email."]);
 				}
 
 				// If not verified, (re)issue verification token and respond 200
@@ -221,15 +201,15 @@ router.post("/register", registerLimiter, async (req, res) => {
 										userId: existingUser.id
 								});
 
-					return successResponse(res, 200, "ACCOUNT_ALREADY_EXISTS", {});
+					return successResponse(res, 200, "Account already exists but not verified. Verification email has been (re)sent. The existing account was not modified.", {});
 				} catch (e) {
 					logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id, details: { trigger: "REGISTER_ATTEMPT" } }, "error");
-					return errorResponse(res, 500, "TOKEN_ISSUE_ERROR", [e.message]);
+					return errorResponse(res, 500, "Failed to issue verification token", [e.message]);
 				}
 			}
 	} catch(e) {
 		logToFile("USER_REGISTERED", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_DUPLICATE_EMAIL", e.message]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while checking for a duplicate email", e.message]);
 	}
 
 
@@ -264,7 +244,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 						userId: newUser.id
 				});
 
-		return successResponse(res, 201, "REGISTRATION_SUCCESS", 
+		return successResponse(res, 201, "User registered successfully. Please verify your email before logging in.", 
 			{   id: newUser.id,
 				email: newUser.email,
 				fullName: newUser.full_name,
@@ -275,7 +255,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 	} catch (e) {
 		await client.query("ROLLBACK");
 		logToFile("USER_REGISTERED", { error: e.message, email }, "error");
-		return errorResponse(res, 500, "DATABASE_ERROR", ["DATABASE_ERROR_CREATING_USER", e.message]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while creating the user", e.message]);
 	} finally {
 		client.release();
 	}
@@ -295,7 +275,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend_verification');
 	if (!captchaValid) {
 	logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 
 		email = email ? email.trim().toLowerCase() : null;
@@ -304,10 +284,10 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 		if (emailErrors.length > 0) {
 				// Log validation error, but respond generically
 				logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "VALIDATION", email, errors: emailErrors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "VALIDATION_ERROR", emailErrors);
+		return errorResponse(res, 400, "Validation Error", emailErrors);
 		}
 
-		const generalMessage = { "message":"RESEND_VERIFICATION_MESSAGE", "disclaimer":"RESEND_VERIFICATION_DISCLAIMER"};
+		const generalMessage = { message: t("If you have registered an account with this email address and it is unverified, you will receive a verification email."), disclaimer: t("If you did not receive an email when you should have, please check your spam folder or try again later.") };
 		try {
 				const userRes = await pool.query("SELECT id, is_verified, preferred_name FROM users WHERE email = $1", [email]);
 				if (userRes.rows.length === 0 || userRes.rows[0].is_verified) {
@@ -346,7 +326,7 @@ router.post("/verify-email", async (req, res) => {
 	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'verify_email');
 	if (!captchaValid) {
 		logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 	
 	email = email ? email.trim().toLowerCase() : null;
@@ -360,7 +340,7 @@ router.post("/verify-email", async (req, res) => {
 
 	if (errors.length > 0) {
 		logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "EMAIL_VERIFICATION_ERROR", errors);
+		return errorResponse(res, 400, "Token expired or incorrect email address", errors);
 	}
 
 	try {
@@ -368,16 +348,16 @@ router.post("/verify-email", async (req, res) => {
 		const userRes = await pool.query("SELECT id, is_verified, preferred_name FROM users WHERE email = $1", [email]);
 		if (userRes.rows.length === 0) {
 			logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "NO_USER", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-			return errorResponse(res, 400, "EMAIL_VERIFICATION_ERROR", [
-				"EMAIL_VERIFICATION_ERROR_DETAIL_1",
-				"EMAIL_VERIFICATION_ERROR_DETAIL_2"
+			return errorResponse(res, 400, "Token expired or incorrect email address", [
+				"The provided token is invalid, has expired, or the email address is incorrect.",
+				"Please request a new verification email."
 			]);
 		}
 
 		const user = userRes.rows[0];
 		if (user.is_verified) {
 			logToFile("EMAIL_VERIFICATION", { status: "INFO", reason: "ALREADY_VERIFIED", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: user.id }, "info");
-			return successResponse(res, 200, "EMAIL_ALREADY_VERIFIED", {
+			return successResponse(res, 200, "Email already verified. You can log in.", {
 				id: user.id,
 				email
 			});
@@ -400,9 +380,9 @@ router.post("/verify-email", async (req, res) => {
 			new Date(tokenRes.rows[0].expires_at) < new Date()
 		) {
 			logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "INVALID_OR_EXPIRED_TOKEN", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-			return errorResponse(res, 400, "EMAIL_VERIFICATION_ERROR", [
-				"EMAIL_VERIFICATION_ERROR_DETAIL_1",
-				"EMAIL_VERIFICATION_ERROR_DETAIL_2"
+			return errorResponse(res, 400, "Token expired or incorrect email address", [
+				"The provided token is invalid, has expired, or the email address is incorrect.",
+				"Please request a new verification email."
 			]);
 		}
 
@@ -429,23 +409,23 @@ router.post("/verify-email", async (req, res) => {
 				userId: user.id
 			});
 
-			return successResponse(res, 200, "EMAIL_VERIFICATION_SUCCESS", {
+			return successResponse(res, 200, "Email verified successfully. You can now log in.", {
 				id: user.id,
 				email
 			});
 		} catch (e) {
 			await client.query("ROLLBACK");
 			logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-			return errorResponse(res, 500, "DATABASE_ERROR", [
-				"DATABASE_ERROR_VERIFY_EMAIL"
+			return errorResponse(res, 500, "Database Error", [
+				"An error occurred while verifying your email. Please try again."
 			]);
 		} finally {
 			client.release();
 		}
 	} catch (e) {
 		logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", [
-			"INTERNAL_SERVER_ERROR_EMAIL_DETAIL"
+		return errorResponse(res, 500, "Internal Server Error", [
+			"An error occurred while verifying your email. Please try again."
 		]);
 	}
 }); // router.post("/verify-email")
@@ -460,12 +440,12 @@ router.post("/login", loginLimiter, async (req, res) => {
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'login');
 		if (!captchaValid) {
 				logToFile("LOGIN_ATTEMPT", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-				return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+				return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 		}
 
 		// Basic input check (do not reveal which field is wrong)
 		if (!email || !password) {
-				return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
+				return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect"]);
 		}
 
 		try {
@@ -478,8 +458,8 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 						// Check if the account is disabled
 						if (user.is_disabled) {
-								logToFile("LOGIN_ATTEMPT", { status: "FAILURE", reason: "ACCOUNT_DISABLED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-								return errorResponse(res, 403, "ACCOUNT_DISABLED", ["ACCOUNT_DISABLED_DETAIL"]);
+								logToFile("LOGIN_ATTEMPT", { status: "FAILURE", reason: "Your account has been disabled.", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+								return errorResponse(res, 403, "Your account has been disabled.", ["Please contact the system administrator if you believe this is a mistake."]);
 						}
 
 						if (user.is_verified) {
@@ -492,7 +472,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 				if (!user || !user.is_verified || !passwordMatch) {
 						logToFile("LOGIN_ATTEMPT", { status: "FAILURE", reason: "INVALID_CREDENTIALS", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-						return errorResponse(res, 401, "LOGIN_INVALID_CREDENTIALS", ["LOGIN_INVALID_CREDENTIALS_DETAIL"]);
+						return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect"]);
 				}
 
 				// Generate fingerprint for refresh token
@@ -513,7 +493,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 				logToFile("LOGIN_ATTEMPT", { status: "SUCCESS", user_id: user.id, email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-				return successResponse(res, 200, "LOGIN_SUCCESS", {
+				return successResponse(res, 200, "Login successful.", {
 						accessToken,
 						refreshToken,
 						user: {
@@ -527,14 +507,14 @@ router.post("/login", loginLimiter, async (req, res) => {
 				});
 		} catch (e) {
 				logToFile("LOGIN_ATTEMPT", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-				return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGIN_DETAIL"]);
+				return errorResponse(res, 500, "Internal Server Error", ["An error occurred during login. Please try again."]);
 		}
 }); // router.post("/login")
 
 
 
 //POST auth/logout: Revoke refreshToken to log user out
-router.post("/logout", requiresAuth, async (req, res) => {
+router.post("/logout", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const { refreshToken, allDevices } = req.body || {};
 	const normalizedAllDevices = typeof allDevices === "string" ? allDevices.trim().toLowerCase() : allDevices;
 	const logoutAllDevices = normalizedAllDevices === true
@@ -563,7 +543,7 @@ router.post("/logout", requiresAuth, async (req, res) => {
 				user_agent: req.get("user-agent")
 			}, "info");
 
-			return successResponse(res, 200, "LOGOUT_SUCCESS", {
+			return successResponse(res, 200, "Logged out successfully.", {
 				scope: "all",
 				revokedSessions: rowCount
 			});
@@ -576,24 +556,24 @@ router.post("/logout", requiresAuth, async (req, res) => {
 				ip: req.ip,
 				user_agent: req.get("user-agent")
 			}, "error");
-			return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGOUT_DETAIL"]);
+			return errorResponse(res, 500, "Internal Server Error", ["An error occurred while logging out. Please try again."]);
 		}
 	}
 
 	if (!refreshToken || typeof refreshToken !== "string") {
-		return errorResponse(res, 400, "REFRESH_TOKEN_REQUIRED", ["REFRESH_TOKEN_REQUIRED_DETAIL"]);
+		return errorResponse(res, 400, "Refresh token required", ["Please provide a valid refresh token in the request body."]);
 	}
 
 	let payload;
 	try {
 		payload = verifyRefreshToken(refreshToken);
 	} catch (e) {
-		return errorResponse(res, 401, "REFRESH_TOKEN_INVALID", ["REFRESH_TOKEN_INVALID_DETAIL"]);
+		return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 	}
 
 	if (payload.id !== req.user.id || !payload.fingerprint) {
-		return errorResponse(res, 403, "FORBIDDEN", ["FORBIDDEN_LOGOUT_DETAIL_1",
-			"FORBIDDEN_LOGOUT_DETAIL_2"]);
+		return errorResponse(res, 403, "Forbidden", ["You can only log out your own session.",
+			"The access token and refresh token do not belong to the same user."]);
 	}
 
 	try {
@@ -616,7 +596,7 @@ router.post("/logout", requiresAuth, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "LOGOUT_SUCCESS", {
+		return successResponse(res, 200, "Logged out successfully.", {
 			scope: "single",
 			revokedSessions: rowCount
 		});
@@ -629,7 +609,7 @@ router.post("/logout", requiresAuth, async (req, res) => {
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
-		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_LOGOUT_DETAIL"]);
+		return errorResponse(res, 500, "Internal Server Error", ["An error occurred while logging out. Please try again."]);
 	}
 }); // router.post("/logout")
 
@@ -640,14 +620,14 @@ router.post("/refresh-token", async (req, res) => {
 	const { refreshToken } = req.body || {};
 
 	if (!refreshToken || typeof refreshToken !== "string") {
-		return errorResponse(res, 400, "REFRESH_TOKEN_REQUIRED", ["REFRESH_TOKEN_REQUIRED_DETAIL"]);
+		return errorResponse(res, 400, "Refresh token required", ["Please provide a valid refresh token in the request body."]);
 	}
 
 	let payload;
 	try {
 		payload = verifyRefreshToken(refreshToken);
 	} catch (e) {
-		return errorResponse(res, 401, "REFRESH_TOKEN_INVALID", ["REFRESH_TOKEN_INVALID_DETAIL"]);
+		return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 	}
 
 	try {
@@ -662,22 +642,30 @@ router.post("/refresh-token", async (req, res) => {
 		);
 
 		if (tokenRes.rows.length === 0) {
-			return errorResponse(res, 401, "REFRESH_TOKEN_INVALID", ["REFRESH_TOKEN_INVALID_DETAIL"]);
+			return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 		}
 
 		// Fetch user details
 		const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [payload.id]);
 		if (userRes.rows.length === 0) {
-			return errorResponse(res, 401, "REFRESH_TOKEN_INVALID", ["REFRESH_TOKEN_INVALID_DETAIL_2"]);
+			return errorResponse(res, 401, "Invalid refresh token", ["User associated with token not found."]);
 		}
 		const user = userRes.rows[0];
+
+		if (user.is_disabled) {
+			await pool.query(
+				`UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND token_fingerprint = $2 AND revoked = false`,
+				[user.id, payload.fingerprint]
+			);
+			return errorResponse(res, 403, "Your account has been disabled.", ["Please contact the system administrator if you believe this is a mistake."]);
+		}
 
 		// Generate a new access token
 		const newAccessToken = generateAccessToken(user);
 
-		return successResponse(res, 200, "REFRESH_TOKEN_SUCCESS", { accessToken: newAccessToken });
+		return successResponse(res, 200, "Access token refreshed.", { accessToken: newAccessToken });
 	} catch (e) {
-		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["INTERNAL_SERVER_ERROR_REFRESH_TOKEN_DETAIL"]);
+		return errorResponse(res, 500, "Internal Server Error", ["An error occurred while refreshing the access token."]);
 	}
 }); // router.post("/refresh-token")
 
@@ -692,19 +680,16 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'request_password_reset');
 		if (!captchaValid) {
 				logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-				return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+				return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 		}
 
 		email = email ? email.trim().toLowerCase() : null;
 		const emailErrors = validateEmail(email);
-		const generalMessage = {
-				message: "PASSWORD_RESET_MESSAGE",
-				disclaimer: "PASSWORD_RESET_DISCLAIMER"
-		};
+		const generalMessage = { message: t("If you have registered an account with this email address, you will receive a password reset email."), disclaimer: t("If you did not receive an email when you should have, please check your spam folder or try again later.") };
 
 		if (emailErrors.length > 0) {
 				logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "VALIDATION", email, errors: emailErrors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-				return errorResponse(res, 400, "VALIDATION_ERROR", emailErrors);
+				return errorResponse(res, 400, "Validation Error", emailErrors);
 		}
 
 		try {
@@ -768,8 +753,8 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 		// CAPTCHA check
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'reset_password');
 		if (!captchaValid) {
-				logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-				return errorResponse(res, 400, "CAPTCHA_VERIFICATION_FAILED", ["CAPTCHA_VERIFICATION_FAILED_DETAIL_1", "CAPTCHA_VERIFICATION_FAILED_DETAIL_2"]);
+				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+				return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 		}
 
 		email = email ? email.trim().toLowerCase() : null;
@@ -784,18 +769,18 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 		].filter(Boolean);
 
 		if (errors.length > 0) {
-				logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-				return errorResponse(res, 400, "VALIDATION_ERROR", errors);
+				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+				return errorResponse(res, 400, "Validation Error", errors);
 		}
 
 		try {
 				// Find user by email
 				const userRes = await pool.query("SELECT id, preferred_name FROM users WHERE email = $1", [email]);
 				if (userRes.rows.length === 0) {
-						logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", reason: "NO_USER", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-						return errorResponse(res, 400, "EMAIL_VERIFICATION_ERROR", [
-								"EMAIL_VERIFICATION_ERROR_DETAIL_1",
-								"PASSWORD_RESET_ERROR_DETAIL_2"
+						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "NO_USER", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+						return errorResponse(res, 400, "Token expired or incorrect email address", [
+								"The provided token is invalid, has expired, or the email address is incorrect.",
+								"Please request a new password reset email."
 						]);
 				}
 
@@ -817,10 +802,10 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 						tokenRes.rows[0].used ||
 						new Date(tokenRes.rows[0].expires_at) < new Date()
 				) {
-						logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", reason: "INVALID_OR_EXPIRED_TOKEN", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-						return errorResponse(res, 400, "EMAIL_VERIFICATION_ERROR", [
-								"EMAIL_VERIFICATION_ERROR_DETAIL_1",
-								"PASSWORD_RESET_ERROR_DETAIL_2"
+						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "INVALID_OR_EXPIRED_TOKEN", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+						return errorResponse(res, 400, "Token expired or incorrect email address", [
+								"The provided token is invalid, has expired, or the email address is incorrect.",
+								"Please request a new password reset email."
 						]);
 				}
 
@@ -844,7 +829,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 			);
 
 						await client.query("COMMIT");
-						logToFile("PASSWORD_RESET_SUCCESS", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
+						logToFile("Password reset successfully. You can now log in.", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 						// Send password reset success confirmation (best-effort, fire-and-forget)
 						enqueueEmail({
@@ -854,23 +839,23 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 								userId: user.id
 						});
 
-						return successResponse(res, 200, "PASSWORD_RESET_SUCCESS", {
+						return successResponse(res, 200, "Password reset successfully. You can now log in.", {
 								id: user.id,
 								email
 						});
 				} catch (e) {
 						await client.query("ROLLBACK");
-						logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-						return errorResponse(res, 500, "DATABASE_ERROR", [
-								"DATABASE_ERROR_PASSWORD_RESET"
+						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+						return errorResponse(res, 500, "Database Error", [
+								"An error occurred while resetting your password. Please try again."
 						]);
 				} finally {
 						client.release();
 				}
 		} catch (e) {
-				logToFile("PASSWORD_RESET_SUCCESS", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-				return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", [
-						"INTERNAL_SERVER_ERROR_PASSWORD_RESET_DETAIL"
+				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+				return errorResponse(res, 500, "Internal Server Error", [
+						"An error occurred while resetting your password. Please try again."
 				]);
 		}
 }); // router.post("/reset-password")
@@ -889,7 +874,7 @@ router.post("/google", async (req, res) => {
 	const { idToken } = req.body || {};
 
 	if (!idToken || typeof idToken !== "string") {
-		return errorResponse(res, 400, "ID_TOKEN_REQUIRED", ["ID_TOKEN_REQUIRED_DETAIL"]);
+		return errorResponse(res, 400, "ID token required", ["Please provide a valid Google ID token in the request body."]);
 	}
 
 	let payload;
@@ -897,7 +882,7 @@ router.post("/google", async (req, res) => {
 		payload = await verifyGoogleIdToken(idToken);
 	} catch (e) {
 		logToFile("OAUTH_LOGIN", { status: "FAILURE", error_message: e.message, provider: "google", ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 401, "ID_TOKEN_INVALID", ["ID_TOKEN_INVALID_GOOGLE"]);
+		return errorResponse(res, 401, "Invalid ID token", ["The provided Google ID token is invalid."]);
 	}
 
 	//Save userID, email, fullName and preferredName from payload
@@ -911,16 +896,16 @@ router.post("/google", async (req, res) => {
 	const preferredName = rawPreferredName ? rawPreferredName : null;
 
 	if (!email_verified) {
-		return errorResponse(res, 400, "GOOGLE_EMAIL_NOT_VERIFIED", ["GOOGLE_EMAIL_NOT_VERIFIED_DETAIL"]);
+		return errorResponse(res, 400, "Email not verified by Google", ["Your Google account email is not verified. Please verify your email with Google before signing in."]);
 	}
 
 	if (!providerUserId || typeof providerUserId !== "string") {
-		return errorResponse(res, 400, "GOOGLE_NO_USER_ID", ["GOOGLE_NO_USER_ID_DETAIL"]);
+		return errorResponse(res, 400, "Invalid Google profile: No user ID", ["Could not retrieve valid user ID from Google profile."]);
 	}
 
 	if (!email || !fullName) {
-	return errorResponse(res, 400, "GOOGLE_PROFILE_INCOMPLETE", ["GOOGLE_PROFILE_INCOMPLETE_DETAIL_1", "GOOGLE_PROFILE_INCOMPLETE_DETAIL_2",
-		"GOOGLE_PROFILE_INCOMPLETE_DETAIL_3"
+	return errorResponse(res, 400, "Incomplete Google profile", ["Your Google profile is missing required information.", "Please ensure your Google account has an email address and name associated with it.",
+		"Or, if you still have issues, please register/login manually."
 	]);
 	}
 
@@ -990,7 +975,7 @@ router.post("/google", async (req, res) => {
 
 		logToFile("OAUTH_LOGIN", { status: "SUCCESS", user_id: user.id, email, provider: "google", ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-		return successResponse(res, 200, "LOGIN_SUCCESS", {
+		return successResponse(res, 200, "Login successful.", {
 			accessToken,
 			refreshToken,
 			user: {
@@ -1005,12 +990,10 @@ router.post("/google", async (req, res) => {
 	} catch (e) {
 		await client.query("ROLLBACK");
 		logToFile("OAUTH_LOGIN", { status: "FAILURE", error_message: e.message, email, provider: "google", ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "INTERNAL_SERVER_ERROR", ["An error occurred during Google login. Please try again."]);
+		return errorResponse(res, 500, "Internal Server Error", ["An error occurred during Google login. Please try again."]);
 	} finally {
 		client.release();
 	}
 }); // router.post("/google")
 
 module.exports = router;
-
-
