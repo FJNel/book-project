@@ -17,7 +17,6 @@ const fetch = require("node-fetch");
 const { OAuth2Client } = require("google-auth-library");
 const config = require("../config");
 const { rateLimitHandler, authenticatedLimiter } = require("../utils/rate-limiters");
-const { t } = require("../utils/i18n");
 
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
@@ -30,7 +29,6 @@ const { v4: uuidv4 } = require("uuid");
 const SALT_ROUNDS = config.saltRounds;
 const RECAPTCHA_SECRET = config.recaptchaSecret;
 const googleClient = new OAuth2Client(config.google.clientId);
-
 
 const registerLimiter = rateLimit({
 		windowMs: 10 * 60 * 1000, //10 minutes
@@ -287,7 +285,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 		return errorResponse(res, 400, "Validation Error", emailErrors);
 		}
 
-		const generalMessage = { message: t("If you have registered an account with this email address and it is unverified, you will receive a verification email."), disclaimer: t("If you did not receive an email when you should have, please check your spam folder or try again later.") };
+		const generalMessage = { message: "If you have registered an account with this email address and it is unverified, you will receive a verification email.", disclaimer: "If you did not receive an email when you should have, please check your spam folder or try again later." };
 		try {
 				const userRes = await pool.query("SELECT id, is_verified, preferred_name FROM users WHERE email = $1", [email]);
 				if (userRes.rows.length === 0 || userRes.rows[0].is_verified) {
@@ -685,7 +683,7 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
 
 		email = email ? email.trim().toLowerCase() : null;
 		const emailErrors = validateEmail(email);
-		const generalMessage = { message: t("If you have registered an account with this email address, you will receive a password reset email."), disclaimer: t("If you did not receive an email when you should have, please check your spam folder or try again later.") };
+		const generalMessage = { message: "If you have registered an account with this email address, you will receive a password reset email.", disclaimer: "If you did not receive an email when you should have, please check your spam folder or try again later." };
 
 		if (emailErrors.length > 0) {
 				logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", reason: "VALIDATION", email, errors: emailErrors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");

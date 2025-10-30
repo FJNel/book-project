@@ -1,12 +1,30 @@
 // This document provides a standard response format for API responses.
 
-const { t } = require("./i18n");
-
 function getResponseTime(request) {
 	if (!request._startTime) return null;
 	const diff = process.hrtime(request._startTime);
 	return (diff[0] * 1000 + diff[1] / 1e6).toFixed(2); // ms
 } // getResponseTime
+
+
+// Normalize message to string which means
+// if the value is null or undefined, it will be converted to an empty string
+// if the value is a string, it will be returned as is
+// if the value is an object with a message property, the message will be returned
+// otherwise, the value will be converted to a string
+
+function normalizeMessage(value) {
+	if (value === null || value === undefined) {
+		return "";
+	}
+	if (typeof value === "string") {
+		return value;
+	}
+	if (value && typeof value.message === "string") {
+		return value.message;
+	}
+	return String(value);
+} // normalizeMessage
 
 //Success Response
 // {
@@ -19,12 +37,11 @@ function getResponseTime(request) {
 // 	"errors": [] // Always an empty array on success
 // }
 function successResponse(res, httpCode = 200, message = "Success", data = {}) {
-	const resolvedMessage = t(message);
 	return res.status(httpCode).json({
 		status: "success",
 		httpCode,
 		responseTime: getResponseTime(res.req),
-		message: resolvedMessage,
+		message: normalizeMessage(message),
 		data,
 		errors: []
 	});
@@ -54,21 +71,14 @@ function errorResponse(res, httpCode = 500, message = "An error occurred", error
 	}
 	const resolvedErrors = errors
 		.filter(Boolean)
-		.map((e) => {
-			if (typeof e === "string") {
-				return t(e);
-			}
-			if (e && typeof e.message === "string") {
-				return e.message;
-			}
-			return String(e);
-		});
+		.map((e) => normalizeMessage(e))
+		.filter(Boolean);
 
 	return res.status(httpCode).json({
 		status: "error",
 		httpCode,
 		responseTime: getResponseTime(res.req),
-		message: t(message),
+		message: normalizeMessage(message),
 		data: {},
 		errors: resolvedErrors
 	});

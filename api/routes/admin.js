@@ -3,7 +3,6 @@ const router = express.Router();
 
 const { requiresAuth, requireRole } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
-const { t } = require("../utils/i18n");
 const { logToFile } = require("../utils/logging");
 
 // Middleware to ensure the user is an authenticated admin
@@ -14,6 +13,7 @@ const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"])];
  * Returns a 300 status code as requested.
  */
 const notImplemented = (req, res) => {
+	const message = "This admin endpoint is not yet implemented.";
 	logToFile("ADMIN_ENDPOINT", {
 		status: "INFO",
 		user_id: req.user?.id || null,
@@ -21,16 +21,16 @@ const notImplemented = (req, res) => {
 		user_agent: req.get("user-agent"),
 		path: req.originalUrl,
 		method: req.method,
-		reason: "This admin endpoint is not yet implemented.",
+		reason: message,
 	}, "info");
 	return res.status(300).json({
 		status: "redirect",
 		httpCode: 300,
-		message: t("This admin endpoint is not yet implemented."),
+		message,
 		data: {
 			endpoint: `${req.method} ${req.originalUrl}`
 		},
-		errors: ["This admin endpoint is not yet implemented."]
+		errors: [message]
 	});
 }; // notImplemented
 
