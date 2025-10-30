@@ -4,6 +4,7 @@ const router = express.Router();
 const { requiresAuth, requireRole } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const { errorResponse } = require("../utils/response");
 
 // Middleware to ensure the user is an authenticated admin
 const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"])];
@@ -23,15 +24,7 @@ const notImplemented = (req, res) => {
 		method: req.method,
 		reason: message,
 	}, "info");
-	return res.status(300).json({
-		status: "redirect",
-		httpCode: 300,
-		message,
-		data: {
-			endpoint: `${req.method} ${req.originalUrl}`
-		},
-		errors: [message]
-	});
+	return errorResponse(res, 300, message, [message]);
 }; // notImplemented
 
 // `GET /admin/users/` - List all users (admin only, with pagination and filtering)

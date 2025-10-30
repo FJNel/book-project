@@ -60,7 +60,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return successResponse(res, 200, "User profile retrieved successfully.", userProfile);
 	} catch (e) {
 		logToFile("GET_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_GET_USER"]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the user profile."]);
 	}
 }); // router.get("/me")
 
@@ -140,7 +140,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return successResponse(res, 200, "User profile updated successfully.", updatedUser);
 	} catch (e) {
 		logToFile("UPDATE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_UPDATE_USER"]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the user profile."]);
 	}
 }); // router.put("/me")
 
@@ -182,7 +182,7 @@ router.delete("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	} catch (e) {
 		await client.query("ROLLBACK");
 		logToFile("DISABLE_PROFILE_ERROR", { status: "FAILURE", error_message: e.message, user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "Database Error", ["DATABASE_ERROR_DISABLE_USER"]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while disabling the user account."]);
 	} finally {
 		client.release();
 	}
@@ -197,18 +197,3 @@ router.post("/me/request-account-deletion", requiresAuth, authenticatedLimiter, 
 }); // router.post("/me/request-account-deletion")
 
 module.exports = router;
-
-/*
-{
-	"User profile retrieved successfully.": "User profile retrieved successfully.",
-	"User profile updated successfully.": "User profile updated successfully.",
-	"Your account has been disabled.": "Your account has been successfully disabled.",
-	"User not found.": "User not found.",
-	"The requested user record could not be located.": "The requested user profile could not be found or may be disabled.",
-	"No changes were provided.": "No fields to update.",
-	"Please provide at least one field to update.": "Please provide at least one field (fullName or preferredName) to update.",
-	"DATABASE_ERROR_GET_USER": "An error occurred while retrieving the user profile.",
-	"DATABASE_ERROR_UPDATE_USER": "An error occurred while updating the user profile.",
-	"DATABASE_ERROR_DISABLE_USER": "An error occurred while disabling the user account."
-}
-*/
