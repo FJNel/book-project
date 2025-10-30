@@ -78,9 +78,9 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 	  logToFile("EMAIL_SENT", { to: toEmail, type: "verification", id: data.id });
 	  return true;
 	} catch (error) {
-	  logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
-	  console.error("Error sending verification email:", error.message);
-	  return false;
+	  	logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+	  	console.error("Error sending verification email:", error.message);
+	  	return false;
 	}
 } // sendVerificationEmail
 
@@ -159,9 +159,9 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 
 async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
-	  logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
-	  console.error("Email service is not configured. Please check environment variables.");
-	  return false;
+	  	logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+	  	console.error("Email service is not configured. Please check environment variables.");
+	  	return false;
 	}
 	const subject = "Your Book Project account has been disabled";
 	const year = new Date().getFullYear();
@@ -212,19 +212,19 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 	`;
   
 	try {
-	  const data = await mg.messages.create(MAILGUN_DOMAIN, {
-		from: `Book Project <${FROM_EMAIL}>`,
-		to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
-		subject,
-		html
-	  });
+	  	const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+	  	});
   
-	  logToFile("EMAIL_SENT", { to: toEmail, type: "account_disabled", id: data.id });
-	  return true;
+	  	logToFile("EMAIL_SENT", { to: toEmail, type: "account_disabled", id: data.id });
+	  	return true;
 	} catch (error) {
-	  logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
-	  console.error("Error sending account disable confirmation email:", error.message);
-	  return false;
+	  	logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+	  	console.error("Error sending account disable confirmation email:", error.message);
+	  	return false;
 	}
 } // sendAccountDisableConfirmationEmail
 

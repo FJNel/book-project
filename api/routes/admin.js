@@ -12,24 +12,24 @@ const adminAuth = [requiresAuth, requireRole(["admin"])];
  * Returns a 300 status code as requested.
  */
 const notImplemented = (req, res) => {
-    logToFile("ADMIN_ENDPOINT", {
-        status: "INFO",
-        user_id: req.user?.id || null,
-        ip: req.ip,
-        user_agent: req.get("user-agent"),
-        path: req.originalUrl,
-        method: req.method,
-        reason: "NOT_YET_IMPLEMENTED",
-    }, "info");
-    return res.status(300).json({
-        status: "redirect",
-        httpCode: 300,
-        message: "NOT_YET_IMPLEMENTED",
-        data: {
-            endpoint: `${req.method} ${req.originalUrl}`
-        },
-        errors: ["This admin endpoint is not yet implemented."]
-    });
+	logToFile("ADMIN_ENDPOINT", {
+		status: "INFO",
+		user_id: req.user?.id || null,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		path: req.originalUrl,
+		method: req.method,
+		reason: "NOT_YET_IMPLEMENTED",
+	}, "info");
+	return res.status(300).json({
+		status: "redirect",
+		httpCode: 300,
+		message: "NOT_YET_IMPLEMENTED",
+		data: {
+			endpoint: `${req.method} ${req.originalUrl}`
+		},
+		errors: ["This admin endpoint is not yet implemented."]
+	});
 }; // notImplemented
 
 // `GET /admin/users/` - List all users (admin only, with pagination and filtering)

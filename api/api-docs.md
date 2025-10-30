@@ -136,8 +136,6 @@ Log entry conventions:
 - Error fields: `error_message` (normalized from any `error`)
 - Additional context lives under `details`
 
-Deprecated: `logToFile` (legacy DB logger) is no-op and should not be used. Use `logToFile(event, data, level)` everywhere.
-
 # Response Format
 
 All API responses, whether successful or failed, follow a standardised JSON structure. This ensures consistency and makes it easier to handle responses programmatically.
