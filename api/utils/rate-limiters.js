@@ -18,7 +18,7 @@ function rateLimitHandler(req, res, _next, options) {
 
 const authenticatedLimiter = rateLimit({
 	windowMs: 60 * 1000, // 1 minute window
-	max: 240, // generous cap: 4 requests/sec sustained
+	max: 60, // Cap: 60 requests per 1 minute per user
 	standardHeaders: true,
 	legacyHeaders: false,
 	handler: rateLimitHandler,
