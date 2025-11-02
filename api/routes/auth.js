@@ -13,7 +13,9 @@ const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const rateLimit = require("express-rate-limit");
-const fetch = require("node-fetch");
+const fetch = global.fetch
+	? global.fetch.bind(global)
+	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
 const { OAuth2Client } = require("google-auth-library");
 const config = require("../config");
 const { rateLimitHandler, authenticatedLimiter } = require("../utils/rate-limiters");
