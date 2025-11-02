@@ -70,7 +70,24 @@
   async function getToken(action) {
     if (!action || typeof action !== 'string') action = 'generic';
     await ensureLoaded();
-    return window.grecaptcha.execute(siteKey, { action });
+
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const token = await window.grecaptcha.execute(siteKey, { action });
+        if (typeof token === 'string' && token.trim().length > 0) {
+          return token;
+        }
+        lastError = new Error('Received empty reCAPTCHA token');
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+      }
+
+      // Small delay before retrying to give reCAPTCHA time to recover.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    throw lastError || new Error('Failed to obtain reCAPTCHA token');
   }
 
   function init(key) {
