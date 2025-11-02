@@ -164,25 +164,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSuccess(data) {
         console.log('[Resend Verification] API request successful.');
-        const message = getLangString(data.message.message);
-        const disclaimer = getLangString(data.message.disclaimer);
-        showAlert('success', `<strong>${message}</strong><br><em>${disclaimer}</em>`);
+        const rawMessage = typeof data?.message === 'string'
+            ? data.message
+            : data?.message?.message;
+        const messageText = getLangString(rawMessage || 'RESEND_VERIFICATION_MESSAGE');
+        const disclaimerSource = typeof data?.data?.disclaimer === 'string'
+            ? data.data.disclaimer
+            : data?.message?.disclaimer || '';
+        const disclaimerText = disclaimerSource ? getLangString(disclaimerSource) : '';
+        const alertHtml = disclaimerText
+            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
+            : `<strong>${messageText}</strong>`;
+        showAlert('success', alertHtml);
         resendForm.reset();
     }
 
     function handleError(status, data) {
         console.warn('[Resend Verification] API request failed with status:', status);
-        if (status === 429) {
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors.map(getLangString).join(' ');
-            showAlert('error', `${message} ${details}`);
-        } else if (status === 400 && data.message === 'VALIDATION_ERROR') {
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors.map(getLangString).join(' ');
-            showAlert('error', `${message} ${details}`);
-        } else {
-            showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
+        const messageText = getLangString(data?.message || 'An unexpected error occurred.');
+        const detailsText = Array.isArray(data?.errors) && data.errors.length
+            ? data.errors.map(getLangString).join(' ')
+            : '';
+        const alertHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
+
+        if (status === 429 || status === 400) {
+            showAlert('error', alertHtml);
+            return;
         }
+
+        showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
     }
 
     // --- Event Listeners ---

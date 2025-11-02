@@ -6,21 +6,25 @@ async function checkApiHealth() {
     try {
         const response = await apiFetch('/', { method: 'GET' });
 
-        if (response.ok) {
-            const data = await response.json();
-            if (data.status === 'success' && data.message === 'API_IS_WORKING') {
-                console.log('[API Health Check] API is working:', data.message);
-                return true;
-            } else {
-                console.error('[API Health Check] Unexpected API response:', data);
-                showApiErrorModal();
-                return false;
-            }
-        } else {
+        if (!response.ok) {
             console.error('[API Health Check] Failed:', response.status, response.statusText);
             showApiErrorModal();
             return false;
         }
+
+        const data = await response.json();
+        const responseStatus = typeof data.status === 'string' ? data.status.toLowerCase() : null;
+        const isSuccess = responseStatus === 'success' || (!responseStatus && response.ok);
+
+        if (isSuccess) {
+            const message = typeof data.message === 'string' ? data.message : 'API responded successfully.';
+            console.log('[API Health Check] API is working:', message);
+            return true;
+        }
+
+        console.error('[API Health Check] Unexpected API response:', data);
+        showApiErrorModal();
+        return false;
     } catch (error) {
         console.error('[API Health Check] Error while checking API health:', error);
         showApiErrorModal();

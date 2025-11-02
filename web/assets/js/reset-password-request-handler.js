@@ -169,21 +169,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSuccess(data) {
         console.log('[Password Reset] API request successful.');
-        const message = getLangString(data.message.message || 'PASSWORD_RESET_MESSAGE');
-        const disclaimer = getLangString(data.message.disclaimer || 'PASSWORD_RESET_DISCLAIMER');
-        showAlert('success', `<strong>${message}</strong><br><em>${disclaimer}</em>`);
+        const rawMessage = typeof data?.message === 'string'
+            ? data.message
+            : data?.message?.message;
+        const messageText = getLangString(rawMessage || 'PASSWORD_RESET_MESSAGE');
+        const disclaimerSource = typeof data?.data?.disclaimer === 'string'
+            ? data.data.disclaimer
+            : data?.message?.disclaimer || '';
+        const disclaimerText = disclaimerSource ? getLangString(disclaimerSource) : '';
+        const alertHtml = disclaimerText
+            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
+            : `<strong>${messageText}</strong>`;
+        showAlert('success', alertHtml);
         forgotPasswordForm.reset(); // Reset the form after success
     }
 
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
-        if (status === 400 && data.message === 'VALIDATION_ERROR') {
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors.map(getLangString).join(' ');
-            showAlert('error', `${message} ${details}`);
-        } else {
-            showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
+        const messageText = getLangString(data?.message || 'An unexpected error occurred.');
+        const detailsText = Array.isArray(data?.errors) && data.errors.length
+            ? data.errors.map(getLangString).join(' ')
+            : '';
+        const alertHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
+
+        if (status === 400) {
+            showAlert('error', alertHtml);
+            return;
         }
+
+        showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
     }
 
     // --- Event Listeners ---

@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             console.log('[API] Received response:', { status: response.status, data });
 
-            if (response.ok && data.message === 'LOGIN_SUCCESS') {
+            if (response.ok && data?.data?.accessToken && data?.data?.refreshToken) {
                 handleLoginSuccess(data);
             } else {
                 handleLoginError(response.status, data);
@@ -274,26 +274,25 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function handleLoginError(status, data) {
         console.warn('[Login] Login failed with status:', status);
-        if (status === 429) {
-            //Too many requests
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors.map(getLangString).join(' ');
-            showLoginError(`${message} ${details}`);
-        } else if (status === 401 && data.message === 'LOGIN_INVALID_CREDENTIALS') {
-            // Invalid credentials
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors.map(getLangString).join(' ');
-            showLoginError(`${message} ${details}`);
+        loginErrorResendVerificationAlert.style.display = 'none';
+        const messageText = getLangString(data?.message || 'An unexpected error occurred.');
+        const detailsText = Array.isArray(data?.errors) && data.errors.length
+            ? data.errors.map(getLangString).join(' ')
+            : '';
+        const errorHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
+
+        if (status === 401) {
+            showLoginError(errorHtml);
             loginErrorResendVerificationAlert.style.display = 'block';
-        } else if (status === 400 && data.message === 'CAPTCHA_VERIFICATION_FAILED') {
-            // CAPTCHA failure
-            const message = `<strong>${getLangString(data.message)}:</strong>`;
-            const details = data.errors[0].map(getLangString).join(' ');
-            showLoginError(`${message} ${details}`);
-        } else {
-            // Other errors
-            showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
+            return;
         }
+
+        if (status === 429 || status === 400) {
+            showLoginError(errorHtml);
+            return;
+        }
+
+        showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
     }
 
     loginForm.addEventListener('submit', handleLogin);
