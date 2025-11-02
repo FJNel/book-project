@@ -12,11 +12,10 @@ const config = {
 	maxRetries: 3,
 	initialDelayMs: 1000,
 	backoffFactor: 2,
-	concurrency: 1,
 };
 
 const queue = [];
-let active = 0;
+let isProcessing = false;
 
 function enqueueEmail({ type, params = {}, context = null, userId = null }) {
 	const job = {
@@ -26,37 +25,119 @@ function enqueueEmail({ type, params = {}, context = null, userId = null }) {
 		context,
 		userId,
 		attempt: 0,
+		enqueuedAt: Date.now(),
 	};
 
 	queue.push(job);
-	logToFile('EMAIL_QUEUE', { status: 'INFO', action: 'ENQUEUED', job_id: job.id, type, user_id: userId, details: { context } }, 'info');
+	logToFile(
+		'EMAIL_QUEUE',
+		{
+			status: 'INFO',
+			action: 'ENQUEUED',
+			job_id: job.id,
+			type,
+			user_id: userId,
+			details: { context, queued_at: new Date(job.enqueuedAt).toISOString() },
+		},
+		'info',
+	);
+
 	processQueue();
 }
 
 async function processQueue() {
-	if (active >= config.concurrency) return;
+	if (isProcessing) return;
 	const job = queue.shift();
 	if (!job) return;
 
-	active += 1;
+	const dequeuedAt = Date.now();
+	job.dequeuedAt = dequeuedAt;
+	const waitMs = dequeuedAt - (job.enqueuedAt || dequeuedAt);
+
+	logToFile(
+		'EMAIL_QUEUE',
+		{
+			status: 'INFO',
+			action: 'DEQUEUED',
+			job_id: job.id,
+			type: job.type,
+			user_id: job.userId,
+			details: { context: job.context, wait_ms: waitMs },
+		},
+		'info',
+	);
+
+	isProcessing = true;
+	const sendStartedAt = Date.now();
 	try {
 		await runJob(job);
-		logToFile('EMAIL_SEND', { status: 'SUCCESS', job_id: job.id, type: job.type, user_id: job.userId, details: { context: job.context } }, 'info');
+		const sendDurationMs = Date.now() - sendStartedAt;
+		logToFile(
+			'EMAIL_SEND',
+			{
+				status: 'SUCCESS',
+				job_id: job.id,
+				type: job.type,
+				user_id: job.userId,
+				details: {
+					context: job.context,
+					wait_ms: waitMs,
+					send_duration_ms: sendDurationMs,
+					attempt: job.attempt + 1,
+				},
+			},
+			'info',
+		);
 	} catch (e) {
 		job.attempt += 1;
+		const sendDurationMs = Date.now() - sendStartedAt;
 		if (job.attempt <= config.maxRetries) {
 			const delay = config.initialDelayMs * Math.pow(config.backoffFactor, job.attempt - 1);
-			logToFile('EMAIL_SEND', { status: 'FAILURE', job_id: job.id, type: job.type, user_id: job.userId, error_message: e.message, details: { context: job.context, attempt: job.attempt, retry_in_ms: delay } }, 'warn');
+			logToFile(
+				'EMAIL_SEND',
+				{
+					status: 'FAILURE',
+					job_id: job.id,
+					type: job.type,
+					user_id: job.userId,
+					error_message: e.message,
+					details: {
+						context: job.context,
+						attempt: job.attempt,
+						retry_in_ms: delay,
+						wait_ms: waitMs,
+						send_duration_ms: sendDurationMs,
+					},
+				},
+				'warn',
+			);
 			setTimeout(() => {
+				job.enqueuedAt = Date.now();
 				queue.push(job);
 				processQueue();
 			}, delay);
 		} else {
-			logToFile('EMAIL_SEND', { status: 'FAILURE', job_id: job.id, type: job.type, user_id: job.userId, error_message: e.message, details: { context: job.context, terminal: true } }, 'error');
+			logToFile(
+				'EMAIL_SEND',
+				{
+					status: 'FAILURE',
+					job_id: job.id,
+					type: job.type,
+					user_id: job.userId,
+					error_message: e.message,
+					details: {
+						context: job.context,
+						terminal: true,
+						attempt: job.attempt,
+						wait_ms: waitMs,
+						send_duration_ms: sendDurationMs,
+					},
+				},
+				'error',
+			);
 		}
 	} finally {
-		active -= 1;
-		// Continue with next job if available
+		isProcessing = false;
 		if (queue.length > 0) processQueue();
 	}
 }
@@ -82,4 +163,3 @@ async function runJob(job) {
 }
 
 module.exports = { enqueueEmail };
-
