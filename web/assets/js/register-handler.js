@@ -199,7 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleRegisterSuccess(data) {
         console.log('[Register] Registration successful or verification re-sent.');
         registerForm.reset(); // Clear the form fields
-        showRegisterSuccess('<strong>Registration successful:</strong> Please verify your email using the link we sent you before logging in.');
+        const messageText = data?.message || 'If this email can be registered, you will receive an email with the next steps shortly.';
+        const disclaimerText = typeof data?.data?.disclaimer === 'string' ? data.data.disclaimer : '';
+        const html = disclaimerText
+            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
+            : `<strong>${messageText}</strong>`;
+        showRegisterSuccess(html);
     }
 
     function handleRegisterError(status, data) {
