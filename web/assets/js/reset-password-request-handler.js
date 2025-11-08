@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
 
+    let controlsLocked = false;
+
     // --- Language File Handler ---
     /**
      * Fetches and loads the language file (e.g., en.json).
@@ -56,12 +58,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const getLangString = (key) => lang[key] || key;
 
     // --- UI Initialization and State Management ---
+    function resetControlsState() {
+        controlsLocked = false;
+        emailInput.removeAttribute('disabled');
+        sendLinkButton.removeAttribute('disabled');
+        spinner.style.display = 'none';
+        buttonText.textContent = 'Send Link';
+    }
+
     function initializeUI() {
         console.log('[UI] Initializing password reset form UI state.');
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
-        spinner.style.display = 'none';
-        buttonText.textContent = 'Send Link';
+        resetControlsState();
     }
 
     function toggleSpinner(show) {
@@ -89,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
         alertToShow.style.display = 'block';
 
         if (disableControls && type === 'success') {
+            controlsLocked = true;
+            spinner.style.display = 'none';
+            buttonText.textContent = 'Send Link';
             emailInput.setAttribute('disabled', 'disabled');
             sendLinkButton.setAttribute('disabled', 'disabled');
         }
@@ -168,9 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
 			console.error('[API] Network or fetch error during password reset request:', error);
 			showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
 		} finally {
-			toggleSpinner(false);
-		}
-	}
+            if (controlsLocked) {
+                spinner.style.display = 'none';
+                buttonText.textContent = 'Send Link';
+            } else {
+                toggleSpinner(false);
+            }
+        }
+    }
 
     function handleSuccess(data) {
         console.log('[Password Reset] API request successful.');
@@ -186,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
             : `<strong>${messageText}</strong>`;
         showAlert('success', alertHtml, { disableControls: true });
-        forgotPasswordForm.reset(); // Reset the form after success
     }
 
     function handleError(status, data) {
@@ -211,6 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
     emailInput.addEventListener('input', clearAlertsAndErrors);
 
     // --- App Initialization ---
+    forgotPasswordModal.addEventListener('hidden.bs.modal', () => {
+        emailInput.value = '';
+        clearAlertsAndErrors();
+        resetControlsState();
+    });
+
     loadLanguageFile();
     initializeUI();
 });
