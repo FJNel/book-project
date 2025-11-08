@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showAlert(type, htmlContent) {
+    function showAlert(type, htmlContent, { disableControls = false } = {}) {
         console.log(`[UI] Displaying password reset ${type} alert.`);
         // Hide both alerts first
         successAlert.style.display = 'none';
@@ -87,6 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const alertToShow = type === 'success' ? successAlert : errorAlert;
         alertToShow.innerHTML = htmlContent;
         alertToShow.style.display = 'block';
+
+        if (disableControls && type === 'success') {
+            emailInput.setAttribute('disabled', 'disabled');
+            sendLinkButton.setAttribute('disabled', 'disabled');
+        }
     }
 
     function clearAlertsAndErrors() {
@@ -180,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const alertHtml = disclaimerText
             ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
             : `<strong>${messageText}</strong>`;
-        showAlert('success', alertHtml);
+        showAlert('success', alertHtml, { disableControls: true });
         forgotPasswordForm.reset(); // Reset the form after success
     }
 
