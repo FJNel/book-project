@@ -98,35 +98,51 @@ function checkLoginStatus() {
     }
 }
 
-let pageLoadingModalInstance;
+let legacyPageLoadingModalInstance;
 
 function showPageLoadingModal() {
     console.log('[Modal] Showing Page Loading Modal');
     const modalElement = document.getElementById('pageLoadingModal');
+    if (!modalElement) {
+        console.warn('[Modal] Page Loading Modal element not found.');
+        return;
+    }
 
-    if (!pageLoadingModalInstance) {
-        pageLoadingModalInstance = new bootstrap.Modal(modalElement, {
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+        window.modalManager.showModal(modalElement, { backdrop: 'static', keyboard: false });
+        return;
+    }
+
+    if (!legacyPageLoadingModalInstance) {
+        legacyPageLoadingModalInstance = new bootstrap.Modal(modalElement, {
             backdrop: 'static',
             keyboard: false
         });
     }
-    pageLoadingModalInstance.show();
-    console.log('[Modal] Page Loading Modal shown.');
+    legacyPageLoadingModalInstance.show();
+    console.log('[Modal] Page Loading Modal shown (legacy fallback).');
 }
 
 async function hidePageLoadingModal() {
     console.log('[Modal] Hiding Page Loading Modal');
-    if (pageLoadingModalInstance) {    
-        //Add a delay for UX
-        await new Promise(resolve => setTimeout(resolve, 500)); //wait for 0.5s
-        
-        pageLoadingModalInstance.hide();
-        modalElement = document.getElementById('pageLoadingModal');
-        modalElement.addEventListener('hidden.bs.modal', () => {
-            pageLoadingModalInstance.dispose();
-            pageLoadingModalInstance = null;
-        }, { once: true });
-        console.log('[Modal] Page Loading Modal hidden.');
+    await new Promise(resolve => setTimeout(resolve, 500)); // UX delay
+
+    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+        await window.modalManager.hideModal('pageLoadingModal');
+        console.log('[Modal] Page Loading Modal hidden via modalManager.');
+        return;
+    }
+
+    if (legacyPageLoadingModalInstance) {
+        const modalElement = document.getElementById('pageLoadingModal');
+        if (modalElement) {
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                legacyPageLoadingModalInstance.dispose();
+                legacyPageLoadingModalInstance = null;
+            }, { once: true });
+        }
+        legacyPageLoadingModalInstance.hide();
+        console.log('[Modal] Page Loading Modal hidden (legacy fallback).');
     } else {
         console.warn('[Modal] No modal instance to hide.');
     }
@@ -135,7 +151,18 @@ async function hidePageLoadingModal() {
 // Show modal if API is unreachable
 function showApiErrorModal() {
     console.log('[Modal] Showing API Error Modal');
-    const apiErrorModal = new bootstrap.Modal(document.getElementById('apiErrorModal'));
+    const modalElement = document.getElementById('apiErrorModal');
+    if (!modalElement) {
+        console.error('[Modal] API Error Modal element not found.');
+        return;
+    }
+
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+        window.modalManager.showModal(modalElement);
+        return;
+    }
+
+    const apiErrorModal = new bootstrap.Modal(modalElement);
     apiErrorModal.show();
 }
 

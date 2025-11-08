@@ -4,70 +4,39 @@
 document.addEventListener('DOMContentLoaded', async () => {
 	const urlParams = new URLSearchParams(window.location.search);
 	let action = urlParams.get('action');
-	if (action) {
-		action = action.toLowerCase();
-		console.log('[Index Actions] Detected action in URL:', action);
+	if (!action) {
+		return;
+	}
+	action = action.toLowerCase();
+	console.log('[Index Actions] Detected action in URL:', action);
 
-		//Show the appropriate modal based on the action
-		//Wait for loading to complete and loading modal to hide
-		await new Promise(resolve => setTimeout(resolve, 500)); //wait for 0.5s
-		switch (action) {
-			case 'login':
-				console.log('[Index Actions] Showing login modal.');
+	const actionToModalId = {
+		'login': 'loginModal',
+		'register': 'registerModal',
+		'request-password-reset': 'forgotPasswordModal',
+		'request-verification-email': 'resendVerificationEmailModal'
+	};
 
-				//Get login modal (loginModal)
-				const loginModalEl = document.getElementById('loginModal');
-				if (loginModalEl) {
-					const loginModal = new bootstrap.Modal(loginModalEl);
-					loginModal.show();
-					console.log('[Index Actions] Login modal shown.');
-				} else 
-				{
-					console.error('[Index Actions] Login modal element not found in DOM.');
-				}
-				break;
-			case 'register':
-				console.log('[Index Actions] Showing registration modal.');
+	const modalId = actionToModalId[action];
+	if (!modalId) {
+		console.warn('[Index Actions] Unknown action:', action);
+		return;
+	}
 
-				//Get registration modal (registerModal)
-				const registerModalEl = document.getElementById('registerModal');
-				if (registerModalEl) {
-					const registerModal = new bootstrap.Modal(registerModalEl);
-					registerModal.show();
-					console.log('[Index Actions] Registration modal shown.');
-				} else {
-					console.error('[Index Actions] Registration modal element not found in DOM.');
-				}
-				break;
-			case 'request-password-reset':
-				console.log('[Index Actions] Showing password reset modal.');
+	await new Promise(resolve => setTimeout(resolve, 500)); // wait for loading modal to finish
+	console.log(`[Index Actions] Showing ${action} modal.`);
+	const modalElement = document.getElementById(modalId);
+	if (!modalElement) {
+		console.error(`[Index Actions] Modal element "${modalId}" not found in DOM.`);
+		return;
+	}
 
-				//Get password reset modal (passwordResetModal)
-				const passwordResetModalEl = document.getElementById('forgotPasswordModal');
-				if (passwordResetModalEl) {
-					const passwordResetModal = new bootstrap.Modal(passwordResetModalEl);
-					passwordResetModal.show();
-					console.log('[Index Actions] Password reset modal shown.');
-				} else {
-					console.error('[Index Actions] Password reset modal element not found in DOM.');
-				}
-				break;
-			case 'request-verification-email':
-				console.log('[Index Actions] Showing email verification modal.');
-
-				//Get email verification modal (emailVerificationModal)
-				const emailVerificationModalEl = document.getElementById('resendVerificationEmailModal');
-				if (emailVerificationModalEl) {
-					const emailVerificationModal = new bootstrap.Modal(emailVerificationModalEl);
-					emailVerificationModal.show();
-					console.log('[Index Actions] Email verification modal shown.');
-				} else {
-					console.error('[Index Actions] Email verification modal element not found in DOM.');
-				}
-				break;
-			default:
-				console.warn('[Index Actions] Unknown action:', action);
-		}//switch (action)
-	}//if action
-});//DOMContentLoaded
+	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+		await window.modalManager.showModal(modalElement);
+	} else {
+		const fallbackModal = new bootstrap.Modal(modalElement);
+		fallbackModal.show();
+	}
+	console.log(`[Index Actions] ${action} modal shown.`);
+});
 

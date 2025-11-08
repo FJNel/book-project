@@ -4,9 +4,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Selection ---
     const loginModalEl = document.getElementById('loginModal');
-    const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalEl);
     const loginSuccessModalEl = document.getElementById('loginSuccessModal');
-    const loginSuccessModal = bootstrap.Modal.getOrCreateInstance(loginSuccessModalEl);
+    const modalManager = window.modalManager;
 
     const loginForm = document.getElementById('loginForm');
     const loginEmailInput = document.getElementById('loginEmail');
@@ -93,19 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Utility: cleanup any lingering backdrops/focus locks before showing next modal
-    // Utility: cleanup any lingering backdrops/focus locks before showing next modal
-    function cleanupModalArtifacts() {
-        document.body.classList.remove('modal-open');
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-        loginModalEl.setAttribute('aria-hidden', 'true');
-    }
-
-    function forceHideModal(el) {
-        const inst = bootstrap.Modal.getInstance(el) || bootstrap.Modal.getOrCreateInstance(el);
-        try { inst.hide(); } catch {}
-    }
-
     async function handleLogin(event) {
         event.preventDefault();
         if (isSubmitting) return;
@@ -140,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[API] Received response:', { status: response.status, data });
 
             if (response.ok && data?.data?.accessToken && data?.data?.refreshToken) {
-                handleLoginSuccess(data);
+                await handleLoginSuccess(data);
             } else {
                 handleLoginError(response.status, data);
             }
@@ -208,63 +194,62 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles a successful login response from the API.
      * @param {object} data The success response data.
      */
-    function handleLoginSuccess(data) {
+    async function handleLoginSuccess(data) {
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
-    
+
         // Save tokens
         localStorage.setItem('accessToken', data.data.accessToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);
-    
+
         // Remove ?action=login from URL so nothing re-opens the login modal later
         try {
             const url = new URL(window.location.href);
             if (url.searchParams.has('action')) {
                 url.searchParams.delete('action');
-                window.history.replaceState({}, document.title, url.pathname + (url.search ? '?' + url.searchParams.toString() : '') + url.hash);
+                const query = url.searchParams.toString();
+                window.history.replaceState({}, document.title, url.pathname + (query ? `?${query}` : '') + url.hash);
             }
-        } catch {}
-    
+        } catch (error) {
+            console.warn('[Login] Unable to update URL query params:', error);
+        }
+
         // Update success modal text
         const successModalText = document.getElementById('loginSuccessModalText');
         if (successModalText) {
             successModalText.innerHTML = `<strong>Welcome back, ${data.data.user.preferredName}!</strong>`;
         }
-    
-        // Show success modal only after the login modal is fully hidden
-        const onLoginHidden = () => {
-            loginModalEl.removeEventListener('hidden.bs.modal', onLoginHidden);
-            cleanupModalArtifacts();
-            loginSuccessModal.show();
-    
-            // Start redirect timer when success modal is fully shown
-            const onSuccessShown = () => {
-                loginSuccessModalEl.removeEventListener('shown.bs.modal', onSuccessShown);
-                setTimeout(() => {
-                    console.log('[Redirect] Redirecting to books.html...');
-                    window.location.href = 'books.html';
-                }, 3000);
-            };
-            loginSuccessModalEl.addEventListener('shown.bs.modal', onSuccessShown, { once: true });
-        };
-    
-        // If already hidden, just proceed
-        if (!loginModalEl.classList.contains('show')) {
-            onLoginHidden();
-            return;
-        }
-    
-        // Normal path: wait for hidden, then show success
-        loginModalEl.addEventListener('hidden.bs.modal', onLoginHidden, { once: true });
-        
-        // Trigger hide via Bootstrap, plus a fallback if event doesn’t fire
-        forceHideModal(loginModalEl);
-        
-        setTimeout(() => {
-            if (!loginSuccessModalEl.classList.contains('show')) {
-                console.warn('[Login] Fallback: showing success modal after timeout.');
-                onLoginHidden();
+
+        // Hide the login modal before showing the success state
+        if (loginModalEl) {
+            if (modalManager && typeof modalManager.hideModal === 'function') {
+                await modalManager.hideModal(loginModalEl);
+            } else {
+                const instance = bootstrap.Modal.getInstance(loginModalEl);
+                if (instance && loginModalEl.classList.contains('show')) {
+                    await new Promise((resolve) => {
+                        loginModalEl.addEventListener('hidden.bs.modal', resolve, { once: true });
+                        instance.hide();
+                    });
+                }
             }
-        }, 600);
+        }
+
+        if (loginSuccessModalEl) {
+            if (modalManager && typeof modalManager.showModal === 'function') {
+                await modalManager.showModal(loginSuccessModalEl);
+            } else {
+                const successInstance = bootstrap.Modal.getOrCreateInstance(loginSuccessModalEl);
+                await new Promise((resolve) => {
+                    loginSuccessModalEl.addEventListener('shown.bs.modal', resolve, { once: true });
+                    successInstance.show();
+                });
+            }
+        }
+
+        setTimeout(() => {
+            console.log('[Redirect] Redirecting to books.html...');
+            window.location.href = 'books.html';
+        }, 3000);
     }
 
     /**

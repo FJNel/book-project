@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Initialization and State Management ---
-    function initializeUI() {
+    async function initializeUI() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         toggleSpinner(false);
@@ -75,11 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[UI] invalidLinkModal not found in DOM.');
             return;
         }
-        const invalidLinkModal = new bootstrap.Modal(invalidLinkModalEl);
-    
         if (!token) {
-            // Show only the invalid link modal
-            invalidLinkModal.show();
+            if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+                await window.modalManager.showModal(invalidLinkModalEl);
+            } else {
+                const invalidLinkModal = new bootstrap.Modal(invalidLinkModalEl);
+                invalidLinkModal.show();
+            }
+
             invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
                 window.location.href = 'https://bookproject.fjnel.co.za?action=request-verification-email';
             }, { once: true });

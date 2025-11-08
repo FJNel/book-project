@@ -10,6 +10,141 @@
 //   notify user and redirect user to login again
 // - If any other error occurs, just pass the error back to the calling function to handle it
 
+// -----------------------------------------------------------------------------
+// Global Modal Manager
+// Ensures only one Bootstrap modal is visible at a time across the application.
+// -----------------------------------------------------------------------------
+(function initModalManager() {
+	if (window.modalManager) {
+		return;
+	}
+
+	const Modal = window.bootstrap && window.bootstrap.Modal;
+	if (!Modal) {
+		console.error('[Modal Manager] Bootstrap Modal is required but not available.');
+		window.modalManager = {
+			showModal: () => Promise.reject(new Error('Bootstrap Modal is not available.')),
+			hideModal: () => Promise.resolve(),
+			getActiveModal: () => null,
+			getActiveModalId: () => null
+		};
+		return;
+	}
+
+	const modalState = { active: null };
+
+	function resolveElement(target) {
+		if (!target) return null;
+		if (typeof target === 'string') {
+			return document.getElementById(target);
+		}
+		if (target instanceof Element) {
+			return target;
+		}
+		return null;
+	}
+
+	function cleanupBackdrops() {
+		const openModals = document.querySelectorAll('.modal.show');
+		const backdrops = document.querySelectorAll('.modal-backdrop');
+		if (openModals.length === 0) {
+			document.body.classList.remove('modal-open');
+			backdrops.forEach((bd) => bd.remove());
+			return;
+		}
+		if (backdrops.length > 1) {
+			backdrops.forEach((bd, index) => {
+				if (index < backdrops.length - 1) {
+					bd.remove();
+				}
+			});
+		}
+	}
+
+	async function hideModal(target) {
+		const element = resolveElement(target) || (modalState.active && modalState.active.element);
+		if (!element) {
+			return;
+		}
+		const instance = Modal.getInstance(element);
+		if (!instance || !element.classList.contains('show')) {
+			if (modalState.active && modalState.active.element === element) {
+				modalState.active = null;
+			}
+			cleanupBackdrops();
+			return;
+		}
+		await new Promise((resolve) => {
+			element.addEventListener('hidden.bs.modal', () => {
+				if (modalState.active && modalState.active.element === element) {
+					modalState.active = null;
+				}
+				cleanupBackdrops();
+				resolve();
+			}, { once: true });
+			instance.hide();
+		});
+	}
+
+	async function showModal(target, options = {}) {
+		const element = resolveElement(target);
+		if (!element) {
+			console.warn('[Modal Manager] Cannot show modal. Element not found for target:', target);
+			return null;
+		}
+
+		if (modalState.active && modalState.active.element === element && element.classList.contains('show')) {
+			return modalState.active.instance;
+		}
+
+		if (modalState.active && modalState.active.element !== element) {
+			await hideModal(modalState.active.element);
+		}
+
+		const instance = Modal.getOrCreateInstance(element, options);
+		modalState.active = { element, instance };
+
+		return new Promise((resolve) => {
+			element.addEventListener('shown.bs.modal', () => {
+				cleanupBackdrops();
+				resolve(instance);
+			}, { once: true });
+			instance.show();
+		});
+	}
+
+	// Ensure only one modal is visible even if triggered via data attributes.
+	document.addEventListener('show.bs.modal', (event) => {
+		const activeElement = modalState.active && modalState.active.element;
+		if (activeElement && activeElement !== event.target && activeElement.classList.contains('show')) {
+			const activeInstance = Modal.getInstance(activeElement);
+			if (activeInstance) {
+				activeInstance.hide();
+			}
+		}
+	});
+
+	document.addEventListener('shown.bs.modal', (event) => {
+		const instance = Modal.getInstance(event.target);
+		modalState.active = { element: event.target, instance };
+		cleanupBackdrops();
+	});
+
+	document.addEventListener('hidden.bs.modal', (event) => {
+		if (modalState.active && modalState.active.element === event.target) {
+			modalState.active = null;
+		}
+		cleanupBackdrops();
+	});
+
+	window.modalManager = {
+		showModal,
+		hideModal,
+		getActiveModal: () => modalState.active && modalState.active.element,
+		getActiveModalId: () => (modalState.active && modalState.active.element && modalState.active.element.id) || null
+	};
+})();
+
 const API_BASE_URL = 'https://api.fjnel.co.za/';
 
 // A list of public paths that do not require an Authorization header.
@@ -148,8 +283,12 @@ function showSessionExpiredModal() {
 		return;
 	}
 
-	const sessionExpiredModal = new bootstrap.Modal(modal);
-	sessionExpiredModal.show();
+	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+		window.modalManager.showModal(modal);
+	} else {
+		const sessionExpiredModal = new bootstrap.Modal(modal);
+		sessionExpiredModal.show();
+	}
 
 	//Redirect to homepage on modal close
 	modal.addEventListener('hidden.bs.modal', () => {
