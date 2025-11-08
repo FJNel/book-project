@@ -11,6 +11,7 @@ const FROM_EMAIL = config.mail.fromEmail;
 const FRONTEND_URL = config.frontend.url;
 const MAILGUN_REGION = config.mail.mailgunRegion; // "EU" for EU domains
 const SUPPORT_EMAIL = config.mail.supportEmail;
+const API_BASE_URL = config.api.baseUrl;
 
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
@@ -228,6 +229,355 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 	}
 } // sendAccountDisableConfirmationEmail
 
+async function sendAccountDisableVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const verifyUrl = `${API_BASE_URL}/users/me/verify-delete?token=${token}`;
+	const subject = "Confirm your Book Project account disable request";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Hi${preferredName ? `, ${preferredName}` : ""}.</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          We received a request to <strong>disable your Book Project account</strong>. Your data
+	          will remain stored, but you will no longer be able to log in or use any features.
+	        </p>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          To confirm, click the button below. If you change your mind later, or if you did not make this request,
+			  please reach out to our system administrator at
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Disable%20Assistance" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  so we can assist or reactivate your account.
+	        </p>
+	        <div style="text-align: center; margin: 32px 0;">
+	          <a href="${verifyUrl}" style="background-color: #e53e3e; color: #ffffff;
+	            text-decoration: none; padding: 14px 28px; border-radius: 6px;
+	            font-weight: bold; display: inline-block;">
+	            Confirm Disable
+	          </a>
+	        </div>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          This link will expire in <strong>${expiresIn} minutes</strong>. If it expires, simply sign in and submit another request.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+
+		logToFile("EMAIL_SENT", { to: toEmail, type: "account_disable_verification", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending account disable verification email:", error.message);
+		return false;
+	}
+} // sendAccountDisableVerificationEmail
+
+async function sendAccountDeletionVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const verifyUrl = `${API_BASE_URL}/users/me/verify-account-deletion?token=${token}`;
+	const subject = "Confirm your Book Project account deletion request";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Final confirmation required</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          You asked us to permanently delete your Book Project account and all associated data.
+	          Our administrators will only proceed once you confirm this request. If this wasn’t you, email
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Deletion%20Request" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  immediately.
+	        </p>
+	        <div style="text-align: center; margin: 32px 0;">
+	          <a href="${verifyUrl}" style="background-color: #dd6b20; color: #ffffff;
+	            text-decoration: none; padding: 14px 28px; border-radius: 6px;
+	            font-weight: bold; display: inline-block;">
+	            Confirm Deletion Request
+	          </a>
+	        </div>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          Once confirmed, our support team will contact you to complete the deletion process.
+	          This link expires in <strong>${expiresIn} minutes</strong>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+
+		logToFile("EMAIL_SENT", { to: toEmail, type: "account_delete_verification", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending account deletion verification email:", error.message);
+		return false;
+	}
+} // sendAccountDeletionVerificationEmail
+
+async function sendAccountDeletionAdminEmail({
+	userEmail,
+	userFullName,
+	userPreferredName,
+	userId,
+	requestedAt,
+	requestIp
+}) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !SUPPORT_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = `Account deletion confirmation received for ${userEmail}`;
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td style="padding: 24px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Account deletion request confirmed</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          A user confirmed that they would like their Book Project account to be removed.
+	          Please reach out to complete the deletion process.
+	        </p>
+	        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0; font-size: 15px; color: #4a5568;">
+	          <tr>
+	            <td style="padding: 6px 0; width: 40%;"><strong>User ID</strong></td>
+	            <td>${userId}</td>
+	          </tr>
+	          <tr>
+	            <td style="padding: 6px 0;"><strong>Email</strong></td>
+	            <td>${userEmail}</td>
+	          </tr>
+	          <tr>
+	            <td style="padding: 6px 0;"><strong>Full Name</strong></td>
+	            <td>${userFullName || "N/A"}</td>
+	          </tr>
+	          <tr>
+	            <td style="padding: 6px 0;"><strong>Preferred Name</strong></td>
+	            <td>${userPreferredName || "N/A"}</td>
+	          </tr>
+	          <tr>
+	            <td style="padding: 6px 0;"><strong>Confirmed At</strong></td>
+	            <td>${requestedAt || new Date().toISOString()}</td>
+	          </tr>
+	          ${requestIp ? `<tr><td style="padding: 6px 0;"><strong>Requester IP</strong></td><td>${requestIp}</td></tr>` : ""}
+	        </table>
+	        <p style="font-size: 14px; color: #718096;">
+	          Please follow internal procedures to fully delete this account and all associated data once verified.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. Internal notification.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [SUPPORT_EMAIL],
+			subject,
+			html
+		});
+
+		logToFile("EMAIL_SENT", { to: SUPPORT_EMAIL, type: "account_delete_admin_notice", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: SUPPORT_EMAIL, error: error.message }, "error");
+		console.error("Error sending account deletion admin email:", error.message);
+		return false;
+	}
+} // sendAccountDeletionAdminEmail
+
+async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const verifyUrl = `${API_BASE_URL}/users/me/verify-email-change?token=${token}`;
+	const subject = "Verify your new Book Project email address";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Confirm your new email${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          We received a request to update the email address linked to your Book Project account.
+	          Click the button below to finish verifying this new email. If you did not request the change, contact
+			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Email%20Change" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
+			  so we can secure your account.
+	        </p>
+	        <div style="text-align: center; margin: 32px 0;">
+	          <a href="${verifyUrl}" style="background-color: #3182ce; color: #ffffff;
+	            text-decoration: none; padding: 14px 28px; border-radius: 6px;
+	            font-weight: bold; display: inline-block;">
+	            Verify New Email
+	          </a>
+	        </div>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          This link expires in <strong>${expiresIn} minutes</strong>. If you did not request this change, you can ignore this email.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+
+		logToFile("EMAIL_SENT", { to: toEmail, type: "email_change_verification", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending email change verification email:", error.message);
+		return false;
+	}
+} // sendEmailChangeVerificationEmail
+
+async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = "Your Book Project email address has changed";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Email updated${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          This is a confirmation that your Book Project account email has been updated to <strong>${newEmail}</strong>.
+	        </p>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you did not authorize this change, please contact our support team immediately at
+	          <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [toEmail],
+			subject,
+			html
+		});
+
+		logToFile("EMAIL_SENT", { to: toEmail, type: "email_change_confirmation", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending email change confirmation email:", error.message);
+		return false;
+	}
+} // sendEmailChangeConfirmationEmail
+
 async function sendWelcomeEmail(toEmail, preferredName) {
     if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
         logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
@@ -358,4 +708,15 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
     }
 } // sendPasswordResetSuccessEmail
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendPasswordResetSuccessEmail };
+module.exports = {
+	sendVerificationEmail,
+	sendPasswordResetEmail,
+	sendWelcomeEmail,
+	sendPasswordResetSuccessEmail,
+	sendAccountDisableVerificationEmail,
+	sendAccountDisableConfirmationEmail,
+	sendAccountDeletionVerificationEmail,
+	sendAccountDeletionAdminEmail,
+	sendEmailChangeVerificationEmail,
+	sendEmailChangeConfirmationEmail
+};

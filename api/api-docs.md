@@ -176,35 +176,17 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 }
 ```
 
-- **Created (201):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 201,
-  "responseTime": "24.35",
-  "message": "User registered successfully. Please verify your email before logging in.",
-  "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
-    "email": "jane@example.com",
-    "fullName": "Jane Doe",
-    "preferredName": "Jane",
-    "role": "user",
-    "isVerified": false
-  },
-  "errors": []
-}
-```
-
-- **Existing Unverified Account (200):**
+- **Generic Success (200):** Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.
 
 ```json
 {
   "status": "success",
   "httpCode": 200,
   "responseTime": "11.02",
-  "message": "Account already exists but not verified. Verification email has been (re)sent. The existing account was not modified.",
-  "data": {},
+  "message": "If this email can be registered, you will receive an email with the next steps shortly.",
+  "data": {
+    "disclaimer": "If you do not see an email within a few minutes, please check your spam folder or try again later."
+  },
   "errors": []
 }
 ```
@@ -237,21 +219,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
   "errors": [
     "Please refresh the page and try again.",
     "Make sure that you provided a captchaToken in your request."
-  ]
-}
-```
-
-- **Email in Use by Verified Account (409):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 409,
-  "responseTime": "6.12",
-  "message": "Email already in use",
-  "data": {},
-  "errors": [
-    "The provided email is already associated with another account. Please log in or use a different email."
   ]
 }
 ```
@@ -1515,7 +1482,7 @@ At least one of `fullName` or `preferredName` must be provided.
 
 ### DELETE /users/me
 
-- **Purpose:** Soft-delete the authenticated account and revoke every refresh token.
+- **Purpose:** Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.
 
 #### Request Overview
 
@@ -1540,15 +1507,17 @@ At least one of `fullName` or `preferredName` must be provided.
 | --- | --- | --- | --- |
 | *(none)* | — | — | This endpoint does not accept a request body. |
 
-- **Deleted (200):**
+- **Requested (200):**
 
 ```json
 {
   "status": "success",
   "httpCode": 200,
   "responseTime": "6.07",
-  "message": "Your account has been disabled.",
-  "data": {},
+  "message": "Check your email to confirm this action.",
+  "data": {
+    "disclaimer": "Your account will remain active until you confirm the disable request via the link we sent."
+  },
   "errors": []
 }
 ```
@@ -1575,19 +1544,76 @@ At least one of `fullName` or `preferredName` must be provided.
   "status": "error",
   "httpCode": 500,
   "responseTime": "8.44",
-  "message": "Database Error",
+  "message": "Internal Server Error",
   "data": {},
   "errors": [
-    "An error occurred while disabling the user account."
+    "An error occurred while requesting the account disable action."
+  ]
+}
+```
+
+### POST /users/me/verify-delete (and GET /users/me/verify-delete)
+
+- **Purpose:** Confirms the disable request using the emailed token and revokes all active sessions.
+- **Authentication:** Not required (token-based).
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` (link clicks may use `GET`) |
+| Path | `/users/me/verify-delete` |
+| Authentication | None |
+| Rate Limit | Not currently rate limited |
+| Content-Type | `application/json` (POST only) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Conditional | `application/json` | Required for `POST` requests. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body / Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `token` | string | Yes | Token from the confirmation email. For `GET` requests supply `?token=...`. |
+
+- **Confirmed (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "5.01",
+  "message": "Your account has been disabled.",
+  "data": {
+    "disclaimer": "If you need to reactivate the account, please contact support."
+  },
+  "errors": []
+}
+```
+
+- **Invalid or Expired Token (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "4.44",
+  "message": "Invalid or expired token",
+  "data": {},
+  "errors": [
+    "The confirmation token is invalid or has already been used."
   ]
 }
 ```
 
 ### POST /users/me/request-email-change
 
-- **Purpose:** Placeholder for initiating an email change workflow (not implemented yet).
+- **Purpose:** Initiate an email change for the authenticated user. Sends a verification link to the new email address. The user is signed out everywhere once the new email is confirmed.
 - **Authentication:** Access token required.
-- **Status:** Reserved for future use; always returns HTTP 501.
 
 #### Request Overview
 
@@ -1597,78 +1623,208 @@ At least one of `fullName` or `preferredName` must be provided.
 | Path | `/users/me/request-email-change` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (no fields currently used) |
+| Content-Type | `application/json` |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Required even though the endpoint is a stub. |
-| `Content-Type` | No | `application/json` | Included for parity; no body is processed. |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user requesting the change. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| *(none)* | — | — | No request body is currently accepted. |
+| `newEmail` | string | Yes | Desired email address; must pass the same validation as registration. |
 
-- **Current Response (501):**
+- **Generic Success (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.32",
+  "message": "If this email can be used, you will receive a confirmation link shortly.",
+  "data": {
+    "disclaimer": "You will be signed out on all devices once the new email is verified."
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
 
 ```json
 {
   "status": "error",
-  "httpCode": 501,
-  "responseTime": "3.87",
-  "message": "This functionality has not been implemented yet.",
+  "httpCode": 400,
+  "responseTime": "4.12",
+  "message": "Validation Error",
   "data": {},
   "errors": [
-    "This endpoint is reserved for future use."
+    "The new email address must be different from your current email."
   ]
 }
 ```
 
-### POST /users/me/request-account-deletion
+### POST /users/me/verify-email-change (and GET /users/me/verify-email-change)
 
-- **Purpose:** Placeholder for requesting account deletion (not implemented yet).
-- **Authentication:** Access token required.
-- **Status:** Reserved for future use; always returns HTTP 501.
+- **Purpose:** Confirms the pending email change using the token sent to the new email address. Removes linked OAuth identities and revokes every session.
+- **Authentication:** Not required (token-based).
 
 #### Request Overview
 
 | Property | Value |
 | --- | --- |
-| Method | `POST` |
+| Method | `POST` (link clicks may use `GET`) |
+| Path | `/users/me/verify-email-change` |
+| Authentication | None |
+| Rate Limit | Not currently rate limited |
+| Content-Type | `application/json` (POST only) |
+
+#### Body / Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `token` | string | Yes | Token from the verification email. Supply `?token=...` for `GET` requests. |
+
+- **Confirmed (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.85",
+  "message": "Your email address has been updated.",
+  "data": {
+    "disclaimer": "Please log in with your new email address. You have been signed out on all devices."
+  },
+  "errors": []
+}
+```
+
+- **Email Unavailable (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "4.02",
+  "message": "Email unavailable",
+  "data": {},
+  "errors": [
+    "The new email address is no longer available. Please submit a new request with a different address."
+  ]
+}
+```
+
+### DELETE /users/me/request-account-deletion (also available as POST)
+
+- **Purpose:** Starts the permanent deletion workflow. Sends a confirmation link to the account email. After confirmation, support (support@fjnel.co.za) is notified with the account details needed to complete the deletion.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` (legacy clients may still use `POST`) |
 | Path | `/users/me/request-account-deletion` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (no fields currently used) |
+| Content-Type | N/A (no body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Required even though the endpoint is a stub. |
-| `Content-Type` | No | `application/json` | Included for parity; no body is processed. |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user requesting deletion. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| *(none)* | — | — | No request body is currently accepted. |
+| *(none)* | — | — | No request body is accepted. |
 
-- **Current Response (501):**
+- **Requested (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.77",
+  "message": "Check your email to confirm this deletion request.",
+  "data": {
+    "disclaimer": "Our support team will only be notified after you confirm via the email link."
+  },
+  "errors": []
+}
+```
+
+- **Server Error (500):**
 
 ```json
 {
   "status": "error",
-  "httpCode": 501,
-  "responseTime": "3.87",
-  "message": "This functionality has not been implemented yet.",
+  "httpCode": 500,
+  "responseTime": "7.65",
+  "message": "Internal Server Error",
   "data": {},
   "errors": [
-    "This endpoint is reserved for future use."
+    "An error occurred while requesting account deletion."
+  ]
+}
+```
+
+### POST /users/me/verify-account-deletion (and GET /users/me/verify-account-deletion)
+
+- **Purpose:** Confirms the deletion request using the emailed token and notifies support so the deletion can be processed manually.
+- **Authentication:** Not required (token-based).
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` (link clicks may use `GET`) |
+| Path | `/users/me/verify-account-deletion` |
+| Authentication | None |
+| Rate Limit | Not currently rate limited |
+| Content-Type | `application/json` (POST only) |
+
+#### Body / Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `token` | string | Yes | Token from the confirmation email. Supply `?token=...` for `GET` requests. |
+
+- **Confirmed (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.23",
+  "message": "Your request has been forwarded to our support team.",
+  "data": {
+    "disclaimer": "Support will reach out on the confirmed email address to finalize the deletion."
+  },
+  "errors": []
+}
+```
+
+- **Invalid Token (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "4.01",
+  "message": "Invalid or expired token",
+  "data": {},
+  "errors": [
+    "The confirmation token is invalid or has already been used."
   ]
 }
 ```

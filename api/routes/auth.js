@@ -149,6 +149,10 @@ async function verifyCaptcha(token, ip, expectedAction = null, minScore = 0.7) {
 //POST auth/register: Create a new user account with email and password 
 router.post("/register", registerLimiter, async (req, res) => {
 	let { captchaToken, fullName, preferredName, email, password } = req.body || {};
+	const genericRegisterMessage = {
+		message: "If this email can be registered, you will receive an email with the next steps shortly.",
+		disclaimer: "If you do not see an email within a few minutes, please check your spam folder or try again later."
+	};
 
 	//Validate CAPTCHA before doing anything else
 	const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'register');
@@ -182,26 +186,25 @@ router.post("/register", registerLimiter, async (req, res) => {
 			if (userRes.rows.length > 0) {
 				const existingUser = userRes.rows[0];
 				if (existingUser.is_verified) {
-					logToFile("USER_REGISTERED", { status: "FAILURE", reason: "Email already in use", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id }, "warn");
-					return errorResponse(res, 409, "Email already in use", ["The provided email is already associated with another account. Please log in or use a different email."]);
+					logToFile("USER_REGISTERED", { status: "INFO", reason: "Email already verified", email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id }, "info");
+					return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
 				}
 
-				// If not verified, (re)issue verification token and respond 200
+				// If not verified, (re)issue verification token and respond with a generic success message
 				try {
 					const { token, expiresAt, reused } = await ensureActiveVerificationToken(existingUser.id);
 
 					logToFile("EMAIL_VERIFICATION", { status: "INFO", user_id: existingUser.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN", ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-					//SEND EMAIL HERE
-								const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-								enqueueEmail({
-										type: 'verification',
-										params: { toEmail: email, token, preferredName, expiresIn },
-										context: 'REGISTER_ATTEMPT',
-										userId: existingUser.id
-								});
+					const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+					enqueueEmail({
+						type: 'verification',
+						params: { toEmail: email, token, preferredName, expiresIn },
+						context: 'REGISTER_ATTEMPT',
+						userId: existingUser.id
+					});
 
-					return successResponse(res, 200, "Account already exists but not verified. Verification email has been (re)sent. The existing account was not modified.", {});
+					return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
 				} catch (e) {
 					logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id, details: { trigger: "REGISTER_ATTEMPT" } }, "error");
 					return errorResponse(res, 500, "Failed to issue verification token", [e.message]);
@@ -235,23 +238,15 @@ router.post("/register", registerLimiter, async (req, res) => {
 		await client.query("COMMIT");
 	logToFile("USER_REGISTERED", { status: "SUCCESS", user_id: newUser.id, email: newUser.email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-		//SEND EMAIL HERE
-				const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-				enqueueEmail({
-						type: 'verification',
-						params: { toEmail: email, token, preferredName, expiresIn },
-						context: 'REGISTER_NEW',
-						userId: newUser.id
-				});
+		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+		enqueueEmail({
+			type: 'verification',
+			params: { toEmail: email, token, preferredName, expiresIn },
+			context: 'REGISTER_NEW',
+			userId: newUser.id
+		});
 
-		return successResponse(res, 201, "User registered successfully. Please verify your email before logging in.", 
-			{   id: newUser.id,
-				email: newUser.email,
-				fullName: newUser.full_name,
-				preferredName: newUser.preferred_name,
-				role: newUser.role,
-				isVerified: newUser.is_verified
-			});
+		return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
 	} catch (e) {
 		await client.query("ROLLBACK");
 		logToFile("USER_REGISTERED", { error: e.message, email }, "error");

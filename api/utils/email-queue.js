@@ -6,6 +6,12 @@ const {
 	sendPasswordResetEmail,
 	sendWelcomeEmail,
 	sendPasswordResetSuccessEmail,
+	sendAccountDisableVerificationEmail,
+	sendAccountDisableConfirmationEmail,
+	sendAccountDeletionVerificationEmail,
+	sendAccountDeletionAdminEmail,
+	sendEmailChangeVerificationEmail,
+	sendEmailChangeConfirmationEmail,
 } = require('./email');
 
 const config = {
@@ -157,6 +163,18 @@ async function runJob(job) {
 		case 'password_reset_success':
 			// params: toEmail, preferredName
 			return sendPasswordResetSuccessEmail(params.toEmail, params.preferredName);
+		case 'account_disable_verification':
+			return sendAccountDisableVerificationEmail(params.toEmail, params.preferredName, params.token, params.expiresIn);
+		case 'account_disable_confirmation':
+			return sendAccountDisableConfirmationEmail(params.toEmail, params.preferredName);
+		case 'account_delete_verification':
+			return sendAccountDeletionVerificationEmail(params.toEmail, params.preferredName, params.token, params.expiresIn);
+		case 'account_delete_admin_notice':
+			return sendAccountDeletionAdminEmail(params);
+		case 'email_change_verification':
+			return sendEmailChangeVerificationEmail(params.toEmail, params.preferredName, params.token, params.expiresIn);
+		case 'email_change_confirmation':
+			return sendEmailChangeConfirmationEmail(params.toEmail, params.newEmail, params.preferredName);
 		default:
 			throw new Error(`Unknown email job type: ${type}`);
 	}
