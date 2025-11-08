@@ -200,7 +200,7 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 			</ul>
 			<p style="font-size: 16px; color: #4a5568; line-height: 1.5; margin-top: 20px;">
 			  If you would like to <strong>reactivate</strong> your account, please contact the 
-			  System Administrator at <a href="mailto:${supportEmail}" style="color: #3182ce;">${supportEmail}</a>. Provide them with your email address and request account reactivation.
+			  System Administrator at <a href="mailto:${supportEmail}?subject=The%20Book%20Project%20Account%20Reactivation%20Request" style="color: #3182ce;">${supportEmail}</a>. Provide them with your email address and request account reactivation.
 			</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
 			<p style="font-size: 12px; color: #a0aec0; text-align: center;">
@@ -330,7 +330,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 	          You asked us to permanently delete your Book Project account and all associated data.
 	          Our administrators will only proceed once you confirm this request. If this wasn’t you, email
 			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Deletion%20Request" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
-			  immediately.
+			  immediately to ensure that your account remains secure.
 	        </p>
 	        <div style="text-align: center; margin: 32px 0;">
 	          <a href="${verifyUrl}" style="background-color: #dd6b20; color: #ffffff;
@@ -396,8 +396,8 @@ async function sendAccountDeletionAdminEmail({
 	      <td style="padding: 24px 32px; color: #333;">
 	        <h2 style="color: #2d3748; margin-bottom: 16px;">Account deletion request confirmed</h2>
 	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
-	          A user confirmed that they would like their Book Project account to be removed.
-	          Please reach out to complete the deletion process.
+	          A user confirmed that they would like their Book Project account to be deleted permanently.
+	          Please reach out to verify their request before completing the deletion process.
 	        </p>
 	        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0; font-size: 15px; color: #4a5568;">
 	          <tr>
@@ -423,7 +423,7 @@ async function sendAccountDeletionAdminEmail({
 	          ${requestIp ? `<tr><td style="padding: 6px 0;"><strong>Requester IP</strong></td><td>${requestIp}</td></tr>` : ""}
 	        </table>
 	        <p style="font-size: 14px; color: #718096;">
-	          Please follow internal procedures to fully delete this account and all associated data once verified.
+	          Please reach out to the user before fully deleting this account and all associated data. Use the appropriate admin endpoint to complete the deletion.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
@@ -481,7 +481,7 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 	          We received a request to update the email address linked to your Book Project account.
 	          Click the button below to finish verifying this new email. If you did not request the change, contact
 			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Email%20Change" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
-			  so we can secure your account.
+			  so we can secure your account. Once your new email is verified, you will be logged out of all sessions and will need to log in again using the new email address. 
 	        </p>
 	        <div style="text-align: center; margin: 32px 0;">
 	          <a href="${verifyUrl}" style="background-color: #3182ce; color: #ffffff;
@@ -548,8 +548,8 @@ async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName
 	          This is a confirmation that your Book Project account email has been updated to <strong>${newEmail}</strong>.
 	        </p>
 	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
-	          If you did not authorize this change, please contact our support team immediately at
-	          <a href="mailto:${SUPPORT_EMAIL}" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	          If you did not authorise this change, please contact our support team immediately at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Email%20Change%20Unauthorised" style="color: #3182ce;">${SUPPORT_EMAIL}</a> so that we can help secure your account.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
