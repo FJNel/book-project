@@ -142,9 +142,9 @@
 <p>This guide describes the publicly available REST endpoints exposed by the API, the expected request payloads, and the standard response contract. All examples assume JSON request and response bodies.</p>
 <p><strong>Base URL:</strong> <code>https://api.fjnel.co.za</code></p>
 <h2 id="logging">Logging</h2>
-<p>The API writes structured JSON logs to rotating files. Every HTTP request is captured with an <code>event</code> of <code>HTTP_REQUEST</code>, together with the method, path, status code, latency, originating IP, user agent, and a sanitised copy of the request body. Significant actions (registration, login, logout, verification, password reset, profile changes) log an action specific <code>event</code> such as <code>USER_REGISTERED</code> or <code>LOGIN_ATTEMPT</code> with a common shape that includes <code>status</code> (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>INFO</code>) and contextual information. Error objects are normalised so that the final log entry always includes an <code>error_message</code> field.</p>
-<h2 id="standard-response-format">Standard Response Format</h2>
-<p>Both successful and failed requests return a consistent envelope. Response times are reported in milliseconds as strings for readability.</p>
+<p>The API writes structured JSON logs to rotating files. Every HTTP request is captured with an <code>event</code> of <code>HTTP_REQUEST</code>, together with the method, path, status code, latency, originating IP, user agent, and a sanitised copy of the request body. Significant actions (registration, login, logout, verification, password reset, profile changes) log an action-specific <code>event</code> such as <code>USER_REGISTERED</code> or <code>LOGIN_ATTEMPT</code>. Each log entry records a <code>status</code> (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>INFO</code>) and a normalised <code>error_message</code> where applicable.</p>
+<h2 id="standard-response-envelope">Standard Response Envelope</h2>
+<p>All API responses (success or error) adhere to the same JSON envelope. Response times are reported in milliseconds as strings for readability.</p>
 <h3 id="success-response">Success Response</h3>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -170,8 +170,17 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h3 id="envelope-fields">Envelope Fields</h3>
+<ul>
+<li><code>status</code>: <code>&quot;success&quot;</code> or <code>&quot;error&quot;</code>.</li>
+<li><code>httpCode</code>: Mirrors the HTTP status code returned by Express.</li>
+<li><code>responseTime</code>: Milliseconds elapsed, formatted as a string with two decimals.</li>
+<li><code>message</code>: High-level summary of the outcome.</li>
+<li><code>data</code>: Object containing endpoint-specific payload (empty object on errors).</li>
+<li><code>errors</code>: Array of human-readable error messages (empty on success).</li>
+</ul>
 <h2 id="rate-limiting">Rate Limiting</h2>
-<p>Per-endpoint rate limiting protects expensive operations. When a limit is exceeded the API returns HTTP <code>429</code> using the standard error envelope with <code>message</code> set to <code>&quot;Too many requests&quot;</code>.</p>
+<p>When a limit is exceeded the API returns HTTP <code>429</code> using the standard error envelope with <code>message</code> <code>&quot;Too many requests&quot;</code>.</p>
 <table>
 <thead>
 <tr>
@@ -213,20 +222,102 @@
 <td>CAPTCHA required (<code>captchaToken</code>, action <code>reset_password</code>).</td>
 </tr>
 <tr>
-<td>Authenticated endpoints (<code>/auth/logout</code>, <code>/users/*</code>)</td>
+<td>Authenticated endpoints (<code>/auth/logout</code>, <code>/users/*</code>, <code>/admin/*</code>)</td>
 <td>60 requests</td>
 <td>1 minute per authenticated user</td>
-<td>Enforced by <code>authenticatedLimiter</code>; key is the authenticated <code>user.id</code>.</td>
+<td>Enforced by <code>authenticatedLimiter</code>; keyed by <code>user.id</code>.</td>
 </tr>
 </tbody>
 </table>
-<p>All other endpoints inherit Express' default behaviour and currently have no dedicated custom limit.</p>
+<p>All other endpoints currently have no dedicated custom limit.</p>
+<h2 id="shared-behaviours">Shared Behaviours</h2>
+<ul>
+<li><strong>Authentication:</strong> Routes guarded by <code>requiresAuth</code> return HTTP <code>401</code> with <code>message</code> <code>&quot;Authentication required for this action.&quot;</code> when the Authorization header is missing or invalid. Disabled accounts receive HTTP <code>403</code> with <code>message</code> <code>&quot;Your account has been disabled.&quot;</code>.</li>
+<li><strong>Role Checks:</strong> Admin-only routes use <code>requireRole</code>. Non-admin users receive HTTP <code>403</code> with <code>message</code> <code>&quot;Forbidden: Insufficient permissions.&quot;</code>.</li>
+<li><strong>Validation:</strong> Validation failures respond with HTTP <code>400</code>, <code>message</code> <code>&quot;Validation Error&quot;</code>, and each issue listed in <code>errors</code>.</li>
+<li><strong>Global 404:</strong> Unmatched routes return HTTP <code>404</code> with <code>message</code> <code>&quot;Endpoint Not Found&quot;</code> and guidance in <code>errors</code>.</li>
+<li><strong>Unhandled Errors:</strong> Unexpected exceptions return HTTP <code>500</code>, <code>message</code> <code>&quot;Internal Server Error&quot;</code>, and a generic error list.</li>
+</ul>
 <h2 id="endpoints">Endpoints</h2>
+<p>Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.</p>
 <h3 id="get-">GET /</h3>
 <ul>
 <li><strong>Description:</strong> Health check that confirms the API is reachable and returns the documentation link.</li>
 <li><strong>Authentication:</strong> Not required.</li>
-<li><strong>Example Response:</strong></li>
+</ul>
+<h4 id="request-overview">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON by default.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Successful Response (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -249,6 +340,117 @@
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 5 requests per 10 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>register</code> action.</li>
+</ul>
+<h4 id="request-overview-1">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/register</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>5 requests / 10 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>register</code> (reCAPTCHA v3)</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-1">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-1">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>register</code> action.</td>
+</tr>
+<tr>
+<td><code>fullName</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>2–255 characters; letters plus spaces, hyphens, periods, apostrophes.</td>
+</tr>
+<tr>
+<td><code>preferredName</code></td>
+<td>string</td>
+<td>No</td>
+<td>2–100 alphabetic characters; optional friendly name.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>5–255 characters; must be unique and in valid email format.</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>10–100 characters; must include upper, lower, digit, and special character.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -260,7 +462,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (201):</strong></li>
+<li><strong>Created (201):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -279,7 +481,19 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Common Error (400 Validation):</strong></li>
+<li><strong>Existing Unverified Account (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11.02&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Account already exists but not verified. Verification email has been (re)sent. The existing account was not modified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
@@ -293,13 +507,163 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<p>If the email already belongs to a verified account the API returns HTTP <code>409</code> with <code>message</code> <code>&quot;Email already in use&quot;</code>.</p>
+<ul>
+<li><strong>CAPTCHA Failure (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.44&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please refresh the page and try again.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Make sure that you provided a captchaToken in your request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Email in Use by Verified Account (409):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email already in use&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided email is already associated with another account. Please log in or use a different email.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Token Issuance Failure (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.39&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Failed to issue verification token&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Database connection lost&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Database Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;7.81&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while creating the user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;duplicate key value violates unique constraint \&quot;users_email_key\&quot;&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authresend-verification">POST /auth/resend-verification</h3>
 <ul>
 <li><strong>Purpose:</strong> Re-send the verification email for an unverified account.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>resend_verification</code> action.</li>
+</ul>
+<h4 id="request-overview-2">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/resend-verification</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>1 request / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>resend_verification</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-2">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-2">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>resend_verification</code> action.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email address to resend verification for; must be 5–255 chars and valid format.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -308,7 +672,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong> Always generic to avoid leaking account state.</li>
+<li><strong>Generic Success (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -336,12 +700,125 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.98&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Email must be provided.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authverify-email">POST /auth/verify-email</h3>
 <ul>
 <li><strong>Purpose:</strong> Mark a user as verified using the token emailed during registration.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> Not currently rate limited beyond CAPTCHA.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>verify_email</code> action.</li>
+</ul>
+<h4 id="request-overview-3">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/verify-email</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>Not currently rate limited</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>verify_email</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-3">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-3">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>verify_email</code> action.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email address to verify (5–255 characters, valid format).</td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email verification token (32-byte hex string).</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -351,7 +828,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong></li>
+<li><strong>Verified (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -366,14 +843,198 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Invalid Token (400):</strong> Returns <code>message</code> <code>&quot;Token expired or incorrect email address&quot;</code> with two explanatory entries in <code>errors</code>.</li>
+<li><strong>Already Verified (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.56&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email already verified. You can log in.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>CAPTCHA Failure (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.73&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please refresh the page and try again.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Make sure that you provided a captchaToken in your request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid Token or Email (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;7.03&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Token expired or incorrect email address&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided token is invalid, has expired, or the email address is incorrect.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Please request a new verification email.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Token expired or incorrect email address&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Email must be provided.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;A valid verification token must be provided.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Database Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;9.64&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while verifying your email. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Internal Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.77&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while verifying your email. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authlogin">POST /auth/login</h3>
 <ul>
 <li><strong>Purpose:</strong> Authenticate with email and password and issue access/refresh tokens.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 10 requests per 10 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>login</code> action.</li>
+</ul>
+<h4 id="request-overview-4">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/login</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>10 requests / 10 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>login</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-4">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-4">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>login</code> action.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email address of the user (case-insensitive).</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Plain-text password to verify; not stored.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -383,7 +1044,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong></li>
+<li><strong>Authenticated (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -406,13 +1067,145 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Invalid Credentials (401):</strong> <code>message</code> <code>&quot;Invalid email or password.&quot;</code> with a single error entry <code>&quot;The provided email or password is incorrect&quot;</code>.</li>
+<li><strong>Invalid Credentials (401):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.51&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid email or password.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided email or password is incorrect&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>CAPTCHA Failure (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.18&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please refresh the page and try again.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Make sure that you provided a captchaToken in your request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Account Disabled (403):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">403</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.92&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Your account has been disabled.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please contact the system administrator if you believe this is a mistake.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;10.44&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred during login. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authrefresh-token">POST /auth/refresh-token</h3>
 <ul>
 <li><strong>Purpose:</strong> Exchange a valid refresh token for a new access token.</li>
-<li><strong>Authentication:</strong> Not required (refresh token provides trust).</li>
-<li><strong>Rate Limit:</strong> Not currently rate limited beyond implicit database lookups.</li>
+<li><strong>Authentication:</strong> Not required (the refresh token provides trust).</li>
+</ul>
+<h4 id="request-overview-5">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/refresh-token</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>Not required</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-5">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-5">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>refreshToken</code></td>
+<td>string (JWT)</td>
+<td>Yes</td>
+<td>Refresh token previously issued by <code>/auth/login</code> or <code>/auth/google</code>.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -420,15 +1213,183 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong> Returns <code>message</code> <code>&quot;Access token refreshed.&quot;</code> with <code>{ &quot;accessToken&quot;: &quot;&lt;jwt&gt;&quot; }</code> in <code>data</code>.</li>
-<li><strong>Invalid Token:</strong> HTTP <code>401</code> with <code>message</code> <code>&quot;Invalid refresh token&quot;</code>.</li>
-<li><strong>Disabled Account:</strong> HTTP <code>403</code> with <code>message</code> <code>&quot;Your account has been disabled.&quot;</code>.</li>
+<li><strong>Refreshed (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;7.81&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Access token refreshed.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;accessToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;jwt&gt;&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Missing Token (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.07&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Refresh token required&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please provide a valid refresh token in the request body.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid or Revoked Token (401):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.35&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid refresh token&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided refresh token is invalid or has expired.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Token User Missing (401):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.90&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid refresh token&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;User associated with token not found.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Account Disabled (403):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">403</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Your account has been disabled.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please contact the system administrator if you believe this is a mistake.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.58&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while refreshing the access token.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authlogout">POST /auth/logout</h3>
 <ul>
 <li><strong>Purpose:</strong> Revoke one or all active refresh tokens for the authenticated user.</li>
-<li><strong>Authentication:</strong> Access token required (Authorization header <code>Bearer &lt;accessToken&gt;</code>).</li>
-<li><strong>Rate Limit:</strong> 60 requests per minute per authenticated user via <code>authenticatedLimiter</code>.</li>
+<li><strong>Authentication:</strong> Access token required (<code>Authorization: Bearer &lt;accessToken&gt;</code>).</li>
+<li><strong>Rate Limit:</strong> 60 requests per minute per authenticated user.</li>
+</ul>
+<h4 id="request-overview-6">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/logout</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-6">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token generated by <code>/auth/login</code> or <code>/auth/google</code>.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-6">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>refreshToken</code></td>
+<td>string (JWT)</td>
+<td>Conditionally</td>
+<td>Required unless <code>allDevices</code> is provided; identifies the session to revoke.</td>
+</tr>
+<tr>
+<td><code>allDevices</code></td>
+<td>boolean | string</td>
+<td>No</td>
+<td>Set to <code>true</code>, <code>1</code>, <code>&quot;true&quot;</code>, <code>&quot;1&quot;</code>, or <code>&quot;all&quot;</code> to revoke every active session without supplying <code>refreshToken</code>.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -438,7 +1399,7 @@
 </code></pre>
 <p>Set <code>allDevices</code> truthy (<code>true</code>, <code>&quot;true&quot;</code>, <code>1</code>, <code>&quot;1&quot;</code>, or <code>&quot;all&quot;</code>) to revoke every active session without supplying a refresh token.</p>
 <ul>
-<li><strong>Successful Single-Device Logout:</strong></li>
+<li><strong>Single Session Logout (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -453,14 +1414,176 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Missing Refresh Token (400):</strong> <code>message</code> <code>&quot;Refresh token required&quot;</code> and a single error instructing the caller to supply the token.</li>
+<li><strong>All Sessions Logout (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Logged out successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;scope&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;all&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;revokedSessions&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Missing Refresh Token (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.31&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Refresh token required&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please provide a valid refresh token in the request body.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid Refresh Token (401):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.49&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid refresh token&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided refresh token is invalid or has expired.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Forbidden Session (403):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">403</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.17&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Forbidden&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;You can only log out your own session.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;The access token and refresh token do not belong to the same user.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;7.95&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while logging out. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authrequest-password-reset">POST /auth/request-password-reset</h3>
 <ul>
 <li><strong>Purpose:</strong> Send a password reset email if the account exists.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>request_password_reset</code> action.</li>
+</ul>
+<h4 id="request-overview-7">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/request-password-reset</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>1 request / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>request_password_reset</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-7">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-7">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>request_password_reset</code> action.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email address to send the password reset link to.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -469,14 +1592,162 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong> Always generic to avoid account enumeration. <code>message</code> <code>&quot;If you have registered an account with this email address, you will receive a password reset email.&quot;</code> with a <code>disclaimer</code> in the <code>data</code> object.</li>
+<li><strong>Generic Success (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If you have registered an account with this email address, you will receive a password reset email.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;disclaimer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If you did not receive an email when you should have, please check your spam folder or try again later.&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>CAPTCHA Failure (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.09&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please refresh the page and try again.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Make sure that you provided a captchaToken in your request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.88&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Email must be provided.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> Unexpected errors still respond with the same generic <code>200</code> envelope to avoid leaking account existence.</p>
+</blockquote>
 <h3 id="post-authreset-password">POST /auth/reset-password</h3>
 <ul>
 <li><strong>Purpose:</strong> Reset the account password using the emailed token.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>reset_password</code> action.</li>
+</ul>
+<h4 id="request-overview-8">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/reset-password</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>1 request / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>reset_password</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-8">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-8">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for the <code>reset_password</code> action.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Email address associated with the password reset request.</td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Password-reset token sent via email (32-byte hex).</td>
+</tr>
+<tr>
+<td><code>newPassword</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>10–100 characters, including upper, lower, digit, and special character.</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -487,14 +1758,177 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong> <code>message</code> <code>&quot;Password reset successfully. You can now log in.&quot;</code> and <code>data</code> containing the user id and email. All refresh tokens are revoked as part of the flow.</li>
-<li><strong>Invalid Token:</strong> HTTP <code>400</code> with the same error text used by <code>/auth/verify-email</code>, instructing the caller to request a new email.</li>
+<li><strong>Password Reset (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;9.42&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset successfully. You can now log in.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>CAPTCHA Failure (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.26&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;CAPTCHA verification failed&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please refresh the page and try again.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Make sure that you provided a captchaToken in your request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.91&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A valid password reset token must be provided.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Password must include at least one special character.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid Token or Email (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.74&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Token expired or incorrect email address&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided token is invalid, has expired, or the email address is incorrect.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Please request a new password reset email.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Database Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.54&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while resetting your password. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.97&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while resetting your password. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-authgoogle">POST /auth/google</h3>
 <ul>
 <li><strong>Purpose:</strong> Sign up or sign in a user using a verified Google ID token.</li>
 <li><strong>Authentication:</strong> Not required.</li>
-<li><strong>Rate Limit:</strong> Not currently rate limited.</li>
+<li><strong>Request Body:</strong></li>
+</ul>
+<h4 id="request-overview-9">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/auth/google</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-9">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+<tr>
+<td><code>Authorization</code></td>
+<td>No</td>
+<td>—</td>
+<td>Not used.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-9">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>ID token returned by Google OAuth (must be for the configured client ID).</td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -502,7 +1936,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong></li>
+<li><strong>Authenticated (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -525,16 +1959,175 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Invalid Token (401):</strong> <code>message</code> <code>&quot;Invalid ID token&quot;</code>.</li>
-<li><strong>Incomplete Profile (400):</strong> For example, <code>message</code> <code>&quot;Email not verified by Google&quot;</code> when <code>email_verified</code> is false.</li>
+<li><strong>ID Token Missing (400):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.71&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;ID token required&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please provide a valid Google ID token in the request body.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid ID Token (401):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.08&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid ID token&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The provided Google ID token is invalid.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Email Not Verified by Google (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.33&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email not verified by Google&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Your Google account email is not verified. Please verify your email with Google before signing in.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Missing Google User ID (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid Google profile: No user ID&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Could not retrieve valid user ID from Google profile.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Incomplete Google Profile (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.76&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Incomplete Google profile&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Your Google profile is missing required information.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Please ensure your Google account has an email address and name associated with it.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Or, if you still have issues, please register/login manually.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;9.11&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred during Google login. Please try again.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <hr>
 <h2 id="user-management">User Management</h2>
 <p>All user management endpoints require a valid access token (<code>Authorization: Bearer &lt;accessToken&gt;</code>) and are subject to the <code>authenticatedLimiter</code> (60 requests per minute per user).</p>
 <h3 id="get-usersme">GET /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve the authenticated user's profile and connected OAuth providers.</li>
-<li><strong>Successful Response (200):</strong></li>
+</ul>
+<h4 id="request-overview-10">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-10">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token generated by <code>/auth/login</code> or <code>/auth/google</code>.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-10">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Response (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -548,18 +2141,138 @@
     <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;oauthProviders&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;google&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;oauthProviders&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-string">&quot;google&quot;</span>
+    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<p>If the account is disabled the API returns <code>404</code> with <code>message</code> <code>&quot;User not found.&quot;</code>.</p>
+<ul>
+<li><strong>User Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user record could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.13&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while retrieving the user profile.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="put-usersme">PUT /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Update <code>fullName</code> and/or <code>preferredName</code>.</li>
-<li><strong>Request Body:</strong> Any combination of <code>fullName</code> and <code>preferredName</code>.</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-11">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-11">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token generated by <code>/auth/login</code> or <code>/auth/google</code>.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-11">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fullName</code></td>
+<td>string</td>
+<td>Conditionally</td>
+<td>2–255 characters; letters plus spaces, hyphens, periods, apostrophes.</td>
+</tr>
+<tr>
+<td><code>preferredName</code></td>
+<td>string</td>
+<td>Conditionally</td>
+<td>2–100 alphabetic characters (letters only).</td>
+</tr>
+</tbody>
+</table>
+<p>At least one of <code>fullName</code> or <code>preferredName</code> must be provided.</p>
+<ul>
+<li><strong>Request Body:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Q. Doe&quot;</span><span class="hljs-punctuation">,</span>
@@ -567,20 +2280,506 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Successful Response (200):</strong> Mirrors <code>GET /users/me</code> with updated values.</li>
-<li><strong>No Fields Provided:</strong> HTTP <code>400</code> with <code>message</code> <code>&quot;No changes were provided.&quot;</code> and error <code>&quot;Please provide at least one field to update.&quot;</code>.</li>
+<li><strong>Updated (200):</strong></li>
 </ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.41&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User profile updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Q. Doe&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jan&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T08:44:02.000Z&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>No Fields Provided (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.21&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;No changes were provided.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Please provide at least one field to update.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.92&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Preferred Name must be between 2 and 100 characters.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>User Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.33&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user record could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.26&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while updating the user profile.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="delete-usersme">DELETE /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Soft-delete the authenticated account and revoke every refresh token.</li>
-<li><strong>Successful Response (200):</strong> <code>message</code> <code>&quot;Your account has been disabled.&quot;</code> and an empty object in <code>data</code>.</li>
 </ul>
+<h4 id="request-overview-12">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-12">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required to identify the user being disabled.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-12">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Deleted (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.07&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Your account has been disabled.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>User Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.48&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user record could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;8.44&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;An error occurred while disabling the user account.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-usersmerequest-email-change">POST /users/me/request-email-change</h3>
+<ul>
+<li><strong>Purpose:</strong> Placeholder for initiating an email change workflow (not implemented yet).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+<li><strong>Status:</strong> Reserved for future use; always returns HTTP 501.</li>
+</ul>
+<h4 id="request-overview-13">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me/request-email-change</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code> (no fields currently used)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-13">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required even though the endpoint is a stub.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Included for parity; no body is processed.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-13">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>No request body is currently accepted.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Current Response (501):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">501</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.87&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;This functionality has not been implemented yet.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;This endpoint is reserved for future use.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="post-usersmerequest-account-deletion">POST /users/me/request-account-deletion</h3>
-<p>These endpoints are planned but not yet implemented. Each currently returns HTTP <code>501</code> with <code>message</code> <code>&quot;This functionality has not been implemented yet.&quot;</code> and an explanatory error entry.</p>
+<ul>
+<li><strong>Purpose:</strong> Placeholder for requesting account deletion (not implemented yet).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+<li><strong>Status:</strong> Reserved for future use; always returns HTTP 501.</li>
+</ul>
+<h4 id="request-overview-14">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me/request-account-deletion</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code> (no fields currently used)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-14">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required even though the endpoint is a stub.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Included for parity; no body is processed.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-14">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>No request body is currently accepted.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Current Response (501):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">501</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.87&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;This functionality has not been implemented yet.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;This endpoint is reserved for future use.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <hr>
 <h2 id="admin">Admin</h2>
-<p>All <code>/admin</code> routes require an authenticated admin user and currently respond with HTTP <code>300</code> using the standard error envelope, <code>message</code> <code>&quot;This admin endpoint is not yet implemented.&quot;</code>, and the same string echoed in the <code>errors</code> array. Further details will be documented once the endpoints are implemented.</p>
+<p>All <code>/admin/*</code> routes require an authenticated admin user and currently share the same placeholder implementation.</p>
+<h4 id="shared-request-overview">Shared Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td>Varies (<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>)</td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/*</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> with <code>role=admin</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code> for endpoints that accept a body</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-15">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Token must belong to a user with the <code>admin</code> role.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Conditional</td>
+<td><code>application/json</code></td>
+<td>Required when sending a JSON body.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-15">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(varies)</em></td>
+<td>—</td>
+<td>—</td>
+<td>Admin endpoints are not yet implemented; request bodies will be documented once available.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Not Implemented (300):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">300</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.02&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;This admin endpoint is not yet implemented.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;This admin endpoint is not yet implemented.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Unauthorized (401):</strong> When no valid access token is provided the standard authentication error response is returned.</li>
+<li><strong>Forbidden (403):</strong> Authenticated users without the <code>admin</code> role receive the shared <code>&quot;Forbidden: Insufficient permissions.&quot;</code> envelope.</li>
+</ul>
+<p>Further details will be documented once the admin endpoints are implemented.</p>
 
             
             

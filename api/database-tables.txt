@@ -1,3 +1,5 @@
+
+
 -- Use an ENUM type for roles for better data integrity.
 CREATE TYPE user_role AS ENUM ('user', 'admin');
 
