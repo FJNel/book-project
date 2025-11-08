@@ -60,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {string} The translated string or the key itself if not found.
      */
     const getLangString = (key) => lang[key] || key;
+    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
     /**
@@ -260,7 +262,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLoginError(status, data) {
         console.warn('[Login] Login failed with status:', status);
         loginErrorResendVerificationAlert.style.display = 'none';
-        const messageText = getLangString(data?.message || 'An unexpected error occurred.');
+        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
+        if (isCaptchaFailureMessage(rawMessage)) {
+            showLoginError(SECURITY_CHECK_ERROR_HTML);
+            return;
+        }
+        const messageText = rawMessage;
         const detailsText = Array.isArray(data?.errors) && data.errors.length
             ? data.errors.map(getLangString).join(' ')
             : '';

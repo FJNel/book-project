@@ -58,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
+    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
     function initializeUI() {
@@ -209,7 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleRegisterError(status, data) {
         console.warn('[Register] Registration failed with status:', status);
-        const message = `<strong>${getLangString(data.message)}:</strong>`;
+        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
+        if (isCaptchaFailureMessage(rawMessage)) {
+            showRegisterError(SECURITY_CHECK_ERROR_HTML);
+            return;
+        }
+        const message = `<strong>${rawMessage}:</strong>`;
         const details = Array.isArray(data.errors) ? data.errors.map(getLangString).join(' ') : getLangString(data.errors);
         showRegisterError(`${message} ${details}`);
     }

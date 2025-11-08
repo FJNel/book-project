@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailHelp = document.getElementById('resetPasswordEmailHelp');
 
     // Button and Spinner
-    const sendLinkButton = forgotPasswordModal.querySelector('.modal-footer .btn-primary');
+    const sendLinkButton = document.getElementById('forgotPasswordButton');
     const spinner = document.getElementById('forgotPasswordSpinner');
     const buttonText = document.createTextNode('Send Link');
     sendLinkButton.appendChild(buttonText);
@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
+    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
     function resetControlsState() {
@@ -207,7 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
-        const messageText = getLangString(data?.message || 'An unexpected error occurred.');
+        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
+        if (isCaptchaFailureMessage(rawMessage)) {
+            showAlert('error', SECURITY_CHECK_ERROR_HTML);
+            return;
+        }
+        const messageText = rawMessage;
         const detailsText = Array.isArray(data?.errors) && data.errors.length
             ? data.errors.map(getLangString).join(' ')
             : '';

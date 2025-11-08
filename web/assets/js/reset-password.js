@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
+    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- Helper to get URL Query Parameters ---
     const getQueryParam = (param) => {
@@ -185,9 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = 'https://bookproject.fjnel.co.za?action=login';
                 }, 5000);
             } else {
-                const message = `<strong>${getLangString(data.message)}:</strong>`;
-                const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-                showAlert('error', `${message} ${details}`);
+                const rawMessage = getLangString(data.message);
+                if (isCaptchaFailureMessage(rawMessage)) {
+                    showAlert('error', SECURITY_CHECK_ERROR_HTML);
+                } else {
+                    const message = `<strong>${rawMessage}:</strong>`;
+                    const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
+                    showAlert('error', `${message} ${details}`);
+                }
             }
         } catch (error) {
             console.error('[API] Network or fetch error during password reset:', error);
