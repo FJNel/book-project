@@ -18,14 +18,14 @@
                 <div class="col-sm-12 col-md-10 col-lg-8 col-xl-7 col-xxl-6 text-center d-flex d-sm-flex d-md-flex justify-content-center align-items-center justify-content-md-start align-items-md-center justify-content-xl-center mx-auto">
                     <div>
                         <h1 class="fw-bold mb-3" data-lang="welcome_title">Welcome to the Book Project</h1>
-                        <p class="lead mb-4" data-lang="welcome_message">This application allow you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.</p>
+                        <p class="lead mb-4" data-lang="welcome_message">This application allows you to manage your personal collection of books. Please log in to continue, or register if you don't have an account.</p>
                     </div>
                 </div>
             </div>
             <div class="row h-100">
                 <div class="col-sm-12 col-md-10 col-lg-8 col-xl-7 col-xxl-6 text-center d-flex justify-content-center align-items-center mx-auto">
                     <div class="card shadow">
-                        <div class="card-body w-100"><button class="btn btn-danger disabled fs-4 w-100" type="button" disabled="" data-lang="google_signin_button">Continue with Google</button>
+                        <div class="card-body w-100"><button class="btn btn-danger disabled fs-4 w-100" id="continueWithGoogleBtn" type="button" disabled="" data-lang="google_signin_button">Continue with Google</button>
                             <div>
                                 <p class="text-center text-muted mt-3" data-lang="or_divider">OR</p>
                             </div>
@@ -119,6 +119,19 @@
                     <p class="mb-2" data-lang="not_logged_in_text">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
                     <p class="mb-0" data-lang="not_logged_in_footer"><em>Close this window to go to the login or registration page.</em></p>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="alreadyLoggedIn">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Already logged in</h4>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">It looks like you're already logged in. You can continue to your dashboard or log out if you'd like to switch accounts.</p>
+                </div>
+                <div class="modal-footer"><button class="btn btn-outline-secondary" id="logoutBtn" type="button" data-bs-dismiss="modal">Log out</button><button class="btn btn-primary" id="goToDashboardbtn" type="button">Go to Dashboard</button></div>
             </div>
         </div>
     </div>

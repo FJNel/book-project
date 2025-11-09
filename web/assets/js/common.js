@@ -1,20 +1,24 @@
+const appInitializationDeferred = {};
+window.appInitializationPromise = new Promise((resolve) => {
+	appInitializationDeferred.resolve = resolve;
+});
+
 // Checks if the API is reachable
 async function checkApiHealth() {
-    console.log('[API Health Check] Checking API health...');
-    const apiUrl = 'https://api.fjnel.co.za/'; // Root endpoint for health check
+	console.log('[API Health Check] Checking API health...');
+	const apiUrl = 'https://api.fjnel.co.za/'; // Root endpoint for health check
 
-    try {
-        const response = await apiFetch('/', { method: 'GET' });
+	try {
+		const response = await apiFetch('/', { method: 'GET' });
 
-        if (!response.ok) {
-            console.error('[API Health Check] Failed:', response.status, response.statusText);
-            showApiErrorModal();
-            return false;
-        }
+		if (!response.ok) {
+			console.error('[API Health Check] Failed:', response.status, response.statusText);
+			return false;
+		}
 
-        const data = await response.json();
-        const responseStatus = typeof data.status === 'string' ? data.status.toLowerCase() : null;
-        const isSuccess = responseStatus === 'success' || (!responseStatus && response.ok);
+		const data = await response.json();
+		const responseStatus = typeof data.status === 'string' ? data.status.toLowerCase() : null;
+		const isSuccess = responseStatus === 'success' || (!responseStatus && response.ok);
 
         if (isSuccess) {
             const message = typeof data.message === 'string' ? data.message : 'API responded successfully.';
@@ -22,14 +26,12 @@ async function checkApiHealth() {
             return true;
         }
 
-        console.error('[API Health Check] Unexpected API response:', data);
-        showApiErrorModal();
-        return false;
-    } catch (error) {
-        console.error('[API Health Check] Error while checking API health:', error);
-        showApiErrorModal();
-        return false;
-    }
+		console.error('[API Health Check] Unexpected API response:', data);
+		return false;
+	} catch (error) {
+		console.error('[API Health Check] Error while checking API health:', error);
+		return false;
+	}
 }
 
 function checkViewport() {
@@ -183,21 +185,29 @@ async function hidePageLoadingModal() {
 }
 
 // Show modal if API is unreachable
-function showApiErrorModal() {
-    console.log('[Modal] Showing API Error Modal');
-    const modalElement = document.getElementById('apiErrorModal');
-    if (!modalElement) {
-        console.error('[Modal] API Error Modal element not found.');
-        return;
-    }
+async function showApiErrorModal() {
+	console.log('[Modal] Showing API Error Modal');
+	const modalElement = document.getElementById('apiErrorModal');
+	if (!modalElement) {
+		console.error('[Modal] API Error Modal element not found.');
+		return;
+	}
 
-    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-        window.modalManager.showModal(modalElement);
-        return;
-    }
+	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+		await window.modalManager.showModal(modalElement, { backdrop: 'static', keyboard: false });
+		return;
+	}
 
-    const apiErrorModal = new bootstrap.Modal(modalElement);
-    apiErrorModal.show();
+	if (window.bootstrap && window.bootstrap.Modal) {
+		const apiErrorModal = window.bootstrap.Modal.getOrCreateInstance(modalElement, { backdrop: 'static', keyboard: false });
+		return new Promise((resolve) => {
+			modalElement.addEventListener('shown.bs.modal', resolve, { once: true });
+			apiErrorModal.show();
+		});
+	}
+
+	modalElement.style.display = 'block';
+	return Promise.resolve();
 }
 
 // Show modal if viewport is too small
@@ -209,23 +219,28 @@ function showApiErrorModal() {
 
 //Run checks on page load
 async function initializeApp() {
-    try {
-        showPageLoadingModal();
-        // Run the original checks
-        const apiHealthy = await checkApiHealth();
-        //Deprecated:
+	let apiHealthy = false;
+	try {
+		showPageLoadingModal();
+		apiHealthy = await checkApiHealth();
+		if (apiHealthy) {
+			console.log('[Initialization] All checks passed.');
+		} else {
+			console.warn('[Initialization] API health check failed. Application may not function correctly.');
+		}
+	} catch (error) {
+		console.error('[Initialization] An unexpected error occurred:', error);
+	} finally {
+		await hidePageLoadingModal();
+	}
 
-        if (apiHealthy) {
-            console.log('[Initialization] All checks passed.');
-        } else {
-            console.warn('[Initialization] API health check failed. Application may not function correctly.');
-        }
+	if (!apiHealthy) {
+		await showApiErrorModal();
+	}
 
-    } catch (error) {
-        console.error('[Initialization] An unexpected error occurred:', error);
-    } finally {
-        await hidePageLoadingModal();
-    }
+	if (appInitializationDeferred.resolve) {
+		appInitializationDeferred.resolve({ apiHealthy });
+	}
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp);

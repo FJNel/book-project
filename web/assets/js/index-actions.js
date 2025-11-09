@@ -1,7 +1,58 @@
 //Allows the URL path to specify an action to perform on the index page
 //E.g. ?action=login, ?action=register, ?action=request-password-reset, ?action=request-verification-email
 
-document.addEventListener('DOMContentLoaded', async () => {
+function getTokensPresent() {
+	const accessToken = localStorage.getItem('accessToken');
+	const refreshToken = localStorage.getItem('refreshToken');
+	return Boolean(accessToken || refreshToken);
+}
+
+async function waitForAppInitialization() {
+	const initPromise = window.appInitializationPromise;
+	if (initPromise && typeof initPromise.then === 'function') {
+		try {
+			return await initPromise;
+		} catch (error) {
+			console.error('[Index Actions] App initialization promise rejected.', error);
+			return { apiHealthy: false };
+		}
+	}
+	return { apiHealthy: true };
+}
+
+async function showModalElement(modalElement, options = {}) {
+	if (!modalElement) {
+		return null;
+	}
+	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+		return window.modalManager.showModal(modalElement, options);
+	}
+	const fallbackModal = bootstrap && bootstrap.Modal
+		? bootstrap.Modal.getOrCreateInstance(modalElement, options)
+		: null;
+	if (fallbackModal) {
+		fallbackModal.show();
+	}
+	return fallbackModal;
+}
+
+async function hideModalElement(modalElement) {
+	if (!modalElement) {
+		return;
+	}
+	if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+		await window.modalManager.hideModal(modalElement);
+		return;
+	}
+	const instance = bootstrap && bootstrap.Modal
+		? bootstrap.Modal.getInstance(modalElement)
+		: null;
+	if (instance) {
+		instance.hide();
+	}
+}
+
+async function handleActionModalFromQuery() {
 	const urlParams = new URLSearchParams(window.location.search);
 	let action = urlParams.get('action');
 	if (!action) {
@@ -31,12 +82,91 @@ document.addEventListener('DOMContentLoaded', async () => {
 		return;
 	}
 
-	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-		await window.modalManager.showModal(modalElement);
-	} else {
-		const fallbackModal = new bootstrap.Modal(modalElement);
-		fallbackModal.show();
-	}
+	await showModalElement(modalElement);
 	console.log(`[Index Actions] ${action} modal shown.`);
+}
+
+async function logoutCurrentUser() {
+	const refreshToken = localStorage.getItem('refreshToken');
+	if (!refreshToken) {
+		console.warn('[Index Actions] No refresh token found; clearing local tokens only.');
+		localStorage.removeItem('accessToken');
+		localStorage.removeItem('refreshToken');
+		return;
+	}
+
+	try {
+		const response = await apiFetch('/auth/logout', {
+			method: 'POST',
+			body: JSON.stringify({ refreshToken, allDevices: false })
+		});
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			console.warn('[Index Actions] Logout request failed.', response.status, data);
+		} else {
+			console.log('[Index Actions] Logout successful.');
+		}
+	} catch (error) {
+		console.error('[Index Actions] Logout request error:', error);
+	}
+
+	localStorage.removeItem('accessToken');
+	localStorage.removeItem('refreshToken');
+}
+
+function attachAlreadyLoggedInHandlers(modalElement) {
+	const logoutButton = document.getElementById('logoutBtn');
+	const dashboardButton = document.getElementById('goToDashboardbtn');
+	if (!logoutButton || !dashboardButton) {
+		console.warn('[Index Actions] Already logged in modal buttons missing.');
+		return;
+	}
+
+	// Prevent Bootstrap auto-dismiss so we can control the flow.
+	logoutButton.removeAttribute('data-bs-dismiss');
+
+	logoutButton.addEventListener('click', async (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		logoutButton.disabled = true;
+		dashboardButton.disabled = true;
+		await logoutCurrentUser();
+		await hideModalElement(modalElement);
+		logoutButton.disabled = false;
+		dashboardButton.disabled = false;
+		await handleActionModalFromQuery();
+	}, { once: true });
+
+	dashboardButton.addEventListener('click', () => {
+		window.location.href = 'https://bookproject.fjnel.co.za/books';
+	}, { once: true });
+}
+
+async function showAlreadyLoggedInModalIfNeeded() {
+	if (!getTokensPresent()) {
+		return false;
+	}
+	const modalElement = document.getElementById('alreadyLoggedIn');
+	if (!modalElement) {
+		return false;
+	}
+	console.log('[Index Actions] User already logged in. Displaying modal.');
+	attachAlreadyLoggedInHandlers(modalElement);
+	await showModalElement(modalElement, { backdrop: 'static', keyboard: false });
+	return true;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+	const initResult = await waitForAppInitialization();
+	if (!initResult || initResult.apiHealthy === false) {
+		console.warn('[Index Actions] App initialization not healthy; skipping additional modals.');
+		return;
+	}
+
+	if (await showAlreadyLoggedInModalIfNeeded()) {
+		return;
+	}
+	await handleActionModalFromQuery();
 });
+
 
