@@ -44,6 +44,15 @@
 		return null;
 	}
 
+	function ensureBackdropExists() {
+		if (document.querySelector('.modal-backdrop')) {
+			return;
+		}
+		const backdrop = document.createElement('div');
+		backdrop.className = 'modal-backdrop fade show';
+		document.body.appendChild(backdrop);
+	}
+
 	function cleanupBackdrops() {
 		const openModals = document.querySelectorAll('.modal.show');
 		const backdrops = document.querySelectorAll('.modal-backdrop');
@@ -52,6 +61,14 @@
 			backdrops.forEach((bd) => bd.remove());
 			return;
 		}
+
+		document.body.classList.add('modal-open');
+
+		if (backdrops.length === 0) {
+			ensureBackdropExists();
+			return;
+		}
+
 		if (backdrops.length > 1) {
 			backdrops.forEach((bd, index) => {
 				if (index < backdrops.length - 1) {
