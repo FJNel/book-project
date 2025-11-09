@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
+    let redirectScheduled = false;
 
     // --- Language File Handler ---
     async function loadLanguageFile() {
@@ -49,6 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return urlParams.get(param);
     };
 
+    function setFormDisabledState(disabled) {
+        [emailInput, verifyButton].forEach((element) => {
+            if (!element) return;
+            element.disabled = disabled;
+        });
+    }
+
     // --- Spinner Toggle ---
     function toggleSpinner(show) {
         if (show) {
@@ -60,12 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding verification spinner.');
             verifySpinner.style.display = 'none';
             verifyButtonText.textContent = 'Verify Email'; // Restore button text
-            verifyButton.disabled = false;
+            verifyButton.disabled = redirectScheduled;
         }
     }
 
     // --- UI Initialization and State Management ---
     async function initializeUI() {
+        redirectScheduled = false;
+        setFormDisabledState(false);
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         toggleSpinner(false);
@@ -147,6 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const message = getLangString(data.message);
                 showAlert('success', `<strong>${message}</strong> You can now log in.`);
+                redirectScheduled = true;
+                setFormDisabledState(true);
                 setTimeout(() => {
                     console.log('[Redirect] Redirecting to homepage...');
                     window.location.href = 'https://bookproject.fjnel.co.za?action=login';

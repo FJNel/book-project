@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const successAlert = document.getElementById('forgotPasswordAlert');
     const errorAlert = document.getElementById('forgotPasswordErrorAlert');
 
+    if (!forgotPasswordModal || !forgotPasswordForm || !emailInput || !sendLinkButton || !successAlert || !errorAlert) {
+        console.warn('[Password Reset Request] Required modal elements are missing. Handler will not initialize.');
+        return;
+    }
+
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
@@ -234,6 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
     emailInput.addEventListener('input', clearAlertsAndErrors);
 
     // --- App Initialization ---
+    forgotPasswordModal.addEventListener('show.bs.modal', () => {
+        initializeUI();
+        emailInput.focus();
+    });
+
     forgotPasswordModal.addEventListener('hidden.bs.modal', () => {
         emailInput.value = '';
         clearAlertsAndErrors();

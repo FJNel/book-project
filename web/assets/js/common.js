@@ -98,6 +98,40 @@ function checkLoginStatus() {
     }
 }
 
+(function enableModalDelegation() {
+    document.addEventListener('click', async (event) => {
+        const trigger = event.target.closest('[data-bs-toggle="modal"]');
+        if (!trigger) {
+            return;
+        }
+
+        const targetSelector = trigger.getAttribute('data-bs-target') || trigger.getAttribute('href');
+        if (!targetSelector || !targetSelector.startsWith('#')) {
+            return;
+        }
+
+        const modalManager = window.modalManager;
+        if (!modalManager || typeof modalManager.showModal !== 'function') {
+            return;
+        }
+
+        const targetElement = document.querySelector(targetSelector);
+        if (!targetElement || !targetElement.classList || !targetElement.classList.contains('modal')) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const parentModal = trigger.closest('.modal');
+        if (parentModal && parentModal !== targetElement) {
+            await modalManager.hideModal(parentModal);
+        }
+
+        await modalManager.showModal(targetElement);
+    }, true);
+})();
+
 let legacyPageLoadingModalInstance;
 
 function showPageLoadingModal() {

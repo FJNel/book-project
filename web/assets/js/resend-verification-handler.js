@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const successAlert = document.getElementById('resendVerificationAlert');
     const errorAlert = document.getElementById('resendVerificationErrorAlert');
 
+    if (!resendModal || !resendForm || !emailInput || !sendLinkButton || !successAlert || !errorAlert) {
+        console.warn('[Resend Verification] Required modal elements are missing. Handler will not initialize.');
+        return;
+    }
+
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
@@ -226,6 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
     resendForm.addEventListener('submit', handleResendVerificationRequest);
     sendLinkButton.addEventListener('click', handleResendVerificationRequest);
     emailInput.addEventListener('input', clearAlertsAndErrors);
+
+    resendModal.addEventListener('show.bs.modal', () => {
+        initializeUI();
+        emailInput.focus();
+    });
 
     // --- App Initialization ---
     resendModal.addEventListener('hidden.bs.modal', () => {

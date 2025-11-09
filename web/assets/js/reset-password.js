@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // API and Language Configuration
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
+    let redirectScheduled = false;
 
     // --- Language File Handler ---
     async function loadLanguageFile() {
@@ -52,6 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return urlParams.get(param);
     };
 
+    function setFormDisabledState(disabled) {
+        [emailInput, passwordInput, resetButton].forEach((element) => {
+            if (!element) return;
+            element.disabled = disabled;
+        });
+    }
+
     // --- Toggle Spinner on Button ---
     function toggleSpinner(show) {
         if (show) {
@@ -63,13 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding password reset spinner.');
             resetSpinner.style.display = 'none';
             resetButtonText.textContent = 'Reset Password'; // Restore button text
-            resetButton.disabled = false;
+            resetButton.disabled = redirectScheduled;
         }
     }
 
     // --- UI Initialization and State Management ---
     let desktopModalShown = false;
     async function initializeUI() {
+        redirectScheduled = false;
+        setFormDisabledState(false);
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         toggleSpinner(false);
@@ -182,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const message = getLangString(data.message);
                 showAlert('success', `<strong>${message}</strong> You can now log in with your new password.`);
+                redirectScheduled = true;
+                setFormDisabledState(true);
                 setTimeout(() => {
                     console.log('[Redirect] Redirecting to homepage...');
                     window.location.href = 'https://bookproject.fjnel.co.za?action=login';
