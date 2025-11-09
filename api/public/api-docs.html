@@ -181,6 +181,8 @@
 <li><a href="#post-usersmeverify-email-change">POST /users/me/verify-email-change</a></li>
 <li><a href="#delete-usersmerequest-account-deletion-also-available-as-post">DELETE /users/me/request-account-deletion (also available as POST)</a></li>
 <li><a href="#post-usersmeverify-account-deletion">POST /users/me/verify-account-deletion</a></li>
+<li><a href="#get-usersmesessions">GET /users/me/sessions</a></li>
+<li><a href="#delete-usersmesessionsfingerprint">DELETE /users/me/sessions/:fingerprint</a></li>
 <li><a href="#post-usersmechange-password">POST /users/me/change-password</a></li>
 </ul>
 </li>
@@ -276,6 +278,12 @@
 <td>Protected by <code>sensitiveActionLimiter</code> + CAPTCHA.</td>
 </tr>
 <tr>
+<td>Email-sending user actions (<code>DELETE /users/me</code>, <code>/users/me/request-email-change</code>, <code>/users/me/request-account-deletion</code> via <code>POST</code> or <code>DELETE</code>, <code>/users/me/change-password</code>, <code>/users/me/verify-*</code>)</td>
+<td>1 request</td>
+<td>5 minutes per IP</td>
+<td>Additional <code>emailCostLimiter</code> applied to limit outbound email costs.</td>
+</tr>
+<tr>
 <td>Authenticated endpoints (<code>/auth/logout</code>, <code>/users/*</code>, <code>/admin/*</code>)</td>
 <td>60 requests</td>
 <td>1 minute per authenticated user</td>
@@ -291,6 +299,8 @@
 <li><strong>Validation:</strong> Validation failures respond with HTTP <code>400</code>, <code>message</code> <code>&quot;Validation Error&quot;</code>, and each issue listed in <code>errors</code>.</li>
 <li><strong>Global 404:</strong> Unmatched routes return HTTP <code>404</code> with <code>message</code> <code>&quot;Endpoint Not Found&quot;</code> and guidance in <code>errors</code>.</li>
 <li><strong>Unhandled Errors:</strong> Unexpected exceptions return HTTP <code>500</code>, <code>message</code> <code>&quot;Internal Server Error&quot;</code>, and a generic error list.</li>
+<li><strong>Account action quotas:</strong> Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).</li>
+<li><strong>Password metadata:</strong> Whenever the API returns a user profile (login, <code>/users/me</code>, profile updates), the payload includes <code>passwordUpdated</code>—an ISO timestamp describing the last password change, or <code>null</code> for OAuth-only accounts.</li>
 </ul>
 <h2 id="endpoints">Endpoints</h2>
 <p>Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.</p>
@@ -1083,7 +1093,8 @@
       <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+      <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-07-11T10:22:33.000Z&quot;</span>
     <span class="hljs-punctuation">}</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
@@ -1348,7 +1359,7 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>60 requests / minute / user</td>
+<td>60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account</td>
 </tr>
 <tr>
 <td>Content-Type</td>
@@ -1790,7 +1801,8 @@
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset successfully. You can now log in.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
+    <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T09:02:44.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
@@ -1975,7 +1987,8 @@
       <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+      <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span>
     <span class="hljs-punctuation">}</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
@@ -2164,6 +2177,7 @@
     <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-15T11:01:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;oauthProviders&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
       <span class="hljs-string">&quot;google&quot;</span>
     <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
@@ -2203,7 +2217,7 @@
 </code></pre>
 <h3 id="put-usersme">PUT /users/me</h3>
 <ul>
-<li><strong>Purpose:</strong> Update <code>fullName</code> and/or <code>preferredName</code>.</li>
+<li><strong>Purpose:</strong> Update <code>fullName</code> and/or <code>preferredName</code>. To change the email or password, use the dedicated endpoints.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
 <h4 id="request-overview-11">Request Overview</h4>
@@ -2317,6 +2331,7 @@
     <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jan&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;isVerified&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-15T11:01:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T08:44:02.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -2382,6 +2397,7 @@
 <h3 id="delete-usersme">DELETE /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.</li>
+<li><strong>Daily Quota:</strong> Maximum of two disable requests per account per rolling 24 hours.</li>
 </ul>
 <h4 id="request-overview-12">Request Overview</h4>
 <table>
@@ -2628,6 +2644,7 @@
 <h3 id="post-usersmerequest-email-change">POST /users/me/request-email-change</h3>
 <ul>
 <li><strong>Purpose:</strong> Initiate an email change for the authenticated user. Sends a verification link to the new email address. The user is signed out everywhere once the new email is confirmed.</li>
+<li><strong>Daily Quota:</strong> Only one email change request can be initiated per account per day.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
 <h4 id="request-overview-14">Request Overview</h4>
@@ -2653,7 +2670,7 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>60 requests / minute / user</td>
+<td>60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 1 request / day / account</td>
 </tr>
 <tr>
 <td>Content-Type</td>
@@ -2854,6 +2871,7 @@
 <h3 id="delete-usersmerequest-account-deletion-also-available-as-post">DELETE /users/me/request-account-deletion (also available as POST)</h3>
 <ul>
 <li><strong>Purpose:</strong> Starts the permanent deletion workflow. Sends a confirmation link to the account email. After confirmation, support (<a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a>) is notified with the account details needed to complete the deletion.</li>
+<li><strong>Daily Quota:</strong> Up to two deletion requests per account per day (shared between <code>DELETE</code> and <code>POST</code> clients).</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
 <h4 id="request-overview-16">Request Overview</h4>
@@ -2879,7 +2897,7 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>60 requests / minute / user</td>
+<td>60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account</td>
 </tr>
 <tr>
 <td>Content-Type</td>
@@ -3071,12 +3089,303 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="post-usersmechange-password">POST /users/me/change-password</h3>
+<h3 id="get-usersmesessions">GET /users/me/sessions</h3>
 <ul>
-<li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.</li>
+<li><strong>Purpose:</strong> List the authenticated user’s active refresh-token sessions, including device, browser, IP hint, and remaining lifetime.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
 <h4 id="request-overview-18">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me/sessions</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-16">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Identifies the user whose sessions are being listed.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-18">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Response (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.31&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Active sessions retrieved.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;sessions&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;f17bb6df-d94b-4d85-88de-3c8280dcfd9e&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;issuedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T08:30:00.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;expiresAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-24T08:30:00.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;expiresInSeconds&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">543210</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;ipAddress&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;203.0.113.24&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;locationHint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;IP 203.0.113.24&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;browser&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Chrome&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;device&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Desktop&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;operatingSystem&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Windows&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;rawUserAgent&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...&quot;</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6b9d3caa-1d7e-4f91-9d39-6a74073ca21c&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;issuedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-16T19:04:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;expiresAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-23T19:04:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;expiresInSeconds&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">302515</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;ipAddress&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;locationHint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Unknown&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;browser&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Safari&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;device&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Mobile&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;operatingSystem&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;iOS&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;rawUserAgent&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 ...&quot;</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;7.44&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Unable to retrieve sessions at this time.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="delete-usersmesessionsfingerprint">DELETE /users/me/sessions/:fingerprint</h3>
+<ul>
+<li><strong>Purpose:</strong> Revoke a single refresh-token session (for example, to sign out a lost or unattended device). Fingerprints are returned by <code>GET /users/me/sessions</code>.</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-19">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me/sessions/:fingerprint</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-17">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Identifies the requesting user.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="path-parameters">Path Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fingerprint</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Token fingerprint returned by the session listing endpoint.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-19">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>Provide the fingerprint via the path parameter.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Session Revoked (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.78&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Session revoked.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;f17bb6df-d94b-4d85-88de-3c8280dcfd9e&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;wasRevoked&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Session Already Inactive (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.02&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Session not found or already inactive.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6b9d3caa-1d7e-4f91-9d39-6a74073ca21c&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;wasRevoked&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid Fingerprint (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.61&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid session identifier&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A session fingerprint must be provided in the URL path.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Server Error (500):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.01&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Internal Server Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Unable to revoke the requested session.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="post-usersmechange-password">POST /users/me/change-password</h3>
+<ul>
+<li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.</li>
+<li><strong>Daily Quota:</strong> A user can change their password via this endpoint up to twice per day.</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-20">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -3099,7 +3408,7 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>3 requests / 5 minutes / user</td>
+<td>3 requests / 5 minutes / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account</td>
 </tr>
 <tr>
 <td>CAPTCHA Action</td>
@@ -3111,7 +3420,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-16">Required Headers</h4>
+<h4 id="required-headers-18">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3136,7 +3445,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-18">Body Parameters</h4>
+<h4 id="body-parameters-20">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -3176,6 +3485,7 @@
   <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.02&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;passwordUpdated&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T09:02:44.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;disclaimer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;You have been signed out on all devices. Please log in using your new password.&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
@@ -3229,7 +3539,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-17">Required Headers</h4>
+<h4 id="required-headers-19">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3260,7 +3570,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-19">Body Parameters</h4>
+<h4 id="body-parameters-21">Body Parameters</h4>
 <table>
 <thead>
 <tr>
