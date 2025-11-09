@@ -2,6 +2,39 @@
 
 This guide describes the publicly available REST endpoints exposed by the API, the expected request payloads, and the standard response contract. All examples assume JSON request and response bodies.
 
+- [API Documentation](#api-documentation)
+  - [Logging](#logging)
+  - [Standard Response Envelope](#standard-response-envelope)
+    - [Success Response](#success-response)
+    - [Error Response](#error-response)
+    - [Envelope Fields](#envelope-fields)
+  - [Rate Limiting](#rate-limiting)
+  - [Shared Behaviours](#shared-behaviours)
+  - [Endpoints](#endpoints)
+    - [GET /](#get-)
+  - [Authentication](#authentication)
+    - [POST /auth/register](#post-authregister)
+    - [POST /auth/resend-verification](#post-authresend-verification)
+    - [POST /auth/verify-email](#post-authverify-email)
+    - [POST /auth/login](#post-authlogin)
+    - [POST /auth/refresh-token](#post-authrefresh-token)
+    - [POST /auth/logout](#post-authlogout)
+    - [POST /auth/request-password-reset](#post-authrequest-password-reset)
+    - [POST /auth/reset-password](#post-authreset-password)
+    - [POST /auth/google](#post-authgoogle)
+  - [User Management](#user-management)
+    - [GET /users/me](#get-usersme)
+    - [PUT /users/me](#put-usersme)
+    - [DELETE /users/me](#delete-usersme)
+    - [POST /users/me/verify-delete](#post-usersmeverify-delete)
+    - [POST /users/me/request-email-change](#post-usersmerequest-email-change)
+    - [POST /users/me/verify-email-change](#post-usersmeverify-email-change)
+    - [DELETE /users/me/request-account-deletion (also available as POST)](#delete-usersmerequest-account-deletion-also-available-as-post)
+    - [POST /users/me/verify-account-deletion](#post-usersmeverify-account-deletion)
+    - [POST /users/me/change-password](#post-usersmechange-password)
+  - [Admin](#admin)
+
+
 **Base URL:** `https://api.fjnel.co.za`
 
 ## Logging
@@ -63,6 +96,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/login` | 10 requests | 10 minutes | CAPTCHA required (`captchaToken`, action `login`). |
 | `POST /auth/request-password-reset` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `request_password_reset`). |
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
+| Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
@@ -1552,33 +1586,38 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-### POST /users/me/verify-delete (and GET /users/me/verify-delete)
+### POST /users/me/verify-delete
 
-- **Purpose:** Confirms the disable request using the emailed token and revokes all active sessions.
-- **Authentication:** Not required (token-based).
+- **Purpose:** Confirms the disable request using the emailed token, validates the user’s email, and revokes all active sessions.
+- **Authentication:** Not required (token + email based); protected by CAPTCHA.
 
 #### Request Overview
 
 | Property | Value |
 | --- | --- |
-| Method | `POST` (link clicks may use `GET`) |
+| Method | `POST` |
 | Path | `/users/me/verify-delete` |
 | Authentication | None |
-| Rate Limit | Not currently rate limited |
-| Content-Type | `application/json` (POST only) |
+| Rate Limit | 3 requests / 5 minutes / IP |
+| CAPTCHA Action | `verify_delete` |
+| Content-Type | `application/json` |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Content-Type` | Conditional | `application/json` | Required for `POST` requests. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Body / Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `token` | string | Yes | Token from the confirmation email. For `GET` requests supply `?token=...`. |
+| `token` | string | Yes | Token supplied in the disable-confirmation email. |
+| `email` | string | Yes | Must match the account email that requested disable. |
+| `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_delete`. |
+
+*Security note: If the supplied email or CAPTCHA token does not match the pending request, the API returns the same error as an invalid or expired token.*
 
 - **Confirmed (200):**
 
@@ -1595,7 +1634,7 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Invalid or Expired Token (400):**
+- **Invalid Token / Email (400):**
 
 ```json
 {
@@ -1605,7 +1644,7 @@ At least one of `fullName` or `preferredName` must be provided.
   "message": "Invalid or expired token",
   "data": {},
   "errors": [
-    "The confirmation token is invalid or has already been used."
+    "The confirmation token is invalid, has expired, or the supplied information does not match this request."
   ]
 }
 ```
@@ -1669,26 +1708,33 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-### POST /users/me/verify-email-change (and GET /users/me/verify-email-change)
+### POST /users/me/verify-email-change
 
-- **Purpose:** Confirms the pending email change using the token sent to the new email address. Removes linked OAuth identities and revokes every session.
-- **Authentication:** Not required (token-based).
+- **Purpose:** Confirms the pending email change using the token sent to the new email address. Requires the user’s current email, the new email, password confirmation, and a CAPTCHA check before revoking sessions and removing OAuth links.
+- **Authentication:** Not required (token + credentials); protected by CAPTCHA.
 
 #### Request Overview
 
 | Property | Value |
 | --- | --- |
-| Method | `POST` (link clicks may use `GET`) |
+| Method | `POST` |
 | Path | `/users/me/verify-email-change` |
 | Authentication | None |
-| Rate Limit | Not currently rate limited |
-| Content-Type | `application/json` (POST only) |
+| Rate Limit | 3 requests / 5 minutes / IP |
+| CAPTCHA Action | `verify_email_change` |
+| Content-Type | `application/json` |
 
-#### Body / Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `token` | string | Yes | Token from the verification email. Supply `?token=...` for `GET` requests. |
+| `token` | string | Yes | Token from the verification email. |
+| `oldEmail` | string | Yes | Must match the current account email. |
+| `newEmail` | string | Yes | Must match the email that initiated the change. |
+| `password` | string | Yes | Confirms the user controls the account. |
+| `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_email_change`. |
+
+*Security note: Incorrect email, password, or CAPTCHA data yields the same error as an invalid token to prevent email enumeration.*
 
 - **Confirmed (200):**
 
@@ -1705,17 +1751,17 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Email Unavailable (400):**
+- **Invalid Token / Data (400):**
 
 ```json
 {
   "status": "error",
   "httpCode": 400,
   "responseTime": "4.02",
-  "message": "Email unavailable",
+  "message": "Invalid or expired token",
   "data": {},
   "errors": [
-    "The new email address is no longer available. Please submit a new request with a different address."
+    "The confirmation token is invalid, has expired, or the supplied information does not match this request."
   ]
 }
 ```
@@ -1778,26 +1824,33 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-### POST /users/me/verify-account-deletion (and GET /users/me/verify-account-deletion)
+### POST /users/me/verify-account-deletion
 
-- **Purpose:** Confirms the deletion request using the emailed token and notifies support so the deletion can be processed manually.
-- **Authentication:** Not required (token-based).
+- **Purpose:** Confirms the deletion request using the emailed token, validates the user’s credentials, and notifies support so the deletion can be processed manually.
+- **Authentication:** Not required (token + credentials); protected by CAPTCHA.
 
 #### Request Overview
 
 | Property | Value |
 | --- | --- |
-| Method | `POST` (link clicks may use `GET`) |
+| Method | `POST` |
 | Path | `/users/me/verify-account-deletion` |
 | Authentication | None |
-| Rate Limit | Not currently rate limited |
-| Content-Type | `application/json` (POST only) |
+| Rate Limit | 3 requests / 5 minutes / IP |
+| CAPTCHA Action | `verify_account_deletion` |
+| Content-Type | `application/json` |
 
-#### Body / Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `token` | string | Yes | Token from the confirmation email. Supply `?token=...` for `GET` requests. |
+| `token` | string | Yes | Token supplied in the deletion-confirmation email. |
+| `email` | string | Yes | Must match the account requesting deletion. |
+| `password` | string | Yes | Must match the current account password. |
+| `confirm` | boolean | Yes | Must be `true` to acknowledge the permanent deletion. |
+| `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_account_deletion`. |
+
+*Security note: Invalid email, password, or confirmation values produce the same response as an expired token.*
 
 - **Confirmed (200):**
 
@@ -1814,7 +1867,7 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Invalid Token (400):**
+- **Invalid Token / Credentials (400):**
 
 ```json
 {
@@ -1824,7 +1877,68 @@ At least one of `fullName` or `preferredName` must be provided.
   "message": "Invalid or expired token",
   "data": {},
   "errors": [
-    "The confirmation token is invalid or has already been used."
+    "The confirmation token is invalid, has expired, or the supplied information does not match this request."
+  ]
+}
+```
+
+### POST /users/me/change-password
+
+- **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/users/me/change-password` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 3 requests / 5 minutes / user |
+| CAPTCHA Action | `change_password` |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the signed-in user. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `currentPassword` | string | Yes | Must match the user’s existing password. |
+| `newPassword` | string | Yes | 10–100 characters with upper, lower, digit, special character. |
+| `captchaToken` | string | Yes | reCAPTCHA v3 token for action `change_password`. |
+
+- **Successful Change (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "6.02",
+  "message": "Password updated successfully.",
+  "data": {
+    "disclaimer": "You have been signed out on all devices. Please log in using your new password."
+  },
+  "errors": []
+}
+```
+
+- **Invalid Current Password (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "4.67",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "The current password provided is incorrect."
   ]
 }
 ```

@@ -6,9 +6,37 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
-const { validateFullName, validatePreferredName, validateEmail } = require("../utils/validators");
+const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../utils/email-queue");
+const rateLimit = require("express-rate-limit");
+const fetch = global.fetch
+	? global.fetch.bind(global)
+	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
+const config = require("../config");
+const SALT_ROUNDS = config.saltRounds;
+
+const RECAPTCHA_SECRET = config.recaptchaSecret;
+
+const sensitiveActionLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	max: 3,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: (req, res, next, options) => {
+		logToFile("RATE_LIMIT_SENSITIVE_ENDPOINT", {
+			status: "FAILURE",
+			path: req.originalUrl,
+			ip: req.ip,
+			user_agent: req.get("user-agent"),
+			limit: options.max,
+			window_seconds: options.windowMs / 1000,
+			user_id: req.user ? req.user.id : null
+		}, "warn");
+		return errorResponse(res, 429, "Too many requests", ["You have exceeded the maximum number of requests. Please try again later."]);
+	}
+});
 
 const ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES = 60;
 const ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES = 60;
@@ -28,13 +56,64 @@ function getSafeMetadata(rawMetadata) {
 
 function serializeMetadata(metadataObject) {
 	const normalized = metadataObject && Object.keys(metadataObject).length > 0 ? metadataObject : {};
-	return normalized;
+	return JSON.stringify(normalized);
 }
 
 function removeMetadataKey(metadata, key) {
 	const clone = getSafeMetadata(metadata);
 	delete clone[key];
 	return clone;
+}
+
+function normalizeEmail(value) {
+	return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function invalidConfirmationResponse(res) {
+	return errorResponse(res, 400, "Invalid or expired token", [
+		"The confirmation token is invalid, has expired, or the supplied information does not match this request."
+	]);
+}
+
+async function verifyCaptchaToken(token, ip, expectedAction = null, minScore = 0.7) {
+	if (!RECAPTCHA_SECRET) {
+		logToFile("CAPTCHA_MISCONFIGURED", { message: "RECAPTCHA_SECRET is not set in environment variables" }, "warn");
+		return false;
+	}
+
+	if (!token || typeof token !== "string") {
+		return false;
+	}
+
+	try {
+		const params = new URLSearchParams();
+		params.append("secret", RECAPTCHA_SECRET);
+		params.append("response", token);
+		if (ip) {
+			params.append("remoteip", ip);
+		}
+
+		const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: params
+		});
+		const data = await response.json();
+		const actionMatch = expectedAction ? data?.action === expectedAction : true;
+		const ok = data?.success === true && (typeof data?.score === "number" ? data.score >= minScore : true) && actionMatch;
+		logToFile("CAPTCHA_VERIFICATION", {
+			status: ok ? "SUCCESS" : "FAILURE",
+			score: data?.score,
+			min_score: minScore,
+			action: data?.action,
+			expected_action: expectedAction,
+			action_match: actionMatch
+		}, ok ? "info" : "warn");
+		return ok;
+	} catch (error) {
+		logToFile("CAPTCHA_VERIFICATION_ERROR", { message: error.message }, "error");
+		return false;
+	}
 }
 
 function extractTokenFromRequest(req) {
@@ -403,10 +482,124 @@ async function initiateAccountDeletionRequest(req, res) {
 router.delete("/me/request-account-deletion", requiresAuth, authenticatedLimiter, initiateAccountDeletionRequest);
 router.post("/me/request-account-deletion", requiresAuth, authenticatedLimiter, initiateAccountDeletionRequest); // backward compatibility
 
+async function changePassword(req, res) {
+	const userId = req.user.id;
+	const { currentPassword, newPassword, captchaToken } = req.body || {};
+
+	if (!currentPassword || typeof currentPassword !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Current password is required."]);
+	}
+	if (!newPassword || typeof newPassword !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["A new password is required."]);
+	}
+
+	const sanitizedNewPassword = newPassword.trim();
+	const passwordErrors = validatePassword(sanitizedNewPassword);
+	if (passwordErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", passwordErrors);
+	}
+
+	const captchaValid = await verifyCaptchaToken(captchaToken, req.ip, "change_password");
+	if (!captchaValid) {
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
+	}
+
+	try {
+		const { rows } = await pool.query(
+			"SELECT password_hash, email, preferred_name FROM users WHERE id = $1 AND is_disabled = false",
+			[userId]
+		);
+		if (rows.length === 0) {
+			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
+		}
+		const user = rows[0];
+		if (!user.password_hash) {
+			return errorResponse(res, 400, "Password change unavailable", ["This account does not have a password set. Please use the password reset flow first."]);
+		}
+		const currentMatches = await bcrypt.compare(currentPassword, user.password_hash);
+		if (!currentMatches) {
+			return errorResponse(res, 400, "Validation Error", ["The current password provided is incorrect."]);
+		}
+		const sameAsOld = await bcrypt.compare(sanitizedNewPassword, user.password_hash);
+		if (sameAsOld) {
+			return errorResponse(res, 400, "Validation Error", ["The new password must be different from the current password."]);
+		}
+
+		const hashedPassword = await bcrypt.hash(sanitizedNewPassword, SALT_ROUNDS);
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			await client.query(
+				"UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1",
+				[userId, hashedPassword]
+			);
+			await client.query(
+				"UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false",
+				[userId]
+			);
+			await client.query("COMMIT");
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("CHANGE_PASSWORD", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "Internal Server Error", ["An error occurred while updating the password."]);
+		} finally {
+			client.release();
+		}
+
+		enqueueEmail({
+			type: "password_reset_success",
+			params: {
+				toEmail: user.email,
+				preferredName: user.preferred_name
+			},
+			context: "PASSWORD_CHANGE_SELF_SERVICE",
+			userId
+		});
+
+		logToFile("CHANGE_PASSWORD", {
+			status: "SUCCESS",
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(
+			res,
+			200,
+			"Password updated successfully.",
+			{ disclaimer: "You have been signed out on all devices. Please log in using your new password." }
+		);
+	} catch (error) {
+		logToFile("CHANGE_PASSWORD", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["An unexpected error occurred while changing the password."]);
+	}
+}
+
 async function verifyAccountDisable(req, res) {
 	const token = extractTokenFromRequest(req);
+	const { email, captchaToken } = req.body || {};
+
 	if (!token) {
 		return errorResponse(res, 400, "Token required", ["A valid confirmation token must be provided."]);
+	}
+	if (!email || typeof email !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Email address is required."]);
+	}
+	const captchaValid = await verifyCaptchaToken(captchaToken, req.ip, "verify_delete");
+	if (!captchaValid) {
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 
 	try {
@@ -418,14 +611,19 @@ async function verifyAccountDisable(req, res) {
 		);
 
 		if (rows.length === 0) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		const user = rows[0];
+		const normalizedEmail = normalizeEmail(email);
+		if (normalizeEmail(user.email) !== normalizedEmail) {
+			logToFile("ACCOUNT_DISABLE_CONFIRM", { status: "FAILURE", reason: "EMAIL_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
 		const metadata = getSafeMetadata(user.metadata);
 		const pending = metadata.pendingAccountDisable;
 		if (!pending || pending.token !== token) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		if (!pending.expiresAt || new Date(pending.expiresAt) < new Date()) {
@@ -481,28 +679,56 @@ async function verifyAccountDisable(req, res) {
 
 async function verifyAccountDeletion(req, res) {
 	const token = extractTokenFromRequest(req);
+	const { email, password, confirm, captchaToken } = req.body || {};
+
 	if (!token) {
 		return errorResponse(res, 400, "Token required", ["A valid confirmation token must be provided."]);
+	}
+	if (!email || typeof email !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Email address is required."]);
+	}
+	if (!password || typeof password !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Password is required."]);
+	}
+	if (confirm !== true) {
+		return errorResponse(res, 400, "Validation Error", ["You must confirm this action before proceeding."]);
+	}
+	const captchaValid = await verifyCaptchaToken(captchaToken, req.ip, "verify_account_deletion");
+	if (!captchaValid) {
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 	}
 
 	try {
 		const { rows } = await pool.query(
-			`SELECT id, email, preferred_name, full_name, metadata FROM users
+			`SELECT id, email, preferred_name, full_name, metadata, password_hash FROM users
 			 WHERE jsonb_extract_path_text(metadata, 'pendingAccountDeletion', 'token') = $1
 			 LIMIT 1`,
 			[token]
 		);
 
 		if (rows.length === 0) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		const user = rows[0];
+		const normalizedEmail = normalizeEmail(email);
+		if (normalizeEmail(user.email) !== normalizedEmail) {
+			logToFile("ACCOUNT_DELETE_CONFIRM", { status: "FAILURE", reason: "EMAIL_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
+		if (!user.password_hash) {
+			return invalidConfirmationResponse(res);
+		}
+		const passwordMatches = await bcrypt.compare(password, user.password_hash);
+		if (!passwordMatches) {
+			logToFile("ACCOUNT_DELETE_CONFIRM", { status: "FAILURE", reason: "PASSWORD_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
 		const metadata = getSafeMetadata(user.metadata);
 		const pending = metadata.pendingAccountDeletion;
 
 		if (!pending || pending.token !== token) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		if (!pending.expiresAt || new Date(pending.expiresAt) < new Date()) {
@@ -550,28 +776,49 @@ async function verifyAccountDeletion(req, res) {
 
 async function verifyEmailChange(req, res) {
 	const token = extractTokenFromRequest(req);
+	const { oldEmail, newEmail, password, captchaToken } = req.body || {};
+
 	if (!token) {
 		return errorResponse(res, 400, "Token required", ["A valid confirmation token must be provided."]);
 	}
+	if (!oldEmail || typeof oldEmail !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Your current email address is required."]);
+	}
+	if (!newEmail || typeof newEmail !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["The new email address is required."]);
+	}
+	if (!password || typeof password !== "string") {
+		return errorResponse(res, 400, "Validation Error", ["Current password is required."]);
+	}
+	const captchaValid = await verifyCaptchaToken(captchaToken, req.ip, "verify_email_change");
+	if (!captchaValid) {
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
+	}
+	const normalizedOldEmail = normalizeEmail(oldEmail);
+	const normalizedNewEmailInput = normalizeEmail(newEmail);
 
 	try {
 		const { rows } = await pool.query(
-			`SELECT id, email, preferred_name, metadata FROM users
+			`SELECT id, email, preferred_name, metadata, password_hash FROM users
 			 WHERE jsonb_extract_path_text(metadata, 'pendingEmailChange', 'token') = $1
 			 LIMIT 1`,
 			[token]
 		);
 
 		if (rows.length === 0) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		const user = rows[0];
+		if (normalizeEmail(user.email) !== normalizedOldEmail) {
+			logToFile("EMAIL_CHANGE_CONFIRM", { status: "FAILURE", reason: "OLD_EMAIL_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
 		const metadata = getSafeMetadata(user.metadata);
 		const pending = metadata.pendingEmailChange;
 
 		if (!pending || pending.token !== token) {
-			return errorResponse(res, 400, "Invalid or expired token", ["The confirmation token is invalid or has already been used."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		if (!pending.expiresAt || new Date(pending.expiresAt) < new Date()) {
@@ -580,18 +827,34 @@ async function verifyEmailChange(req, res) {
 			return errorResponse(res, 400, "Token expired", ["The confirmation token has expired. Please submit a new request from your account settings."]);
 		}
 
-		const newEmail = pending.newEmail;
-		if (!newEmail) {
+		const pendingNewEmail = pending.newEmail;
+		if (!pendingNewEmail) {
 			const updatedMetadata = removeMetadataKey(metadata, "pendingEmailChange");
 			await pool.query("UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1", [user.id, serializeMetadata(updatedMetadata)]);
 			return errorResponse(res, 400, "Invalid request", ["The pending email change request is not valid. Please start again from your account settings."]);
 		}
 
-		const collision = await pool.query("SELECT 1 FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1", [newEmail.toLowerCase(), user.id]);
+		if (!normalizedNewEmailInput) {
+			return errorResponse(res, 400, "Validation Error", ["The new email address is required."]);
+		}
+		if (pendingNewEmail !== normalizedNewEmailInput) {
+			logToFile("EMAIL_CHANGE_CONFIRM", { status: "FAILURE", reason: "NEW_EMAIL_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
+		if (!user.password_hash) {
+			return invalidConfirmationResponse(res);
+		}
+		const passwordMatches = await bcrypt.compare(password, user.password_hash);
+		if (!passwordMatches) {
+			logToFile("EMAIL_CHANGE_CONFIRM", { status: "FAILURE", reason: "PASSWORD_MISMATCH", user_id: user.id }, "warn");
+			return invalidConfirmationResponse(res);
+		}
+
+		const collision = await pool.query("SELECT 1 FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1", [normalizedNewEmailInput, user.id]);
 		if (collision.rows.length > 0) {
 			const updatedMetadata = removeMetadataKey(metadata, "pendingEmailChange");
 			await pool.query("UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1", [user.id, serializeMetadata(updatedMetadata)]);
-			return errorResponse(res, 400, "Email unavailable", ["The new email address is no longer available. Please submit a new request with a different address."]);
+			return invalidConfirmationResponse(res);
 		}
 
 		const client = await pool.connect();
@@ -600,7 +863,7 @@ async function verifyEmailChange(req, res) {
 			const updatedMetadata = removeMetadataKey(metadata, "pendingEmailChange");
 			await client.query(
 				"UPDATE users SET email = $2, is_verified = true, metadata = $3::jsonb, updated_at = NOW() WHERE id = $1",
-				[user.id, newEmail, serializeMetadata(updatedMetadata)]
+				[user.id, normalizedNewEmailInput, serializeMetadata(updatedMetadata)]
 			);
 			await client.query("DELETE FROM oauth_accounts WHERE user_id = $1", [user.id]);
 			await client.query("UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false", [user.id]);
@@ -617,7 +880,7 @@ async function verifyEmailChange(req, res) {
 			type: "email_change_confirmation",
 			params: {
 				toEmail: user.email,
-				newEmail,
+				newEmail: normalizedNewEmailInput,
 				preferredName: user.preferred_name
 			},
 			context: "EMAIL_CHANGE_CONFIRMED",
@@ -627,7 +890,7 @@ async function verifyEmailChange(req, res) {
 		logToFile("EMAIL_CHANGE_CONFIRM", {
 			status: "SUCCESS",
 			user_id: user.id,
-			new_email: newEmail
+			new_email: normalizedNewEmailInput
 		}, "info");
 
 		return successResponse(
@@ -642,13 +905,12 @@ async function verifyEmailChange(req, res) {
 	}
 }
 
-router.post("/me/verify-delete", verifyAccountDisable);
-router.get("/me/verify-delete", verifyAccountDisable);
+router.post("/me/change-password", requiresAuth, authenticatedLimiter, sensitiveActionLimiter, changePassword);
 
-router.post("/me/verify-account-deletion", verifyAccountDeletion);
-router.get("/me/verify-account-deletion", verifyAccountDeletion);
+router.post("/me/verify-delete", sensitiveActionLimiter, verifyAccountDisable);
 
-router.post("/me/verify-email-change", verifyEmailChange);
-router.get("/me/verify-email-change", verifyEmailChange);
+router.post("/me/verify-account-deletion", sensitiveActionLimiter, verifyAccountDeletion);
+
+router.post("/me/verify-email-change", sensitiveActionLimiter, verifyEmailChange);
 
 module.exports = router;

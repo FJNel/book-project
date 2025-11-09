@@ -140,6 +140,54 @@
         <body class="vscode-body vscode-light">
             <h1 id="api-documentation">API Documentation</h1>
 <p>This guide describes the publicly available REST endpoints exposed by the API, the expected request payloads, and the standard response contract. All examples assume JSON request and response bodies.</p>
+<ul>
+<li><a href="#api-documentation">API Documentation</a>
+<ul>
+<li><a href="#logging">Logging</a></li>
+<li><a href="#standard-response-envelope">Standard Response Envelope</a>
+<ul>
+<li><a href="#success-response">Success Response</a></li>
+<li><a href="#error-response">Error Response</a></li>
+<li><a href="#envelope-fields">Envelope Fields</a></li>
+</ul>
+</li>
+<li><a href="#rate-limiting">Rate Limiting</a></li>
+<li><a href="#shared-behaviours">Shared Behaviours</a></li>
+<li><a href="#endpoints">Endpoints</a>
+<ul>
+<li><a href="#get-">GET /</a></li>
+</ul>
+</li>
+<li><a href="#authentication">Authentication</a>
+<ul>
+<li><a href="#post-authregister">POST /auth/register</a></li>
+<li><a href="#post-authresend-verification">POST /auth/resend-verification</a></li>
+<li><a href="#post-authverify-email">POST /auth/verify-email</a></li>
+<li><a href="#post-authlogin">POST /auth/login</a></li>
+<li><a href="#post-authrefresh-token">POST /auth/refresh-token</a></li>
+<li><a href="#post-authlogout">POST /auth/logout</a></li>
+<li><a href="#post-authrequest-password-reset">POST /auth/request-password-reset</a></li>
+<li><a href="#post-authreset-password">POST /auth/reset-password</a></li>
+<li><a href="#post-authgoogle">POST /auth/google</a></li>
+</ul>
+</li>
+<li><a href="#user-management">User Management</a>
+<ul>
+<li><a href="#get-usersme">GET /users/me</a></li>
+<li><a href="#put-usersme">PUT /users/me</a></li>
+<li><a href="#delete-usersme">DELETE /users/me</a></li>
+<li><a href="#post-usersmeverify-delete">POST /users/me/verify-delete</a></li>
+<li><a href="#post-usersmerequest-email-change">POST /users/me/request-email-change</a></li>
+<li><a href="#post-usersmeverify-email-change">POST /users/me/verify-email-change</a></li>
+<li><a href="#delete-usersmerequest-account-deletion-also-available-as-post">DELETE /users/me/request-account-deletion (also available as POST)</a></li>
+<li><a href="#post-usersmeverify-account-deletion">POST /users/me/verify-account-deletion</a></li>
+<li><a href="#post-usersmechange-password">POST /users/me/change-password</a></li>
+</ul>
+</li>
+<li><a href="#admin">Admin</a></li>
+</ul>
+</li>
+</ul>
 <p><strong>Base URL:</strong> <code>https://api.fjnel.co.za</code></p>
 <h2 id="logging">Logging</h2>
 <p>The API writes structured JSON logs to rotating files. Every HTTP request is captured with an <code>event</code> of <code>HTTP_REQUEST</code>, together with the method, path, status code, latency, originating IP, user agent, and a sanitised copy of the request body. Significant actions (registration, login, logout, verification, password reset, profile changes) log an action-specific <code>event</code> such as <code>USER_REGISTERED</code> or <code>LOGIN_ATTEMPT</code>. Each log entry records a <code>status</code> (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>INFO</code>) and a normalised <code>error_message</code> where applicable.</p>
@@ -220,6 +268,12 @@
 <td>1 request</td>
 <td>5 minutes</td>
 <td>CAPTCHA required (<code>captchaToken</code>, action <code>reset_password</code>).</td>
+</tr>
+<tr>
+<td>Sensitive user actions (<code>POST /users/me/verify-delete</code>, <code>/users/me/verify-account-deletion</code>, <code>/users/me/verify-email-change</code>, <code>/users/me/change-password</code>)</td>
+<td>3 requests</td>
+<td>5 minutes per IP</td>
+<td>Protected by <code>sensitiveActionLimiter</code> + CAPTCHA.</td>
 </tr>
 <tr>
 <td>Authenticated endpoints (<code>/auth/logout</code>, <code>/users/*</code>, <code>/admin/*</code>)</td>
@@ -2446,10 +2500,10 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="post-usersmeverify-delete-and-get-usersmeverify-delete">POST /users/me/verify-delete (and GET /users/me/verify-delete)</h3>
+<h3 id="post-usersmeverify-delete">POST /users/me/verify-delete</h3>
 <ul>
-<li><strong>Purpose:</strong> Confirms the disable request using the emailed token and revokes all active sessions.</li>
-<li><strong>Authentication:</strong> Not required (token-based).</li>
+<li><strong>Purpose:</strong> Confirms the disable request using the emailed token, validates the user’s email, and revokes all active sessions.</li>
+<li><strong>Authentication:</strong> Not required (token + email based); protected by CAPTCHA.</li>
 </ul>
 <h4 id="request-overview-13">Request Overview</h4>
 <table>
@@ -2462,7 +2516,7 @@
 <tbody>
 <tr>
 <td>Method</td>
-<td><code>POST</code> (link clicks may use <code>GET</code>)</td>
+<td><code>POST</code></td>
 </tr>
 <tr>
 <td>Path</td>
@@ -2474,11 +2528,15 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>Not currently rate limited</td>
+<td>3 requests / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>verify_delete</code></td>
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code> (POST only)</td>
+<td><code>application/json</code></td>
 </tr>
 </tbody>
 </table>
@@ -2495,9 +2553,9 @@
 <tbody>
 <tr>
 <td><code>Content-Type</code></td>
-<td>Conditional</td>
+<td>Yes</td>
 <td><code>application/json</code></td>
-<td>Required for <code>POST</code> requests.</td>
+<td>Body must be JSON encoded.</td>
 </tr>
 <tr>
 <td><code>Accept</code></td>
@@ -2507,7 +2565,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body--query-parameters">Body / Query Parameters</h4>
+<h4 id="body-parameters-13">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2522,10 +2580,23 @@
 <td><code>token</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Token from the confirmation email. For <code>GET</code> requests supply <code>?token=...</code>.</td>
+<td>Token supplied in the disable-confirmation email.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the account email that requested disable.</td>
+</tr>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for action <code>verify_delete</code>.</td>
 </tr>
 </tbody>
 </table>
+<p><em>Security note: If the supplied email or CAPTCHA token does not match the pending request, the API returns the same error as an invalid or expired token.</em></p>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -2541,7 +2612,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Invalid or Expired Token (400):</strong></li>
+<li><strong>Invalid Token / Email (400):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
@@ -2550,7 +2621,7 @@
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid or expired token&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The confirmation token is invalid or has already been used.&quot;</span>
+    <span class="hljs-string">&quot;The confirmation token is invalid, has expired, or the supplied information does not match this request.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -2621,7 +2692,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-13">Body Parameters</h4>
+<h4 id="body-parameters-14">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2668,10 +2739,10 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="post-usersmeverify-email-change-and-get-usersmeverify-email-change">POST /users/me/verify-email-change (and GET /users/me/verify-email-change)</h3>
+<h3 id="post-usersmeverify-email-change">POST /users/me/verify-email-change</h3>
 <ul>
-<li><strong>Purpose:</strong> Confirms the pending email change using the token sent to the new email address. Removes linked OAuth identities and revokes every session.</li>
-<li><strong>Authentication:</strong> Not required (token-based).</li>
+<li><strong>Purpose:</strong> Confirms the pending email change using the token sent to the new email address. Requires the user’s current email, the new email, password confirmation, and a CAPTCHA check before revoking sessions and removing OAuth links.</li>
+<li><strong>Authentication:</strong> Not required (token + credentials); protected by CAPTCHA.</li>
 </ul>
 <h4 id="request-overview-15">Request Overview</h4>
 <table>
@@ -2684,7 +2755,7 @@
 <tbody>
 <tr>
 <td>Method</td>
-<td><code>POST</code> (link clicks may use <code>GET</code>)</td>
+<td><code>POST</code></td>
 </tr>
 <tr>
 <td>Path</td>
@@ -2696,15 +2767,19 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>Not currently rate limited</td>
+<td>3 requests / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>verify_email_change</code></td>
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code> (POST only)</td>
+<td><code>application/json</code></td>
 </tr>
 </tbody>
 </table>
-<h4 id="body--query-parameters-1">Body / Query Parameters</h4>
+<h4 id="body-parameters-15">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2719,10 +2794,35 @@
 <td><code>token</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Token from the verification email. Supply <code>?token=...</code> for <code>GET</code> requests.</td>
+<td>Token from the verification email.</td>
+</tr>
+<tr>
+<td><code>oldEmail</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the current account email.</td>
+</tr>
+<tr>
+<td><code>newEmail</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the email that initiated the change.</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Confirms the user controls the account.</td>
+</tr>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for action <code>verify_email_change</code>.</td>
 </tr>
 </tbody>
 </table>
+<p><em>Security note: Incorrect email, password, or CAPTCHA data yields the same error as an invalid token to prevent email enumeration.</em></p>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -2738,16 +2838,16 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Email Unavailable (400):</strong></li>
+<li><strong>Invalid Token / Data (400):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.02&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email unavailable&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid or expired token&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The new email address is no longer available. Please submit a new request with a different address.&quot;</span>
+    <span class="hljs-string">&quot;The confirmation token is invalid, has expired, or the supplied information does not match this request.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -2812,7 +2912,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-14">Body Parameters</h4>
+<h4 id="body-parameters-16">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2859,10 +2959,10 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="post-usersmeverify-account-deletion-and-get-usersmeverify-account-deletion">POST /users/me/verify-account-deletion (and GET /users/me/verify-account-deletion)</h3>
+<h3 id="post-usersmeverify-account-deletion">POST /users/me/verify-account-deletion</h3>
 <ul>
-<li><strong>Purpose:</strong> Confirms the deletion request using the emailed token and notifies support so the deletion can be processed manually.</li>
-<li><strong>Authentication:</strong> Not required (token-based).</li>
+<li><strong>Purpose:</strong> Confirms the deletion request using the emailed token, validates the user’s credentials, and notifies support so the deletion can be processed manually.</li>
+<li><strong>Authentication:</strong> Not required (token + credentials); protected by CAPTCHA.</li>
 </ul>
 <h4 id="request-overview-17">Request Overview</h4>
 <table>
@@ -2875,7 +2975,7 @@
 <tbody>
 <tr>
 <td>Method</td>
-<td><code>POST</code> (link clicks may use <code>GET</code>)</td>
+<td><code>POST</code></td>
 </tr>
 <tr>
 <td>Path</td>
@@ -2887,15 +2987,19 @@
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>Not currently rate limited</td>
+<td>3 requests / 5 minutes / IP</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>verify_account_deletion</code></td>
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code> (POST only)</td>
+<td><code>application/json</code></td>
 </tr>
 </tbody>
 </table>
-<h4 id="body--query-parameters-2">Body / Query Parameters</h4>
+<h4 id="body-parameters-17">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2910,10 +3014,35 @@
 <td><code>token</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Token from the confirmation email. Supply <code>?token=...</code> for <code>GET</code> requests.</td>
+<td>Token supplied in the deletion-confirmation email.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the account requesting deletion.</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the current account password.</td>
+</tr>
+<tr>
+<td><code>confirm</code></td>
+<td>boolean</td>
+<td>Yes</td>
+<td>Must be <code>true</code> to acknowledge the permanent deletion.</td>
+</tr>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for action <code>verify_account_deletion</code>.</td>
 </tr>
 </tbody>
 </table>
+<p><em>Security note: Invalid email, password, or confirmation values produce the same response as an expired token.</em></p>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -2929,7 +3058,7 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Invalid Token (400):</strong></li>
+<li><strong>Invalid Token / Credentials (400):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
@@ -2938,7 +3067,131 @@
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Invalid or expired token&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The confirmation token is invalid or has already been used.&quot;</span>
+    <span class="hljs-string">&quot;The confirmation token is invalid, has expired, or the supplied information does not match this request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="post-usersmechange-password">POST /users/me/change-password</h3>
+<ul>
+<li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-18">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/users/me/change-password</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>3 requests / 5 minutes / user</td>
+</tr>
+<tr>
+<td>CAPTCHA Action</td>
+<td><code>change_password</code></td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-16">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Identifies the signed-in user.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-18">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>currentPassword</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Must match the user’s existing password.</td>
+</tr>
+<tr>
+<td><code>newPassword</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>10–100 characters with upper, lower, digit, special character.</td>
+</tr>
+<tr>
+<td><code>captchaToken</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>reCAPTCHA v3 token for action <code>change_password</code>.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Successful Change (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.02&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;disclaimer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;You have been signed out on all devices. Please log in using your new password.&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Invalid Current Password (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The current password provided is incorrect.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -2976,7 +3229,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-16">Required Headers</h4>
+<h4 id="required-headers-17">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3007,7 +3260,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-15">Body Parameters</h4>
+<h4 id="body-parameters-19">Body Parameters</h4>
 <table>
 <thead>
 <tr>

@@ -27,7 +27,7 @@ const notImplemented = (req, res) => {
 	return errorResponse(res, 300, message, [message]);
 }; // notImplemented
 
-// `GET /admin/users/` - List all users (admin only, with pagination and filtering)
+// `GET /admin/users/` - List all users (admin only, with pagination and filtering) and their appropriate information
 router.get("/users", adminAuth, notImplemented); // router.get("/users")
 
 // `POST /admin/users/` - Create a new user (admin only)
