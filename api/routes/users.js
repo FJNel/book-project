@@ -4,13 +4,12 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../utils/email-queue");
-const rateLimit = require("express-rate-limit");
 const fetch = global.fetch
 	? global.fetch.bind(global)
 	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
@@ -19,28 +18,103 @@ const SALT_ROUNDS = config.saltRounds;
 
 const RECAPTCHA_SECRET = config.recaptchaSecret;
 
-const sensitiveActionLimiter = rateLimit({
-	windowMs: 5 * 60 * 1000, // 5 minutes
-	max: 3,
-	standardHeaders: true,
-	legacyHeaders: false,
-	handler: (req, res, next, options) => {
-		logToFile("RATE_LIMIT_SENSITIVE_ENDPOINT", {
-			status: "FAILURE",
-			path: req.originalUrl,
-			ip: req.ip,
-			user_agent: req.get("user-agent"),
-			limit: options.max,
-			window_seconds: options.windowMs / 1000,
-			user_id: req.user ? req.user.id : null
-		}, "warn");
-		return errorResponse(res, 429, "Too many requests", ["You have exceeded the maximum number of requests. Please try again later."]);
-	}
-});
-
 const ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES = 60;
 const ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES = 60;
 const EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES = 60;
+
+const ACTION_LIMITS = {
+	accountDisable: { limit: 2, label: "account disable requests" },
+	accountDeletion: { limit: 2, label: "account deletion requests" },
+	emailChange: { limit: 1, label: "email change requests" },
+	passwordChange: { limit: 2, label: "password changes" }
+};
+
+function getTodayKey() {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function applyDailyActionLimit(metadata, actionKey) {
+	const config = ACTION_LIMITS[actionKey];
+	if (!config) {
+		return { allowed: true, metadata: getSafeMetadata(metadata) };
+	}
+
+	const normalizedMetadata = getSafeMetadata(metadata);
+	const countersSource = normalizedMetadata.actionCounters;
+	const counters = countersSource && typeof countersSource === "object" && !Array.isArray(countersSource)
+		? { ...countersSource }
+		: {};
+
+	const today = getTodayKey();
+	const record = counters[actionKey];
+	const currentCount = record && record.date === today ? record.count : 0;
+
+	if (currentCount >= config.limit) {
+		return {
+			allowed: false,
+			metadata: normalizedMetadata,
+			message: `You have reached today's limit for ${config.label}. Please try again tomorrow.`
+		};
+	}
+
+	const nextCount = currentCount + 1;
+	counters[actionKey] = { date: today, count: nextCount };
+
+	return {
+		allowed: true,
+		metadata: {
+			...normalizedMetadata,
+			actionCounters: counters
+		},
+		remaining: config.limit - nextCount
+	};
+}
+
+function summarizeUserAgent(userAgent) {
+	if (!userAgent || typeof userAgent !== "string") {
+		return { browser: "Unknown", device: "Unknown", operatingSystem: "Unknown", raw: "" };
+	}
+
+	const raw = userAgent;
+	const ua = raw.toLowerCase();
+
+	let browser = "Unknown";
+	if (/edg\//.test(ua)) {
+		browser = "Microsoft Edge";
+	} else if (/opr\//.test(ua) || /opera/.test(ua)) {
+		browser = "Opera";
+	} else if (/chrome/.test(ua) && !/edg|opr/.test(ua)) {
+		browser = "Chrome";
+	} else if (/safari/.test(ua) && !/chrome|crios|opr|edg/.test(ua)) {
+		browser = "Safari";
+	} else if (/firefox/.test(ua)) {
+		browser = "Firefox";
+	} else if (/msie|trident/.test(ua)) {
+		browser = "Internet Explorer";
+	}
+
+	let operatingSystem = "Unknown";
+	if (/windows nt/.test(ua)) {
+		operatingSystem = "Windows";
+	} else if (/mac os x/.test(ua)) {
+		operatingSystem = "macOS";
+	} else if (/android/.test(ua)) {
+		operatingSystem = "Android";
+	} else if (/iphone|ipad|ipod/.test(ua)) {
+		operatingSystem = "iOS";
+	} else if (/linux/.test(ua)) {
+		operatingSystem = "Linux";
+	}
+
+	let device = "Desktop";
+	if (/ipad|tablet/.test(ua)) {
+		device = "Tablet";
+	} else if (/mobile|iphone|android/.test(ua)) {
+		device = "Mobile";
+	}
+
+	return { browser, device, operatingSystem, raw };
+}
 
 function generateActionToken() {
 	return crypto.randomBytes(32).toString("hex");
@@ -137,6 +211,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 				u.preferred_name,
 				u.role,
 				u.is_verified,
+				u.password_updated,
 				u.created_at,
 				u.updated_at,
 				COALESCE(
@@ -163,6 +238,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			preferredName: result.rows[0].preferred_name,
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
+			passwordUpdated: result.rows[0].password_updated,
 			oauthProviders: result.rows[0].oauth_providers,
 			createdAt: result.rows[0].created_at,
 			updatedAt: result.rows[0].updated_at,
@@ -226,7 +302,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		UPDATE users
 		SET ${updateFields.join(", ")}, updated_at = NOW()
 		WHERE id = $1 AND is_disabled = false
-		RETURNING id, email, full_name, preferred_name, role, is_verified, created_at, updated_at;
+		RETURNING id, email, full_name, preferred_name, role, is_verified, password_updated, created_at, updated_at;
 	`;
 
 	try {
@@ -246,6 +322,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			preferredName: result.rows[0].preferred_name,
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
+			passwordUpdated: result.rows[0].password_updated,
 			createdAt: result.rows[0].created_at,
 			updatedAt: result.rows[0].updated_at,
 		};
@@ -261,7 +338,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 
 //Initiate account disable flow (requires email confirmation)
-router.delete("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
+router.delete("/me", requiresAuth, authenticatedLimiter, emailCostLimiter, async (req, res) => {
 	const userId = req.user.id;
 
 	try {
@@ -275,7 +352,20 @@ router.delete("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			return errorResponse(res, 400, "Account already disabled.", ["Your account has already been disabled. Contact support if this was unexpected."]);
 		}
 
-		const metadata = getSafeMetadata(user.metadata);
+		let metadata = getSafeMetadata(user.metadata);
+		const limitCheck = applyDailyActionLimit(metadata, "accountDisable");
+		if (!limitCheck.allowed) {
+			logToFile("ACCOUNT_DISABLE_REQUEST", {
+				status: "FAILURE",
+				reason: "DAILY_LIMIT",
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
+		}
+		metadata = limitCheck.metadata;
+
 		const token = generateActionToken();
 		const expiresAt = addMinutesToNow(ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES);
 
@@ -327,11 +417,11 @@ router.delete("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 }); // router.delete("/me")
 
-router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, async (req, res) => {
+router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, emailCostLimiter, async (req, res) => {
 	const userId = req.user.id;
 	let { newEmail } = req.body || {};
 	newEmail = typeof newEmail === "string" ? newEmail.trim() : "";
-	const normalizedEmail = newEmail.toLowerCase();
+	const normalizedNewEmail = newEmail.toLowerCase();
 
 	const emailValidationErrors = validateEmail(newEmail);
 	if (emailValidationErrors.length > 0) {
@@ -349,7 +439,7 @@ router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, asyn
 			return errorResponse(res, 400, "Validation Error", ["The new email address must be different from your current email."]);
 		}
 
-		const existingEmail = await pool.query("SELECT 1 FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1", [normalizedEmail, userId]);
+		const existingEmail = await pool.query("SELECT 1 FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1", [normalizedNewEmail, userId]);
 		if (existingEmail.rows.length > 0) {
 			logToFile("EMAIL_CHANGE_REQUEST", {
 				status: "INFO",
@@ -367,12 +457,24 @@ router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, asyn
 			);
 		}
 
-		const metadata = getSafeMetadata(user.metadata);
+		let metadata = getSafeMetadata(user.metadata);
+		const limitCheck = applyDailyActionLimit(metadata, "emailChange");
+		if (!limitCheck.allowed) {
+			logToFile("EMAIL_CHANGE_REQUEST", {
+				status: "FAILURE",
+				reason: "DAILY_LIMIT",
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
+		}
+		metadata = limitCheck.metadata;
 		const token = generateActionToken();
 		const expiresAt = addMinutesToNow(EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES);
 		metadata.pendingEmailChange = {
 			token,
-			newEmail: normalizedEmail,
+			newEmail: normalizedNewEmail,
 			expiresAt,
 			requestedAt: new Date().toISOString()
 		};
@@ -428,7 +530,19 @@ async function initiateAccountDeletionRequest(req, res) {
 			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
 		}
 		const user = rows[0];
-		const metadata = getSafeMetadata(user.metadata);
+		let metadata = getSafeMetadata(user.metadata);
+		const limitCheck = applyDailyActionLimit(metadata, "accountDeletion");
+		if (!limitCheck.allowed) {
+			logToFile("ACCOUNT_DELETE_REQUEST", {
+				status: "FAILURE",
+				reason: "DAILY_LIMIT",
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
+		}
+		metadata = limitCheck.metadata;
 		const token = generateActionToken();
 		const expiresAt = addMinutesToNow(ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES);
 		metadata.pendingAccountDeletion = {
@@ -479,8 +593,106 @@ async function initiateAccountDeletionRequest(req, res) {
 	}
 }
 
-router.delete("/me/request-account-deletion", requiresAuth, authenticatedLimiter, initiateAccountDeletionRequest);
-router.post("/me/request-account-deletion", requiresAuth, authenticatedLimiter, initiateAccountDeletionRequest); // backward compatibility
+router.delete("/me/request-account-deletion", requiresAuth, authenticatedLimiter, emailCostLimiter, initiateAccountDeletionRequest);
+router.post("/me/request-account-deletion", requiresAuth, authenticatedLimiter, emailCostLimiter, initiateAccountDeletionRequest); // backward compatibility
+
+router.get("/me/sessions", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const { rows } = await pool.query(
+			`SELECT token_fingerprint, issued_at, expires_at, ip_address::TEXT AS ip_address, user_agent
+			 FROM refresh_tokens
+			 WHERE user_id = $1
+				 AND revoked = false
+				 AND expires_at > NOW()
+			 ORDER BY expires_at DESC`,
+			[userId]
+		);
+
+		const sessions = rows.map((session) => {
+			const summary = summarizeUserAgent(session.user_agent);
+			const expiresAt = session.expires_at;
+			const millisecondsRemaining = expiresAt ? Math.max(0, new Date(expiresAt).getTime() - Date.now()) : 0;
+			return {
+				fingerprint: session.token_fingerprint,
+				issuedAt: session.issued_at,
+				expiresAt,
+				expiresInSeconds: Math.floor(millisecondsRemaining / 1000),
+				ipAddress: session.ip_address || null,
+				locationHint: session.ip_address ? `IP ${session.ip_address}` : "Unknown",
+				browser: summary.browser,
+				device: summary.device,
+				operatingSystem: summary.operatingSystem,
+				rawUserAgent: summary.raw
+			};
+		});
+
+		logToFile("LIST_SESSIONS", {
+			status: "SUCCESS",
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent"),
+			session_count: sessions.length
+		}, "info");
+
+		return successResponse(res, 200, "Active sessions retrieved.", { sessions });
+	} catch (error) {
+		logToFile("LIST_SESSIONS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve sessions at this time."]);
+	}
+});
+
+router.delete("/me/sessions/:fingerprint", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const fingerprint = typeof req.params?.fingerprint === "string" ? req.params.fingerprint.trim() : "";
+
+	if (!fingerprint) {
+		return errorResponse(res, 400, "Invalid session identifier", ["A session fingerprint must be provided in the URL path."]);
+	}
+
+	try {
+		const { rowCount } = await pool.query(
+			`UPDATE refresh_tokens
+			 SET revoked = true
+			 WHERE user_id = $1
+				 AND token_fingerprint = $2
+				 AND revoked = false`,
+			[userId, fingerprint]
+		);
+
+		const wasRevoked = rowCount > 0;
+		logToFile("REVOKE_SESSION", {
+			status: wasRevoked ? "SUCCESS" : "NO_OP",
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent"),
+			fingerprint
+		}, wasRevoked ? "info" : "warn");
+
+		return successResponse(
+			res,
+			200,
+			wasRevoked ? "Session revoked." : "Session not found or already inactive.",
+			{ fingerprint, wasRevoked }
+		);
+	} catch (error) {
+		logToFile("REVOKE_SESSION", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent"),
+			fingerprint
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to revoke the requested session."]);
+	}
+});
 
 async function changePassword(req, res) {
 	const userId = req.user.id;
@@ -505,17 +717,30 @@ async function changePassword(req, res) {
 	}
 
 	try {
-		const { rows } = await pool.query(
-			"SELECT password_hash, email, preferred_name FROM users WHERE id = $1 AND is_disabled = false",
-			[userId]
-		);
-		if (rows.length === 0) {
-			return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
-		}
-		const user = rows[0];
-		if (!user.password_hash) {
-			return errorResponse(res, 400, "Password change unavailable", ["This account does not have a password set. Please use the password reset flow first."]);
-		}
+	const { rows } = await pool.query(
+		"SELECT password_hash, email, preferred_name, metadata FROM users WHERE id = $1 AND is_disabled = false",
+		[userId]
+	);
+	if (rows.length === 0) {
+		return errorResponse(res, 404, "User not found.", ["The requested user record could not be located."]);
+	}
+	const user = rows[0];
+	let metadata = getSafeMetadata(user.metadata);
+	const limitCheck = applyDailyActionLimit(metadata, "passwordChange");
+	if (!limitCheck.allowed) {
+		logToFile("CHANGE_PASSWORD", {
+			status: "FAILURE",
+			reason: "DAILY_LIMIT",
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "warn");
+		return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
+	}
+	metadata = limitCheck.metadata;
+	if (!user.password_hash) {
+		return errorResponse(res, 400, "Password change unavailable", ["This account does not have a password set. Please use the password reset flow first."]);
+	}
 		const currentMatches = await bcrypt.compare(currentPassword, user.password_hash);
 		if (!currentMatches) {
 			return errorResponse(res, 400, "Validation Error", ["The current password provided is incorrect."]);
@@ -525,19 +750,22 @@ async function changePassword(req, res) {
 			return errorResponse(res, 400, "Validation Error", ["The new password must be different from the current password."]);
 		}
 
-		const hashedPassword = await bcrypt.hash(sanitizedNewPassword, SALT_ROUNDS);
-		const client = await pool.connect();
-		try {
-			await client.query("BEGIN");
-			await client.query(
-				"UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1",
-				[userId, hashedPassword]
-			);
-			await client.query(
-				"UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false",
-				[userId]
-			);
-			await client.query("COMMIT");
+	const hashedPassword = await bcrypt.hash(sanitizedNewPassword, SALT_ROUNDS);
+	const serializedMetadata = serializeMetadata(metadata);
+	const client = await pool.connect();
+	let passwordUpdatedAt = null;
+	try {
+		await client.query("BEGIN");
+		const updateResult = await client.query(
+			"UPDATE users SET password_hash = $2, password_updated = NOW(), metadata = $3::jsonb, updated_at = NOW() WHERE id = $1 RETURNING password_updated",
+			[userId, hashedPassword, serializedMetadata]
+		);
+		passwordUpdatedAt = updateResult.rows[0]?.password_updated || null;
+		await client.query(
+			"UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false",
+			[userId]
+		);
+		await client.query("COMMIT");
 		} catch (error) {
 			await client.query("ROLLBACK");
 			logToFile("CHANGE_PASSWORD", {
@@ -569,12 +797,15 @@ async function changePassword(req, res) {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(
-			res,
-			200,
-			"Password updated successfully.",
-			{ disclaimer: "You have been signed out on all devices. Please log in using your new password." }
-		);
+	return successResponse(
+		res,
+		200,
+		"Password updated successfully.",
+		{
+			passwordUpdated: passwordUpdatedAt,
+			disclaimer: "You have been signed out on all devices. Please log in using your new password."
+		}
+	);
 	} catch (error) {
 		logToFile("CHANGE_PASSWORD", {
 			status: "FAILURE",
@@ -615,8 +846,8 @@ async function verifyAccountDisable(req, res) {
 		}
 
 		const user = rows[0];
-		const normalizedEmail = normalizeEmail(email);
-		if (normalizeEmail(user.email) !== normalizedEmail) {
+		const disableRequestEmail = normalizeEmail(email);
+		if (normalizeEmail(user.email) !== disableRequestEmail) {
 			logToFile("ACCOUNT_DISABLE_CONFIRM", { status: "FAILURE", reason: "EMAIL_MISMATCH", user_id: user.id }, "warn");
 			return invalidConfirmationResponse(res);
 		}
@@ -711,16 +942,16 @@ async function verifyAccountDeletion(req, res) {
 		}
 
 		const user = rows[0];
-		const normalizedEmail = normalizeEmail(email);
-		if (normalizeEmail(user.email) !== normalizedEmail) {
+		const deletionConfirmationEmail = normalizeEmail(email);
+		if (normalizeEmail(user.email) !== deletionConfirmationEmail) {
 			logToFile("ACCOUNT_DELETE_CONFIRM", { status: "FAILURE", reason: "EMAIL_MISMATCH", user_id: user.id }, "warn");
 			return invalidConfirmationResponse(res);
 		}
 		if (!user.password_hash) {
 			return invalidConfirmationResponse(res);
 		}
-		const passwordMatches = await bcrypt.compare(password, user.password_hash);
-		if (!passwordMatches) {
+		const deletionPasswordMatches = await bcrypt.compare(password, user.password_hash);
+		if (!deletionPasswordMatches) {
 			logToFile("ACCOUNT_DELETE_CONFIRM", { status: "FAILURE", reason: "PASSWORD_MISMATCH", user_id: user.id }, "warn");
 			return invalidConfirmationResponse(res);
 		}
@@ -844,8 +1075,8 @@ async function verifyEmailChange(req, res) {
 		if (!user.password_hash) {
 			return invalidConfirmationResponse(res);
 		}
-		const passwordMatches = await bcrypt.compare(password, user.password_hash);
-		if (!passwordMatches) {
+		const emailChangePasswordMatches = await bcrypt.compare(password, user.password_hash);
+		if (!emailChangePasswordMatches) {
 			logToFile("EMAIL_CHANGE_CONFIRM", { status: "FAILURE", reason: "PASSWORD_MISMATCH", user_id: user.id }, "warn");
 			return invalidConfirmationResponse(res);
 		}
@@ -905,12 +1136,12 @@ async function verifyEmailChange(req, res) {
 	}
 }
 
-router.post("/me/change-password", requiresAuth, authenticatedLimiter, sensitiveActionLimiter, changePassword);
+router.post("/me/change-password", requiresAuth, authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, changePassword);
 
-router.post("/me/verify-delete", sensitiveActionLimiter, verifyAccountDisable);
+router.post("/me/verify-delete", emailCostLimiter, sensitiveActionLimiter, verifyAccountDisable);
 
-router.post("/me/verify-account-deletion", sensitiveActionLimiter, verifyAccountDeletion);
+router.post("/me/verify-account-deletion", emailCostLimiter, sensitiveActionLimiter, verifyAccountDeletion);
 
-router.post("/me/verify-email-change", sensitiveActionLimiter, verifyEmailChange);
+router.post("/me/verify-email-change", emailCostLimiter, sensitiveActionLimiter, verifyEmailChange);
 
 module.exports = router;

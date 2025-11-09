@@ -31,6 +31,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /users/me/verify-email-change](#post-usersmeverify-email-change)
     - [DELETE /users/me/request-account-deletion (also available as POST)](#delete-usersmerequest-account-deletion-also-available-as-post)
     - [POST /users/me/verify-account-deletion](#post-usersmeverify-account-deletion)
+    - [GET /users/me/sessions](#get-usersmesessions)
+    - [DELETE /users/me/sessions/:fingerprint](#delete-usersmesessionsfingerprint)
     - [POST /users/me/change-password](#post-usersmechange-password)
   - [Admin](#admin)
 
@@ -97,6 +99,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/request-password-reset` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `request_password_reset`). |
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
+| Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
@@ -108,6 +111,8 @@ All other endpoints currently have no dedicated custom limit.
 - **Validation:** Validation failures respond with HTTP `400`, `message` `"Validation Error"`, and each issue listed in `errors`.
 - **Global 404:** Unmatched routes return HTTP `404` with `message` `"Endpoint Not Found"` and guidance in `errors`.
 - **Unhandled Errors:** Unexpected exceptions return HTTP `500`, `message` `"Internal Server Error"`, and a generic error list.
+- **Account action quotas:** Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).
+- **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`—an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
 
 ## Endpoints
 
@@ -591,7 +596,8 @@ Authentication flows combine email/password, Google OAuth, email verification, a
       "fullName": "Jane Doe",
       "preferredName": "Jane",
       "role": "user",
-      "isVerified": true
+      "isVerified": true,
+      "passwordUpdated": "2024-07-11T10:22:33.000Z"
     }
   },
   "errors": []
@@ -798,7 +804,7 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Method | `POST` |
 | Path | `/auth/logout` |
 | Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | `application/json` |
 
 #### Required Headers
@@ -1066,7 +1072,8 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
   "message": "Password reset successfully. You can now log in.",
   "data": {
     "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
-    "email": "jane@example.com"
+    "email": "jane@example.com",
+    "passwordUpdated": "2025-01-17T09:02:44.000Z"
   },
   "errors": []
 }
@@ -1204,7 +1211,8 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
       "fullName": "Jane Doe",
       "preferredName": "Jane",
       "role": "user",
-      "isVerified": true
+      "isVerified": true,
+      "passwordUpdated": null
     }
   },
   "errors": []
@@ -1351,6 +1359,7 @@ All user management endpoints require a valid access token (`Authorization: Bear
     "preferredName": "Jane",
     "role": "user",
     "isVerified": true,
+    "passwordUpdated": "2025-01-15T11:01:11.000Z",
     "oauthProviders": [
       "google"
     ],
@@ -1393,7 +1402,7 @@ All user management endpoints require a valid access token (`Authorization: Bear
 
 ### PUT /users/me
 
-- **Purpose:** Update `fullName` and/or `preferredName`.
+- **Purpose:** Update `fullName` and/or `preferredName`. To change the email or password, use the dedicated endpoints.
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -1447,6 +1456,7 @@ At least one of `fullName` or `preferredName` must be provided.
     "preferredName": "Jan",
     "role": "user",
     "isVerified": true,
+    "passwordUpdated": "2025-01-15T11:01:11.000Z",
     "createdAt": "2025-01-10T09:15:23.000Z",
     "updatedAt": "2025-01-17T08:44:02.000Z"
   },
@@ -1517,6 +1527,7 @@ At least one of `fullName` or `preferredName` must be provided.
 ### DELETE /users/me
 
 - **Purpose:** Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.
+- **Daily Quota:** Maximum of two disable requests per account per rolling 24 hours.
 
 #### Request Overview
 
@@ -1652,6 +1663,7 @@ At least one of `fullName` or `preferredName` must be provided.
 ### POST /users/me/request-email-change
 
 - **Purpose:** Initiate an email change for the authenticated user. Sends a verification link to the new email address. The user is signed out everywhere once the new email is confirmed.
+- **Daily Quota:** Only one email change request can be initiated per account per day.
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -1661,7 +1673,7 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `POST` |
 | Path | `/users/me/request-email-change` |
 | Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 1 request / day / account |
 | Content-Type | `application/json` |
 
 #### Required Headers
@@ -1769,6 +1781,7 @@ At least one of `fullName` or `preferredName` must be provided.
 ### DELETE /users/me/request-account-deletion (also available as POST)
 
 - **Purpose:** Starts the permanent deletion workflow. Sends a confirmation link to the account email. After confirmation, support (support@fjnel.co.za) is notified with the account details needed to complete the deletion.
+- **Daily Quota:** Up to two deletion requests per account per day (shared between `DELETE` and `POST` clients).
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -1778,7 +1791,7 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `DELETE` (legacy clients may still use `POST`) |
 | Path | `/users/me/request-account-deletion` |
 | Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | N/A (no body) |
 
 #### Required Headers
@@ -1882,9 +1895,189 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
+### GET /users/me/sessions
+
+- **Purpose:** List the authenticated user’s active refresh-token sessions, including device, browser, IP hint, and remaining lifetime.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/users/me/sessions` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user whose sessions are being listed. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | This endpoint does not accept a request body. |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "5.31",
+  "message": "Active sessions retrieved.",
+  "data": {
+    "sessions": [
+      {
+        "fingerprint": "f17bb6df-d94b-4d85-88de-3c8280dcfd9e",
+        "issuedAt": "2025-01-17T08:30:00.000Z",
+        "expiresAt": "2025-01-24T08:30:00.000Z",
+        "expiresInSeconds": 543210,
+        "ipAddress": "203.0.113.24",
+        "locationHint": "IP 203.0.113.24",
+        "browser": "Chrome",
+        "device": "Desktop",
+        "operatingSystem": "Windows",
+        "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ..."
+      },
+      {
+        "fingerprint": "6b9d3caa-1d7e-4f91-9d39-6a74073ca21c",
+        "issuedAt": "2025-01-16T19:04:11.000Z",
+        "expiresAt": "2025-01-23T19:04:11.000Z",
+        "expiresInSeconds": 302515,
+        "ipAddress": null,
+        "locationHint": "Unknown",
+        "browser": "Safari",
+        "device": "Mobile",
+        "operatingSystem": "iOS",
+        "rawUserAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 ..."
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "7.44",
+  "message": "Internal Server Error",
+  "data": {},
+  "errors": [
+    "Unable to retrieve sessions at this time."
+  ]
+}
+```
+
+### DELETE /users/me/sessions/:fingerprint
+
+- **Purpose:** Revoke a single refresh-token session (for example, to sign out a lost or unattended device). Fingerprints are returned by `GET /users/me/sessions`.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/users/me/sessions/:fingerprint` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the requesting user. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Path Parameters
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `fingerprint` | string | Yes | Token fingerprint returned by the session listing endpoint. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | Provide the fingerprint via the path parameter. |
+
+- **Session Revoked (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.78",
+  "message": "Session revoked.",
+  "data": {
+    "fingerprint": "f17bb6df-d94b-4d85-88de-3c8280dcfd9e",
+    "wasRevoked": true
+  },
+  "errors": []
+}
+```
+
+- **Session Already Inactive (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.02",
+  "message": "Session not found or already inactive.",
+  "data": {
+    "fingerprint": "6b9d3caa-1d7e-4f91-9d39-6a74073ca21c",
+    "wasRevoked": false
+  },
+  "errors": []
+}
+```
+
+- **Invalid Fingerprint (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "3.61",
+  "message": "Invalid session identifier",
+  "data": {},
+  "errors": [
+    "A session fingerprint must be provided in the URL path."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "6.01",
+  "message": "Internal Server Error",
+  "data": {},
+  "errors": [
+    "Unable to revoke the requested session."
+  ]
+}
+```
+
 ### POST /users/me/change-password
 
 - **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.
+- **Daily Quota:** A user can change their password via this endpoint up to twice per day.
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -1894,7 +2087,7 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `POST` |
 | Path | `/users/me/change-password` |
 | Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 3 requests / 5 minutes / user |
+| Rate Limit | 3 requests / 5 minutes / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | CAPTCHA Action | `change_password` |
 | Content-Type | `application/json` |
 
@@ -1922,6 +2115,7 @@ At least one of `fullName` or `preferredName` must be provided.
   "responseTime": "6.02",
   "message": "Password updated successfully.",
   "data": {
+    "passwordUpdated": "2025-01-17T09:02:44.000Z",
     "disclaimer": "You have been signed out on all devices. Please log in using your new password."
   },
   "errors": []

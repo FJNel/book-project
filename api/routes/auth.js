@@ -223,8 +223,8 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 		const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 		const insertUserText = `
-			INSERT INTO users (full_name, preferred_name, email, password_hash, is_verified)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO users (full_name, preferred_name, email, password_hash, is_verified, password_updated)
+			VALUES ($1, $2, $3, $4, $5, NOW())
 			RETURNING *
 		`;
 		const insertUserValues = [fullName, preferredName, email, passwordHash, false];
@@ -497,7 +497,8 @@ router.post("/login", loginLimiter, async (req, res) => {
 								fullName: user.full_name,
 								preferredName: user.preferred_name,
 								role: user.role,
-								isVerified: user.is_verified
+								isVerified: user.is_verified,
+								passwordUpdated: user.password_updated
 						}
 				});
 		} catch (e) {
@@ -813,15 +814,16 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 								[tokenRes.rows[0].id]
 						);
 						const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-						await client.query(
-								`UPDATE users SET password_hash = $1 WHERE id = $2`,
+						const updatedUser = await client.query(
+								`UPDATE users SET password_hash = $1, password_updated = NOW() WHERE id = $2 RETURNING password_updated`,
 								[passwordHash, user.id]
 						);
+						const passwordUpdatedAt = updatedUser.rows[0]?.password_updated || null;
 
-			await client.query(
-				`UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false`,
-				[user.id]
-			);
+						await client.query(
+								`UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false`,
+								[user.id]
+						);
 
 						await client.query("COMMIT");
 						logToFile("Password reset successfully. You can now log in.", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
@@ -836,7 +838,8 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 
 						return successResponse(res, 200, "Password reset successfully. You can now log in.", {
 								id: user.id,
-								email
+								email,
+								passwordUpdated: passwordUpdatedAt
 						});
 				} catch (e) {
 						await client.query("ROLLBACK");
@@ -938,8 +941,8 @@ router.post("/google", async (req, res) => {
 		} else //Create a complete new user in user table and oauth table
 		{
 			const insertUser = await client.query(
-				`INSERT INTO users (email, full_name, preferred_name, is_verified, role, created_at)
-				 VALUES ($1, $2, $3, true, 'user', NOW())
+				`INSERT INTO users (email, full_name, preferred_name, is_verified, role, created_at, password_updated)
+				 VALUES ($1, $2, $3, true, 'user', NOW(), NULL)
 				 RETURNING *`,
 		[email.toLowerCase(), fullName, preferredName]
 		);
@@ -979,7 +982,8 @@ router.post("/google", async (req, res) => {
 				fullName: user.full_name,
 				preferredName: user.preferred_name,
 				role: user.role,
-				isVerified: user.is_verified
+				isVerified: user.is_verified,
+				passwordUpdated: user.password_updated
 			}
 		});
 	} catch (e) {

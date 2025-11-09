@@ -25,7 +25,27 @@ const authenticatedLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
 });
 
+const emailCostLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	max: 1,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => req.ip
+});
+
+const sensitiveActionLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	max: 3,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
+});
+
 module.exports = {
 	rateLimitHandler,
-	authenticatedLimiter
+	authenticatedLimiter,
+	emailCostLimiter,
+	sensitiveActionLimiter
 };
