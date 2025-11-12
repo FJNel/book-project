@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
+    let registerControlsLocked = false;
+
     function initializeUI() {
+        registerControlsLocked = false;
         console.log('[UI] Initializing register form UI state.');
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
@@ -89,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding register spinner.');
             registerSpinner.style.display = 'none';
             registerButtonText.textContent = 'Register';
-            registerButton.disabled = false;
+            registerButton.disabled = registerControlsLocked;
         }
     }
 
@@ -208,8 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[API] Network or fetch error during registration:', error);
             showRegisterError('<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
         } finally {
+            registerControlsLocked = shouldKeepDisabled;
             toggleSpinner(false);
-            if (!shouldKeepDisabled) {
+            if (!registerControlsLocked) {
                 setRegisterInputsDisabled(false);
             }
         }
@@ -225,6 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<strong>${messageText}</strong>`;
         showRegisterSuccess(html);
         setRegisterInputsDisabled(true);
+        registerControlsLocked = true;
+        registerButton.disabled = true;
     }
 
     function handleRegisterError(status, data) {
