@@ -176,7 +176,7 @@ router.post("/register", registerLimiter, async (req, res) => {
 	let { captchaToken, fullName, preferredName, email, password } = req.body || {};
 	const genericRegisterMessage = {
 		message: "If this email can be registered, you will receive an email with the next steps shortly.",
-		disclaimer: "If you do not see an email within a few minutes, please check your spam folder or try again later."
+		disclaimer: "If you do not see an email within a few minutes, please check your spam folder or try again later. This could also mean that the email is already registered: If so, please log in or use the 'Resend Verification Email' option."
 	};
 
 	//Validate CAPTCHA before doing anything else
@@ -296,7 +296,7 @@ router.post("/resend-verification", emailVerificationLimiter, async (req, res) =
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'resend_verification');
 	if (!captchaValid) {
 	logToFile("EMAIL_VERIFICATION", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
-		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
+		return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "If this problem persists, please contact support."]);
 	}
 
 		email = email ? email.trim().toLowerCase() : null;
