@@ -152,8 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        toggleSpinner(true);
-
         const email = emailInput.value.trim();
         const newPassword = passwordInput.value;
         const token = getQueryParam('token');
@@ -164,6 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        setFormDisabledState(true);
+        toggleSpinner(true);
+
         // Obtain reCAPTCHA token
         let captchaToken;
         try {
@@ -171,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error('[reCAPTCHA] Failed to obtain token for reset-password:', e);
             showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+            setFormDisabledState(false);
             toggleSpinner(false);
             return;
         }
@@ -212,6 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[API] Network or fetch error during password reset:', error);
             showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
         } finally {
+            if (!redirectScheduled) {
+                setFormDisabledState(false);
+            }
             toggleSpinner(false);
         }
     }

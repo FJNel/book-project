@@ -68,6 +68,15 @@ document.addEventListener('DOMContentLoaded', () => {
         errorAlert.style.display = 'none';
         registerSpinner.style.display = 'none';
         registerButtonText.textContent = 'Register';
+        setRegisterInputsDisabled(false);
+    }
+
+    function setRegisterInputsDisabled(disabled) {
+        [fullNameInput, preferredNameInput, emailInput, passwordInput].forEach((input) => {
+            if (input) {
+                input.disabled = disabled;
+            }
+        });
     }
 
     function toggleSpinner(show) {
@@ -159,6 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        let shouldKeepDisabled = false;
+        setRegisterInputsDisabled(true);
         toggleSpinner(true);
 
         try {
@@ -168,6 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for register:', e);
                 showRegisterError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                setRegisterInputsDisabled(false);
+                toggleSpinner(false);
                 return;
             }
 
@@ -186,6 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[API] Received registration response:', { status: response.status, data });
 
             if (response.status === 201 || response.status === 200) { // 201 for new, 200 for existing unverified
+                shouldKeepDisabled = true;
                 handleRegisterSuccess(data);
             } else {
                 handleRegisterError(response.status, data);
@@ -195,9 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showRegisterError('<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
         } finally {
             toggleSpinner(false);
+            if (!shouldKeepDisabled) {
+                setRegisterInputsDisabled(false);
+            }
         }
     }
-    
+
     function handleRegisterSuccess(data) {
         console.log('[Register] Registration successful or verification re-sent.');
         registerForm.reset(); // Clear the form fields
@@ -207,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
             : `<strong>${messageText}</strong>`;
         showRegisterSuccess(html);
+        setRegisterInputsDisabled(true);
     }
 
     function handleRegisterError(status, data) {

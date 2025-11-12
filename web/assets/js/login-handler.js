@@ -80,17 +80,27 @@ document.addEventListener('DOMContentLoaded', () => {
      * Shows or hides the loading spinner on the login button.
      * @param {boolean} show - True to show spinner, false to hide.
      */
+    function setLoginInputsDisabled(disabled) {
+        [loginEmailInput, loginPasswordInput].forEach((input) => {
+            if (input) {
+                input.disabled = disabled;
+            }
+        });
+    }
+
     function toggleSpinner(show) {
         if (show) {
             console.log('[UI] Showing login spinner.');
             loginSpinner.style.display = 'inline-block';
             loginButtonText.textContent = '';
             loginButton.disabled = true;
+            setLoginInputsDisabled(true);
         } else {
             console.log('[UI] Hiding login spinner.');
             loginSpinner.style.display = 'none';
             loginButtonText.textContent = 'Login';
             loginButton.disabled = false;
+            setLoginInputsDisabled(false);
         }
     }
 
