@@ -32,6 +32,9 @@ const SALT_ROUNDS = config.saltRounds;
 const RECAPTCHA_SECRET = config.recaptchaSecret;
 const googleClient = new OAuth2Client(config.google.clientId);
 
+const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+let lastTokenCleanupAt = 0;
+
 const registerLimiter = rateLimit({
 		windowMs: 10 * 60 * 1000, //10 minutes
 		max: 5, // 5 requests
@@ -74,7 +77,7 @@ const loginLimiter = rateLimit({
 
 // Helper: get an active (unexpired, unused) email verification token for a user, or create a new one
 async function ensureActiveVerificationToken(userId, client = null) {
-		const q = client || pool;
+	const q = client || pool;
 	// Try get an existing non-expired, unused token
 	const existing = await q.query(
 		`SELECT token, expires_at
@@ -100,8 +103,30 @@ async function ensureActiveVerificationToken(userId, client = null) {
 		 VALUES ($1, $2, 'email_verification', $3, false, NOW())`,
 		[userId, token, expiresAt]
 	);
+	await maybeCleanupVerificationTokens(q);
 	return { token, expiresAt, reused: false };
 } // ensureActiveVerificationToken
+
+async function maybeCleanupVerificationTokens(q = pool) {
+	const now = Date.now();
+	if (now - lastTokenCleanupAt < TOKEN_CLEANUP_INTERVAL_MS) {
+		return;
+	}
+	lastTokenCleanupAt = now;
+	try {
+		await q.query(`
+			DELETE FROM verification_tokens
+			WHERE (expires_at < NOW() - INTERVAL '1 day')
+			   OR (used = true AND created_at < NOW() - INTERVAL '1 day')
+			   OR (created_at < NOW() - INTERVAL '30 days')
+		`);
+		logToFile("VERIFICATION_TOKEN_CLEANUP", { status: "INFO" }, "info");
+	} catch (error) {
+		logToFile("VERIFICATION_TOKEN_CLEANUP", { status: "FAILURE", error_message: error.message }, "error");
+		// allow retries sooner if cleanup fails
+		lastTokenCleanupAt = now - TOKEN_CLEANUP_INTERVAL_MS + 60 * 1000;
+	}
+}
 
 // CAPTCHA Helper (v3)
 async function verifyCaptcha(token, ip, expectedAction = null, minScore = 0.7) {
@@ -235,7 +260,8 @@ router.post("/register", registerLimiter, async (req, res) => {
 		// Issue verification token (new if none active)
 		const { token, expiresAt } = await ensureActiveVerificationToken(newUser.id, client);
 
-		await client.query("COMMIT");
+				await client.query("COMMIT");
+				await maybeCleanupVerificationTokens();
 	logToFile("USER_REGISTERED", { status: "SUCCESS", user_id: newUser.id, email: newUser.email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
@@ -394,6 +420,7 @@ router.post("/verify-email", async (req, res) => {
 				[user.id]
 			);
 			await client.query("COMMIT");
+			await maybeCleanupVerificationTokens();
 			logToFile("EMAIL_VERIFICATION", { status: "SUCCESS", user_id: user.id, email, verified: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 			// Send welcome email (best-effort, fire-and-forget)
@@ -727,18 +754,19 @@ router.post("/request-password-reset", passwordVerificationLimiter, async (req, 
 				}
 				logToFile("PASSWORD_RESET_REQUEST", { status: "INFO", user_id: user.id, email, mode: reused ? "REUSED_TOKEN" : "NEW_TOKEN", ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
-				// Send password reset email (implement sendPasswordResetEmail similar to sendVerificationEmail)
-				const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-				enqueueEmail({
-						type: 'password_reset',
-						params: { toEmail: email, token, preferredName: user.preferred_name, expiresIn },
-						context: 'REQUEST_PASSWORD_RESET',
-						userId: user.id
-				});
-		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
+		// Send password reset email (implement sendPasswordResetEmail similar to sendVerificationEmail)
+		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
+		enqueueEmail({
+				type: 'password_reset',
+				params: { toEmail: email, token, preferredName: user.preferred_name, expiresIn },
+				context: 'REQUEST_PASSWORD_RESET',
+				userId: user.id
+		});
+		await maybeCleanupVerificationTokens();
+	return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
 		} catch (e) {
-				logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
+			logToFile("PASSWORD_RESET_REQUEST", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+	return successResponse(res, 200, generalMessage.message, { disclaimer: generalMessage.disclaimer });
 		}
 }); // router.post("/request-password-reset")
 

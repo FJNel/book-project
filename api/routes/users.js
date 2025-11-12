@@ -124,6 +124,18 @@ function addMinutesToNow(minutes) {
 	return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
+function minutesUntilExpiry(expiresAt) {
+	if (!expiresAt) {
+		return 0;
+	}
+	const expires = new Date(expiresAt).getTime();
+	const diffMs = expires - Date.now();
+	if (Number.isNaN(diffMs) || diffMs <= 0) {
+		return 0;
+	}
+	return Math.max(1, Math.round(diffMs / 60000));
+}
+
 function getSafeMetadata(rawMetadata) {
 	return rawMetadata && typeof rawMetadata === "object" ? { ...rawMetadata } : {};
 }
@@ -366,27 +378,39 @@ router.delete("/me", requiresAuth, authenticatedLimiter, emailCostLimiter, async
 		}
 		metadata = limitCheck.metadata;
 
-		const token = generateActionToken();
-		const expiresAt = addMinutesToNow(ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES);
+		const existingDisable = metadata.pendingAccountDisable;
+		const now = new Date();
+		let token;
+		let expiresAt;
+		let reusedToken = false;
 
-		metadata.pendingAccountDisable = {
-			token,
-			expiresAt,
-			requestedAt: new Date().toISOString()
-		};
+		if (existingDisable && existingDisable.token && existingDisable.expiresAt && new Date(existingDisable.expiresAt) > now) {
+			token = existingDisable.token;
+			expiresAt = existingDisable.expiresAt;
+			reusedToken = true;
+		} else {
+			token = generateActionToken();
+			expiresAt = addMinutesToNow(ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES);
+			metadata.pendingAccountDisable = {
+				token,
+				expiresAt,
+				requestedAt: new Date().toISOString()
+			};
+		}
 
 		await pool.query(
 			"UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1",
 			[userId, serializeMetadata(metadata)]
 		);
 
+		const expiresInMinutes = Math.max(1, minutesUntilExpiry(expiresAt) || ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES);
 		enqueueEmail({
 			type: "account_disable_verification",
 			params: {
 				toEmail: user.email,
 				preferredName: user.preferred_name,
 				token,
-				expiresIn: ACCOUNT_DISABLE_TOKEN_EXPIRY_MINUTES
+				expiresIn: expiresInMinutes
 			},
 			context: "ACCOUNT_DISABLE_REQUEST",
 			userId
@@ -394,6 +418,7 @@ router.delete("/me", requiresAuth, authenticatedLimiter, emailCostLimiter, async
 
 		logToFile("ACCOUNT_DISABLE_REQUEST", {
 			status: "INFO",
+			mode: reusedToken ? "REUSED_TOKEN" : "NEW_TOKEN",
 			user_id: userId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
@@ -470,27 +495,45 @@ router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, emai
 			return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
 		}
 		metadata = limitCheck.metadata;
-		const token = generateActionToken();
-		const expiresAt = addMinutesToNow(EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES);
-		metadata.pendingEmailChange = {
-			token,
-			newEmail: normalizedNewEmail,
-			expiresAt,
-			requestedAt: new Date().toISOString()
-		};
+		const existingChange = metadata.pendingEmailChange;
+		const now = new Date();
+		let token;
+		let expiresAt;
+		let reusedToken = false;
+		const canReuse = existingChange
+			&& existingChange.token
+			&& existingChange.expiresAt
+			&& existingChange.newEmail === normalizedNewEmail
+			&& new Date(existingChange.expiresAt) > now;
+
+		if (canReuse) {
+			token = existingChange.token;
+			expiresAt = existingChange.expiresAt;
+			reusedToken = true;
+		} else {
+			token = generateActionToken();
+			expiresAt = addMinutesToNow(EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES);
+			metadata.pendingEmailChange = {
+				token,
+				newEmail: normalizedNewEmail,
+				expiresAt,
+				requestedAt: new Date().toISOString()
+			};
+		}
 
 		await pool.query(
 			"UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1",
 			[userId, serializeMetadata(metadata)]
 		);
 
+		const expiresInMinutes = Math.max(1, minutesUntilExpiry(expiresAt) || EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES);
 		enqueueEmail({
 			type: "email_change_verification",
 			params: {
 				toEmail: newEmail,
 				preferredName: user.preferred_name,
 				token,
-				expiresIn: EMAIL_CHANGE_TOKEN_EXPIRY_MINUTES
+				expiresIn: expiresInMinutes
 			},
 			context: "EMAIL_CHANGE_REQUEST",
 			userId
@@ -498,6 +541,7 @@ router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, emai
 
 		logToFile("EMAIL_CHANGE_REQUEST", {
 			status: "SUCCESS",
+			mode: reusedToken ? "REUSED_TOKEN" : "NEW_TOKEN",
 			user_id: userId,
 			new_email: newEmail,
 			ip: req.ip,
@@ -543,26 +587,39 @@ async function initiateAccountDeletionRequest(req, res) {
 			return errorResponse(res, 429, "Daily limit reached", [limitCheck.message]);
 		}
 		metadata = limitCheck.metadata;
-		const token = generateActionToken();
-		const expiresAt = addMinutesToNow(ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES);
-		metadata.pendingAccountDeletion = {
-			token,
-			expiresAt,
-			requestedAt: new Date().toISOString()
-		};
+		const existingDeletion = metadata.pendingAccountDeletion;
+		const now = new Date();
+		let token;
+		let expiresAt;
+		let reusedToken = false;
+
+		if (existingDeletion && existingDeletion.token && existingDeletion.expiresAt && new Date(existingDeletion.expiresAt) > now) {
+			token = existingDeletion.token;
+			expiresAt = existingDeletion.expiresAt;
+			reusedToken = true;
+		} else {
+			token = generateActionToken();
+			expiresAt = addMinutesToNow(ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES);
+			metadata.pendingAccountDeletion = {
+				token,
+				expiresAt,
+				requestedAt: new Date().toISOString()
+			};
+		}
 
 		await pool.query(
 			"UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1",
 			[userId, serializeMetadata(metadata)]
 		);
 
+		const expiresInMinutes = Math.max(1, minutesUntilExpiry(expiresAt) || ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES);
 		enqueueEmail({
 			type: "account_delete_verification",
 			params: {
 				toEmail: user.email,
 				preferredName: user.preferred_name,
 				token,
-				expiresIn: ACCOUNT_DELETE_TOKEN_EXPIRY_MINUTES
+				expiresIn: expiresInMinutes
 			},
 			context: "ACCOUNT_DELETE_REQUEST",
 			userId
@@ -570,6 +627,7 @@ async function initiateAccountDeletionRequest(req, res) {
 
 		logToFile("ACCOUNT_DELETE_REQUEST", {
 			status: "INFO",
+			mode: reusedToken ? "REUSED_TOKEN" : "NEW_TOKEN",
 			user_id: userId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
