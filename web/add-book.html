@@ -31,9 +31,11 @@
     <div class="container">
         <h1>Add a Book</h1>
         <p>On this page you can add a new book to your book collection.</p>
-        <div class="card shadow mb-3" id="lookupByISBNCard">
-            <div class="card-body">
-                <h4 class="card-title">Step 1: Lookup by ISBN</h4>
+        <div class="accordion" id="isbnLookupAccordion">
+            <div class="accordion-item" id="step1IsbnItem">
+                <h2 class="accordion-header" id="step1IsbnHeading"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1Isbn" aria-expanded="true" aria-controls="step1Isbn">Step 1: Lookup by ISBN</button></h2>
+                <div id="step1Isbn" class="accordion-collapse collapse show" aria-labelledby="step1IsbnHeading" data-bs-parent="#isbnLookupAccordion">
+                    <div class="accordion-body">
                 <p>This step is optional. If you prefer to enter all book details yourself, or if the book doesn’t have an ISBN, you can skip this step and continue below. If you do enter an ISBN, The Book Project will try to retrieve matching information from trusted external sources and automatically fill in the details for you.</p><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars text-body-secondary position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" style="font-size: 30px;" title="This feature uses AI to help generate or suggest relevant information." tabindex="-1">
                     <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
                 </svg>
@@ -41,14 +43,14 @@
                     <div class="row align-items-start">
                         <div class="col-12 col-md-6 mb-3 mb-md-0">
                             <p>Enter the ISBN of the book you want to add. Using external sources, The Book Project will attempt to retrieve information about this book, and pre-fill the form fields below.</p>
-                            <form id="isbnLookupForm" method="post">
+                            <div id="isbnLookupForm" class="needs-validation" role="form">
                                 <div class="mb-1"><label class="form-label" for="isbnInput"><strong>ISBN</strong><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter the ISBN of your book without any special characters or spaces." tabindex="-1">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg></label>
-                                    <div class="input-group"><input class="form-control" type="text" id="isbnInput" name="isbnInput" placeholder="Enter ISBN" autofocus="" autocomplete="off"><button class="btn btn-primary booktypeCreateButton" id="lookupISBNButton" type="button" data-bs-target="#lookupByISBNLoadingModal" data-bs-toggle="modal">Lookup ISBN</button></div><small class="form-text" id="isbnHelpText"></small>
+                                    <div class="input-group"><input class="form-control" type="text" id="isbnInput" name="isbnInput" placeholder="Enter ISBN" autofocus="" autocomplete="off"><button class="btn btn-primary" id="lookupISBNButton" type="button" data-bs-target="#lookupByISBNLoadingModal" data-bs-toggle="modal">Lookup ISBN</button></div><small class="form-text" id="isbnHelpText"></small>
                                 </div>
-                            </form>
+                            </div>
                             <p class="text-secondary mb-0">An ISBN is a unique number used to identify a specific version or edition of a book. Before 2007, books were assigned 10-digit ISBNs, but since 2007, all books use 13-digit ISBNs. The 13-digit ISBN often also serves as the book’s barcode. You can usually find the ISBN on the back cover of the book, near the barcode.</p>
                         </div>
                         <div class="col-12 col-md-6 order-first order-md-last mb-3 mb-md-0 sticky-md-top">
@@ -60,8 +62,9 @@
                         </div>
                     </div>
                 </div>
+                    </div>
+                </div>
             </div>
-        </div>
         <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="lookupByISBNLoadingModal">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -90,16 +93,18 @@
                 </div>
             </div>
         </div>
-        <form id="bookForm">
-            <div class="card" id="bookDetailsCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 2: Enter Book Details</h4>
+        <form id="bookForm" novalidate="">
+            <div class="accordion mt-3" id="addBookAccordion">
+            <div class="accordion-item" id="step2BookDetailsItem">
+                <h2 class="accordion-header" id="step2BookDetailsHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2BookDetails" aria-expanded="false" aria-controls="step2BookDetails">Step 2: Enter Book Details</button></h2>
+                <div id="step2BookDetails" class="accordion-collapse collapse" aria-labelledby="step2BookDetailsHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
                     <p>Here you can enter the general details of this book - its title, subtitle, ISBN, publication information, and description.&nbsp;These details describe the <em>book itself</em> (the edition or version), not your physical copy. You'll record your personal copy's details later.</p>
                     <div>
                         <div class="row align-items-start">
                             <div class="col-12 col-md-8">
                                 <div>
-                                    <div class="mb-3"><label class="form-label" for="bookTitle"><strong>Title</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The main title of the book. Required. Must be between 2 and 255 characters." tabindex="-1">
+                                    <div class="mb-3"><label class="form-label" for="bookTitle"><strong>Title</strong><span class="text-danger ms-1">*</span></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The main title of the book. Required. Must be between 2 and 255 characters." tabindex="-1">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg><input class="form-control" type="text" id="bookTitle" name="bookTitle" placeholder="The Fellowship of the Ring" autocomplete="off" required="" minlength="2" maxlength="255"><small class="form-text" id="bookTitleHelp"></small></div>
@@ -118,7 +123,7 @@
                                     <div class="mb-3"><label class="form-label" for="bookPages"><strong>Number of Pages</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The number of pages in the book." tabindex="-1">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                        </svg><input class="form-control" type="number" id="bookPages" name="bookPublicationYear" min="1" max="99999" step="1" placeholder="423"><small class="form-text" id="bookPagesHelp"></small></div>
+                                        </svg><input class="form-control" type="number" id="bookPages" name="bookPages" min="1" max="99999" step="1" placeholder="423"><small class="form-text" id="bookPagesHelp"></small></div>
                                     <div class="mb-3"><label class="form-label" for="bookLanguage"><strong>Book Language(s)</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for and select the Languages that the book was published in." tabindex="-1">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
@@ -163,11 +168,13 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
-            <div class="card mt-3" id="bookBookTypeCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 3: Select Book Type</h4>
+            <div class="accordion-item" id="step3BookTypeItem">
+                <h2 class="accordion-header" id="step3BookTypeHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3BookType" aria-expanded="false" aria-controls="step3BookType">Step 3: Select Book Type</button></h2>
+                <div id="step3BookType" class="accordion-collapse collapse" aria-labelledby="step3BookTypeHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
                     <p>Book Type refers to the physical form or format of this book. For example <em>Hardcover</em>, <em>Softcover</em>, <em>Magazine</em>, or <em>Pamphlet</em>.&nbsp;Defining clear types helps you keep your collection consistent and searchable.</p>
                     <div class="alert alert-info" role="alert" id="bookTypeSuggestionAlert">
                         <h5>AI Suggestion: New Book Type</h5>
@@ -178,7 +185,7 @@
                             <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
                         </svg>
                     </div>
-                    <div class="mb-3"><label class="form-label mt-0" for="loginEmail"><strong>Book Type</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The Book Type of this Book." tabindex="-1">
+                    <div class="mb-3"><label class="form-label mt-0" for="bookTypeSelect"><strong>Book Type</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The Book Type of this Book." tabindex="-1">
                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                         </svg><select class="form-select" id="bookTypeSelect">
@@ -196,7 +203,7 @@
                                 <h2 class="accordion-header" role="tab"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#createNewBookTypeAccordion .item-1" aria-expanded="true" aria-controls="createNewBookTypeAccordion .item-1"><strong>Create a new Book Type</strong></button></h2>
                                 <div class="accordion-collapse collapse show item-1" role="tabpanel" data-bs-parent="#createNewBookTypeAccordion">
                                     <div class="accordion-body">
-                                        <div class="mb-3"><label class="form-label" for="loginEmail"><strong>Book Type Name</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name of the Book Type. Must be between 2 and 100 characters." tabindex="-1">
+                                        <div class="mb-3"><label class="form-label" for="booktypeCreateName"><strong>Book Type Name</strong><span class="text-danger ms-1">*</span></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name of the Book Type. Must be between 2 and 100 characters." tabindex="-1">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><input class="form-control" type="text" id="booktypeCreateName" name="booktypeCreateName" placeholder="Magazine" autofocus="" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="booktypeCreateNameHelp"></small></div>
@@ -215,11 +222,13 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
-            <div class="card mt-3" id="bookAuthorsCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 4: Add Book Authors</h4>
+            <div class="accordion-item" id="step4AuthorsItem">
+                <h2 class="accordion-header" id="step4AuthorsHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step4Authors" aria-expanded="false" aria-controls="step4Authors">Step 4: Add Book Authors</button></h2>
+                <div id="step4Authors" class="accordion-collapse collapse" aria-labelledby="step4AuthorsHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
                     <p>Add one or more authors for this book. You can select existing authors from your collection or create new ones. Each author can have a specific role such as <em>Author</em>, <em>Editor</em>, <em>Illustrator</em>, or <em>Translator</em>, or you can specify another role if you prefer.</p>
                     <div class="alert alert-info mb-3 py-2" role="alert" id="bookAuthorsSuggestionAlert">
                         <h5>AI Suggestion: New Authors Found</h5>
@@ -321,7 +330,7 @@
                         <div class="position-absolute d-none w-100 list-group" id="authorSearchResults"></div>
                     </div>
                     <div>
-                        <p class="text-muted mb-1">If you can't find the author you're looking for, you can add a new author below.</p>
+                        <p class="text-muted mb-1">If you can't find the series you're looking for, you can add a new series below.</p>
                         <div class="accordion" role="tablist" id="createNewAuthorAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" role="tab"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#createNewAuthorAccordion .item-1" aria-expanded="true" aria-controls="createNewAuthorAccordion .item-1"><strong>Add a new Author</strong></button></h2>
@@ -329,7 +338,7 @@
                                     <div class="accordion-body">
                                         <div class="mb-3">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <div><label class="form-label mb-0" for="authorCreateName"><strong>Print name</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name printed on the title page of books. This name will be displayed as the primary way to identify an author on the site. Must be between 2 and 255 characters." tabindex="-1">
+                                                <div><label class="form-label mb-0" for="authorCreateName"><strong>Print name</strong><span class="text-danger ms-1">*</span></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name printed on the title page of books. This name will be displayed as the primary way to identify an author on the site. Must be between 2 and 255 characters." tabindex="-1">
                                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                                     </svg></div><button class="btn btn-outline-secondary btn-sm" data-bs-toggle="tooltip" data-bss-tooltip="" id="normaliseAuthorNameButton" type="button" title="Use AI to reformat the name to a standard style"><span class="d-none d-sm-inline" id="generateAuthorBioButtonText-2">Standardise Name</span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars ms-sm-1" data-bss-hover-animate="tada">
@@ -337,15 +346,15 @@
                                                     </svg><span id="generateAuthorBioButtonSpinner-2"><span class="spinner-border spinner-border-sm" role="status" title="Generate Book Type description with AI."></span></span></button>
                                             </div><input class="form-control" type="text" id="authorCreateName" name="authorCreateName" placeholder="J.R.R. Tolkein" autofocus="" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="authorCreateNameHelp"></small>
                                         </div>
-                                        <div class="mb-3" id="CreateFirstName"><label class="form-label" for="authorCreateDOB-1"><strong>First name(s)</strong></label><label class="form-label text-danger" for="loginEmail"></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The First Name(s) of the author, primarily used for searching and sorting features. If unknown, leave blank or enter the author's initials. Must be between 1 and 255 characters.">
+                                        <div class="mb-3" id="CreateFirstName"><label class="form-label" for="authorCreateFirstName"><strong>First name(s)</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The First Name(s) of the author, primarily used for searching and sorting features. If unknown, leave blank or enter the author's initials. Must be between 1 and 255 characters.">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><input class="form-control" type="text" id="authorCreateFirstName" name="authorCreateFirstName" placeholder="John Ronald Reuel" autofocus="" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="authorCreateFirstNameHelp"></small></div>
-                                        <div class="mb-3" id="CreateSurame"><label class="form-label" for="authorCreateDOB-1"><strong>Surname</strong></label><label class="form-label text-danger" for="loginEmail"></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The Surname of the author, primarily used for searching and sorting features. If unknown, leave blank. Must be between 2 and 255 characters.">
+                                        <div class="mb-3" id="CreateSurame"><label class="form-label" for="authorCreateSurname"><strong>Surname</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The Surname of the author, primarily used for searching and sorting features. If unknown, leave blank. Must be between 2 and 255 characters.">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><input class="form-control" type="text" id="authorCreateSurname" name="authorCreateSurname" placeholder="Tolkein" autofocus="" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="authorCreateSurnameHelp"></small></div>
-                                        <div class="mb-3" id="CreateDOBContainer"><label class="form-label" for="authorCreateDOB"><strong>Date of Birth</strong></label><label class="form-label text-danger" for="loginEmail"></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The Date of Birth of the Author. If unknown or unimportant, leave blank.">
+                                        <div class="mb-3" id="CreateDOBContainer"><label class="form-label" for="authorCreateDOB"><strong>Date of Birth</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The Date of Birth of the Author. If unknown or unimportant, leave blank.">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><input class="form-control" id="authorCreateDOB" name="authorCreateDOB" placeholder="Magazine" autofocus="" autocomplete="off" minlength="2" maxlength="100" type="date"><small class="form-text" id="authorCreateDOBHelp"></small></div>
@@ -398,54 +407,57 @@
                     </div>
                 </div>
             </div>
-            <div class="card mt-3" id="bookPublishersCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 5: Add Book Publisher</h4>
-                    <p>Select the publisher for this book. A book, as identified by its ISBN, can only have one publisher. You can select an existing publisher or create a new one.</p>
-                    <div class="alert alert-info" role="alert" id="bookPublisherSuggestionAlert">
-                        <h5>AI Suggestion: New Publisher</h5>
-                        <hr class="mt-1 mb-1">
-                        <p class="mb-1" id="bookPublisherSuggestionText">Based on external book data, this book appears to have been published by&nbsp;<span id="publisherSuggestionName"><strong>Example Publisher</strong></span>&nbsp;(founded in&nbsp;<span id="publisherSuggestionYear"><strong>2021</strong></span>).&nbsp;This publisher isn’t currently in your collection.</p>
-                        <p class="mb-0">Would you like to add and link this Publisher?</p>
-                        <div><button class="btn btn-success mt-2" id="addPublisherYes" type="button">Yes, add <span class="d-none d-sm-inline">and link&nbsp;</span>it.</button><button class="btn btn-secondary ms-2 mt-2" id="addPublisherNo" type="button">No, I'll choose.</button></div><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" style="font-size: 30px;" title="This feature used AI to help generate or suggest relevant information." tabindex="-1">
-                            <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
-                        </svg>
-                    </div>
-                    <div class="mb-3"><label class="form-label mt-0" for="loginEmail"><strong>Publisher</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The Book Type of this Book." tabindex="-1">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                        </svg><select class="form-select" id="bookPublisherSelect">
-                            <option value="none" selected="">Select publisher...</option>
-                            <option value="Penguin Random House">Penguin Random House</option>
-                            <option value="HarperCollins">HarperCollins</option>
-                        </select><small class="form-text" id="bookPublisherHelp"></small></div>
-                    <div id="bookPublisherDescriptionDisplay"><label class="form-label mb-1" for="publisherDescriptionDisplay"><strong>The selected publisher was founded in:</strong></label>
-                        <p id="publisherDescriptionDisplay">No Publisher selected.</p>
-                    </div>
-                    <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher below.</p>
-                    <div class="accordion" role="tablist" id="createNewPublisherAccordion">
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" role="tab"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#createNewPublisherAccordion .item-1" aria-expanded="true" aria-controls="createNewPublisherAccordion .item-1"><strong>Add a new Publisher</strong></button></h2>
-                            <div class="accordion-collapse collapse show item-1" role="tabpanel" data-bs-parent="#createNewPublisherAccordion">
-                                <div class="accordion-body">
-                                    <div class="mb-3"><label class="form-label" for="publisherCreateName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name of the Publisher. Must be between 2 and 255 characters." tabindex="-1">
-                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                        </svg><input class="form-control" type="text" id="publisherCreateName" name="publisherCreateName" placeholder="Penguin Books" autofocus="" autocomplete="off" required="" minlength="2" maxlength="255"><small class="form-text" id="booktypeCreateNameHelp-1"></small></div>
-                                    <div><label class="form-label" for="publisherCreateYear"><strong>Year Founded</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The year that the Publisher was founded. If unknown or unimportant, leave blank." tabindex="-1">
-                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                        </svg><input class="form-control" type="number" id="publisherCreateYear" name="booktypeCreateName" placeholder="1935" autofocus="" autocomplete="off" minlength="2" maxlength="255" min="1000" step="1"><small class="form-text" id="booktypeCreateNameHelp-2"></small></div>
-                                    <div class="d-flex justify-content-end align-items-end"><button class="btn btn-primary mt-2" id="publisherCreateButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="booktypeCreateSpinner-2"></span></button></div>
+            <div class="accordion-item" id="step5PublisherItem">
+                <h2 class="accordion-header" id="step5PublisherHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step5Publisher" aria-expanded="false" aria-controls="step5Publisher">Step 5: Add Book Publisher</button></h2>
+                <div id="step5Publisher" class="accordion-collapse collapse" aria-labelledby="step5PublisherHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
+                        <p>Select the publisher for this book. A book, as identified by its ISBN, can only have one publisher. You can select an existing publisher or create a new one.</p>
+                        <div class="alert alert-info" role="alert" id="bookPublisherSuggestionAlert">
+                            <h5>AI Suggestion: New Publisher</h5>
+                            <hr class="mt-1 mb-1">
+                            <p class="mb-1" id="bookPublisherSuggestionText">Based on external book data, this book appears to have been published by&nbsp;<span id="publisherSuggestionName"><strong>Example Publisher</strong></span>&nbsp;(founded in&nbsp;<span id="publisherSuggestionYear"><strong>2021</strong></span>).&nbsp;This publisher isn’t currently in your collection.</p>
+                            <p class="mb-0">Would you like to add and link this Publisher?</p>
+                            <div><button class="btn btn-success mt-2" id="addPublisherYes" type="button">Yes, add <span class="d-none d-sm-inline">and link&nbsp;</span>it.</button><button class="btn btn-secondary ms-2 mt-2" id="addPublisherNo" type="button">No, I'll choose.</button></div><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" style="font-size: 30px;" title="This feature used AI to help generate or suggest relevant information." tabindex="-1">
+                                <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
+                            </svg>
+                        </div>
+                        <div class="mb-3"><label class="form-label mt-0" for="bookPublisherSelect"><strong>Publisher</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Select the publisher that released this specific edition." tabindex="-1">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                            </svg><select class="form-select" id="bookPublisherSelect">
+                                <option value="none" selected="">Select publisher...</option>
+                                <option value="Penguin Random House">Penguin Random House</option>
+                                <option value="HarperCollins">HarperCollins</option>
+                            </select><small class="form-text" id="bookPublisherHelp"></small></div>
+                        <div id="bookPublisherDescriptionDisplay"><label class="form-label mb-1" for="publisherDescriptionDisplay"><strong>The selected publisher was founded in:</strong></label>
+                            <p id="publisherDescriptionDisplay">No Publisher selected.</p>
+                        </div>
+                        <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher below.</p>
+                        <div class="accordion" role="tablist" id="createNewPublisherAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" role="tab"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#createNewPublisherAccordion .item-1" aria-expanded="true" aria-controls="createNewPublisherAccordion .item-1"><strong>Add a new Publisher</strong></button></h2>
+                                <div class="accordion-collapse collapse show item-1" role="tabpanel" data-bs-parent="#createNewPublisherAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3"><label class="form-label" for="publisherCreateName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="publisherCreateName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name of the Publisher. Must be between 2 and 255 characters." tabindex="-1">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                            </svg><input class="form-control" type="text" id="publisherCreateName" name="publisherCreateName" placeholder="Penguin Books" autocomplete="off" required="" minlength="2" maxlength="255"><small class="form-text" id="publisherCreateNameHelp"></small></div>
+                                        <div><label class="form-label" for="publisherCreateYear"><strong>Year Founded</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The year that the Publisher was founded. If unknown or unimportant, leave blank." tabindex="-1">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                            </svg><input class="form-control" type="number" id="publisherCreateYear" name="publisherCreateYear" placeholder="1935" autocomplete="off" min="1000" step="1"><small class="form-text" id="publisherCreateYearHelp"></small></div>
+                                        <div class="d-flex justify-content-end align-items-end"><button class="btn btn-primary mt-2" id="publisherCreateButton" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="booktypeCreateSpinner-2"></span></button></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="card mt-3" id="bookSeriesCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 6: Add Book Series</h4>
+            <div class="accordion-item" id="step6SeriesItem">
+                <h2 class="accordion-header" id="step6SeriesHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step6Series" aria-expanded="false" aria-controls="step6Series">Step 6: Add Book Series</button></h2>
+                <div id="step6Series" class="accordion-collapse collapse" aria-labelledby="step6SeriesHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
                     <p>Books can belong to one or more series. A series represents a group of books connected by story, theme, or publication sequence. Although most books belong to (at most) one series, you can link multiple for flexibility.</p>
                     <div class="alert alert-info mb-3 pb-3 py-2" role="alert" id="bookAuthorsSuggestionAlert-1">
                         <h5>AI Suggestion: New Series Found</h5>
@@ -493,7 +505,7 @@
                                 <h2 class="accordion-header" role="tab"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#createNewSeriesAccordion .item-1" aria-expanded="true" aria-controls="createNewSeriesAccordion .item-1"><strong>Add a new Series</strong></button></h2>
                                 <div class="accordion-collapse collapse show item-1" role="tabpanel" data-bs-parent="#createNewSeriesAccordion">
                                     <div class="accordion-body">
-                                        <div class="mb-3"><label class="form-label" for="authorCreateDOB-1"><strong>Series name</strong></label><label class="form-label text-danger" for="loginEmail"><strong>*</strong></label><label class="form-label text-danger" for="loginEmail"></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The title of the series this book belongs to. Must be between 2 and 255 characters.">
+                                        <div class="mb-3"><label class="form-label" for="createSeriesName"><strong>Series name</strong><span class="text-danger ms-1">*</span></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" tabindex="-1" title="The title of the series this book belongs to. Must be between 2 and 255 characters.">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><input class="form-control" type="text" id="createSeriesName" name="authorCreateFirstName" placeholder="The Lord of the Rings" autofocus="" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="authorCreateFirstNameHelp-1"></small></div>
@@ -523,9 +535,10 @@
                     </div>
                 </div>
             </div>
-            <div class="card mt-3" id="bookTagsCard">
-                <div class="card-body shadow">
-                    <h4 class="card-title">Step 7: Add Book Tags</h4>
+            <div class="accordion-item" id="step7TagsItem">
+                <h2 class="accordion-header" id="step7TagsHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step7Tags" aria-expanded="false" aria-controls="step7Tags">Step 7: Add Book Tags</button></h2>
+                <div id="step7Tags" class="accordion-collapse collapse" aria-labelledby="step7TagsHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
                     <p>Tags are flexible labels that describe aspects of your book such as genre, themes, settings, or notable features.&nbsp;They make it easier to explore your collection and can overlap freely.&nbsp;You can use them to filter, group, and discover books later.</p>
                     <div class="alert alert-info mt-0 mb-3 pb-1 py-2" role="alert" id="tagsSuggestionAlert">
                         <h5>AI Suggested Tags</h5>
@@ -547,29 +560,132 @@
                         </svg>
                     </div>
                     <div class="mb-3" id="bookTagsContainer">
-                        <h5>Associated Series</h5>
-                        <ul class="list-group" id="selectedSeriesList-1">
-                            <li class="list-group-item" id="noSeriesPlaceholder-1"><span>This book has no series yet.</span></li>
-                            <li class="list-group-item" id="liSeriesTemplate-1">
-                                <div class="row align-items-center">
-                                    <div class="col-12 col-md-4 mb-1 mb-md-0"><strong id="seriesNameli1-1">The Lord of the Rings</strong></div>
-                                    <div class="col-12 col-md-4">
-                                        <div class="input-group input-group-sm"><span class="input-group-text input-group-text">Book order:</span><input class="form-control form-control" type="number" id="seriesOrderli1-1" maxlength="100" minlength="2"></div>
-                                    </div>
-                                    <div class="col-12 col-md-4 text-end"><button class="btn btn-sm btn-close" type="button"></button></div>
-                                </div>
+                        <h5>Book Tags</h5>
+                        <ul class="list-group" id="selectedTagsList">
+                            <li class="list-group-item" id="noTagsPlaceholder"><span>This book has no tags yet.</span></li>
+                            <li class="list-group-item" id="tagPillTemplate">
+                                <div class="p-1" id="selectedTagsPills"><span class="badge rounded-pill bg-light fw-normal border rounded-1 border-1 border-black d-inline-flex align-items-center me-2 mb-1" id="bookTag1" title=""><span class="fs-6 text-black d-flex align-items-center">Fantasy<div class="btn-group btn-group-sm gap-0" role="group"><button class="btn d-flex align-items-center p-0" id="btnRemoveBookTag1" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="text-black" data-bs-toggle="tooltip" data-bss-tooltip="" style="font-size: 17px;" title="Remove tag">
+                                                        <path d="M16.3956 7.75734C16.7862 8.14786 16.7862 8.78103 16.3956 9.17155L13.4142 12.153L16.0896 14.8284C16.4802 15.2189 16.4802 15.8521 16.0896 16.2426C15.6991 16.6331 15.0659 16.6331 14.6754 16.2426L12 13.5672L9.32458 16.2426C8.93405 16.6331 8.30089 16.6331 7.91036 16.2426C7.51984 15.8521 7.51984 15.2189 7.91036 14.8284L10.5858 12.153L7.60436 9.17155C7.21383 8.78103 7.21383 8.14786 7.60436 7.75734C7.99488 7.36681 8.62805 7.36681 9.01857 7.75734L12 10.7388L14.9814 7.75734C15.372 7.36681 16.0051 7.36681 16.3956 7.75734Z" fill="currentColor"></path>
+                                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4 1C2.34315 1 1 2.34315 1 4V20C1 21.6569 2.34315 23 4 23H20C21.6569 23 23 21.6569 23 20V4C23 2.34315 21.6569 1 20 1H4ZM20 3H4C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21H20C20.5523 21 21 20.5523 21 20V4C21 3.44772 20.5523 3 20 3Z" fill="currentColor"></path>
+                                                    </svg></button></div></span></span><span class="badge rounded-pill bg-light fw-normal border rounded-1 border-1 border-black d-inline-flex align-items-center me-2 mb-1" id="bookTag2" title=""><span class="fs-6 text-black d-flex align-items-center">Adventure<div class="btn-group btn-group-sm gap-0" role="group"><button class="btn d-flex align-items-center p-0" id="btnRemoveBookTag2" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="text-black" data-bs-toggle="tooltip" data-bss-tooltip="" style="font-size: 17px;" title="Remove tag">
+                                                        <path d="M16.3956 7.75734C16.7862 8.14786 16.7862 8.78103 16.3956 9.17155L13.4142 12.153L16.0896 14.8284C16.4802 15.2189 16.4802 15.8521 16.0896 16.2426C15.6991 16.6331 15.0659 16.6331 14.6754 16.2426L12 13.5672L9.32458 16.2426C8.93405 16.6331 8.30089 16.6331 7.91036 16.2426C7.51984 15.8521 7.51984 15.2189 7.91036 14.8284L10.5858 12.153L7.60436 9.17155C7.21383 8.78103 7.21383 8.14786 7.60436 7.75734C7.99488 7.36681 8.62805 7.36681 9.01857 7.75734L12 10.7388L14.9814 7.75734C15.372 7.36681 16.0051 7.36681 16.3956 7.75734Z" fill="currentColor"></path>
+                                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4 1C2.34315 1 1 2.34315 1 4V20C1 21.6569 2.34315 23 4 23H20C21.6569 23 23 21.6569 23 20V4C23 2.34315 21.6569 1 20 1H4ZM20 3H4C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21H20C20.5523 21 21 20.5523 21 20V4C21 3.44772 20.5523 3 20 3Z" fill="currentColor"></path>
+                                                    </svg></button></div></span></span></div>
                             </li>
                         </ul>
                     </div>
-                    <div class="mb-3" id="searchTagsContainer">
-                        <h5>Add an Existing Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for and select the Series that this book belongs to. Once you click to add a series, you'll be able to specify this book's order in that series." style="font-size: 17px;">
+                    <div class="mb-3" id="addTagsContainer">
+                        <h5>Add Book Tag<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for an existing tag or type a new one to link it to this book." style="font-size: 17px;">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                            </svg></h5><input class="form-control" type="search" id="seriesSearchInput-1" placeholder="Search series..." name="authorSearchInput">
-                        <div class="position-absolute d-none w-100 list-group" id="seriesSearchResults-1"></div>
+                            </svg></h5>
+                        <div class="input-group"><input class="form-control" type="text" id="addBookTagInput" placeholder="Start typing to search or create a tag..."><button class="btn btn-primary" id="btnAddBookTag" type="button">Add</button></div>
+                        <div class="position-absolute d-none w-100 list-group" id="tagSearchResults"></div>
                     </div>
                 </div>
             </div>
+            <div class="accordion-item" id="step8BookCopyItem">
+                <h2 class="accordion-header" id="step8BookCopyHeading"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step8BookCopy" aria-expanded="false" aria-controls="step8BookCopy">Step 8: Enter Book Copy Details</button></h2>
+                <div id="step8BookCopy" class="accordion-collapse collapse" aria-labelledby="step8BookCopyHeading" data-bs-parent="#addBookAccordion">
+                    <div class="accordion-body shadow">
+                        <p>Here you can enter the specific details of your first book copy of this book. This includes where the book is stored, how the book was acquired, the book's condition, etc.</p>
+                        <div class="row g-4">
+                            <div class="col-12 col-lg-8">
+                                <section class="mb-4" id="copyLocationSection">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <h5 class="mb-0">Physical Storage Location</h5>
+                                            <p class="text-muted small mb-0">Build the path to where this copy lives. Locations can be nested (Residence &rarr; Living Room &rarr; TV Shelf &rarr; Rack 1).</p>
+                                        </div>
+                                        <button class="btn btn-outline-secondary btn-sm" id="addLocationLevelButton" type="button">Add Level</button>
+                                    </div>
+                                    <div class="border rounded-3 p-3">
+                                        <label class="form-label fw-semibold mb-1" for="copyLocationBreadcrumb">Current Location Path</label>
+                                        <div class="d-flex flex-wrap gap-2" id="copyLocationBreadcrumb"><span class="badge rounded-pill bg-secondary-subtle text-body" id="copyLocationBreadcrumbPlaceholder">No location selected yet.</span></div>
+                                        <div class="row g-3 align-items-end mt-1" id="copyLocationLevels">
+                                            <div class="col-12">
+                                                <label class="form-label" for="copyLocationLevel1">Select a top-level location</label><select class="form-select storage-location-select" id="copyLocationLevel1" name="copyLocationLevel1" data-level="1">
+                                                    <option value="">Select location...</option>
+                                                    <option value="residence">Residence</option>
+                                                    <option value="office">Office</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" for="copyLocationLevel2">Select a sub-location</label><select class="form-select storage-location-select" id="copyLocationLevel2" name="copyLocationLevel2" data-level="2">
+                                                    <option value="">Select sub-location...</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" for="copyLocationLevel3">Select a nested location</label><select class="form-select storage-location-select" id="copyLocationLevel3" name="copyLocationLevel3" data-level="3">
+                                                    <option value="">Select nested location...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="form-label" for="copyLocationSearch">Find an existing location</label><input class="form-control" type="search" id="copyLocationSearch" name="copyLocationSearch" placeholder="Search locations..." autocomplete="off">
+                                            <div class="position-relative">
+                                                <div class="position-absolute d-none w-100 list-group" id="copyLocationSearchResults"></div>
+                                            </div><small class="form-text">Start typing to search through your saved locations.</small>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="form-label" for="newLocationNameInput">Add a new nested location</label>
+                                            <div class="row g-2">
+                                                <div class="col-12 col-md-5"><select class="form-select" id="newLocationParentSelect" name="newLocationParentSelect">
+                                                        <option value="current" selected="">Attach to currently selected level</option>
+                                                        <option value="root">Create at top level</option>
+                                                    </select></div>
+                                                <div class="col-12 col-md-7">
+                                                    <div class="input-group"><span class="input-group-text">Name</span><input class="form-control" type="text" id="newLocationNameInput" name="newLocationName" placeholder="TV Shelf"><button class="btn btn-outline-primary" id="saveNewLocationButton" type="button">Add location</button></div>
+                                                </div>
+                                            </div><small class="form-text">We'll create the location and add it to your path once you save this book.</small>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section id="copyAcquisitionSection">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <h5 class="mb-0">Acquisition Story &amp; Details</h5>
+                                            <p class="text-muted small mb-0">Write down how this copy came into your collection. AI can summarise the details for you.</p>
+                                        </div><button class="btn btn-outline-secondary btn-sm" data-bs-toggle="tooltip" data-bss-tooltip="" id="generateAcquisitionDetailsButton" type="button" title="Use AI to extract the date, source, and type from your story."><span class="d-none d-sm-inline">Use AI to fill fields</span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars ms-sm-1" data-bss-hover-animate="tada">
+                                                <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
+                                            </svg></button>
+                                    </div>
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <label class="form-label" for="copyAcquisitionStory">Acquisition Story</label><textarea class="form-control" id="copyAcquisitionStory" name="copyAcquisitionStory" rows="3" placeholder="I bought this at the NGK Durbanville when Bidsa books sold books there in 2020." maxlength="1000"></textarea><small class="form-text">AI will only use this story to fill in the fields below. You can always edit them afterwards.</small>
+                                            <div class="row g-3 mt-1">
+                                                <div class="col-12 col-md-6"><label class="form-label" for="copyAcquisitionDate">Acquisition date</label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter as much as you know: full date, month and year, or just the year." tabindex="-1">
+                                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                                    </svg><input class="form-control" type="text" id="copyAcquisitionDate" name="copyAcquisitionDate" placeholder="12 May 2024 or May 2024 or 2025"><small class="form-text">Partial dates are welcome.</small></div>
+                                                <div class="col-12 col-md-6"><label class="form-label" for="copyAcquiredFrom">Acquired from</label><input class="form-control" type="text" id="copyAcquiredFrom" name="copyAcquiredFrom" placeholder="Bidsa Books / HSB Library"><small class="form-text">Person, store, friend, or organisation.</small></div>
+                                                <div class="col-12 col-md-6"><label class="form-label" for="copyAcquisitionType">Acquisition type</label><select class="form-select" id="copyAcquisitionType" name="copyAcquisitionType">
+                                                        <option value="">Select type...</option>
+                                                        <option value="Purchase">Purchase</option>
+                                                        <option value="Gift">Gift</option>
+                                                        <option value="Borrowed">Borrowed</option>
+                                                        <option value="Donation">Donation</option>
+                                                        <option value="Inherited">Inherited</option>
+                                                        <option value="Other">Other...</option>
+                                                    </select><small class="form-text">Choose the option that best fits this copy.</small></div>
+                                                <div class="col-12 col-md-6"><label class="form-label" for="copyAcquisitionTypeOther">Custom acquisition type</label><input class="form-control" type="text" id="copyAcquisitionTypeOther" name="copyAcquisitionTypeOther" placeholder="Prize, Trade, etc." maxlength="100"><small class="form-text">Only required when selecting "Other..."</small></div>
+                                                <div class="col-12"><label class="form-label" for="copyAcquisitionNotes">Other notes</label><textarea class="form-control" id="copyAcquisitionNotes" name="copyAcquisitionNotes" rows="2" placeholder="Signed by Pastor Johan when we swapped books." maxlength="500"></textarea><small class="form-text">Keep anything else you'd like to remember about this copy.</small></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                            <div class="col-12 col-lg-4 order-first order-lg-last">
+                                <div class="alert alert-warning mb-0" role="alert"><span><strong>Understanding Our Book System:</strong></span>
+                                    <p class="mb-0">A <strong><em>Book Copy</em></strong> is a physical copy you personally own: one or more copies of a <strong><em>Book</em></strong>.</p>
+                                    <p class="mb-1">A <strong><em>Book</em></strong> represents a specific edition (identified by its ISBN). A hardcover and paperback edition of <em>The Fellowship of the Ring</em> are separate books.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         </form>
         <div class="modal fade" role="dialog" tabindex="-1" id="aboutAIModal">
             <div class="modal-dialog" role="document">

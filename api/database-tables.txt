@@ -83,38 +83,6 @@ FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
 
-
--- Recommendation: Create ENUM types for data integrity.
-CREATE TYPE log_action AS ENUM (
-    'LOGIN_ATTEMPT',
-    'LOGOUT',
-    'PASSWORD_RESET_REQUEST',
-    'PASSWORD_RESET_SUCCESS',
-    'EMAIL_VERIFICATION',
-    'USER_REGISTERED',
-    'USER_UPDATED_PROFILE',
-    'TOKEN_REFRESHED'
-    -- Add more as your application grows
-);
-
-CREATE TYPE log_status AS ENUM (
-    'SUCCESS',
-    'FAILURE',
-    'INFO'
-);
-
-CREATE TABLE user_logs (
-    id            BIGSERIAL PRIMARY KEY,
-    user_id       INT REFERENCES users(id) ON DELETE SET NULL,
-    action        log_action NOT NULL,           -- Changed to ENUM
-    status        log_status NOT NULL,           -- Changed to ENUM
-    ip_address    INET,
-    user_agent    TEXT,
-    error_message TEXT,                          -- Great for storing why a 'FAILURE' occurred
-    details       JSONB,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now() -- Changed to TIMESTAMPTZ
-);
-
 -- Recommendation: Add indexes for common query patterns.
 -- Speeds up finding all logs for a specific user.
 CREATE INDEX idx_user_logs_user_id ON user_logs(user_id);
