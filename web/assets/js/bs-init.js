@@ -17,8 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
 		hoverAnimationEl.addEventListener('mouseleave', function(e){ e.target.classList.remove('animated', e.target.dataset.bssHoverAnimate) });
 	});
 
-	var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bss-tooltip]'));
-	var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-	  return new bootstrap.Tooltip(tooltipTriggerEl);
-	})
+	// Initialise all tooltips declared via Bootstrap Studio data attribute or standard Bootstrap attribute.
+	var tooltipSelector = '[data-bss-tooltip], [data-bs-toggle="tooltip"]';
+	var tooltipTriggerList = [].slice.call(document.querySelectorAll(tooltipSelector));
+	tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+	  if (tooltipTriggerEl.getAttribute('data-bs-toggle') !== 'tooltip') {
+	    tooltipTriggerEl.setAttribute('data-bs-toggle', 'tooltip');
+	  }
+	  bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl);
+	});
 }, false);
