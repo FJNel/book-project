@@ -12,6 +12,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
   - [Shared Behaviours](#shared-behaviours)
   - [Endpoints](#endpoints)
     - [GET /](#get-)
+    - [POST /dates/preview](#post-datespreview)
   - [Authentication](#authentication)
     - [POST /auth/register](#post-authregister)
     - [POST /auth/resend-verification](#post-authresend-verification)
@@ -101,6 +102,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| `POST /dates/preview` | 30 requests | 1 minute per IP | Lightweight preview endpoint backed by the Python partial date parser. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -160,6 +162,71 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
   "errors": []
 }
 ```
+
+---
+
+### POST /dates/preview
+
+- **Description:** Runs the Python `partial_date_parser.py` helper to show how a loosely formatted date will be stored.
+- **Authentication:** Not required.
+- **Rate Limit:** 30 requests per minute per IP.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/dates/preview` |
+| Authentication | None |
+| Rate Limit | 30 requests / minute / IP |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | JSON body required. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `dateString` | string | Yes | The free-form date to parse. Must not be empty; max 512 characters. |
+| `preferMdy` | boolean | No | When `true`, ambiguous numeric dates (e.g. `03/04/05`) are interpreted as MM/DD/YY. Defaults to `false` (DD/MM preference). |
+
+#### Successful Response (200)
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.33",
+  "message": "Date preview generated.",
+  "data": {
+    "date": {
+      "day": 15,
+      "month": 12,
+      "year": 2025,
+      "text": "15 December 2025"
+    },
+    "input": "15 Dec 25",
+    "preferMdy": false
+  },
+  "errors": []
+}
+```
+
+#### Validation Errors (400)
+
+- Missing or non-string `dateString`.
+- Empty string inputs (`""`) return `message` **"Validation Error"** with `errors` containing **"An empty date cannot be parsed."**
+- Inputs exceeding 512 characters.
+
+#### Failure Responses
+
+- `429 Too Many Requests` when the preview-specific rate limit is exceeded.
+- `500 Failed to parse date` if the underlying Python helper is unavailable.
 
 ---
 

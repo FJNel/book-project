@@ -156,6 +156,7 @@
 <li><a href="#endpoints">Endpoints</a>
 <ul>
 <li><a href="#get-">GET /</a></li>
+<li><a href="#post-datespreview">POST /dates/preview</a></li>
 </ul>
 </li>
 <li><a href="#authentication">Authentication</a>
@@ -289,6 +290,12 @@
 <td>1 minute per authenticated user</td>
 <td>Enforced by <code>authenticatedLimiter</code>; keyed by <code>user.id</code>.</td>
 </tr>
+<tr>
+<td><code>POST /dates/preview</code></td>
+<td>30 requests</td>
+<td>1 minute per IP</td>
+<td>Lightweight preview endpoint backed by the Python partial date parser.</td>
+</tr>
 </tbody>
 </table>
 <p>All other endpoints currently have no dedicated custom limit.</p>
@@ -396,6 +403,124 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <hr>
+<h3 id="post-datespreview">POST /dates/preview</h3>
+<ul>
+<li><strong>Description:</strong> Runs the Python <code>partial_date_parser.py</code> helper to show how a loosely formatted date will be stored.</li>
+<li><strong>Authentication:</strong> Not required.</li>
+<li><strong>Rate Limit:</strong> 30 requests per minute per IP.</li>
+</ul>
+<h4 id="request-overview-1">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/dates/preview</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>30 requests / minute / IP</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-1">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>JSON body required.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-1">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dateString</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>The free-form date to parse. Must not be empty; max 512 characters.</td>
+</tr>
+<tr>
+<td><code>preferMdy</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>When <code>true</code>, ambiguous numeric dates (e.g. <code>03/04/05</code>) are interpreted as MM/DD/YY. Defaults to <code>false</code> (DD/MM preference).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="successful-response-200">Successful Response (200)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;4.33&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Date preview generated.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;date&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">15</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2025</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15 December 2025&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;input&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15 Dec 25&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;preferMdy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="validation-errors-400">Validation Errors (400)</h4>
+<ul>
+<li>Missing or non-string <code>dateString</code>.</li>
+<li>Empty string inputs (<code>&quot;&quot;</code>) return <code>message</code> <strong>&quot;Validation Error&quot;</strong> with <code>errors</code> containing <strong>&quot;An empty date cannot be parsed.&quot;</strong></li>
+<li>Inputs exceeding 512 characters.</li>
+</ul>
+<h4 id="failure-responses">Failure Responses</h4>
+<ul>
+<li><code>429 Too Many Requests</code> when the preview-specific rate limit is exceeded.</li>
+<li><code>500 Failed to parse date</code> if the underlying Python helper is unavailable.</li>
+</ul>
+<hr>
 <h2 id="authentication">Authentication</h2>
 <p>Authentication flows combine email/password, Google OAuth, email verification, and password reset flows. Unless stated otherwise, authentication endpoints do not require an access token but do require the relevant CAPTCHA token.</p>
 <h3 id="post-authregister">POST /auth/register</h3>
@@ -405,7 +530,7 @@
 <li><strong>Rate Limit:</strong> 5 requests per 10 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>register</code> action.</li>
 </ul>
-<h4 id="request-overview-1">Request Overview</h4>
+<h4 id="request-overview-2">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -440,7 +565,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-1">Required Headers</h4>
+<h4 id="required-headers-2">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -471,7 +596,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-1">Body Parameters</h4>
+<h4 id="body-parameters-2">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -605,7 +730,7 @@
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>resend_verification</code> action.</li>
 </ul>
-<h4 id="request-overview-2">Request Overview</h4>
+<h4 id="request-overview-3">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -640,7 +765,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-2">Required Headers</h4>
+<h4 id="required-headers-3">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -671,7 +796,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-2">Body Parameters</h4>
+<h4 id="body-parameters-3">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -754,7 +879,7 @@
 <li><strong>Rate Limit:</strong> Not currently rate limited beyond CAPTCHA.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>verify_email</code> action.</li>
 </ul>
-<h4 id="request-overview-3">Request Overview</h4>
+<h4 id="request-overview-4">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -789,7 +914,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-3">Required Headers</h4>
+<h4 id="required-headers-4">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -820,7 +945,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-3">Body Parameters</h4>
+<h4 id="body-parameters-4">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -970,7 +1095,7 @@
 <li><strong>Rate Limit:</strong> 10 requests per 10 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>login</code> action.</li>
 </ul>
-<h4 id="request-overview-4">Request Overview</h4>
+<h4 id="request-overview-5">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1005,7 +1130,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-4">Required Headers</h4>
+<h4 id="required-headers-5">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1036,7 +1161,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-4">Body Parameters</h4>
+<h4 id="body-parameters-5">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -1162,7 +1287,7 @@
 <li><strong>Purpose:</strong> Exchange a valid refresh token for a new access token.</li>
 <li><strong>Authentication:</strong> Not required (the refresh token provides trust).</li>
 </ul>
-<h4 id="request-overview-5">Request Overview</h4>
+<h4 id="request-overview-6">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1189,7 +1314,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-5">Required Headers</h4>
+<h4 id="required-headers-6">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1220,7 +1345,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-5">Body Parameters</h4>
+<h4 id="body-parameters-6">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -1336,7 +1461,7 @@
 <li><strong>Authentication:</strong> Access token required (<code>Authorization: Bearer &lt;accessToken&gt;</code>).</li>
 <li><strong>Rate Limit:</strong> 60 requests per minute per authenticated user.</li>
 </ul>
-<h4 id="request-overview-6">Request Overview</h4>
+<h4 id="request-overview-7">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1367,7 +1492,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-6">Required Headers</h4>
+<h4 id="required-headers-7">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1398,7 +1523,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-6">Body Parameters</h4>
+<h4 id="body-parameters-7">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -1526,7 +1651,7 @@
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>request_password_reset</code> action.</li>
 </ul>
-<h4 id="request-overview-7">Request Overview</h4>
+<h4 id="request-overview-8">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1561,7 +1686,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-7">Required Headers</h4>
+<h4 id="required-headers-8">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1592,7 +1717,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-7">Body Parameters</h4>
+<h4 id="body-parameters-8">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -1678,7 +1803,7 @@
 <li><strong>Rate Limit:</strong> 1 request per 5 minutes per IP.</li>
 <li><strong>CAPTCHA:</strong> Provide <code>captchaToken</code> validated against the <code>reset_password</code> action.</li>
 </ul>
-<h4 id="request-overview-8">Request Overview</h4>
+<h4 id="request-overview-9">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1713,7 +1838,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-8">Required Headers</h4>
+<h4 id="required-headers-9">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1744,7 +1869,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-8">Body Parameters</h4>
+<h4 id="body-parameters-9">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -1886,7 +2011,7 @@
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Request Body:</strong></li>
 </ul>
-<h4 id="request-overview-9">Request Overview</h4>
+<h4 id="request-overview-10">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -1913,7 +2038,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-9">Required Headers</h4>
+<h4 id="required-headers-10">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -1944,7 +2069,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-9">Body Parameters</h4>
+<h4 id="body-parameters-10">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2087,7 +2212,7 @@
 <ul>
 <li><strong>Purpose:</strong> Retrieve the authenticated user's profile and connected OAuth providers.</li>
 </ul>
-<h4 id="request-overview-10">Request Overview</h4>
+<h4 id="request-overview-11">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2118,7 +2243,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-10">Required Headers</h4>
+<h4 id="required-headers-11">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2143,7 +2268,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-10">Body Parameters</h4>
+<h4 id="body-parameters-11">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2220,7 +2345,7 @@
 <li><strong>Purpose:</strong> Update <code>fullName</code> and/or <code>preferredName</code>. To change the email or password, use the dedicated endpoints.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-11">Request Overview</h4>
+<h4 id="request-overview-12">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2251,7 +2376,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-11">Required Headers</h4>
+<h4 id="required-headers-12">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2282,7 +2407,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-11">Body Parameters</h4>
+<h4 id="body-parameters-12">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2399,7 +2524,7 @@
 <li><strong>Purpose:</strong> Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.</li>
 <li><strong>Daily Quota:</strong> Maximum of two disable requests per account per rolling 24 hours.</li>
 </ul>
-<h4 id="request-overview-12">Request Overview</h4>
+<h4 id="request-overview-13">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2430,7 +2555,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-12">Required Headers</h4>
+<h4 id="required-headers-13">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2455,7 +2580,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-12">Body Parameters</h4>
+<h4 id="body-parameters-13">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2521,7 +2646,7 @@
 <li><strong>Purpose:</strong> Confirms the disable request using the emailed token, validates the user’s email, and revokes all active sessions.</li>
 <li><strong>Authentication:</strong> Not required (token + email based); protected by CAPTCHA.</li>
 </ul>
-<h4 id="request-overview-13">Request Overview</h4>
+<h4 id="request-overview-14">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2556,7 +2681,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-13">Required Headers</h4>
+<h4 id="required-headers-14">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2581,7 +2706,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-13">Body Parameters</h4>
+<h4 id="body-parameters-14">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2647,7 +2772,7 @@
 <li><strong>Daily Quota:</strong> Only one email change request can be initiated per account per day.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-14">Request Overview</h4>
+<h4 id="request-overview-15">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2678,7 +2803,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-14">Required Headers</h4>
+<h4 id="required-headers-15">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2709,7 +2834,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-14">Body Parameters</h4>
+<h4 id="body-parameters-15">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2761,7 +2886,7 @@
 <li><strong>Purpose:</strong> Confirms the pending email change using the token sent to the new email address. Requires the user’s current email, the new email, password confirmation, and a CAPTCHA check before revoking sessions and removing OAuth links.</li>
 <li><strong>Authentication:</strong> Not required (token + credentials); protected by CAPTCHA.</li>
 </ul>
-<h4 id="request-overview-15">Request Overview</h4>
+<h4 id="request-overview-16">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2796,7 +2921,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-15">Body Parameters</h4>
+<h4 id="body-parameters-16">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2874,7 +2999,7 @@
 <li><strong>Daily Quota:</strong> Up to two deletion requests per account per day (shared between <code>DELETE</code> and <code>POST</code> clients).</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-16">Request Overview</h4>
+<h4 id="request-overview-17">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -2905,7 +3030,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-15">Required Headers</h4>
+<h4 id="required-headers-16">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -2930,7 +3055,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-16">Body Parameters</h4>
+<h4 id="body-parameters-17">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -2982,7 +3107,7 @@
 <li><strong>Purpose:</strong> Confirms the deletion request using the emailed token, validates the user’s credentials, and notifies support so the deletion can be processed manually.</li>
 <li><strong>Authentication:</strong> Not required (token + credentials); protected by CAPTCHA.</li>
 </ul>
-<h4 id="request-overview-17">Request Overview</h4>
+<h4 id="request-overview-18">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -3017,7 +3142,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-17">Body Parameters</h4>
+<h4 id="body-parameters-18">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -3094,7 +3219,7 @@
 <li><strong>Purpose:</strong> List the authenticated user’s active refresh-token sessions, including device, browser, IP hint, and remaining lifetime.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-18">Request Overview</h4>
+<h4 id="request-overview-19">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -3125,7 +3250,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-16">Required Headers</h4>
+<h4 id="required-headers-17">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3150,7 +3275,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-18">Body Parameters</h4>
+<h4 id="body-parameters-19">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -3227,7 +3352,7 @@
 <li><strong>Purpose:</strong> Revoke a single refresh-token session (for example, to sign out a lost or unattended device). Fingerprints are returned by <code>GET /users/me/sessions</code>.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-19">Request Overview</h4>
+<h4 id="request-overview-20">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -3258,7 +3383,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-17">Required Headers</h4>
+<h4 id="required-headers-18">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3302,7 +3427,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-19">Body Parameters</h4>
+<h4 id="body-parameters-20">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -3385,7 +3510,7 @@
 <li><strong>Daily Quota:</strong> A user can change their password via this endpoint up to twice per day.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-20">Request Overview</h4>
+<h4 id="request-overview-21">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -3420,7 +3545,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-18">Required Headers</h4>
+<h4 id="required-headers-19">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3445,7 +3570,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-20">Body Parameters</h4>
+<h4 id="body-parameters-21">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -3539,7 +3664,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-19">Required Headers</h4>
+<h4 id="required-headers-20">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -3570,7 +3695,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-21">Body Parameters</h4>
+<h4 id="body-parameters-22">Body Parameters</h4>
 <table>
 <thead>
 <tr>

@@ -43,9 +43,19 @@ const sensitiveActionLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
 });
 
+const partialDatePreviewLimiter = rateLimit({
+	windowMs: 60 * 1000, // 1 minute
+	max: 30,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => req.ip
+});
+
 module.exports = {
 	rateLimitHandler,
 	authenticatedLimiter,
 	emailCostLimiter,
-	sensitiveActionLimiter
+	sensitiveActionLimiter,
+	partialDatePreviewLimiter
 };
