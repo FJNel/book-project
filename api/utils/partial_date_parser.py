@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict, Optional, Tuple
+import dateparser
 
-DEFAULT_TODAY = date(2025, 12, 15)
+DEFAULT_TODAY = None
 
 # Month mapping includes English and Afrikaans forms
 MONTH_ALIASES = {
@@ -280,20 +281,20 @@ def shift_months(dt: date, months: int) -> date:
 def parse_relative(text: str, today: date) -> Optional[ParseResult]:
     lowered = text.lower()
     number_words = {"one": 1, "two": 2, "three": 3, "four": 4, "a": 1}
-    if lowered in {"today", "now"}:
+    if lowered in {"today", "now", "vandag", "nou"}:
         d = today
         return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
-    if lowered == "today":
-        d = today
-        return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
-    if lowered == "yesterday":
+    if lowered in {"yesterday", "gister"}:
         d = today - timedelta(days=1)
         return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
-    if lowered == "tomorrow":
+    if lowered in {"day before yesterday", "eergister"}:
+        d = today - timedelta(days=2)
+        return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
+    if lowered in {"tomorrow", "more"}:
         d = today + timedelta(days=1)
         return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
-    if lowered == "day before yesterday":
-        d = today - timedelta(days=2)
+    if lowered in {"day after tomorrow", "oormore"}:
+        d = today + timedelta(days=2)
         return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
 
     today_year_plain = re.fullmatch(r"today (?:(one|two|three|\d+) )year(?:s)?", lowered)
@@ -603,11 +604,31 @@ def parse_single_token(token: str, today: date) -> Optional[ParseResult]:
     return None
 
 
-def parse_partial_date(s: str, today: date = DEFAULT_TODAY, prefer_mdy: bool = False) -> Tuple[Dict[str, Optional[int]], str]:
+def parse_with_dateparser(normalized: str, today: date, prefer_mdy: bool) -> Optional[ParseResult]:
+    settings = {
+        "DATE_ORDER": "MDY" if prefer_mdy else "DMY",
+        "PREFER_DATES_FROM": "past",
+        "STRICT_PARSING": False,
+        "RELATIVE_BASE": datetime.combine(today, datetime.min.time()),
+    }
+    language_attempts = [["en"], ["af"], None]
+    dt = None
+    for langs in language_attempts:
+        dt = dateparser.parse(normalized, languages=langs, settings=settings)
+        if dt:
+            break
+    if not dt:
+        return None
+    return ParseResult(dt.day, dt.month, dt.year, format_canonical(dt.day, dt.month, dt.year))
+
+
+def parse_partial_date(s: str, today: Optional[date] = DEFAULT_TODAY, prefer_mdy: bool = False) -> Tuple[Dict[str, Optional[int]], str]:
     raw = s
     if raw is None:
         raise ValueError("Input string cannot be None")
     normalized = normalize_input(raw)
+    if today is None:
+        today = date.today()
     if not normalized:
         return {"day": None, "month": None, "year": None, "text": ""}, ""
 
@@ -648,6 +669,10 @@ def parse_partial_date(s: str, today: date = DEFAULT_TODAY, prefer_mdy: bool = F
         if result:
             return result.as_dict(), result.text
 
+    fallback = parse_with_dateparser(normalized, today, prefer_mdy)
+    if fallback:
+        return fallback.as_dict(), fallback.text
+
     return {"day": None, "month": None, "year": None, "text": ""}, ""
 
 
@@ -657,8 +682,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse partial dates")
     parser.add_argument("input", help="Date string to parse")
     parser.add_argument("--mdy", action="store_true", help="Prefer MM/DD when ambiguous")
+    parser.add_argument("--today", help="Reference date in YYYY-MM-DD to treat as today", default=None)
     args = parser.parse_args()
 
-    parsed, text = parse_partial_date(args.input, prefer_mdy=args.mdy)
+    ref_today = None
+    if args.today:
+        try:
+            ref_today = datetime.strptime(args.today, "%Y-%m-%d").date()
+        except ValueError:
+            raise SystemExit("Invalid --today date; expected YYYY-MM-DD")
+
+    parsed, text = parse_partial_date(args.input, today=ref_today, prefer_mdy=args.mdy)
+    if not any([parsed.get("day"), parsed.get("month"), parsed.get("year")]) and not text:
+        raise SystemExit("Could not parse date")
     print(json.dumps(parsed))
     print(text)

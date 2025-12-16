@@ -408,6 +408,7 @@
 <li><strong>Description:</strong> Runs the Python <code>partial_date_parser.py</code> helper to show how a loosely formatted date will be stored.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 30 requests per minute per IP.</li>
+<li><strong>Reference Date:</strong> Uses the current date by default; optionally accept a <code>referenceDate</code> (<code>YYYY-MM-DD</code>) to anchor relative phrases.</li>
 </ul>
 <h4 id="request-overview-1">Request Overview</h4>
 <table>
@@ -488,6 +489,12 @@
 <td>No</td>
 <td>When <code>true</code>, ambiguous numeric dates (e.g. <code>03/04/05</code>) are interpreted as MM/DD/YY. Defaults to <code>false</code> (DD/MM preference).</td>
 </tr>
+<tr>
+<td><code>referenceDate</code></td>
+<td>string (YYYY-MM-DD)</td>
+<td>No</td>
+<td>Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted.</td>
+</tr>
 </tbody>
 </table>
 <h4 id="successful-response-200">Successful Response (200)</h4>
@@ -504,7 +511,8 @@
       <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15 December 2025&quot;</span>
     <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;input&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;15 Dec 25&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;preferMdy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+    <span class="hljs-attr">&quot;preferMdy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;referenceDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-12-15&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
@@ -514,6 +522,8 @@
 <li>Missing or non-string <code>dateString</code>.</li>
 <li>Empty string inputs (<code>&quot;&quot;</code>) return <code>message</code> <strong>&quot;Validation Error&quot;</strong> with <code>errors</code> containing <strong>&quot;An empty date cannot be parsed.&quot;</strong></li>
 <li>Inputs exceeding 512 characters.</li>
+<li>Invalid <code>referenceDate</code> format or value.</li>
+<li>Unparsable date strings return <strong>&quot;Could not parse the provided date.&quot;</strong></li>
 </ul>
 <h4 id="failure-responses">Failure Responses</h4>
 <ul>

@@ -170,6 +170,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 - **Description:** Runs the Python `partial_date_parser.py` helper to show how a loosely formatted date will be stored.
 - **Authentication:** Not required.
 - **Rate Limit:** 30 requests per minute per IP.
+- **Reference Date:** Uses the current date by default; optionally accept a `referenceDate` (`YYYY-MM-DD`) to anchor relative phrases.
 
 #### Request Overview
 
@@ -194,6 +195,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | --- | --- | --- | --- |
 | `dateString` | string | Yes | The free-form date to parse. Must not be empty; max 512 characters. |
 | `preferMdy` | boolean | No | When `true`, ambiguous numeric dates (e.g. `03/04/05`) are interpreted as MM/DD/YY. Defaults to `false` (DD/MM preference). |
+| `referenceDate` | string (YYYY-MM-DD) | No | Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted. |
 
 #### Successful Response (200)
 
@@ -211,7 +213,8 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
       "text": "15 December 2025"
     },
     "input": "15 Dec 25",
-    "preferMdy": false
+    "preferMdy": false,
+    "referenceDate": "2025-12-15"
   },
   "errors": []
 }
@@ -222,6 +225,8 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 - Missing or non-string `dateString`.
 - Empty string inputs (`""`) return `message` **"Validation Error"** with `errors` containing **"An empty date cannot be parsed."**
 - Inputs exceeding 512 characters.
+- Invalid `referenceDate` format or value.
+- Unparsable date strings return **"Could not parse the provided date."**
 
 #### Failure Responses
 
