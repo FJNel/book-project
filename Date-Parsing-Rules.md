@@ -35,6 +35,7 @@ On failure/unparseable input: `{ day: null, month: null, year: null, text: "" }`
 - Removes weekday prefixes (English + Afrikaans) when present.
 - Treats hyphens inside words as separators for spelled numbers/years (`twenty-one`, `twintig-twintig-vyf`).
 - Accepts commas and periods as optional punctuation; numeric separators can be `-`, `/`, `.`, or spaces.
+- Ignores trailing punctuation such as `.`, `;`, `:`, or stray commas after normalization.
 - Diacritics are removed for matching (e.g., `môre` → `more`).
 
 ## Supported Months

@@ -43,9 +43,19 @@ const sensitiveActionLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
 });
 
+const incorrectDateReportLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	max: 10,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => req.ip
+});
+
 module.exports = {
 	rateLimitHandler,
 	authenticatedLimiter,
 	emailCostLimiter,
-	sensitiveActionLimiter
+	sensitiveActionLimiter,
+	incorrectDateReportLimiter
 };

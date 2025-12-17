@@ -105,6 +105,7 @@
 		normalized = normalized.replace(/\b(of|van)\b/gi, " ");
 		normalized = normalized.replace(/(\d+)(st|nd|rd|th|de|ste)\b/gi, "$1");
 		normalized = normalized.replace(/([A-Za-z])\-([A-Za-z])/g, "$1 $2");
+		normalized = normalized.replace(/[.;:]+$/, "");
 		normalized = normalized.replace(/\s+/g, " ").trim();
 		return normalized;
 	}
@@ -132,24 +133,22 @@
 	}
 
 	function shiftMonths(baseDate, deltaMonths) {
-		const shifted = new Date(baseDate);
-		const targetMonth = shifted.getMonth() + deltaMonths;
-		shifted.setMonth(targetMonth);
-		const maxDay = lastDayOfMonth(shifted.getFullYear(), shifted.getMonth() + 1);
-		if (shifted.getDate() !== baseDate.getDate()) {
-			shifted.setDate(Math.min(baseDate.getDate(), maxDay));
-		}
-		return shifted;
+		const startYear = baseDate.getFullYear();
+		const startMonth = baseDate.getMonth();
+		const totalMonths = startYear * 12 + startMonth + deltaMonths;
+		const targetYear = Math.floor(totalMonths / 12);
+		const targetMonth = totalMonths % 12;
+		const maxDay = lastDayOfMonth(targetYear, targetMonth + 1);
+		const targetDay = Math.min(baseDate.getDate(), maxDay);
+		return new Date(targetYear, targetMonth, targetDay);
 	}
 
 	function shiftYears(baseDate, deltaYears) {
-		const shifted = new Date(baseDate);
-		shifted.setFullYear(baseDate.getFullYear() + deltaYears);
-		const maxDay = lastDayOfMonth(shifted.getFullYear(), shifted.getMonth() + 1);
-		if (shifted.getDate() !== baseDate.getDate()) {
-			shifted.setDate(Math.min(baseDate.getDate(), maxDay));
-		}
-		return shifted;
+		const targetYear = baseDate.getFullYear() + deltaYears;
+		const targetMonth = baseDate.getMonth();
+		const maxDay = lastDayOfMonth(targetYear, targetMonth + 1);
+		const targetDay = Math.min(baseDate.getDate(), maxDay);
+		return new Date(targetYear, targetMonth, targetDay);
 	}
 
 	function formatText(day, month, year) {
@@ -200,16 +199,22 @@
 	function parseYearWords(tokens) {
 		const lowered = tokens.map((t) => t.toLowerCase());
 
-		if (lowered.length >= 2 && ((lowered[0] === "twenty" && lowered[1] === "twenty") || (lowered[0] === "twintig" && lowered[1] === "twintig"))) {
+		const containsMagnitude = lowered.some((w) => HUNDREDS.has(w) || THOUSANDS.has(w));
+		const hasDoubleTwenty = lowered.length >= 2 && ((lowered[0] === "twenty" && lowered[1] === "twenty") || (lowered[0] === "twintig" && lowered[1] === "twintig"));
+		const hasLikelyCentury = lowered.length >= 2 && (lowered[0] === "nineteen" || lowered[0] === "eighteen" || lowered[0] === "twenty");
+
+		if (hasDoubleTwenty) {
 			const remainder = wordsToNumber(lowered.slice(1)) ?? 0;
 			const yearGuess = 2000 + remainder;
 			if (yearGuess >= 1000 && yearGuess <= 2999) return yearGuess;
 		}
 
-		const direct = wordsToNumber(lowered);
-		if (direct !== null && direct >= 1000 && direct <= 2999) return direct;
+		if (containsMagnitude || hasDoubleTwenty) {
+			const direct = wordsToNumber(lowered);
+			if (direct !== null && direct >= 1000 && direct <= 2999) return direct;
+		}
 
-		// Handle patterns like "nineteen ninety nine" -> 1999
+		// Handle patterns like "nineteen ninety nine" -> 1999 (only when clearly year-like)
 		const componentValues = [];
 		for (const word of lowered) {
 			if (CONNECTORS.has(word)) continue;
@@ -217,7 +222,11 @@
 			if (numeric === undefined) return null;
 			componentValues.push(numeric);
 		}
-		if (componentValues.length >= 2) {
+		if (componentValues.length >= 3 && hasLikelyCentury) {
+			const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
+			if (candidate >= 1000 && candidate <= 2999) return candidate;
+		}
+		if (componentValues.length >= 2 && hasLikelyCentury && componentValues[1] >= 10) {
 			const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
 			if (candidate >= 1000 && candidate <= 2999) return candidate;
 		}
@@ -310,10 +319,10 @@
 			return wordsToNumber(cleaned.split(/[\s-]+/));
 		};
 
-		const anchoredYearPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+year(?:s)?(?:\s+ago)?$/;
-		const anchoredMonthPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+month(?:s)?(?:\s+ago)?$/;
-		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+year(?:s)?\s+(?:from\s+today|van\s+vandag)$/;
-		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+month(?:s)?\s+(?:from\s+today|van\s+vandag)$/;
+		const anchoredYearPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede))?$/;
+		const anchoredMonthPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede))?$/;
+		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:from\s+today|van\s+vandag)$/;
+		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:from\s+today|van\s+vandag)$/;
 
 		let match = anchoredYearPast.exec(lowered);
 		if (match) {
@@ -371,7 +380,7 @@
 			return buildResult(null, shifted.getMonth() + 1, shifted.getFullYear());
 		}
 
-		const relativeYearAgo = /^([\w\s'-]+)\s+year(?:s)?\s+ago$/;
+		const relativeYearAgo = /^([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:ago|gelede)$/;
 		match = relativeYearAgo.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -380,7 +389,7 @@
 			}
 		}
 
-		const relativeMonthAgo = /^([\w\s'-]+)\s+month(?:s)?\s+ago$/;
+		const relativeMonthAgo = /^([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:ago|gelede)$/;
 		match = relativeMonthAgo.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -390,7 +399,7 @@
 			}
 		}
 
-		const relativeYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+year(?:s)?$/;
+		const relativeYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)$/;
 		match = relativeYearFuture.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -399,7 +408,7 @@
 			}
 		}
 
-		const relativeMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+month(?:s)?$/;
+		const relativeMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)$/;
 		match = relativeMonthFuture.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -409,7 +418,7 @@
 			}
 		}
 
-		const ambiguousYear = /^([\w\s'-]+)\s+year(?:s)?$/;
+		const ambiguousYear = /^([\w\s'-]+)\s+(?:year|years|jaar|jare)$/;
 		match = ambiguousYear.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -418,7 +427,7 @@
 			}
 		}
 
-		const ambiguousMonth = /^([\w\s'-]+)\s+month(?:s)?$/;
+		const ambiguousMonth = /^([\w\s'-]+)\s+(?:month|months|maand|maande)$/;
 		match = ambiguousMonth.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -545,6 +554,9 @@
 	function parseWithMonthTokens(tokens, referenceDate, preferMdy) {
 		const monthIndex = tokens.findIndex((token) => monthFromToken(token) !== null);
 		if (monthIndex === -1) return null;
+		if (tokens.filter((t) => monthFromToken(t) !== null).length > 1) {
+			return null;
+		}
 		const month = monthFromToken(tokens[monthIndex]);
 		const numbers = [];
 		tokens.forEach((tok, idx) => {
@@ -557,15 +569,22 @@
 		let year = null;
 		let day = null;
 
-		const yearCandidate = numbers.find((n) => n.value >= 1000 || n.raw.length === 4);
-		if (yearCandidate) {
-			year = yearCandidate.raw.length === 2 ? expandTwoDigitYear(yearCandidate.value, referenceDate) : yearCandidate.value;
-		} else if (numbers.length === 2 && numbers[1].raw.length === 2) {
-			year = expandTwoDigitYear(numbers[1].value, referenceDate);
+		const explicitYearCandidates = numbers.filter((n) => n.raw.length === 4 || n.value >= 1000);
+		if (explicitYearCandidates.length > 0) {
+			year = explicitYearCandidates[0].value;
 		}
 
-		const dayCandidate = numbers.find((n) => n.value >= 1 && n.value <= 31 && n !== yearCandidate);
-		if (dayCandidate) day = dayCandidate.value;
+		const potentialTwoDigitYears = numbers.filter((n) => n.raw.length === 2);
+		if (year === null && potentialTwoDigitYears.length === 1) {
+			// Only one two-digit token present alongside a month: interpret as year unless another day token exists.
+			year = expandTwoDigitYear(potentialTwoDigitYears[0].value, referenceDate);
+			numbers.splice(numbers.indexOf(potentialTwoDigitYears[0]), 1);
+		}
+
+		const dayCandidate = numbers.find((n) => n.value >= 1 && n.value <= 31 && n.raw.length <= 2 && n.value !== year);
+		if (dayCandidate) {
+			day = dayCandidate.value;
+		}
 
 		if (day === null && numbers.length === 1 && year === null && numbers[0].value <= 31) {
 			day = numbers[0].value;
@@ -618,8 +637,28 @@
 		if (ref instanceof Date) {
 			return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
 		}
-		const parsed = new Date(ref);
-		if (!Number.isNaN(parsed.getTime())) {
+		if (typeof ref === "string") {
+			const ymd = /^(\d{4})[-/](\d{2})[-/](\d{2})$/;
+			const dmy = /^(\d{2})[-/](\d{2})[-/](\d{4})$/;
+			let match = ymd.exec(ref.trim());
+			if (match) {
+				const [, y, m, d] = match.map((v) => parseInt(v, 10));
+				const dt = new Date(y, m - 1, d);
+				if (!Number.isNaN(dt.getTime()) && dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+					return dt;
+				}
+			}
+			match = dmy.exec(ref.trim());
+			if (match) {
+				const [, d, m, y] = match.map((v) => parseInt(v, 10));
+				const dt = new Date(y, m - 1, d);
+				if (!Number.isNaN(dt.getTime()) && dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+					return dt;
+				}
+			}
+		}
+		const parsed = ref ? new Date(ref) : null;
+		if (parsed && !Number.isNaN(parsed.getTime())) {
 			return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 		}
 		const today = new Date();
@@ -631,7 +670,7 @@
 		if (typeof input !== "string") return FAILURE_RESULT;
 
 		const referenceDate = normalizeReferenceDate(options.referenceDate ?? new Date());
-		const preferMdy = Boolean(options.preferMdy);
+		const preferMdy = options.preferMdy === true || options.preferMdy === "true";
 
 		const normalized = normalizeInput(input);
 		if (!normalized) return FAILURE_RESULT;
