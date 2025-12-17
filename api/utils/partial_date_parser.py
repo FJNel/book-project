@@ -1,4 +1,16 @@
 """Partial date parser with CLI and tests.
+
+This module parses partial or fuzzy date strings in English and Afrikaans without
+third-party parsing libraries. It supports:
+- Relative phrases (today, yesterday, gister, eergister, tomorrow, more, oormore, etc.).
+- Month names/abbreviations (English and Afrikaans) with optional days/years.
+- Numeric forms with slashes/dashes/concatenated digits, handling ambiguous DMY/MDY.
+- Partial dates (year-only, month+year, day+month).
+
+All parsing paths funnel into `parse_partial_date`, which returns a tuple of
+`(result_dict, canonical_text)`. The canonical text is a human-friendly rendering
+of the parsed components. When nothing can be parsed, it returns empty components
+and an empty text string.
 """
 from __future__ import annotations
 
@@ -7,9 +19,9 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Dict, Optional, Tuple
-import dateparser
 
-DEFAULT_TODAY = None
+# When not provided, today's date defaults to date.today()
+DEFAULT_TODAY: Optional[date] = None
 
 # Month mapping includes English and Afrikaans forms
 MONTH_ALIASES = {
@@ -90,14 +102,17 @@ SEPARATOR_RE = re.compile(r"[-./\s]")
 
 
 def strip_ordinals(value: str) -> str:
+    """Remove ordinal suffixes to simplify numeric parsing."""
     return ORDINAL_SUFFIX_RE.sub(r"\1", value)
 
 
 def collapse_spaces(value: str) -> str:
+    """Collapse multiple spaces and trim."""
     return MULTISPACE_RE.sub(" ", value.strip())
 
 
 def normalize_input(s: str) -> str:
+    """Normalize punctuation, ordinals, and whitespace before tokenizing."""
     s = s.replace(",", " ")
     s = s.replace(" of ", " ")
     s = strip_ordinals(s)
@@ -172,6 +187,7 @@ ORDINAL_WORDS = {
 
 
 def parse_number_word_sequence(words: list[str]) -> Optional[int]:
+    """Parse sequences like 'twenty two' or 'two hundred' into integers."""
     def parse_basic(seq: list[str]) -> Optional[int]:
         total = 0
         current = 0
@@ -204,6 +220,7 @@ def parse_number_word_sequence(words: list[str]) -> Optional[int]:
 
 
 def replace_number_words(tokens: list[str]) -> list[str]:
+    """Convert spelled-out number/ordinal sequences into digits when possible."""
     result: list[str] = []
     i = 0
     while i < len(tokens):
@@ -229,17 +246,20 @@ def replace_number_words(tokens: list[str]) -> list[str]:
 
 
 def month_from_token(token: str) -> Optional[int]:
+    """Return month number if the token matches a known month name/abbreviation."""
     key = token.lower().rstrip(".")
     return MONTH_ALIASES.get(key)
 
 
 def pivot_year(two_digit: int) -> int:
+    """Expand two-digit years to a reasonable four-digit year (<=68 → 2000s, else 1900s)."""
     if two_digit <= 68:
         return 2000 + two_digit
     return 1900 + two_digit
 
 
 def is_valid_date(y: int, m: int, d: int) -> bool:
+    """Return True if the provided day/month/year is a real calendar date."""
     try:
         date(y, m, d)
         return True
@@ -248,6 +268,7 @@ def is_valid_date(y: int, m: int, d: int) -> bool:
 
 
 def format_canonical(day: Optional[int], month: Optional[int], year: Optional[int]) -> str:
+    """Render a human-friendly canonical string for the parsed components."""
     if day and month and year:
         return f"{day} {ENGLISH_MONTH_NAMES[month - 1]} {year}"
     if month and year:
@@ -264,6 +285,7 @@ def format_canonical(day: Optional[int], month: Optional[int], year: Optional[in
 
 
 def last_day_of_month(year: int, month: int) -> int:
+    """Return the last valid day number for the given month/year."""
     if month == 12:
         return 31
     first_next = date(year, month + 1, 1)
@@ -271,6 +293,7 @@ def last_day_of_month(year: int, month: int) -> int:
 
 
 def shift_months(dt: date, months: int) -> date:
+    """Shift a date by N months while keeping the day in-range for the target month."""
     total_months = dt.year * 12 + (dt.month - 1) + months
     new_year = total_months // 12
     new_month = total_months % 12 + 1
@@ -279,6 +302,7 @@ def shift_months(dt: date, months: int) -> date:
 
 
 def parse_relative(text: str, today: date) -> Optional[ParseResult]:
+    """Handle relative phrases anchored to `today` (English and Afrikaans)."""
     lowered = text.lower()
     number_words = {"one": 1, "two": 2, "three": 3, "four": 4, "a": 1}
     if lowered in {"today", "now", "vandag", "nou"}:
@@ -399,12 +423,14 @@ def parse_year(value: str) -> Optional[int]:
 
 
 def interpret_day_month(day_candidate: int, month_candidate: int, prefer_mdy: bool, today: date) -> Tuple[int, int]:
+    """Return (day, month) ordering depending on preference."""
     if prefer_mdy:
         return month_candidate, day_candidate
     return day_candidate, month_candidate
 
 
 def parse_numeric_parts(parts: Tuple[str, str, str], prefer_mdy: bool, today: date) -> Optional[ParseResult]:
+    """Parse numeric triplets separated by -, /, or spaces."""
     a, b, c = parts
     if not (a.isdigit() and b.isdigit() and c.isdigit()):
         return None
@@ -463,6 +489,7 @@ def parse_numeric_parts(parts: Tuple[str, str, str], prefer_mdy: bool, today: da
 
 
 def parse_concatenated_digits(s: str, prefer_mdy: bool) -> Optional[ParseResult]:
+    """Handle compact numeric forms like 20250115 or 15012025."""
     if not s.isdigit():
         return None
     if len(s) != 8:
@@ -483,6 +510,7 @@ def parse_concatenated_digits(s: str, prefer_mdy: bool) -> Optional[ParseResult]
 
 
 def parse_with_month_names(tokens: list[str], prefer_mdy: bool, today: date) -> Optional[ParseResult]:
+    """Parse sequences that include a recognizable month name/abbreviation."""
     month_idx = None
     for i, token in enumerate(tokens):
         if month_from_token(token):
@@ -534,6 +562,7 @@ def parse_with_month_names(tokens: list[str], prefer_mdy: bool, today: date) -> 
 
 
 def parse_two_numbers(tokens: list[str], prefer_mdy: bool, today: date) -> Optional[ParseResult]:
+    """Parse inputs with exactly two numeric tokens, inferring the missing year."""
     if len(tokens) != 2:
         return None
     a, b = tokens
@@ -558,6 +587,7 @@ def parse_two_numbers(tokens: list[str], prefer_mdy: bool, today: date) -> Optio
 
 
 def parse_two_part_with_separators(s: str, prefer_mdy: bool, today: date) -> Optional[ParseResult]:
+    """Parse two-part numeric expressions with separators (e.g., 12/05 or 05-2019)."""
     two_part = re.fullmatch(r"(\d{1,4})[-./](\d{1,4})", s)
     if not two_part:
         return None
@@ -580,6 +610,7 @@ def parse_two_part_with_separators(s: str, prefer_mdy: bool, today: date) -> Opt
 
 
 def parse_single_token(token: str, today: date) -> Optional[ParseResult]:
+    """Parse a lone token (month name, year, or day/month fallback)."""
     month = month_from_token(token)
     if month:
         return ParseResult(None, month, today.year, format_canonical(None, month, today.year))
@@ -604,25 +635,12 @@ def parse_single_token(token: str, today: date) -> Optional[ParseResult]:
     return None
 
 
-def parse_with_dateparser(normalized: str, today: date, prefer_mdy: bool) -> Optional[ParseResult]:
-    settings = {
-        "DATE_ORDER": "MDY" if prefer_mdy else "DMY",
-        "PREFER_DATES_FROM": "past",
-        "STRICT_PARSING": False,
-        "RELATIVE_BASE": datetime.combine(today, datetime.min.time()),
-    }
-    language_attempts = [["en"], ["af"], None]
-    dt = None
-    for langs in language_attempts:
-        dt = dateparser.parse(normalized, languages=langs, settings=settings)
-        if dt:
-            break
-    if not dt:
-        return None
-    return ParseResult(dt.day, dt.month, dt.year, format_canonical(dt.day, dt.month, dt.year))
-
-
 def parse_partial_date(s: str, today: Optional[date] = DEFAULT_TODAY, prefer_mdy: bool = False) -> Tuple[Dict[str, Optional[int]], str]:
+    """Main entry point: parse a free-form date string into components.
+
+    - today: reference date; defaults to date.today() when not provided.
+    - prefer_mdy: choose MM/DD interpretation when day/month order is ambiguous.
+    """
     raw = s
     if raw is None:
         raise ValueError("Input string cannot be None")
@@ -668,10 +686,6 @@ def parse_partial_date(s: str, today: Optional[date] = DEFAULT_TODAY, prefer_mdy
         result = parse_single_token(token, today)
         if result:
             return result.as_dict(), result.text
-
-    fallback = parse_with_dateparser(normalized, today, prefer_mdy)
-    if fallback:
-        return fallback.as_dict(), fallback.text
 
     return {"day": None, "month": None, "year": None, "text": ""}, ""
 

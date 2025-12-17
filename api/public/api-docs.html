@@ -408,7 +408,7 @@
 <li><strong>Description:</strong> Runs the Python <code>partial_date_parser.py</code> helper to show how a loosely formatted date will be stored.</li>
 <li><strong>Authentication:</strong> Not required.</li>
 <li><strong>Rate Limit:</strong> 30 requests per minute per IP.</li>
-<li><strong>Reference Date:</strong> Uses the current date by default; optionally accept a <code>referenceDate</code> (<code>YYYY-MM-DD</code>) to anchor relative phrases.</li>
+<li><strong>Reference Date:</strong> Uses the current date by default; optionally accept a <code>referenceDate</code> (<code>YYYY-MM-DD</code> or <code>DD-MM-YYYY</code>, slashes also accepted) to anchor relative phrases.</li>
 </ul>
 <h4 id="request-overview-1">Request Overview</h4>
 <table>
@@ -491,7 +491,7 @@
 </tr>
 <tr>
 <td><code>referenceDate</code></td>
-<td>string (YYYY-MM-DD)</td>
+<td>string (<code>YYYY-MM-DD</code> or <code>DD-MM-YYYY</code>, slashes allowed)</td>
 <td>No</td>
 <td>Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted.</td>
 </tr>
@@ -553,6 +553,20 @@
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Could not parse the provided date.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong> Invalid <code>referenceDate</code> format</li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.05&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;referenceDate must be a valid date in YYYY-MM-DD or DD-MM-YYYY (slashes also accepted).&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>

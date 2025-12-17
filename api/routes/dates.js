@@ -11,7 +11,33 @@ const { partialDatePreviewLimiter } = require("../utils/rate-limiters");
 const PYTHON_BIN = process.env.PARTIAL_DATE_PYTHON || process.env.PYTHON || "python3";
 const SCRIPT_PATH = path.join(__dirname, "..", "utils", "partial_date_parser.py");
 const MAX_INPUT_LENGTH = 512;
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const REFERENCE_DATE_FORMATS = [
+	{ regex: /^(\d{4})-(\d{2})-(\d{2})$/, order: ["Y", "M", "D"] }, // YYYY-MM-DD
+	{ regex: /^(\d{2})-(\d{2})-(\d{4})$/, order: ["D", "M", "Y"] }, // DD-MM-YYYY
+	{ regex: /^(\d{4})\/(\d{2})\/(\d{2})$/, order: ["Y", "M", "D"] }, // YYYY/MM/DD
+	{ regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, order: ["D", "M", "Y"] }, // DD/MM/YYYY
+];
+
+function parseReferenceDate(value) {
+	for (const fmt of REFERENCE_DATE_FORMATS) {
+		const match = fmt.regex.exec(value);
+		if (!match) continue;
+		let day, month, year;
+		fmt.order.forEach((part, idx) => {
+			const num = Number(match[idx + 1]);
+			if (part === "Y") year = num;
+			if (part === "M") month = num;
+			if (part === "D") day = num;
+		});
+		if (!year || !month || !day) continue;
+		const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+		const parsed = new Date(iso);
+		if (!Number.isNaN(parsed.getTime()) && parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day) {
+			return iso;
+		}
+	}
+	return null;
+}
 
 function runPartialDateParser(input, preferMdy, referenceDate) {
 	return new Promise((resolve, reject) => {
@@ -127,9 +153,10 @@ router.post("/preview", partialDatePreviewLimiter, async (req, res) => {
 				ip: req.ip,
 				user_agent: req.get("user-agent"),
 			}, "warn");
-			return errorResponse(res, 400, "Validation Error", ["referenceDate must be a string in YYYY-MM-DD format when provided."]);
+			return errorResponse(res, 400, "Validation Error", ["referenceDate must be a string in a supported format."]);
 		}
-		if (!DATE_REGEX.test(referenceDate)) {
+		const parsedRef = parseReferenceDate(referenceDate);
+		if (!parsedRef) {
 			logToFile("PARTIAL_DATE_PREVIEW", {
 				status: "FAILURE",
 				reason: "INVALID_REFERENCE_DATE_FORMAT",
@@ -138,21 +165,9 @@ router.post("/preview", partialDatePreviewLimiter, async (req, res) => {
 				ip: req.ip,
 				user_agent: req.get("user-agent"),
 			}, "warn");
-			return errorResponse(res, 400, "Validation Error", ["referenceDate must be in YYYY-MM-DD format."]);
+			return errorResponse(res, 400, "Validation Error", ["referenceDate must be a valid date in YYYY-MM-DD or DD-MM-YYYY (slashes also accepted)."]);
 		}
-		const parsed = new Date(referenceDate);
-		if (Number.isNaN(parsed.getTime())) {
-			logToFile("PARTIAL_DATE_PREVIEW", {
-				status: "FAILURE",
-				reason: "INVALID_REFERENCE_DATE_VALUE",
-				path: req.originalUrl,
-				method: req.method,
-				ip: req.ip,
-				user_agent: req.get("user-agent"),
-			}, "warn");
-			return errorResponse(res, 400, "Validation Error", ["referenceDate is not a valid calendar date."]);
-		}
-		refDate = referenceDate;
+		refDate = parsedRef;
 	}
 
 	try {
@@ -208,7 +223,7 @@ router.post("/preview", partialDatePreviewLimiter, async (req, res) => {
 			user_agent: req.get("user-agent"),
 		}, "error");
 		return errorResponse(res, 500, "Failed to parse date", [
-			"The date preview service is temporarily unavailable. Please try again shortly.",
+			"Something went wrong while parsing the date. Please try again later.",
 		]);
 	}
 });

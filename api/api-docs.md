@@ -170,7 +170,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 - **Description:** Runs the Python `partial_date_parser.py` helper to show how a loosely formatted date will be stored.
 - **Authentication:** Not required.
 - **Rate Limit:** 30 requests per minute per IP.
-- **Reference Date:** Uses the current date by default; optionally accept a `referenceDate` (`YYYY-MM-DD`) to anchor relative phrases.
+- **Reference Date:** Uses the current date by default; optionally accept a `referenceDate` (`YYYY-MM-DD` or `DD-MM-YYYY`, slashes also accepted) to anchor relative phrases.
 
 #### Request Overview
 
@@ -195,7 +195,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | --- | --- | --- | --- |
 | `dateString` | string | Yes | The free-form date to parse. Must not be empty; max 512 characters. |
 | `preferMdy` | boolean | No | When `true`, ambiguous numeric dates (e.g. `03/04/05`) are interpreted as MM/DD/YY. Defaults to `false` (DD/MM preference). |
-| `referenceDate` | string (YYYY-MM-DD) | No | Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted. |
+| `referenceDate` | string (`YYYY-MM-DD` or `DD-MM-YYYY`, slashes allowed) | No | Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted. |
 
 - **Request Body:**
 
@@ -256,6 +256,21 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
   "data": {},
   "errors": [
     "Could not parse the provided date."
+  ]
+}
+```
+
+- **Validation Error (400):** Invalid `referenceDate` format
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "3.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "referenceDate must be a valid date in YYYY-MM-DD or DD-MM-YYYY (slashes also accepted)."
   ]
 }
 ```
