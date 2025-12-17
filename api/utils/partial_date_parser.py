@@ -93,12 +93,12 @@ class ParseResult:
     text: str
 
     def as_dict(self) -> Dict[str, Optional[int]]:
-        return {"day": self.day, "month": self.month, "year": self.year, "text": self.text}
+        """Return only the numeric components (text is returned separately)."""
+        return {"day": self.day, "month": self.month, "year": self.year}
 
 
 ORDINAL_SUFFIX_RE = re.compile(r"(\d+)(st|nd|rd|th|de|ste)", re.IGNORECASE)
 MULTISPACE_RE = re.compile(r"\s+")
-SEPARATOR_RE = re.compile(r"[-./\s]")
 
 
 def strip_ordinals(value: str) -> str:
@@ -114,7 +114,8 @@ def collapse_spaces(value: str) -> str:
 def normalize_input(s: str) -> str:
     """Normalize punctuation, ordinals, and whitespace before tokenizing."""
     s = s.replace(",", " ")
-    s = s.replace(" of ", " ")
+    s = re.sub(r"\bof\b", " ", s, flags=re.IGNORECASE)
+    s = re.sub(r"(?<=\D)-(?=\D)", " ", s)
     s = strip_ordinals(s)
     s = collapse_spaces(s)
     return s
@@ -149,6 +150,34 @@ NUMBER_WORDS = {
     "seventy": 70,
     "eighty": 80,
     "ninety": 90,
+    # Afrikaans cardinals
+    "een": 1,
+    "twee": 2,
+    "drie": 3,
+    "vier": 4,
+    "vyf": 5,
+    "ses": 6,
+    "sewe": 7,
+    "agt": 8,
+    "nege": 9,
+    "tien": 10,
+    "elf": 11,
+    "twaalf": 12,
+    "dertien": 13,
+    "veertien": 14,
+    "vyftien": 15,
+    "sestien": 16,
+    "sewentien": 17,
+    "agtien": 18,
+    "negentien": 19,
+    "twintig": 20,
+    "dertig": 30,
+    "veertig": 40,
+    "vyftig": 50,
+    "sestig": 60,
+    "sewentig": 70,
+    "tagtig": 80,
+    "negentig": 90,
 }
 
 ORDINAL_WORDS = {
@@ -183,40 +212,88 @@ ORDINAL_WORDS = {
     "twenty-ninth": 29,
     "thirtieth": 30,
     "thirty-first": 31,
+    # Afrikaans ordinals (common forms)
+    "eerste": 1,
+    "tweede": 2,
+    "derde": 3,
+    "vierde": 4,
+    "vyfde": 5,
+    "sesde": 6,
+    "sewende": 7,
+    "agtste": 8,
+    "negende": 9,
+    "tiende": 10,
+    "elfde": 11,
+    "twaalfde": 12,
+    "dertiende": 13,
+    "veertiende": 14,
+    "vyftiende": 15,
+    "sestiende": 16,
+    "sewentiende": 17,
+    "agtiende": 18,
+    "negentiende": 19,
+    "twintigste": 20,
+    "een-en-twintigste": 21,
+    "twee-en-twintigste": 22,
+    "drie-en-twintigste": 23,
+    "vier-en-twintigste": 24,
+    "vyf-en-twintigste": 25,
+    "ses-en-twintigste": 26,
+    "sewe-en-twintigste": 27,
+    "agt-en-twintigste": 28,
+    "nege-en-twintigste": 29,
+    "dertigste": 30,
+    "een-en-dertigste": 31,
 }
 
 
 def parse_number_word_sequence(words: list[str]) -> Optional[int]:
-    """Parse sequences like 'twenty two' or 'two hundred' into integers."""
-    def parse_basic(seq: list[str]) -> Optional[int]:
-        total = 0
-        current = 0
-        for word in seq:
-            if word == "and":
-                continue
-            if word == "hundred":
-                current *= 100
-            elif word == "thousand":
-                total += current * 1000
-                current = 0
-            elif word in NUMBER_WORDS:
-                current += NUMBER_WORDS[word]
-            elif word in ORDINAL_WORDS:
-                current += ORDINAL_WORDS[word]
-        total += current
-        return total if total > 0 else None
+    """Parse sequences like 'twenty two', 'negentien nege en negentig', or 'two hundred' into integers."""
 
     lower = [w.lower() for w in words]
-    if not all(w in NUMBER_WORDS or w in {"hundred", "thousand", "and"} or w in ORDINAL_WORDS for w in lower):
+    connectors = {"and", "en"}
+    hundred_words = {"hundred", "honderd"}
+    thousand_words = {"thousand", "duisend"}
+
+    allowed = NUMBER_WORDS.keys() | ORDINAL_WORDS.keys() | connectors | hundred_words | thousand_words
+    if not all(w in allowed for w in lower):
         return None
-    if lower[0] == "twenty" and len(lower) > 1:
-        remainder = parse_basic(lower[1:])
-        if remainder is not None:
-            return 2000 + remainder
-    # ordinal direct hits
-    if len(lower) == 1 and lower[0] in ORDINAL_WORDS:
-        return ORDINAL_WORDS[lower[0]]
-    return parse_basic(lower)
+
+    total = 0
+    current = 0
+    numeric_components: list[int] = []
+
+    for word in lower:
+        if word in connectors:
+            continue
+        if word in hundred_words:
+            current = 1 if current == 0 else current
+            current *= 100
+            continue
+        if word in thousand_words:
+            current = 1 if current == 0 else current
+            total += current * 1000
+            current = 0
+            continue
+        if word in NUMBER_WORDS:
+            current += NUMBER_WORDS[word]
+            numeric_components.append(NUMBER_WORDS[word])
+            continue
+        if word in ORDINAL_WORDS:
+            current += ORDINAL_WORDS[word]
+            numeric_components.append(ORDINAL_WORDS[word])
+            continue
+    total += current
+
+    # Year-like heuristic (e.g., nineteen ninety nine -> 1999, twenty nineteen -> 2019)
+    if total <= 200 and len(numeric_components) >= 2:
+        rest_total = sum(numeric_components[1:])
+        if (numeric_components[0] >= 19 and (numeric_components[1] >= 10 or len(numeric_components) >= 3)) or rest_total >= 20:
+            year_guess = numeric_components[0] * 100 + rest_total
+            if year_guess >= 100:
+                return year_guess
+
+    return total if total > 0 else None
 
 
 def replace_number_words(tokens: list[str]) -> list[str]:
@@ -301,6 +378,13 @@ def shift_months(dt: date, months: int) -> date:
     return date(new_year, new_month, new_day)
 
 
+def shift_years_safe(dt: date, years: int) -> date:
+    """Shift a date by N years, clamping the day to the end of month when needed (e.g., Feb 29)."""
+    target_year = dt.year + years
+    new_day = min(dt.day, last_day_of_month(target_year, dt.month))
+    return date(target_year, dt.month, new_day)
+
+
 def parse_relative(text: str, today: date) -> Optional[ParseResult]:
     """Handle relative phrases anchored to `today` (English and Afrikaans)."""
     lowered = text.lower()
@@ -325,7 +409,7 @@ def parse_relative(text: str, today: date) -> Optional[ParseResult]:
     if today_year_plain:
         token = today_year_plain.group(1)
         count = number_words[token] if token in number_words else int(token)
-        target = today.replace(year=today.year - count)
+        target = shift_years_safe(today, -count)
         return ParseResult(target.day, target.month, target.year, format_canonical(target.day, target.month, target.year))
 
     today_month_plain = re.fullmatch(r"today (?:(one|two|three|\d+) )month(?:s)?", lowered)
@@ -355,7 +439,7 @@ def parse_relative(text: str, today: date) -> Optional[ParseResult]:
             count = 1
         else:
             count = number_words[number] if number in number_words else int(number)
-        target = today.replace(year=today.year - count)
+        target = shift_years_safe(today, -count)
         if year_ago_match.group(1):
             return ParseResult(target.day, target.month, target.year, format_canonical(target.day, target.month, target.year))
         return ParseResult(None, None, target.year, format_canonical(None, None, target.year))
@@ -363,7 +447,7 @@ def parse_relative(text: str, today: date) -> Optional[ParseResult]:
     if in_year_match:
         token = in_year_match.group(1)
         count = number_words[token] if token in number_words else int(token)
-        d = today.replace(year=today.year + count)
+        d = shift_years_safe(today, count)
         if lowered.endswith("from today"):
             return ParseResult(d.day, d.month, d.year, format_canonical(d.day, d.month, d.year))
         return ParseResult(None, None, d.year, format_canonical(None, None, d.year))
@@ -409,24 +493,6 @@ def parse_relative(text: str, today: date) -> Optional[ParseResult]:
             return ParseResult(relative_result.day, relative_result.month, relative_result.year, relative_result.text)
 
     return None
-
-
-def parse_year(value: str) -> Optional[int]:
-    if not value.isdigit():
-        return None
-    num = int(value)
-    if len(value) == 4:
-        return num
-    if len(value) == 2:
-        return pivot_year(num)
-    return None
-
-
-def interpret_day_month(day_candidate: int, month_candidate: int, prefer_mdy: bool, today: date) -> Tuple[int, int]:
-    """Return (day, month) ordering depending on preference."""
-    if prefer_mdy:
-        return month_candidate, day_candidate
-    return day_candidate, month_candidate
 
 
 def parse_numeric_parts(parts: Tuple[str, str, str], prefer_mdy: bool, today: date) -> Optional[ParseResult]:
@@ -619,12 +685,6 @@ def parse_single_token(token: str, today: date) -> Optional[ParseResult]:
         if len(token) == 4 and 1 <= num <= 9999:
             return ParseResult(None, None, num, format_canonical(None, None, num))
         if 1 <= num <= 12:
-            if num == 1:
-                day = num
-                month_num = today.month
-                year = today.year
-                if is_valid_date(year, month_num, day):
-                    return ParseResult(day, month_num, year, format_canonical(day, month_num, year))
             return ParseResult(None, num, today.year, format_canonical(None, num, today.year))
         if 13 <= num <= 31:
             day = num
@@ -648,7 +708,7 @@ def parse_partial_date(s: str, today: Optional[date] = DEFAULT_TODAY, prefer_mdy
     if today is None:
         today = date.today()
     if not normalized:
-        return {"day": None, "month": None, "year": None, "text": ""}, ""
+        return {"day": None, "month": None, "year": None}, ""
 
     relative = parse_relative(normalized.lower(), today)
     if relative:
@@ -687,7 +747,7 @@ def parse_partial_date(s: str, today: Optional[date] = DEFAULT_TODAY, prefer_mdy
         if result:
             return result.as_dict(), result.text
 
-    return {"day": None, "month": None, "year": None, "text": ""}, ""
+    return {"day": None, "month": None, "year": None}, ""
 
 
 if __name__ == "__main__":
