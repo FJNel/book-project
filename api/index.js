@@ -15,7 +15,6 @@ const app = express();
 const rootRoute = require("./routes/root");
 const userRoutes = require("./routes/users");
 const authRoutes = require("./routes/auth");
-const dateRoutes = require("./routes/dates");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -68,7 +67,6 @@ app.use(express.static("public"));
 app.use("/", rootRoute);
 app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
-app.use("/dates", dateRoutes);
 
 //404 Handler
 app.use((req, res) => {
