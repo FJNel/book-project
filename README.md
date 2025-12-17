@@ -248,6 +248,7 @@ API (`api/package.json`):
 - Update CORS `origin` allowlist in `api/index.js`
 - Ensure Mailgun and OAuth credentials are configured and DNS is correct for sender domain
 
+
 ## License
 
 This project is distributed under a Source‑Available Proprietary License. See `LICENCE.md` for the complete terms, including permitted and prohibited uses and how to request additional permissions.
