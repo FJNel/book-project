@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Partial Date Parsing &lpar;Frontend&rpar;</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="partial-date-parsing-frontend">Partial Date Parsing (Frontend)</h1>
+<p>The backend date preview endpoint and Python helpers have been removed. Date parsing now lives in the frontend/Node layer at <code>web/assets/js/partial-date-parser.js</code> and is exported as both <code>module.exports.parsePartialDate</code> and <code>window.partialDateParser.parsePartialDate</code> for browser use.</p>
+<h2 id="quick-usage">Quick Usage</h2>
+<pre><code class="language-js"><span class="hljs-keyword">const</span> { parsePartialDate } = <span class="hljs-built_in">require</span>(<span class="hljs-string">&quot;./web/assets/js/partial-date-parser&quot;</span>);
+<span class="hljs-comment">// or window.partialDateParser.parsePartialDate in the browser</span>
+
+<span class="hljs-title function_">parsePartialDate</span>(<span class="hljs-string">&quot;23 November 2005&quot;</span>);
+<span class="hljs-comment">// =&gt; { day: 23, month: 11, year: 2005, text: &quot;23 November 2005&quot; }</span>
+</code></pre>
+<p>Options: <code>parsePartialDate(input, { referenceDate, preferMdy })</code></p>
+<ul>
+<li><code>referenceDate</code> (Date | date-like string) defaults to <strong>today</strong> (local timezone). All partial and relative resolution is anchored to this date.</li>
+<li><code>preferMdy</code> (boolean) defaults to <strong>false</strong>; when <code>true</code> only affects ambiguous numeric day/month ordering.</li>
+</ul>
+<h2 id="output-contract">Output Contract</h2>
+<p>Returns a single object with <code>day</code>, <code>month</code>, <code>year</code>, and canonical <code>text</code>:</p>
+<ul>
+<li><code>day</code>: 1–31 or <code>null</code></li>
+<li><code>month</code>: 1–12 or <code>null</code></li>
+<li><code>year</code>: 4-digit year or <code>null</code></li>
+<li><code>text</code>: normalized English display string (<code>&quot;&quot;</code> when unparseable)</li>
+</ul>
+<p>On failure/unparseable input: <code>{ day: null, month: null, year: null, text: &quot;&quot; }</code>.</p>
+<h2 id="preprocessing--tolerance">Preprocessing &amp; Tolerance</h2>
+<ul>
+<li>Case-insensitive; collapses repeated whitespace.</li>
+<li>Strips ordinal suffixes (<code>st/nd/rd/th/de/ste</code>) and connectors <code>of/van</code>.</li>
+<li>Removes weekday prefixes (English + Afrikaans) when present.</li>
+<li>Treats hyphens inside words as separators for spelled numbers/years (<code>twenty-one</code>, <code>twintig-twintig-vyf</code>).</li>
+<li>Accepts commas and periods as optional punctuation; numeric separators can be <code>-</code>, <code>/</code>, <code>.</code>, or spaces.</li>
+<li>Ignores trailing punctuation such as <code>.</code>, <code>;</code>, <code>:</code>, or stray commas after normalization.</li>
+<li>Diacritics are removed for matching (e.g., <code>môre</code> → <code>more</code>).</li>
+</ul>
+<h2 id="supported-months">Supported Months</h2>
+<ul>
+<li>English full + abbreviations (<code>Jan</code>, <code>Jan.</code>, … <code>Dec</code>, <code>Dec.</code>)</li>
+<li>Afrikaans full + common abbreviations (<code>Januarie</code>, <code>Februarie</code>, <code>Maart/Mrt</code>, <code>Mei</code>, <code>Junie</code>, <code>Julie</code>, <code>Augustus</code>, <code>September/Sept</code>, <code>Oktober/Okt</code>, <code>November</code>, <code>Desember/Des</code>)</li>
+</ul>
+<h2 id="spelled-numbers">Spelled Numbers</h2>
+<ul>
+<li>English and Afrikaans cardinals + ordinals for days 1–31 (<code>first</code>, <code>twenty-second</code>, <code>fifth</code>, <code>eerste</code>, <code>vyfde</code>, etc.).</li>
+<li>Ordinal suffix forms (<code>5th</code>, <code>23rd</code>, <code>5de</code>, <code>1ste</code>, …) are normalized to digits.</li>
+<li>Year words support standard composition plus the <code>twenty twenty &lt;N&gt;</code> / <code>twintig twintig &lt;N&gt;</code> rule → <code>2000 + &lt;N&gt;</code> (e.g., <code>twenty twenty five</code> → 2025).</li>
+</ul>
+<h2 id="relative-expressions">Relative Expressions</h2>
+<p>Day-anchored (full dates):</p>
+<ul>
+<li>English: <code>today</code>, <code>now</code>, <code>yesterday</code>, <code>day before yesterday</code>, <code>tomorrow</code>, <code>day after tomorrow</code>, <code>today one year ago</code>, <code>yesterday one year ago</code>, <code>today one month ago</code>, <code>in one year from today</code>, <code>tomorrow in a year</code>, <code>in one month from today</code>, and numeric variants.</li>
+<li>Afrikaans: <code>vandag</code>, <code>nou</code>, <code>gister</code>, <code>eergister</code>, <code>môre/more</code>, <code>oormore</code>, <code>vandag een jaar gelede/terug</code>, <code>gister een jaar gelede/terug</code>, <code>more oor 'n jaar</code>, <code>oor een jaar van vandag</code>, etc.</li>
+</ul>
+<p>Year-only (month/day <code>null</code> unless anchored):</p>
+<ul>
+<li><code>this/current year</code>, <code>last/previous year</code>, <code>next year</code>, <code>X years ago/gelede/terug</code>, <code>in/oor X years</code>, <code>X year</code> (interpreted as past).</li>
+</ul>
+<p>Month + year (day <code>null</code> unless anchored):</p>
+<ul>
+<li><code>this/current month</code>, <code>last/previous month</code>, <code>next month</code>, <code>X months ago/gelede/terug</code>, <code>in/oor X months</code>, <code>X month</code> (interpreted as past).</li>
+</ul>
+<p>Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 28 in non-leap years).</p>
+<h2 id="absolute--partial-date-resolution">Absolute &amp; Partial Date Resolution</h2>
+<ul>
+<li>Full dates with month names (English/Afrikaans, including obvious prefixes), numeric day/year, or spelled-out day/year; optional weekday prefixes are ignored.</li>
+<li>Numeric three-part forms (<code>a/b/c</code>, <code>a-b-c</code>, <code>a b c</code>):
+<ul>
+<li>If a 4-digit year is present, it is used as the year.</li>
+<li>Remaining two parts prefer <strong>DD/MM</strong>; fallback to <strong>MM/DD</strong> if needed.</li>
+<li>2-digit years use the pivot rule below.</li>
+</ul>
+</li>
+<li>Numeric two-part forms (<code>a/b</code>, <code>a-b</code>, <code>a b</code>):
+<ul>
+<li>Prefer <strong>DD/MM</strong>; if the second part cannot be a month (&gt;12) then treat as <strong>MM/DD</strong>.</li>
+<li>If one part is 4 digits and the other 1–12, treat as <strong>Month + Year</strong> (day = <code>null</code>).</li>
+</ul>
+</li>
+<li>Compact 8-digit forms:
+<ul>
+<li>Prefer <code>YYYYMMDD</code> when the leading 4 digits are in 1900–2099.</li>
+<li>Otherwise try <code>DDMMYYYY</code>, then <code>MMDDYYYY</code>.</li>
+</ul>
+</li>
+<li>Day + month without year: choose the <strong>nearest occurrence</strong> to <code>referenceDate</code>, preferring future/on-or-after dates on ties.</li>
+<li>Month only: day = <code>null</code>; choose the <strong>nearest occurrence</strong> to <code>referenceDate</code>, preferring future/on-or-after dates on ties.</li>
+<li>Month + year (any order): day = <code>null</code>; use provided month/year.</li>
+<li>Day only: compare current vs next month (clamp if needed) and pick the closer date, preferring on/after <code>referenceDate</code> on ties.</li>
+<li>Year only (digits or spelled-out year): month/day <code>null</code>.</li>
+<li>Invalid calendar dates fail parsing (e.g., 31 February).</li>
+</ul>
+<h2 id="disambiguation-rules">Disambiguation Rules</h2>
+<ul>
+<li>Ambiguous numeric day/month always prefers <strong>DD/MM</strong> unless <code>preferMdy</code> is explicitly <code>true</code>.</li>
+<li>Pivot for 2-digit years uses <code>referenceDate.year % 100</code>:
+<ul>
+<li><code>00..pivot</code> → <code>2000..(2000+pivot)</code></li>
+<li><code>(pivot+1)..99</code> → <code>1900+(yy)</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="canonical-text">Canonical Text</h2>
+<ul>
+<li>Full date: <code>D Month YYYY</code></li>
+<li>Month + year: <code>Month YYYY</code></li>
+<li>Year only: <code>YYYY</code></li>
+</ul>
+<p>Empty string when the parser cannot resolve a valid interpretation.</p>
+
+            
+            
+        </body>
+        </html>

@@ -53,22 +53,22 @@ On failure/unparseable input: `{ day: null, month: null, year: null, text: "" }`
 
 Day-anchored (full dates):
 
-- English: `today`, `now`, `yesterday`, `day before yesterday`, `tomorrow`, `day after tomorrow`, `today one year ago`, `today one month ago`, `in one year from today`, `in one month from today`, and numeric variants.
-- Afrikaans: `vandag`, `nou`, `gister`, `eergister`, `môre/more`, `oormore`, `vandag een jaar gelede`, `oor een jaar van vandag`, etc.
+- English: `today`, `now`, `yesterday`, `day before yesterday`, `tomorrow`, `day after tomorrow`, `today one year ago`, `yesterday one year ago`, `today one month ago`, `in one year from today`, `tomorrow in a year`, `in one month from today`, and numeric variants.
+- Afrikaans: `vandag`, `nou`, `gister`, `eergister`, `môre/more`, `oormore`, `vandag een jaar gelede/terug`, `gister een jaar gelede/terug`, `more oor 'n jaar`, `oor een jaar van vandag`, etc.
 
 Year-only (month/day `null` unless anchored):
 
-- `this/current year`, `last/previous year`, `next year`, `X years ago`, `in X years`, `X year` (interpreted as past).
+- `this/current year`, `last/previous year`, `next year`, `X years ago/gelede/terug`, `in/oor X years`, `X year` (interpreted as past).
 
 Month + year (day `null` unless anchored):
 
-- `this/current month`, `last/previous month`, `next month`, `X months ago`, `in X months`, `X month` (interpreted as past).
+- `this/current month`, `last/previous month`, `next month`, `X months ago/gelede/terug`, `in/oor X months`, `X month` (interpreted as past).
 
 Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 28 in non-leap years).
 
 ## Absolute & Partial Date Resolution
 
-- Full dates with month names (English/Afrikaans), numeric day/year, or spelled-out day/year; optional weekday prefixes are ignored.
+- Full dates with month names (English/Afrikaans, including obvious prefixes), numeric day/year, or spelled-out day/year; optional weekday prefixes are ignored.
 - Numeric three-part forms (`a/b/c`, `a-b-c`, `a b c`):
   - If a 4-digit year is present, it is used as the year.
   - Remaining two parts prefer **DD/MM**; fallback to **MM/DD** if needed.
@@ -79,10 +79,10 @@ Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 2
 - Compact 8-digit forms:
   - Prefer `YYYYMMDD` when the leading 4 digits are in 1900–2099.
   - Otherwise try `DDMMYYYY`, then `MMDDYYYY`.
-- Day + month without year: choose the nearest **past** occurrence relative to `referenceDate`.
-- Month only: day = `null`; choose the nearest **past** month relative to `referenceDate`.
+- Day + month without year: choose the **nearest occurrence** to `referenceDate`, preferring future/on-or-after dates on ties.
+- Month only: day = `null`; choose the **nearest occurrence** to `referenceDate`, preferring future/on-or-after dates on ties.
 - Month + year (any order): day = `null`; use provided month/year.
-- Day only: month = `referenceDate.month`; if that day is in the future, shift to the previous month (clamp to month end).
+- Day only: compare current vs next month (clamp if needed) and pick the closer date, preferring on/after `referenceDate` on ties.
 - Year only (digits or spelled-out year): month/day `null`.
 - Invalid calendar dates fail parsing (e.g., 31 February).
 

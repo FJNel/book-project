@@ -84,7 +84,32 @@
 				<div class="card h-100">
 					<div class="card-body">
 						<h2 class="h5 mb-3">Debug details</h2>
+						<label class="form-label fw-semibold" for="debugJson">Parsed JSON Output</label>
 						<pre class="bg-light p-3 rounded small mb-0" id="debugJson">{}</pre>
+						<a href="Date-Parsing-Rules.html" target="_blank" class="btn btn-sm btn-outline-secondary mb-3">View Date Parsing Rules</a>
+					</div>
+				</div>
+			</div>
+			<div class="col-12">
+				<div class="card">
+					<div class="card-body">
+						<h2 class="h5 mb-3">Bulk test runner (reference date: 15 December 2025)</h2>
+						<div class="row g-3">
+							<div class="col-12 col-lg-6">
+								<label for="bulkInput" class="form-label fw-semibold">Enter one date per line</label>
+								<textarea id="bulkInput" class="form-control" rows="10" placeholder="23 November 2005&#10;23 Nov 2005&#10;..."></textarea>
+								<div class="form-text">Use one date expression per line.</div>
+							</div>
+							<div class="col-12 col-lg-6">
+								<label for="bulkOutput" class="form-label fw-semibold">Parsed text (one per line)</label>
+								<textarea id="bulkOutput" class="form-control" rows="10" readonly></textarea>
+							</div>
+						</div>
+						<div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+							<button class="btn btn-primary" id="bulkParseButton">Parse list</button>
+							<button class="btn btn-outline-secondary btn-sm" id="fillTestDataButton">Fill sample test cases</button>
+							<span class="small text-muted" id="bulkSummary"></span>
+						</div>
 					</div>
 				</div>
 			</div>

@@ -46,6 +46,11 @@
 		november: 11,
 		desember: 12, des: 12, "des.": 12
 	};
+	const MONTH_NAMES_CANONICAL = [
+		"january", "february", "march", "april", "may", "june",
+		"july", "august", "september", "october", "november", "december",
+		"januarie", "februarie", "maart", "april", "mei", "junie", "julie", "augustus", "september", "oktober", "november", "desember"
+	];
 
 	const MONTH_NAMES = [
 		"January", "February", "March", "April", "May", "June",
@@ -113,7 +118,13 @@
 	function monthFromToken(token) {
 		if (!token) return null;
 		const key = token.toLowerCase().replace(/\.$/, "");
-		return MONTH_MAP[key] || null;
+		if (MONTH_MAP[key]) return MONTH_MAP[key];
+		const lettersOnly = key.replace(/[^a-z]/gi, "");
+		if (lettersOnly.length >= 3) {
+			const match = MONTH_NAMES_CANONICAL.find((name) => name.startsWith(lettersOnly));
+			if (match) return MONTH_MAP[match];
+		}
+		return null;
 	}
 
 	function isValidDate(year, month, day) {
@@ -268,32 +279,53 @@
 	}
 
 	function resolveYearForDayMonth(day, month, referenceDate) {
-		const candidateThisYear = new Date(referenceDate.getFullYear(), month - 1, day);
-		const isFuture = candidateThisYear.getTime() > new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()).getTime();
-		const year = isFuture ? referenceDate.getFullYear() - 1 : referenceDate.getFullYear();
-		return year;
+		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+		const candidates = [
+			new Date(ref.getFullYear() - 1, month - 1, day),
+			new Date(ref.getFullYear(), month - 1, day),
+			new Date(ref.getFullYear() + 1, month - 1, day)
+		];
+		let best = candidates[1];
+		let bestDiff = Math.abs(best.getTime() - ref.getTime());
+		for (const cand of candidates) {
+			const diff = Math.abs(cand.getTime() - ref.getTime());
+			if (diff < bestDiff || (diff === bestDiff && cand.getTime() > ref.getTime())) {
+				best = cand;
+				bestDiff = diff;
+			}
+		}
+		return best.getFullYear();
 	}
 
 	function resolveMonthOnly(month, referenceDate) {
-		const usePrevYear = month > (referenceDate.getMonth() + 1);
-		const year = referenceDate.getFullYear() - (usePrevYear ? 1 : 0);
-		return { month, year };
+		const refMonth = referenceDate.getMonth() + 1;
+		const refYear = referenceDate.getFullYear();
+		if (month === refMonth) return { month, year: refYear };
+		// Choose the nearer of this year or next year, preferring future on ties.
+		const thisYear = new Date(refYear, month - 1, 1);
+		const nextYear = new Date(refYear + 1, month - 1, 1);
+		const ref = new Date(refYear, referenceDate.getMonth(), referenceDate.getDate());
+		const diffThis = Math.abs(thisYear.getTime() - ref.getTime());
+		const diffNext = Math.abs(nextYear.getTime() - ref.getTime());
+		if (diffNext < diffThis || (diffNext === diffThis && nextYear.getTime() > ref.getTime())) {
+			return { month, year: refYear + 1 };
+		}
+		return { month, year: refYear };
 	}
 
 	function resolveDayOnly(day, referenceDate) {
-		let year = referenceDate.getFullYear();
-		let month = referenceDate.getMonth() + 1;
-		let resolvedDay = Math.min(day, lastDayOfMonth(year, month));
-		const candidate = new Date(year, month - 1, resolvedDay);
-		if (candidate.getTime() > new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()).getTime()) {
-			month -= 1;
-			if (month === 0) {
-				month = 12;
-				year -= 1;
-			}
-			resolvedDay = Math.min(day, lastDayOfMonth(year, month));
-		}
-		return { day: resolvedDay, month, year };
+		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+		const thisMonthDay = Math.min(day, lastDayOfMonth(ref.getFullYear(), ref.getMonth() + 1));
+		const candidateThis = new Date(ref.getFullYear(), ref.getMonth(), thisMonthDay);
+		const nextMonthDate = ref.getMonth() === 11
+			? new Date(ref.getFullYear() + 1, 0, Math.min(day, lastDayOfMonth(ref.getFullYear() + 1, 1)))
+			: new Date(ref.getFullYear(), ref.getMonth() + 1, Math.min(day, lastDayOfMonth(ref.getFullYear(), ref.getMonth() + 2)));
+
+		const diffThis = Math.abs(candidateThis.getTime() - ref.getTime());
+		const diffNext = Math.abs(nextMonthDate.getTime() - ref.getTime());
+		const useNext = diffNext < diffThis || (diffNext === diffThis && nextMonthDate.getTime() > ref.getTime()) || candidateThis.getTime() < ref.getTime();
+		const chosen = useNext ? nextMonthDate : candidateThis;
+		return { day: chosen.getDate(), month: chosen.getMonth() + 1, year: chosen.getFullYear() };
 	}
 
 	function parseRelative(text, referenceDate) {
@@ -319,10 +351,23 @@
 			return wordsToNumber(cleaned.split(/[\s-]+/));
 		};
 
-		const anchoredYearPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede))?$/;
-		const anchoredMonthPast = /^(today|vandag|nou)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede))?$/;
-		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:from\s+today|van\s+vandag)$/;
-		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:from\s+today|van\s+vandag)$/;
+		const dayAnchorShift = /^(today|vandag|nou|yesterday|gister|tomorrow|more)\s+(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)$/;
+		let match = dayAnchorShift.exec(lowered);
+		if (match) {
+			const delta = relativeCount(match[2]);
+			if (delta !== null) {
+				const anchorKey = match[1];
+				const baseShift = dayKeywords[anchorKey] ?? 0;
+				const base = shiftDays(referenceDate, baseShift);
+				const shifted = shiftYears(base, delta);
+				return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+			}
+		}
+
+		const anchoredYearPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede|terug))?$/;
+		const anchoredMonthPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede|terug))?$/;
+		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
+		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
 
 		let match = anchoredYearPast.exec(lowered);
 		if (match) {
@@ -380,7 +425,7 @@
 			return buildResult(null, shifted.getMonth() + 1, shifted.getFullYear());
 		}
 
-		const relativeYearAgo = /^([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:ago|gelede)$/;
+		const relativeYearAgo = /^([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:ago|gelede|terug)$/;
 		match = relativeYearAgo.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
@@ -389,7 +434,7 @@
 			}
 		}
 
-		const relativeMonthAgo = /^([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:ago|gelede)$/;
+		const relativeMonthAgo = /^([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:ago|gelede|terug)$/;
 		match = relativeMonthAgo.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[1]);
