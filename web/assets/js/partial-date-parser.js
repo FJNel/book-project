@@ -369,7 +369,7 @@
 		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
 		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
 
-		let match = anchoredYearPast.exec(lowered);
+		match = anchoredYearPast.exec(lowered);
 		if (match) {
 			const delta = relativeCount(match[2]);
 			if (delta !== null) {

@@ -22,8 +22,8 @@
 		const safe = parsed || {};
 		dayEl.textContent = safe.day ?? "—";
 		monthEl.textContent = safe.month ?? "—";
-		yearEl.textContent = safe.year ?? "-";
-		textEl.textContent = safe.text || "-";
+		yearEl.textContent = safe.year ?? "—";
+		textEl.textContent = safe.text || "—";
 		debugEl.textContent = JSON.stringify(safe, null, 2);
 	}
 
@@ -31,10 +31,12 @@
 		const value = inputEl.value;
 		if (!value.trim()) {
 			renderParsed({});
+			console.info("[Parser Demo] Input cleared.");
 			return;
 		}
 		const parsed = parser.parsePartialDate(value);
 		renderParsed(parsed);
+		console.info("[Parser Demo] Parsed input", { input: value, parsed });
 	}
 
 	async function sendReport() {
@@ -64,9 +66,11 @@
 			reportStatus.textContent = "Thank you! Your report was saved.";
 			reportStatus.className = "text-success";
 			notesEl.value = "";
+			console.info("[Parser Demo] Report saved", { input, expected, parsed, notes });
 		} catch (err) {
 			reportStatus.textContent = `Could not save report: ${err.message}`;
 			reportStatus.className = "text-danger";
+			console.error("[Parser Demo] Report failed", err);
 		} finally {
 			reportBtn.disabled = false;
 			spinnerEl.classList.add("d-none");
@@ -84,6 +88,7 @@
 		});
 		bulkOutput.value = results.join("\n");
 		bulkSummary.textContent = `Parsed ${results.length} entr${results.length === 1 ? "y" : "ies"}.`;
+		console.info("[Parser Demo] Bulk parsed", { count: results.length, inputs: lines, outputs: results });
 	});
 
 	const SAMPLE_TESTS = [
