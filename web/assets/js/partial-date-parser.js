@@ -280,52 +280,36 @@
 
 	function resolveYearForDayMonth(day, month, referenceDate) {
 		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-		const candidates = [
-			new Date(ref.getFullYear() - 1, month - 1, day),
-			new Date(ref.getFullYear(), month - 1, day),
-			new Date(ref.getFullYear() + 1, month - 1, day)
-		];
-		let best = candidates[1];
-		let bestDiff = Math.abs(best.getTime() - ref.getTime());
-		for (const cand of candidates) {
-			const diff = Math.abs(cand.getTime() - ref.getTime());
-			if (diff < bestDiff || (diff === bestDiff && cand.getTime() > ref.getTime())) {
-				best = cand;
-				bestDiff = diff;
-			}
+		const candidate = new Date(ref.getFullYear(), month - 1, day);
+		if (candidate.getTime() <= ref.getTime()) {
+			return candidate.getFullYear();
 		}
-		return best.getFullYear();
+		return ref.getFullYear() - 1;
 	}
 
 	function resolveMonthOnly(month, referenceDate) {
 		const refMonth = referenceDate.getMonth() + 1;
 		const refYear = referenceDate.getFullYear();
 		if (month === refMonth) return { month, year: refYear };
-		// Choose the nearer of this year or next year, preferring future on ties.
-		const thisYear = new Date(refYear, month - 1, 1);
-		const nextYear = new Date(refYear + 1, month - 1, 1);
-		const ref = new Date(refYear, referenceDate.getMonth(), referenceDate.getDate());
-		const diffThis = Math.abs(thisYear.getTime() - ref.getTime());
-		const diffNext = Math.abs(nextYear.getTime() - ref.getTime());
-		if (diffNext < diffThis || (diffNext === diffThis && nextYear.getTime() > ref.getTime())) {
-			return { month, year: refYear + 1 };
-		}
+		if (month > refMonth) return { month, year: refYear - 1 };
 		return { month, year: refYear };
 	}
 
 	function resolveDayOnly(day, referenceDate) {
 		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-		const thisMonthDay = Math.min(day, lastDayOfMonth(ref.getFullYear(), ref.getMonth() + 1));
-		const candidateThis = new Date(ref.getFullYear(), ref.getMonth(), thisMonthDay);
-		const nextMonthDate = ref.getMonth() === 11
-			? new Date(ref.getFullYear() + 1, 0, Math.min(day, lastDayOfMonth(ref.getFullYear() + 1, 1)))
-			: new Date(ref.getFullYear(), ref.getMonth() + 1, Math.min(day, lastDayOfMonth(ref.getFullYear(), ref.getMonth() + 2)));
-
-		const diffThis = Math.abs(candidateThis.getTime() - ref.getTime());
-		const diffNext = Math.abs(nextMonthDate.getTime() - ref.getTime());
-		const useNext = diffNext < diffThis || (diffNext === diffThis && nextMonthDate.getTime() > ref.getTime()) || candidateThis.getTime() < ref.getTime();
-		const chosen = useNext ? nextMonthDate : candidateThis;
-		return { day: chosen.getDate(), month: chosen.getMonth() + 1, year: chosen.getFullYear() };
+		let targetYear = ref.getFullYear();
+		let targetMonth = ref.getMonth() + 1;
+		let targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
+		const candidate = new Date(targetYear, targetMonth - 1, targetDay);
+		if (candidate.getTime() > ref.getTime()) {
+			targetMonth -= 1;
+			if (targetMonth === 0) {
+				targetMonth = 12;
+				targetYear -= 1;
+			}
+			targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
+		}
+		return { day: targetDay, month: targetMonth, year: targetYear };
 	}
 
 	function parseRelative(text, referenceDate) {

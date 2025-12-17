@@ -1,6 +1,6 @@
 # Partial Date Parsing (Frontend)
 
-The backend date preview endpoint and Python helpers have been removed. Date parsing now lives in the frontend/Node layer at `web/assets/js/partial-date-parser.js` and is exported as both `module.exports.parsePartialDate` and `window.partialDateParser.parsePartialDate` for browser use.
+Date parsing lives in the frontend/Node layer at `web/assets/js/partial-date-parser.js` and is exported as both `module.exports.parsePartialDate` and `window.partialDateParser.parsePartialDate` for browser use.
 
 ## Quick Usage
 
@@ -79,10 +79,10 @@ Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 2
 - Compact 8-digit forms:
   - Prefer `YYYYMMDD` when the leading 4 digits are in 1900–2099.
   - Otherwise try `DDMMYYYY`, then `MMDDYYYY`.
-- Day + month without year: choose the **nearest occurrence** to `referenceDate`, preferring future/on-or-after dates on ties.
-- Month only: day = `null`; choose the **nearest occurrence** to `referenceDate`, preferring future/on-or-after dates on ties.
+- Day + month without year: choose the most recent occurrence on or before `referenceDate` (fall back to the previous year if the day/month would land in the future).
+- Month only: day = `null`; choose the most recent occurrence on or before `referenceDate` (use the previous year if the month is still upcoming).
 - Month + year (any order): day = `null`; use provided month/year.
-- Day only: compare current vs next month (clamp if needed) and pick the closer date, preferring on/after `referenceDate` on ties.
+- Day only: anchor to the current month; if that day is after `referenceDate`, move to the previous month (clamp if needed).
 - Year only (digits or spelled-out year): month/day `null`.
 - Invalid calendar dates fail parsing (e.g., 31 February).
 
