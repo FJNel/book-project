@@ -47,7 +47,7 @@
 		reportBtn.disabled = true;
 		spinnerEl.classList.remove("d-none");
 		try {
-			const response = await fetch("/temp/incorrect-date", {
+			const response = await fetch("https://api.fjnel.co.za/temp/incorrect-date", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ input, parsed, expected, notes })
