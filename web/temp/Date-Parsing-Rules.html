@@ -164,10 +164,11 @@
 <h2 id="preprocessing--tolerance">Preprocessing &amp; Tolerance</h2>
 <ul>
 <li>Case-insensitive; collapses repeated whitespace.</li>
-<li>Strips ordinal suffixes (<code>st/nd/rd/th/de/ste</code>) and the connector <code>of</code>; Afrikaans <code>van</code> is tolerated without removal.</li>
+<li>Strips ordinal suffixes (<code>st/nd/rd/th/de/ste</code>).</li>
 <li>Removes weekday prefixes (English + Afrikaans) when present.</li>
 <li>Treats hyphens inside words as separators for spelled numbers/years (<code>twenty-one</code>, <code>twintig-twintig-vyf</code>).</li>
-<li>Accepts commas and periods as optional punctuation; numeric separators can be <code>-</code>, <code>/</code>, <code>.</code>, or spaces.</li>
+<li>Treats <code>-</code>, <code>/</code>, <code>.</code>, and commas as token separators between alphanumerics (e.g., <code>23-2005-Nov</code> → <code>23 2005 Nov</code>).</li>
+<li>Removes the English connector <code>of</code> but leaves Afrikaans <code>van</code> intact.</li>
 <li>Ignores trailing punctuation such as <code>.</code>, <code>;</code>, <code>:</code>, or stray commas after normalization.</li>
 <li>Diacritics are removed for matching (e.g., <code>môre</code> → <code>more</code>).</li>
 </ul>

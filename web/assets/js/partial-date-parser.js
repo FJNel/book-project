@@ -105,12 +105,29 @@
 		if (!text) return "";
 
 		let normalized = stripDiacritics(text);
+
+		// Remove leading weekday names (English + Afrikaans).
 		normalized = normalized.replace(WEEKDAY_PATTERN, "");
-	normalized = normalized.replace(/,/g, " ");
-	normalized = normalized.replace(/\b(of)\b/gi, " ");
+
+		// Treat common punctuation/separators as whitespace for tokenisation.
+		// This lets formats like "23-Nov-2005", "23/Nov/2005", "23.11.2005", "2005-11-23" parse consistently.
+		normalized = normalized.replace(/,/g, " ");
+		normalized = normalized.replace(/\b(of|van)\b/gi, " ");
+
+		// Strip ordinal suffixes on digits (English + Afrikaans).
 		normalized = normalized.replace(/(\d+)(st|nd|rd|th|de|ste)\b/gi, "$1");
+
+		// Split hyphenated words for spelled-out numbers/years: "twenty-twenty-five" -> "twenty twenty five"
 		normalized = normalized.replace(/([A-Za-z])\-([A-Za-z])/g, "$1 $2");
+
+		// Split common date separators between alphanumerics into spaces.
+		// Example: "23-2005-Nov" -> "23 2005 Nov"
+		normalized = normalized.replace(/([0-9A-Za-z])[-\/\.]([0-9A-Za-z])/g, "$1 $2");
+
+		// Remove trailing punctuation clusters.
 		normalized = normalized.replace(/[.;:]+$/, "");
+
+		// Collapse whitespace.
 		normalized = normalized.replace(/\s+/g, " ").trim();
 		return normalized;
 	}
@@ -583,62 +600,89 @@
 	function parseWithMonthTokens(tokens, referenceDate, preferMdy) {
 		const monthIndex = tokens.findIndex((token) => monthFromToken(token) !== null);
 		if (monthIndex === -1) return null;
-		if (tokens.filter((t) => monthFromToken(t) !== null).length > 1) {
-			return null;
-		}
+
+		// Disallow multiple month tokens to avoid ambiguous parses.
+		if (tokens.filter((t) => monthFromToken(t) !== null).length > 1) return null;
+
 		const month = monthFromToken(tokens[monthIndex]);
+
 		const numbers = [];
 		tokens.forEach((tok, idx) => {
 			if (idx === monthIndex) return;
 			if (/^\d+$/.test(tok)) {
-				numbers.push({ value: parseInt(tok, 10), raw: tok, pos: idx < monthIndex ? "before" : "after" });
+				numbers.push({ value: parseInt(tok, 10), raw: tok, idx });
 			}
 		});
 
 		let year = null;
 		let day = null;
 
+		// 1) Prefer explicit year tokens (4-digit, or >= 1000).
+		let yearObj = null;
 		const explicitYearCandidates = numbers.filter((n) => n.raw.length === 4 || n.value >= 1000);
 		if (explicitYearCandidates.length > 0) {
-			year = explicitYearCandidates[0].value;
+			yearObj = explicitYearCandidates
+				.slice()
+				.sort((a, b) => {
+					const da = Math.abs(a.idx - monthIndex);
+					const db = Math.abs(b.idx - monthIndex);
+					if (da !== db) return da - db;
+					return a.idx - b.idx;
+				})[0];
+			year = yearObj.value;
 		}
 
-		const dayCandidate = numbers.find((n) => n.value >= 1 && n.value <= 31 && n.raw.length <= 2 && n.value !== year);
-		if (dayCandidate) {
-			day = dayCandidate.value;
-		}
-
-		if (day === null && numbers.length === 1 && year === null && numbers[0].value <= 31) {
-			day = numbers[0].value;
-		}
-
-		if (year === null) {
-			const twoDigitNumbers = numbers.filter((n) => n.raw.length === 2);
-			if (day !== null && twoDigitNumbers.length > 0) {
-				year = expandTwoDigitYear(twoDigitNumbers[0].value, referenceDate);
-			} else if (day === null && numbers.length === 2 && twoDigitNumbers.length === 2) {
-				const first = numbers[0].value;
-				const second = numbers[1].value;
-				day = first >= 1 && first <= 31 ? first : day;
-				year = expandTwoDigitYear(second, referenceDate);
+		// 2) If no explicit year, only consider a two-digit year when there are at least TWO numeric tokens.
+		//    This avoids mis-reading the day itself as a year in inputs like "23 Nov" or "31 December".
+		let twoDigitYearObj = null;
+		if (year === null && numbers.length >= 2) {
+			const twoDigitCandidates = numbers.filter((n) => n.raw.length === 2);
+			if (twoDigitCandidates.length > 0) {
+				// Heuristic: in formats like "23 Nov 05" or "Nov 23 05" the year is usually the last 2-digit token.
+				twoDigitYearObj = twoDigitCandidates.slice().sort((a, b) => b.idx - a.idx)[0];
+				year = expandTwoDigitYear(twoDigitYearObj.value, referenceDate);
 			}
+		}
+
+		// 3) Pick a day candidate from remaining numeric tokens (exclude whichever token we used as year).
+		const excludedIdx = new Set(
+			[yearObj?.idx, twoDigitYearObj?.idx].filter((v) => v !== undefined && v !== null)
+		);
+		const dayCandidates = numbers
+			.filter((n) => !excludedIdx.has(n.idx))
+			.filter((n) => n.value >= 1 && n.value <= 31);
+
+		if (dayCandidates.length > 0) {
+			const best = dayCandidates
+				.slice()
+				.sort((a, b) => {
+					const da = Math.abs(a.idx - monthIndex);
+					const db = Math.abs(b.idx - monthIndex);
+					if (da !== db) return da - db;
+					return a.idx - b.idx;
+				})[0];
+			day = best.value;
 		}
 
 		if (day !== null && (day < 1 || day > 31)) return null;
 
+		// Resolve missing year for day+month to the most recent date not after referenceDate.
 		if (day !== null && year === null) {
 			year = resolveYearForDayMonth(day, month, referenceDate);
 		}
 
+		// Month-only input.
 		if (day === null && year === null) {
 			const resolved = resolveMonthOnly(month, referenceDate);
 			return buildResult(null, resolved.month, resolved.year);
 		}
 
+		// Month+year input.
 		if (day === null && year !== null) {
 			return buildResult(null, month, year);
 		}
 
+		// Full date.
 		if (!isValidDate(year, month, day)) return null;
 		return buildResult(day, month, year);
 	}
