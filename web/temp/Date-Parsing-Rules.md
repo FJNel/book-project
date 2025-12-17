@@ -31,7 +31,7 @@ On failure/unparseable input: `{ day: null, month: null, year: null, text: "" }`
 ## Preprocessing & Tolerance
 
 - Case-insensitive; collapses repeated whitespace.
-- Strips ordinal suffixes (`st/nd/rd/th/de/ste`) and connectors `of/van`.
+- Strips ordinal suffixes (`st/nd/rd/th/de/ste`) and the connector `of`; Afrikaans `van` is tolerated without removal.
 - Removes weekday prefixes (English + Afrikaans) when present.
 - Treats hyphens inside words as separators for spelled numbers/years (`twenty-one`, `twintig-twintig-vyf`).
 - Accepts commas and periods as optional punctuation; numeric separators can be `-`, `/`, `.`, or spaces.

@@ -139,7 +139,7 @@
         </head>
         <body class="vscode-body vscode-light">
             <h1 id="partial-date-parsing-frontend">Partial Date Parsing (Frontend)</h1>
-<p>The backend date preview endpoint and Python helpers have been removed. Date parsing now lives in the frontend/Node layer at <code>web/assets/js/partial-date-parser.js</code> and is exported as both <code>module.exports.parsePartialDate</code> and <code>window.partialDateParser.parsePartialDate</code> for browser use.</p>
+<p>Date parsing lives in the frontend/Node layer at <code>web/assets/js/partial-date-parser.js</code> and is exported as both <code>module.exports.parsePartialDate</code> and <code>window.partialDateParser.parsePartialDate</code> for browser use.</p>
 <h2 id="quick-usage">Quick Usage</h2>
 <pre><code class="language-js"><span class="hljs-keyword">const</span> { parsePartialDate } = <span class="hljs-built_in">require</span>(<span class="hljs-string">&quot;./web/assets/js/partial-date-parser&quot;</span>);
 <span class="hljs-comment">// or window.partialDateParser.parsePartialDate in the browser</span>
@@ -164,7 +164,7 @@
 <h2 id="preprocessing--tolerance">Preprocessing &amp; Tolerance</h2>
 <ul>
 <li>Case-insensitive; collapses repeated whitespace.</li>
-<li>Strips ordinal suffixes (<code>st/nd/rd/th/de/ste</code>) and connectors <code>of/van</code>.</li>
+<li>Strips ordinal suffixes (<code>st/nd/rd/th/de/ste</code>) and the connector <code>of</code>; Afrikaans <code>van</code> is tolerated without removal.</li>
 <li>Removes weekday prefixes (English + Afrikaans) when present.</li>
 <li>Treats hyphens inside words as separators for spelled numbers/years (<code>twenty-one</code>, <code>twintig-twintig-vyf</code>).</li>
 <li>Accepts commas and periods as optional punctuation; numeric separators can be <code>-</code>, <code>/</code>, <code>.</code>, or spaces.</li>
@@ -219,10 +219,10 @@
 <li>Otherwise try <code>DDMMYYYY</code>, then <code>MMDDYYYY</code>.</li>
 </ul>
 </li>
-<li>Day + month without year: choose the <strong>nearest occurrence</strong> to <code>referenceDate</code>, preferring future/on-or-after dates on ties.</li>
-<li>Month only: day = <code>null</code>; choose the <strong>nearest occurrence</strong> to <code>referenceDate</code>, preferring future/on-or-after dates on ties.</li>
+<li>Day + month without year: choose the most recent occurrence on or before <code>referenceDate</code> (fall back to the previous year if the day/month would land in the future).</li>
+<li>Month only: day = <code>null</code>; choose the most recent occurrence on or before <code>referenceDate</code> (use the previous year if the month is still upcoming).</li>
 <li>Month + year (any order): day = <code>null</code>; use provided month/year.</li>
-<li>Day only: compare current vs next month (clamp if needed) and pick the closer date, preferring on/after <code>referenceDate</code> on ties.</li>
+<li>Day only: anchor to the current month; if that day is after <code>referenceDate</code>, move to the previous month (clamp if needed).</li>
 <li>Year only (digits or spelled-out year): month/day <code>null</code>.</li>
 <li>Invalid calendar dates fail parsing (e.g., 31 February).</li>
 </ul>

@@ -106,8 +106,8 @@
 
 		let normalized = stripDiacritics(text);
 		normalized = normalized.replace(WEEKDAY_PATTERN, "");
-		normalized = normalized.replace(/,/g, " ");
-		normalized = normalized.replace(/\b(of|van)\b/gi, " ");
+	normalized = normalized.replace(/,/g, " ");
+	normalized = normalized.replace(/\b(of)\b/gi, " ");
 		normalized = normalized.replace(/(\d+)(st|nd|rd|th|de|ste)\b/gi, "$1");
 		normalized = normalized.replace(/([A-Za-z])\-([A-Za-z])/g, "$1 $2");
 		normalized = normalized.replace(/[.;:]+$/, "");
@@ -603,13 +603,6 @@
 			year = explicitYearCandidates[0].value;
 		}
 
-		const potentialTwoDigitYears = numbers.filter((n) => n.raw.length === 2);
-		if (year === null && potentialTwoDigitYears.length === 1) {
-			// Only one two-digit token present alongside a month: interpret as year unless another day token exists.
-			year = expandTwoDigitYear(potentialTwoDigitYears[0].value, referenceDate);
-			numbers.splice(numbers.indexOf(potentialTwoDigitYears[0]), 1);
-		}
-
 		const dayCandidate = numbers.find((n) => n.value >= 1 && n.value <= 31 && n.raw.length <= 2 && n.value !== year);
 		if (dayCandidate) {
 			day = dayCandidate.value;
@@ -617,6 +610,18 @@
 
 		if (day === null && numbers.length === 1 && year === null && numbers[0].value <= 31) {
 			day = numbers[0].value;
+		}
+
+		if (year === null) {
+			const twoDigitNumbers = numbers.filter((n) => n.raw.length === 2);
+			if (day !== null && twoDigitNumbers.length > 0) {
+				year = expandTwoDigitYear(twoDigitNumbers[0].value, referenceDate);
+			} else if (day === null && numbers.length === 2 && twoDigitNumbers.length === 2) {
+				const first = numbers[0].value;
+				const second = numbers[1].value;
+				day = first >= 1 && first <= 31 ? first : day;
+				year = expandTwoDigitYear(second, referenceDate);
+			}
 		}
 
 		if (day !== null && (day < 1 || day > 31)) return null;
