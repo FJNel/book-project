@@ -197,7 +197,17 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | `preferMdy` | boolean | No | When `true`, ambiguous numeric dates (e.g. `03/04/05`) are interpreted as MM/DD/YY. Defaults to `false` (DD/MM preference). |
 | `referenceDate` | string (YYYY-MM-DD) | No | Reference date to treat as “today” for parsing relative phrases. Defaults to the current date if omitted. |
 
-#### Successful Response (200)
+- **Request Body:**
+
+```json
+{
+  "dateString": "15 Dec 25",
+  "preferMdy": false,
+  "referenceDate": "2025-12-15"
+}
+```
+
+- **Successful Response (200)**
 
 ```json
 {
@@ -220,18 +230,65 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 }
 ```
 
-#### Validation Errors (400)
+- **Validation Error (400):** Empty input
 
-- Missing or non-string `dateString`.
-- Empty string inputs (`""`) return `message` **"Validation Error"** with `errors` containing **"An empty date cannot be parsed."**
-- Inputs exceeding 512 characters.
-- Invalid `referenceDate` format or value.
-- Unparsable date strings return **"Could not parse the provided date."**
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "3.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "An empty date cannot be parsed."
+  ]
+}
+```
 
-#### Failure Responses
+- **Validation Error (400):** Unparsable date text
 
-- `429 Too Many Requests` when the preview-specific rate limit is exceeded.
-- `500 Failed to parse date` if the underlying Python helper is unavailable.
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "3.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Could not parse the provided date."
+  ]
+}
+```
+
+- **Rate Limit Exceeded (429)**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.01",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Parser Failure (500)**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "2.88",
+  "message": "Failed to parse date",
+  "data": {},
+  "errors": [
+    "The date preview service is temporarily unavailable. Please try again shortly."
+  ]
+}
+```
 
 ---
 
