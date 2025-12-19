@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-const { parsePartialDate } = require("../web/assets/js/partial-date-parser");
+const { parsePartialDate } = require("./web/assets/js/partial-date-parser");
 
 const referenceDate = "2025-12-15";
 
@@ -77,13 +77,17 @@ const cases = [
 	["11.23.05", "23 November 2005"],
 
 	// ambiguous numeric preference: prefer DD/MM unless impossible
-	["11/10/2005", "11 October 2005"],     // ambiguous -> DD/MM
+    ["11/10/2005", "11 October 2005"],     // ambiguous -> DD/MM
 	["11-10-2005", "11 October 2005"],
 	["11 10 2005", "11 October 2005"],
 	["11.10.2005", "11 October 2005"],
-	["11/10/05", "11 October 2005"],
-	["11-10-05", "11 October 2005"],
-	["11.10.05", "11 October 2005"],
+    ["11/10/05", "11 October 2005"],
+    ["11-10-05", "11 October 2005"],
+    ["11.10.05", "11 October 2005"],
+
+    // explicit MDY preference when requested
+    ["11/10/2005", "10 November 2005", { preferMdy: true }],
+    ["07/08/05", "8 July 2005", { preferMdy: true }],
 
 	// forced MDY because second part cannot be month
 	["10/13/2005", "13 October 2005"],
@@ -147,8 +151,8 @@ const cases = [
 	// ---------------------------
 	// Day only — prefer nearest past date (may shift month; clamp if needed)
 	// ---------------------------
-	["1", "1 December 2025"],
-	["01", "1 December 2025"],
+    ["1", "1 December 2025"],
+    ["01", "1 December 2025"],
 	["10", "10 December 2025"],
 	["11", "11 December 2025"],
 	["12", "12 December 2025"],
@@ -239,6 +243,8 @@ const cases = [
 
 	["Three months ago", "September 2025"],
 	["In three months", "March 2026"],
+	["In one month from tomorrow", "16 January 2026"],
+	["Oor een maand van môre", "16 January 2026"],
 
 	["Today", "15 December 2025"],
 	["Now", "15 December 2025"],
@@ -265,6 +271,14 @@ const cases = [
 	["In 1 month from today", "15 January 2026"],
 	["In two months from today", "15 February 2026"],
 	["In 2 months from today", "15 February 2026"],
+	["One year from today", "15 December 2026"],
+	["1 year from today", "15 December 2026"],
+	["Two months from today", "15 February 2026"],
+	["2 months from today", "15 February 2026"],
+	["Three days from today", "18 December 2025"],
+	["3 days from today", "18 December 2025"],
+	["One day from today", "16 December 2025"],
+	["1 day from today", "16 December 2025"],
 
 	// ---------------------------
 	// Absolute reference formats (15 Dec 2025) - multiple orders + separators
@@ -435,6 +449,13 @@ const cases = [
 	["Oor 1 maand van vandag", "15 January 2026"],
 	["Oor twee maande van vandag", "15 February 2026"],
 	["Oor 2 maande van vandag", "15 February 2026"],
+	["Een jaar van vandag af", "15 December 2026"],
+	["1 jaar van vandag af", "15 December 2026"],
+	["Twee maande van vandag af", "15 February 2026"],
+	["2 maande van vandag af", "15 February 2026"],
+	["Drie dae van vandag af", "18 December 2025"],
+	["Een dag van vandag af", "16 December 2025"],
+	["1 dag van vandag af", "16 December 2025"],
 
 	// ---------------------------
 	// Afrikaans spelled-out years (incl hyphenation) + spelled day ordinals
@@ -451,6 +472,128 @@ const cases = [
 	["twintig-twintig-vyf", "2025"],
 	["twee duisend vyf en twintig", "2025"],
 	["twee duisend en vyf en twintig", "2025"],
+
+	// ---------------------------
+	// Combined absolute date + relative year (English)
+	// ---------------------------
+	["31 January next year", "31 January 2026"],
+	["31 Jan next year", "31 January 2026"],
+	["31/01 next year", "31 January 2026"],
+	["31-01 next year", "31 January 2026"],
+	["31.01 next year", "31 January 2026"],
+	["1 January next year", "1 January 2026"],
+	["1 Jan next year", "1 January 2026"],
+	["15 December next year", "15 December 2026"],
+	["14 December next year", "14 December 2026"],
+
+	["31 January this year", "31 January 2025"],
+	["31 January last year", "31 January 2024"],
+	["1 January this year", "1 January 2025"],
+	["1 January last year", "1 January 2024"],
+
+	// spelled-out day + relative year
+	["Thirty one March next year", "31 March 2026"],
+	["Thirty-one March next year", "31 March 2026"],
+	["Thirty first March next year", "31 March 2026"],
+	["Thirty-first March next year", "31 March 2026"],
+	["The thirty-first of March next year", "31 March 2026"],
+
+	// month/day with “in N years” / “N years ago” (still anchored to the explicit day+month)
+	["31 January in one year", "31 January 2026"],
+	["31 January in 1 year", "31 January 2026"],
+	["31 January in two years", "31 January 2027"],
+	["31 January in 2 years", "31 January 2027"],
+	["15 March in two years", "15 March 2027"],
+	["31 January one year ago", "31 January 2024"],
+	["31 January 1 year ago", "31 January 2024"],
+	["31 January two years ago", "31 January 2023"],
+	["31 January 2 years ago", "31 January 2023"],
+	["15 March three years ago", "15 March 2022"],
+
+	// past dates should be preferred if there's no "ago" / "in" indicator
+	["31 January two years", "31 January 2023"],
+	["31 January 2 years", "31 January 2023"],
+	["1 January one year", "1 January 2024"],
+	["1 January 1 year", "1 January 2024"],
+
+	// invalid when the computed year makes the date impossible
+	["29 February next year", ""],
+	["Twenty nine February next year", ""],
+	["29 February last year", "29 February 2024"],
+
+	// combined “fifth/vyfde” + relative year
+	["the fifth of May next year", "5 May 2026"],
+	["fifth May next year", "5 May 2026"],
+	["5th May next year", "5 May 2026"],
+
+	// ---------------------------
+	// Combined absolute date + relative year (Afrikaans)
+	// ---------------------------
+	["31 Januarie volgende jaar", "31 January 2026"],
+	["31 Jan volgende jaar", "31 January 2026"],
+	["01 Januarie volgende jaar", "1 January 2026"],
+	["1 Januarie volgende jaar", "1 January 2026"],
+	["15 Desember volgende jaar", "15 December 2026"],
+	["9 Desember volgende jaar", "9 December 2026"],
+	["9 Des volgende jaar", "9 December 2026"],
+
+	// spelled-out Afrikaans day + relative year
+	["Een en dertig Maart volgende jaar", "31 March 2026"],
+	["Een-en-dertig Maart volgende jaar", "31 March 2026"],
+	["Een en dertigste Maart volgende jaar", "31 March 2026"],
+	["Een-en-dertigste Maart volgende jaar", "31 March 2026"],
+
+	["Vyf Mei volgende jaar", "5 May 2026"],
+	["vyf Mei volgende jaar", "5 May 2026"],
+	["vyfde Mei volgende jaar", "5 May 2026"],
+	["die vyfde van Mei volgende jaar", "5 May 2026"],
+
+	// invalid with relative year
+	["29 Februarie volgende jaar", ""],
+	["29 Februarie verlede jaar", "29 February 2024"],
+
+	// ---------------------------
+	// Multi-unit relative offsets from now (English)
+	// ---------------------------
+	// referenceDate = 15 Dec 2025
+	["Two days and three months from now", "17 March 2026"],
+	["2 days and 3 months from now", "17 March 2026"],
+	["Three months and two days from now", "17 March 2026"],
+	["3 months and 2 days from now", "17 March 2026"],
+	["Three months and two days from today", "17 March 2026"],
+	["Two days and three months from today", "17 March 2026"],
+	["Two months and five days from tomorrow", "21 February 2026"],
+
+	["Two days and three months ago", "13 September 2025"],
+	["Three months and two days ago", "13 September 2025"],
+	["Two months and two days ago", "13 October 2025"],
+	["3 months and 18 days ago", "28 August 2025"],
+
+	["In one year two months and eighteen days", "5 March 2027"],
+	["In 1 year 2 months and 18 days", "5 March 2027"],
+
+	// ---------------------------
+	// Multi-unit relative offsets from now (Afrikaans)
+	// ---------------------------
+	["Twee dae en drie maande van nou af", "17 March 2026"],
+	["2 dae en 3 maande van nou af", "17 March 2026"],
+	["Drie maande en twee dae van nou af", "17 March 2026"],
+	["3 maande en 2 dae van nou af", "17 March 2026"],
+	["Twee dae en drie maande van vandag af", "17 March 2026"],
+	["Drie maande en twee dae van vandag af", "17 March 2026"],
+
+	["Twee dae en drie maande gelede", "13 September 2025"],
+	["Drie maande en twee dae gelede", "13 September 2025"],
+	["Twee maande en twee dae gelede", "13 October 2025"],
+
+	// the one you asked for (and variants)
+	["Drie jaar twee maande en agtien dae gelede", "27 September 2022"],
+	["Drie jaar, twee maande en agtien dae gelede", "27 September 2022"],
+	["3 jaar 2 maande 18 dae gelede", "27 September 2022"],
+
+	// punctuation / spacing robustness
+	["  Twee   dae  en  drie   maande   van  nou  af  ", "17 March 2026"],
+	["Three months, and two days, from now", "17 March 2026"],
 
 	// ---------------------------
 	// Extra robustness: whitespace, punctuation, mixed case
@@ -472,21 +615,22 @@ const cases = [
 
 
 function run() {
-	let failures = 0;
-	cases.forEach(([input, expected]) => {
-		const result = parsePartialDate(input, { referenceDate });
-		const actual = result.text || "";
-		if (actual !== expected) {
-			failures += 1;
-			console.error(`FAIL: "${input}" -> "${actual}" (expected "${expected}")`);
-		}
-	});
-	if (failures > 0) {
-		console.error(`\n${failures} case(s) failed.`);
-		process.exitCode = 1;
-	} else {
-		console.log(`All ${cases.length} cases passed.`);
-	}
+        let failures = 0;
+        cases.forEach(([input, expected, caseOptions]) => {
+                const options = { referenceDate, ...(caseOptions || {}) };
+                const result = parsePartialDate(input, options);
+                const actual = result.text || "";
+                if (actual !== expected) {
+                        failures += 1;
+                        console.error(`FAIL: "${input}" -> "${actual}" (expected "${expected}")`);
+                }
+        });
+        if (failures > 0) {
+                console.error(`\n${failures} case(s) failed.`);
+                process.exitCode = 1;
+        } else {
+                console.log(`All ${cases.length} cases passed.`);
+        }
 }
 
 run();

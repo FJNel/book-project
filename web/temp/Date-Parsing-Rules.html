@@ -2,7 +2,7 @@
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Partial Date Parsing &lpar;Frontend&rpar;</title>
+            <title>Partial Date Parsing</title>
             <style>
 /* From extension vscode.github */
 /*---------------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@
         
         </head>
         <body class="vscode-body vscode-light">
-            <h1 id="partial-date-parsing-frontend">Partial Date Parsing (Frontend)</h1>
+            <h1 id="partial-date-parsing">Partial Date Parsing</h1>
 <p>Date parsing lives in the frontend/Node layer at <code>web/assets/js/partial-date-parser.js</code> and is exported as both <code>module.exports.parsePartialDate</code> and <code>window.partialDateParser.parsePartialDate</code> for browser use.</p>
 <h2 id="quick-usage">Quick Usage</h2>
 <pre><code class="language-js"><span class="hljs-keyword">const</span> { parsePartialDate } = <span class="hljs-built_in">require</span>(<span class="hljs-string">&quot;./web/assets/js/partial-date-parser&quot;</span>);
@@ -161,6 +161,14 @@
 <li><code>text</code>: normalized English display string (<code>&quot;&quot;</code> when unparseable)</li>
 </ul>
 <p>On failure/unparseable input: <code>{ day: null, month: null, year: null, text: &quot;&quot; }</code>.</p>
+<h2 id="how-the-parser-works-high-level">How the parser works (high level)</h2>
+<ol>
+<li><strong>Normalize the text</strong> by removing weekday prefixes, stripping ordinal suffixes, expanding hyphenated number words, and turning punctuation (<code>-</code>, <code>/</code>, <code>.</code>, commas) into whitespace so tokens are predictable.</li>
+<li><strong>Convert number words to digits</strong> (including Afrikaans) and eagerly resolve obvious month tokens.</li>
+<li><strong>Try relative-only patterns</strong> (e.g., <code>tomorrow</code>, <code>two months ago</code>, <code>two days and three months from now</code>). Multi-unit expressions are applied in the written order so month clamping behaves naturally.</li>
+<li><strong>Handle hybrid absolute + relative-year phrases</strong> (e.g., <code>31 January next year</code>, <code>15 March in two years</code>). If the base date is impossible in the current year, it is retried against the shifted year so leap days are validated correctly.</li>
+<li><strong>Parse absolute and partial dates</strong> using month tokens, numeric formats, compact digits, or single-token shortcuts. Missing year/month/day values are resolved relative to the provided reference date as described below.</li>
+</ol>
 <h2 id="preprocessing--tolerance">Preprocessing &amp; Tolerance</h2>
 <ul>
 <li>Case-insensitive; collapses repeated whitespace.</li>
@@ -168,14 +176,14 @@
 <li>Removes weekday prefixes (English + Afrikaans) when present.</li>
 <li>Treats hyphens inside words as separators for spelled numbers/years (<code>twenty-one</code>, <code>twintig-twintig-vyf</code>).</li>
 <li>Treats <code>-</code>, <code>/</code>, <code>.</code>, and commas as token separators between alphanumerics (e.g., <code>23-2005-Nov</code> → <code>23 2005 Nov</code>).</li>
-<li>Removes the English connector <code>of</code> but leaves Afrikaans <code>van</code> intact.</li>
+<li>Removes connectors English <code>of</code> <strong>and</strong> Afrikaans <code>van</code>.</li>
 <li>Ignores trailing punctuation such as <code>.</code>, <code>;</code>, <code>:</code>, or stray commas after normalization.</li>
 <li>Diacritics are removed for matching (e.g., <code>môre</code> → <code>more</code>).</li>
 </ul>
 <h2 id="supported-months">Supported Months</h2>
 <ul>
 <li>English full + abbreviations (<code>Jan</code>, <code>Jan.</code>, … <code>Dec</code>, <code>Dec.</code>)</li>
-<li>Afrikaans full + common abbreviations (<code>Januarie</code>, <code>Februarie</code>, <code>Maart/Mrt</code>, <code>Mei</code>, <code>Junie</code>, <code>Julie</code>, <code>Augustus</code>, <code>September/Sept</code>, <code>Oktober/Okt</code>, <code>November</code>, <code>Desember/Des</code>)</li>
+<li>Afrikaans full + common abbreviations (e.g., <code>Januarie</code>, <code>Februarie</code>, <code>Maart/Mrt</code>, <code>Mei</code>, <code>Junie</code>, <code>Julie</code>, <code>Augustus</code>, <code>September/Sept/Sept.</code>, <code>Oktober/Okt/Okt.</code>, <code>November</code>, <code>Desember/Des/Des.</code>)</li>
 </ul>
 <h2 id="spelled-numbers">Spelled Numbers</h2>
 <ul>
@@ -188,10 +196,20 @@
 <ul>
 <li>English: <code>today</code>, <code>now</code>, <code>yesterday</code>, <code>day before yesterday</code>, <code>tomorrow</code>, <code>day after tomorrow</code>, <code>today one year ago</code>, <code>yesterday one year ago</code>, <code>today one month ago</code>, <code>in one year from today</code>, <code>tomorrow in a year</code>, <code>in one month from today</code>, and numeric variants.</li>
 <li>Afrikaans: <code>vandag</code>, <code>nou</code>, <code>gister</code>, <code>eergister</code>, <code>môre/more</code>, <code>oormore</code>, <code>vandag een jaar gelede/terug</code>, <code>gister een jaar gelede/terug</code>, <code>more oor 'n jaar</code>, <code>oor een jaar van vandag</code>, etc.</li>
+<li>Supports anchored month/year shifts from <strong>today</strong> or <strong>tomorrow</strong> (<code>van môre</code> / <code>from tomorrow</code>) with <code>in/oor X month(s)/year(s)</code> phrasing.</li>
+<li>Also handles direct <code>X day(s)/month(s)/year(s) from today/tomorrow</code> and Afrikaans <code>X dag(e)/maand(e)/jaar van vandag/môre af</code> phrasing (numeric or spelled).</li>
 </ul>
 <p>Year-only (month/day <code>null</code> unless anchored):</p>
 <ul>
-<li><code>this/current year</code>, <code>last/previous year</code>, <code>next year</code>, <code>X years ago/gelede/terug</code>, <code>in/oor X years</code>, <code>X year</code> (interpreted as past).</li>
+<li>
+<p><code>this/current year</code>, <code>last/previous year</code>, <code>next year</code>, <code>X years ago/gelede/terug</code>, <code>in/oor X years</code>, <code>X year</code> (interpreted as past).</p>
+</li>
+<li>
+<p>Day/month anchors can combine with relative year offsets such as <code>31 January next year</code>, <code>31 January in two years</code>, or <code>31 January 2 years ago</code>; impossible dates (e.g., 29 February) are re-evaluated in the shifted year.</p>
+</li>
+<li>
+<p>Multi-unit offsets are supported in English and Afrikaans (<code>two days and three months from now</code>, <code>drie maande en twee dae gelede</code>) with optional anchors <code>from now/today/tomorrow</code> or <code>van nou/vandag/môre af</code>.</p>
+</li>
 </ul>
 <p>Month + year (day <code>null</code> unless anchored):</p>
 <ul>
@@ -214,6 +232,8 @@
 <li>If one part is 4 digits and the other 1–12, treat as <strong>Month + Year</strong> (day = <code>null</code>).</li>
 </ul>
 </li>
+<li>Inputs containing more than one month token are rejected to avoid ambiguous parses.</li>
+<li>When month names are present, a 2-digit year is only considered if there are at least two numeric tokens; otherwise day+month resolves the year from the reference date.</li>
 <li>Compact 8-digit forms:
 <ul>
 <li>Prefer <code>YYYYMMDD</code> when the leading 4 digits are in 1900–2099.</li>
@@ -229,12 +249,18 @@
 </ul>
 <h2 id="disambiguation-rules">Disambiguation Rules</h2>
 <ul>
-<li>Ambiguous numeric day/month always prefers <strong>DD/MM</strong> unless <code>preferMdy</code> is explicitly <code>true</code>.</li>
-<li>Pivot for 2-digit years uses <code>referenceDate.year % 100</code>:
+<li>
+<p>Ambiguous numeric day/month always prefers <strong>DD/MM</strong> unless <code>preferMdy</code> is explicitly <code>true</code>.</p>
+</li>
+<li>
+<p>Pivot for 2-digit years uses <code>referenceDate.year % 100</code>:</p>
 <ul>
 <li><code>00..pivot</code> → <code>2000..(2000+pivot)</code></li>
 <li><code>(pivot+1)..99</code> → <code>1900+(yy)</code></li>
 </ul>
+</li>
+<li>
+<p>The <code>preferMdy</code> option flips the default ambiguity handling for numeric dates (e.g., <code>07/08/05</code> → <code>8 July 2005</code>).</p>
 </li>
 </ul>
 <h2 id="canonical-text">Canonical Text</h2>
@@ -243,7 +269,54 @@
 <li>Month + year: <code>Month YYYY</code></li>
 <li>Year only: <code>YYYY</code></li>
 </ul>
+<p>Compact numeric parsing only triggers on continuous 8-digit inputs (no embedded separators after normalization).</p>
 <p>Empty string when the parser cannot resolve a valid interpretation.</p>
+<h2 id="worked-examples">Worked examples</h2>
+<ul>
+<li>
+<p><strong><code>&quot;15 March in two years&quot;</code> (reference: 15 Dec 2025)</strong></p>
+<ol>
+<li>Normalize → tokens: <code>15</code>, <code>March</code>, <code>in</code>, <code>2</code>, <code>years</code>.</li>
+<li>Absolute day/month <code>15 March</code> resolves to 15 March 2025 (most recent occurrence).</li>
+<li>Relative-year offset <code>in 2 years</code> shifts the resolved year to 2027.</li>
+<li>Result: <code>{ day: 15, month: 3, year: 2027, text: &quot;15 March 2027&quot; }</code>.</li>
+</ol>
+</li>
+<li>
+<p><strong><code>&quot;Two months and five days from tomorrow&quot;</code> (reference: 15 Dec 2025)</strong></p>
+<ol>
+<li>Normalize and replace number words → <code>2 months and 5 days from tomorrow</code>.</li>
+<li>Detect future anchor <code>from tomorrow</code> → base = 16 Dec 2025, direction = forward.</li>
+<li>Apply units in order: +2 months → 16 Feb 2026; +5 days → 21 Feb 2026.</li>
+<li>Result: <code>{ day: 21, month: 2, year: 2026, text: &quot;21 February 2026&quot; }</code>.</li>
+</ol>
+</li>
+<li>
+<p><strong><code>&quot;11/10/05&quot;</code> with <code>preferMdy: true</code> (reference: 15 Dec 2025)</strong></p>
+<ol>
+<li>Normalize separators → tokens <code>11</code>, <code>10</code>, <code>05</code>.</li>
+<li>Ambiguous numeric format resolves as <strong>MM/DD/YY</strong> because <code>preferMdy</code> is set.</li>
+<li>Expand two-digit year using pivot (25) → <code>2005</code>.</li>
+<li>Result: <code>{ day: 10, month: 11, year: 2005, text: &quot;10 November 2005&quot; }</code>.</li>
+</ol>
+</li>
+<li>
+<p><strong><code>&quot;23 November&quot;</code> (reference: 15 Dec 2025)</strong></p>
+<ol>
+<li>Parse absolute day/month without a year.</li>
+<li>Resolve missing year to the most recent occurrence not after the reference date → 23 Nov 2025.</li>
+<li>Result: <code>{ day: 23, month: 11, year: 2025, text: &quot;23 November 2025&quot; }</code>.</li>
+</ol>
+</li>
+<li>
+<p><strong><code>&quot;31 February 2020&quot;</code></strong></p>
+<ol>
+<li>Parse absolute full date.</li>
+<li>Detect invalid calendar date (Feb 31 does not exist).</li>
+<li>Result: <code>{ day: null, month: null, year: null, text: &quot;&quot; }</code>.</li>
+</ol>
+</li>
+</ul>
 
             
             

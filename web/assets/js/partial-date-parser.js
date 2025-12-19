@@ -96,53 +96,68 @@
 
 	const FAILURE_RESULT = { day: null, month: null, year: null, text: "" };
 
-	function stripDiacritics(value) {
-		return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-	}
+        /**
+         * Remove diacritics to allow matches between accented Afrikaans tokens and their ASCII counterparts.
+         */
+        function stripDiacritics(value) {
+                return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
 
-	function normalizeInput(raw) {
-		const text = String(raw ?? "").replace(/[’‘]/g, "'").trim();
-		if (!text) return "";
+        /**
+         * Canonicalise user input before attempting to parse.
+         *
+         * - Replaces smart quotes, trims whitespace, removes weekday prefixes.
+         * - Normalises separators (comma, hyphen, slash, dot) into spaces so numeric parsing is consistent.
+         * - Splits hyphenated number words so "twenty-twenty-five" becomes three tokens the number parser can consume.
+         * - Strips ordinal suffixes on digits and drops connectors such as "of/van" that add noise.
+         */
+        function normalizeInput(raw) {
+                const text = String(raw ?? "").replace(/[’‘]/g, "'").trim();
+                if (!text) return "";
 
-		let normalized = stripDiacritics(text);
+                let normalized = stripDiacritics(text);
 
-		// Remove leading weekday names (English + Afrikaans).
-		normalized = normalized.replace(WEEKDAY_PATTERN, "");
+                // Remove leading weekday names (English + Afrikaans).
+                normalized = normalized.replace(WEEKDAY_PATTERN, "");
 
-		// Treat common punctuation/separators as whitespace for tokenisation.
-		// This lets formats like "23-Nov-2005", "23/Nov/2005", "23.11.2005", "2005-11-23" parse consistently.
-		normalized = normalized.replace(/,/g, " ");
-		normalized = normalized.replace(/\b(of|van)\b/gi, " ");
+                // Treat common punctuation/separators as whitespace for tokenisation.
+                // This lets formats like "23-Nov-2005", "23/Nov/2005", "23.11.2005", "2005-11-23" parse consistently.
+                normalized = normalized.replace(/,/g, " ");
+                normalized = normalized.replace(/\b(of|van)\b/gi, " ");
 
-		// Strip ordinal suffixes on digits (English + Afrikaans).
-		normalized = normalized.replace(/(\d+)(st|nd|rd|th|de|ste)\b/gi, "$1");
+                // Strip ordinal suffixes on digits (English + Afrikaans).
+                normalized = normalized.replace(/(\d+)(st|nd|rd|th|de|ste)\b/gi, "$1");
 
-		// Split hyphenated words for spelled-out numbers/years: "twenty-twenty-five" -> "twenty twenty five"
-		normalized = normalized.replace(/([A-Za-z])\-([A-Za-z])/g, "$1 $2");
+                // Split hyphenated words for spelled-out numbers/years: "twenty-twenty-five" -> "twenty twenty five"
+                normalized = normalized.replace(/([A-Za-z])\-([A-Za-z])/g, "$1 $2");
 
-		// Split common date separators between alphanumerics into spaces.
-		// Example: "23-2005-Nov" -> "23 2005 Nov"
-		normalized = normalized.replace(/([0-9A-Za-z])[-\/\.]([0-9A-Za-z])/g, "$1 $2");
+                // Split common date separators between alphanumerics into spaces.
+                // Example: "23-2005-Nov" -> "23 2005 Nov"
+                normalized = normalized.replace(/([0-9A-Za-z])[-\/\.]([0-9A-Za-z])/g, "$1 $2");
 
-		// Remove trailing punctuation clusters.
-		normalized = normalized.replace(/[.;:]+$/, "");
+                // Remove trailing punctuation clusters.
+                normalized = normalized.replace(/[.;:]+$/, "");
 
-		// Collapse whitespace.
-		normalized = normalized.replace(/\s+/g, " ").trim();
-		return normalized;
-	}
+                // Collapse whitespace.
+                normalized = normalized.replace(/\s+/g, " ").trim();
+                return normalized;
+        }
 
-	function monthFromToken(token) {
-		if (!token) return null;
-		const key = token.toLowerCase().replace(/\.$/, "");
-		if (MONTH_MAP[key]) return MONTH_MAP[key];
-		const lettersOnly = key.replace(/[^a-z]/gi, "");
-		if (lettersOnly.length >= 3) {
-			const match = MONTH_NAMES_CANONICAL.find((name) => name.startsWith(lettersOnly));
-			if (match) return MONTH_MAP[match];
-		}
-		return null;
-	}
+        /**
+         * Resolve a potential month token into a 1–12 integer.
+         * Accepts abbreviations, partial prefixes (minimum 3 letters), and strips punctuation such as trailing periods.
+         */
+        function monthFromToken(token) {
+                if (!token) return null;
+                const key = token.toLowerCase().replace(/\.$/, "");
+                if (MONTH_MAP[key]) return MONTH_MAP[key];
+                const lettersOnly = key.replace(/[^a-z]/gi, "");
+                if (lettersOnly.length >= 3) {
+                        const match = MONTH_NAMES_CANONICAL.find((name) => name.startsWith(lettersOnly));
+                        if (match) return MONTH_MAP[match];
+                }
+                return null;
+        }
 
 	function isValidDate(year, month, day) {
 		if (!year || !month || !day) return false;
@@ -194,151 +209,259 @@
 		return 1900 + value;
 	}
 
-	function wordsToNumber(tokens) {
-		let total = 0;
-		let current = 0;
-		for (const raw of tokens) {
-			const word = raw.toLowerCase();
-			if (CONNECTORS.has(word)) continue;
-			if (HUNDREDS.has(word)) {
-				current = current === 0 ? 100 : current * 100;
-				continue;
-			}
-			if (THOUSANDS.has(word)) {
-				current = current === 0 ? 1 : current;
-				total += current * 1000;
-				current = 0;
-				continue;
-			}
-			if (NUMBER_WORDS[word] !== undefined) {
-				current += NUMBER_WORDS[word];
-				continue;
-			}
-			if (ORDINAL_WORDS[word] !== undefined) {
-				current += ORDINAL_WORDS[word];
-				continue;
-			}
-			return null;
-		}
-		total += current;
-		return total > 0 ? total : null;
-	}
+        /**
+         * Convert sequences of number/ordinal words into a numeric value.
+         * Understands simple cardinal composition (including “hundred”/“thousand”) and tolerates connectors like “and/en”.
+         */
+        function wordsToNumber(tokens) {
+                let total = 0;
+                let current = 0;
+                for (const raw of tokens) {
+                        const word = raw.toLowerCase();
+                        if (CONNECTORS.has(word)) continue;
+                        if (HUNDREDS.has(word)) {
+                                current = current === 0 ? 100 : current * 100;
+                                continue;
+                        }
+                        if (THOUSANDS.has(word)) {
+                                current = current === 0 ? 1 : current;
+                                total += current * 1000;
+                                current = 0;
+                                continue;
+                        }
+                        if (NUMBER_WORDS[word] !== undefined) {
+                                current += NUMBER_WORDS[word];
+                                continue;
+                        }
+                        if (ORDINAL_WORDS[word] !== undefined) {
+                                current += ORDINAL_WORDS[word];
+                                continue;
+                        }
+                        return null;
+                }
+                total += current;
+                return total > 0 ? total : null;
+        }
 
-	function parseYearWords(tokens) {
-		const lowered = tokens.map((t) => t.toLowerCase());
+        /**
+         * Attempt to parse a sequence of words as a 4-digit year.
+         * Supports:
+         *  - standard numeric composition with hundreds/thousands
+         *  - the "twenty twenty <N>" pattern that implies 2000 + N
+         *  - loose compositions like "nineteen ninety nine" that would otherwise look like day/month values
+         */
+        function parseYearWords(tokens) {
+                const lowered = tokens.map((t) => t.toLowerCase());
 
-		const containsMagnitude = lowered.some((w) => HUNDREDS.has(w) || THOUSANDS.has(w));
-		const hasDoubleTwenty = lowered.length >= 2 && ((lowered[0] === "twenty" && lowered[1] === "twenty") || (lowered[0] === "twintig" && lowered[1] === "twintig"));
-		const hasLikelyCentury = lowered.length >= 2 && (lowered[0] === "nineteen" || lowered[0] === "eighteen" || lowered[0] === "twenty");
+                const containsMagnitude = lowered.some((w) => HUNDREDS.has(w) || THOUSANDS.has(w));
+                const hasDoubleTwenty = lowered.length >= 2 && ((lowered[0] === "twenty" && lowered[1] === "twenty") || (lowered[0] === "twintig" && lowered[1] === "twintig"));
+                const hasLikelyCentury = lowered.length >= 2 && (lowered[0] === "nineteen" || lowered[0] === "eighteen" || lowered[0] === "twenty");
 
-		if (hasDoubleTwenty) {
-			const remainder = wordsToNumber(lowered.slice(1)) ?? 0;
-			const yearGuess = 2000 + remainder;
-			if (yearGuess >= 1000 && yearGuess <= 2999) return yearGuess;
-		}
+                if (hasDoubleTwenty) {
+                        const remainder = wordsToNumber(lowered.slice(1)) ?? 0;
+                        const yearGuess = 2000 + remainder;
+                        if (yearGuess >= 1000 && yearGuess <= 2999) return yearGuess;
+                }
 
-		if (containsMagnitude || hasDoubleTwenty) {
-			const direct = wordsToNumber(lowered);
-			if (direct !== null && direct >= 1000 && direct <= 2999) return direct;
-		}
+                if (containsMagnitude || hasDoubleTwenty) {
+                        const direct = wordsToNumber(lowered);
+                        if (direct !== null && direct >= 1000 && direct <= 2999) return direct;
+                }
 
-		// Handle patterns like "nineteen ninety nine" -> 1999 (only when clearly year-like)
-		const componentValues = [];
-		for (const word of lowered) {
-			if (CONNECTORS.has(word)) continue;
-			const numeric = NUMBER_WORDS[word] ?? ORDINAL_WORDS[word];
-			if (numeric === undefined) return null;
-			componentValues.push(numeric);
-		}
-		if (componentValues.length >= 3 && hasLikelyCentury) {
-			const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
-			if (candidate >= 1000 && candidate <= 2999) return candidate;
-		}
-		if (componentValues.length >= 2 && hasLikelyCentury && componentValues[1] >= 10) {
-			const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
-			if (candidate >= 1000 && candidate <= 2999) return candidate;
-		}
-		return null;
-	}
+                // Handle patterns like "nineteen ninety nine" -> 1999 (only when clearly year-like)
+                const componentValues = [];
+                for (const word of lowered) {
+                        if (CONNECTORS.has(word)) continue;
+                        const numeric = NUMBER_WORDS[word] ?? ORDINAL_WORDS[word];
+                        if (numeric === undefined) return null;
+                        componentValues.push(numeric);
+                }
+                if (componentValues.length >= 3 && hasLikelyCentury) {
+                        const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
+                        if (candidate >= 1000 && candidate <= 2999) return candidate;
+                }
+                if (componentValues.length >= 2 && hasLikelyCentury && componentValues[1] >= 10) {
+                        const candidate = componentValues[0] * 100 + componentValues.slice(1).reduce((a, b) => a + b, 0);
+                        if (candidate >= 1000 && candidate <= 2999) return candidate;
+                }
+                return null;
+        }
 
 	function isNumberWordish(token) {
 		const lower = token.toLowerCase();
 		return NUMBER_WORDS[lower] !== undefined || ORDINAL_WORDS[lower] !== undefined || CONNECTORS.has(lower) || HUNDREDS.has(lower) || THOUSANDS.has(lower);
 	}
 
-	function replaceNumberWords(tokens) {
-		const output = [];
-		for (let i = 0; i < tokens.length; i += 1) {
-			const token = tokens[i];
-			if (isNumberWordish(token)) {
-				const phrase = [];
-				let j = i;
-				while (j < tokens.length && isNumberWordish(tokens[j])) {
-					phrase.push(tokens[j]);
-					j += 1;
-				}
-				const parsedYear = parseYearWords(phrase);
-				const parsedGeneric = parsedYear !== null ? parsedYear : wordsToNumber(phrase);
-				if (parsedGeneric !== null) {
-					output.push(String(parsedGeneric));
-					i = j - 1;
-					continue;
-				}
-			}
-			output.push(token);
-		}
-		return output;
-	}
+        /**
+         * Replace spans of number-ish tokens with their numeric representation.
+         * Example: ["twenty", "five"] -> ["25"]; ["twenty", "twenty", "five"] -> ["2025"].
+         * This lets later numeric parsing logic treat worded inputs consistently with digit-only tokens.
+         */
+        function replaceNumberWords(tokens) {
+                const output = [];
+                for (let i = 0; i < tokens.length; i += 1) {
+                        const token = tokens[i];
+                        if (isNumberWordish(token)) {
+                                const phrase = [];
+                                let j = i;
+                                while (j < tokens.length && isNumberWordish(tokens[j])) {
+                                        phrase.push(tokens[j]);
+                                        j += 1;
+                                }
+                                const parsedYear = parseYearWords(phrase);
+                                const parsedGeneric = parsedYear !== null ? parsedYear : wordsToNumber(phrase);
+                                if (parsedGeneric !== null) {
+                                        output.push(String(parsedGeneric));
+                                        i = j - 1;
+                                        continue;
+                                }
+                        }
+                        output.push(token);
+                }
+                return output;
+        }
 
 	function buildResult(day, month, year) {
 		const text = formatText(day, month, year);
 		return { day: day ?? null, month: month ?? null, year: year ?? null, text };
 	}
 
-	function resolveYearForDayMonth(day, month, referenceDate) {
-		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-		const candidate = new Date(ref.getFullYear(), month - 1, day);
-		if (candidate.getTime() <= ref.getTime()) {
-			return candidate.getFullYear();
-		}
-		return ref.getFullYear() - 1;
-	}
+        /**
+         * Resolve a missing year for a known day/month by choosing the most recent occurrence
+         * on or before the reference date. This anchors partial dates to the past.
+         */
+        function resolveYearForDayMonth(day, month, referenceDate) {
+                const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+                const candidate = new Date(ref.getFullYear(), month - 1, day);
+                if (candidate.getTime() <= ref.getTime()) {
+                        return candidate.getFullYear();
+                }
+                return ref.getFullYear() - 1;
+        }
 
-	function resolveMonthOnly(month, referenceDate) {
-		const refMonth = referenceDate.getMonth() + 1;
-		const refYear = referenceDate.getFullYear();
-		if (month === refMonth) return { month, year: refYear };
-		if (month > refMonth) return { month, year: refYear - 1 };
-		return { month, year: refYear };
-	}
+        /**
+         * Resolve month-only inputs to the most recent month on or before the reference date.
+         */
+        function resolveMonthOnly(month, referenceDate) {
+                const refMonth = referenceDate.getMonth() + 1;
+                const refYear = referenceDate.getFullYear();
+                if (month === refMonth) return { month, year: refYear };
+                if (month > refMonth) return { month, year: refYear - 1 };
+                return { month, year: refYear };
+        }
 
-	function resolveDayOnly(day, referenceDate) {
-		const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-		let targetYear = ref.getFullYear();
-		let targetMonth = ref.getMonth() + 1;
-		let targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
-		const candidate = new Date(targetYear, targetMonth - 1, targetDay);
-		if (candidate.getTime() > ref.getTime()) {
-			targetMonth -= 1;
-			if (targetMonth === 0) {
-				targetMonth = 12;
-				targetYear -= 1;
-			}
-			targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
-		}
-		return { day: targetDay, month: targetMonth, year: targetYear };
-	}
+        /**
+         * Resolve day-only inputs by anchoring to the reference month, falling back to the previous
+         * month when the day would be in the future. Days are clamped to the destination month length.
+         */
+        function resolveDayOnly(day, referenceDate) {
+                const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+                let targetYear = ref.getFullYear();
+                let targetMonth = ref.getMonth() + 1;
+                let targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
+                const candidate = new Date(targetYear, targetMonth - 1, targetDay);
+                if (candidate.getTime() > ref.getTime()) {
+                        targetMonth -= 1;
+                        if (targetMonth === 0) {
+                                targetMonth = 12;
+                                targetYear -= 1;
+                        }
+                        targetDay = Math.min(day, lastDayOfMonth(targetYear, targetMonth));
+                }
+                return { day: targetDay, month: targetMonth, year: targetYear };
+        }
 
-	function parseRelative(text, referenceDate) {
-		const lowered = stripDiacritics(text.toLowerCase().trim());
+        /**
+         * Parse compound relative expressions that contain multiple units (e.g. "2 days and 3 months from now").
+         * The units are applied in the order they appear so that clamping rules align with user expectation.
+         */
+        function parseMultiUnitRelative(lowered, referenceDate) {
+                const futureIndicator = /((?:from\s+(?:now|today|tomorrow))|(?:(?:van\s+)?(?:nou|vandag|m\u00f4re|more)\s+af))$/;
+                const pastIndicator = /(ago|gelede|terug)$/;
 
-		const dayKeywords = {
-			today: 0, now: 0, vandag: 0, nou: 0,
-			yesterday: -1, gister: -1,
-			"day before yesterday": -2, eergister: -2,
-			tomorrow: 1, more: 1,
-			"day after tomorrow": 2, oormore: 2
-		};
+                let direction = null;
+                let working = lowered;
+                let base = referenceDate;
+
+                if (futureIndicator.test(working)) {
+                        direction = 1;
+                        const hasTomorrow = /(tomorrow|m\u00f4re|more)/.test(working);
+                        if (hasTomorrow) base = shiftDays(referenceDate, 1);
+                        working = working.replace(futureIndicator, "").trim();
+                } else if (pastIndicator.test(working)) {
+                        direction = -1;
+                        working = working.replace(pastIndicator, "").trim();
+                } else if (/^(in|oor)\s+/.test(working)) {
+                        direction = 1;
+                        working = working.replace(/^(in|oor)\s+/, "").trim();
+                }
+
+                if (direction === null) return null;
+
+                const unitMap = {
+                        day: "day", days: "day", dag: "day", dae: "day",
+                        month: "month", months: "month", maand: "month", maande: "month",
+                        year: "year", years: "year", jaar: "year", jare: "year"
+                };
+
+                const tokens = replaceNumberWords(working.split(/\s+/).filter(Boolean));
+                const units = [];
+                for (let i = 0; i < tokens.length; i += 1) {
+                        const token = tokens[i];
+                        if (token === "and" || token === "en") continue;
+                        if (/^\d+$/.test(token)) {
+                                const value = parseInt(token, 10);
+                                const unitToken = tokens[i + 1];
+                                const normalizedUnit = unitMap[unitToken];
+                                if (!normalizedUnit) return null;
+                                units.push({ unit: normalizedUnit, value });
+                                i += 1;
+                                continue;
+                        }
+                        const normalizedUnit = unitMap[token];
+                        if (normalizedUnit) return null;
+                }
+
+                if (units.length < 2) return null;
+
+                let current = new Date(base);
+                units.forEach(({ unit, value }) => {
+                        const delta = direction * value;
+                        if (unit === "year") {
+                                current = shiftYears(current, delta);
+                        } else if (unit === "month") {
+                                current = shiftMonths(current, delta);
+                        } else {
+                                current = shiftDays(current, delta);
+                        }
+                });
+
+                return buildResult(current.getDate(), current.getMonth() + 1, current.getFullYear());
+        }
+
+        /**
+         * Handle relative-only expressions (no explicit day/month tokens).
+         * This covers anchored phrases like "today two months ago" and standalone windows like "next month".
+         */
+        function parseRelative(text, referenceDate) {
+                const lowered = stripDiacritics(text.toLowerCase().trim());
+
+                const multiUnit = parseMultiUnitRelative(lowered, referenceDate);
+                if (multiUnit) return multiUnit;
+
+                const dayKeywords = {
+                        today: 0, now: 0, vandag: 0, nou: 0,
+                        yesterday: -1, gister: -1,
+                        "day before yesterday": -2, eergister: -2,
+                        tomorrow: 1, more: 1,
+                        "day after tomorrow": 2, oormore: 2
+                };
+
+                const baseFromKeyword = (key) => {
+                        const delta = dayKeywords[key];
+                        if (delta === undefined) return referenceDate;
+                        return shiftDays(referenceDate, delta);
+                };
 
 		if (dayKeywords[lowered] !== undefined) {
 			const d = shiftDays(referenceDate, dayKeywords[lowered]);
@@ -365,51 +488,84 @@
 			}
 		}
 
-		const anchoredYearPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede|terug))?$/;
-		const anchoredMonthPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede|terug))?$/;
-		const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
-		const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:from\s+today|van\s+vandag|van\s+m\u00f4re|from\s+tomorrow)$/;
+                const anchoredYearPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede|terug))?$/;
+                const anchoredMonthPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede|terug))?$/;
+                const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:(?:from\s+)?today|(?:van\s+)?vandag|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
+                const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:(?:from\s+)?today|(?:van\s+)?vandag|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
 
 		match = anchoredYearPast.exec(lowered);
 		if (match) {
-			const delta = relativeCount(match[2]);
-			if (delta !== null) {
-				const shifted = shiftYears(referenceDate, -delta);
-				return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
-			}
-		}
+                        const delta = relativeCount(match[2]);
+                        if (delta !== null) {
+                                const base = baseFromKeyword(match[1]);
+                                const shifted = shiftYears(base, -delta);
+                                return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+                        }
+                }
 
-		match = anchoredMonthPast.exec(lowered);
-		if (match) {
-			const delta = relativeCount(match[2]);
-			if (delta !== null) {
-				const shifted = shiftMonths(referenceDate, -delta);
-				return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
-			}
-		}
+                match = anchoredMonthPast.exec(lowered);
+                if (match) {
+                        const delta = relativeCount(match[2]);
+                        if (delta !== null) {
+                                const base = baseFromKeyword(match[1]);
+                                const shifted = shiftMonths(base, -delta);
+                                return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+                        }
+                }
 
-		match = anchoredYearFuture.exec(lowered);
-		if (match) {
-			const delta = relativeCount(match[1]);
-			if (delta !== null) {
-				const shifted = shiftYears(referenceDate, delta);
-				return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
-			}
-		}
+                match = anchoredYearFuture.exec(lowered);
+                if (match) {
+                        const delta = relativeCount(match[1]);
+                        if (delta !== null) {
+                                const anchorTomorrow = /(tomorrow|m\u00f4re|more)/.test(match[0]);
+                                const base = anchorTomorrow ? shiftDays(referenceDate, 1) : referenceDate;
+                                const shifted = shiftYears(base, delta);
+                                return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+                        }
+                }
 
-		match = anchoredMonthFuture.exec(lowered);
-		if (match) {
-			const delta = relativeCount(match[1]);
-			if (delta !== null) {
-				const shifted = shiftMonths(referenceDate, delta);
-				return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
-			}
-		}
+                match = anchoredMonthFuture.exec(lowered);
+                if (match) {
+                        const delta = relativeCount(match[1]);
+                        if (delta !== null) {
+                                const anchorTomorrow = /(tomorrow|m\u00f4re|more)/.test(match[0]);
+                                const base = anchorTomorrow ? shiftDays(referenceDate, 1) : referenceDate;
+                                const shifted = shiftMonths(base, delta);
+                                return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+                        }
+                }
 
-		const yearOnlyMap = {
-			"this year": 0, "current year": 0, "hierdie jaar": 0, "huidige jaar": 0,
-			"last year": -1, "previous year": -1, "verlede jaar": -1, "vorige jaar": -1,
-			"next year": 1, "volgende jaar": 1
+                const anchoredFromToday = /^([\w\s'-]+)\s+(day|days|dag|dae|month|months|maand|maande|year|years|jaar|jare)\s+((?:from\s+)?(?:today|tomorrow)|(?:van\s+)?(?:vandag|m\u00f4re|more)\s+af)$/;
+                match = anchoredFromToday.exec(lowered);
+                if (match) {
+                        const delta = relativeCount(match[1]);
+                        if (delta !== null) {
+                                const unitMap = {
+                                        day: "day", days: "day", dag: "day", dae: "day",
+                                        month: "month", months: "month", maand: "month", maande: "month",
+                                        year: "year", years: "year", jaar: "year", jare: "year"
+                                };
+                                const normalizedUnit = unitMap[match[2]];
+                                if (normalizedUnit) {
+                                        const anchorTomorrow = /(tomorrow|m\u00f4re|more)/.test(match[3]);
+                                        const base = anchorTomorrow ? shiftDays(referenceDate, 1) : referenceDate;
+                                        let shifted = new Date(base);
+                                        if (normalizedUnit === "year") {
+                                                shifted = shiftYears(base, delta);
+                                        } else if (normalizedUnit === "month") {
+                                                shifted = shiftMonths(base, delta);
+                                        } else {
+                                                shifted = shiftDays(base, delta);
+                                        }
+                                        return buildResult(shifted.getDate(), shifted.getMonth() + 1, shifted.getFullYear());
+                                }
+                        }
+                }
+
+                const yearOnlyMap = {
+                        "this year": 0, "current year": 0, "hierdie jaar": 0, "huidige jaar": 0,
+                        "last year": -1, "previous year": -1, "verlede jaar": -1, "vorige jaar": -1,
+                        "next year": 1, "volgende jaar": 1
 		};
 		if (yearOnlyMap[lowered] !== undefined) {
 			const targetYear = referenceDate.getFullYear() + yearOnlyMap[lowered];
@@ -515,15 +671,24 @@
 				day = second;
 				month = first;
 			}
-		} else {
-			year = lens[2] === 2 ? expandTwoDigitYear(nums[2], referenceDate) : nums[2];
-			day = nums[0];
-			month = nums[1];
-			if (month > 12 || !isValidDate(year, month, day)) {
-				month = nums[0];
-				day = nums[1];
-			}
-		}
+                } else {
+                        year = lens[2] === 2 ? expandTwoDigitYear(nums[2], referenceDate) : nums[2];
+                        if (preferMdy) {
+                                month = nums[0];
+                                day = nums[1];
+                                if (month > 12 || !isValidDate(year, month, day)) {
+                                        day = nums[0];
+                                        month = nums[1];
+                                }
+                        } else {
+                                day = nums[0];
+                                month = nums[1];
+                                if (month > 12 || !isValidDate(year, month, day)) {
+                                        month = nums[0];
+                                        day = nums[1];
+                                }
+                        }
+                }
 
 		if (!isValidDate(year, month, day)) return null;
 		return buildResult(day, month, year);
@@ -570,9 +735,10 @@
 		return parseTwoPartNumeric(tokens.join(" "), referenceDate, preferMdy);
 	}
 
-	function parseCompactNumeric(normalized) {
-		const compact = normalized.replace(/\s+/g, "");
-		if (!/^\d{8}$/.test(compact)) return null;
+        function parseCompactNumeric(normalized) {
+                const compact = normalized.replace(/\s+/g, "");
+                if (!/^\d{8}$/.test(compact)) return null;
+                if (compact.length !== normalized.length) return null;
 
 		const y1 = parseInt(compact.slice(0, 4), 10);
 		const m1 = parseInt(compact.slice(4, 6), 10);
@@ -711,11 +877,11 @@
 		return null;
 	}
 
-	function normalizeReferenceDate(ref) {
-		if (ref instanceof Date) {
-			return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
-		}
-		if (typeof ref === "string") {
+        function normalizeReferenceDate(ref) {
+                if (ref instanceof Date) {
+                        return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+                }
+                if (typeof ref === "string") {
 			const ymd = /^(\d{4})[-/](\d{2})[-/](\d{2})$/;
 			const dmy = /^(\d{2})[-/](\d{2})[-/](\d{4})$/;
 			let match = ymd.exec(ref.trim());
@@ -739,48 +905,150 @@
 		if (parsed && !Number.isNaN(parsed.getTime())) {
 			return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 		}
-		const today = new Date();
-		return new Date(today.getFullYear(), today.getMonth(), today.getDate());
-	}
+                const today = new Date();
+                return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        }
 
-	function parsePartialDate(input, options = {}) {
-		if (input === null || input === undefined) return FAILURE_RESULT;
-		if (typeof input !== "string") return FAILURE_RESULT;
+        /**
+         * Parse expressions that should resolve without relative context once normalised.
+         * Attempts month-token parsing first, then falls back to numeric-only formats and single-token shortcuts.
+         */
+        function parseAbsolute(normalized, referenceDate, preferMdy) {
+                const tokens = normalized.split(/[\s]+/).filter(Boolean);
+                const numericTokens = replaceNumberWords(tokens);
+
+                const monthResult = parseWithMonthTokens(numericTokens, referenceDate, preferMdy);
+                if (monthResult) return monthResult;
+
+                const threePart = parseThreePartNumeric(normalized, referenceDate, preferMdy);
+                if (threePart) return threePart;
+
+                const twoPart = parseTwoPartNumeric(normalized, referenceDate, preferMdy);
+                if (twoPart) return twoPart;
+
+                const twoToken = parseTwoNumberTokens(numericTokens, referenceDate, preferMdy);
+                if (twoToken) return twoToken;
+
+                const compact = parseCompactNumeric(normalized);
+                if (compact) return compact;
+
+                if (numericTokens.length === 1) {
+                        const single = parseSingleToken(numericTokens[0], referenceDate);
+                        if (single) return single;
+                }
+
+                return null;
+        }
+
+        /**
+         * Attach relative year modifiers ("next year", "last year") to an otherwise absolute base date.
+         * If the base parse fails in the current reference year, retry with a shifted reference so day/month
+         * validation (e.g., leap-day) happens in the intended target year.
+         */
+        function parseWithRelativeYear(normalized, referenceDate, preferMdy) {
+                const yearShift = {
+                        "next year": 1, "volgende jaar": 1,
+                        "last year": -1, "previous year": -1, "verlede jaar": -1, "vorige jaar": -1,
+                        "this year": 0, "current year": 0, "hierdie jaar": 0, "huidige jaar": 0
+                };
+
+                const match = /^(.*)\s+(next year|last year|previous year|this year|current year|volgende jaar|verlede jaar|vorige jaar|hierdie jaar|huidige jaar)$/.exec(normalized);
+                if (!match) return null;
+
+                const baseText = match[1].trim();
+                if (!baseText) return null;
+
+                const delta = yearShift[match[2]];
+                let base = parseAbsolute(baseText, referenceDate, preferMdy);
+                let usedShiftedReference = false;
+                if (!base) {
+                        const shiftedRef = shiftYears(referenceDate, delta);
+                        base = parseAbsolute(baseText, shiftedRef, preferMdy);
+                        if (base) usedShiftedReference = true;
+                }
+
+                if (!base || base.day === null || base.month === null) return null;
+
+                const baseYear = base.year ?? resolveYearForDayMonth(base.day, base.month, referenceDate);
+                const targetYear = usedShiftedReference ? baseYear : baseYear + delta;
+                if (!isValidDate(targetYear, base.month, base.day)) return null;
+                return buildResult(base.day, base.month, targetYear);
+        }
+
+        /**
+         * Handle phrases where an absolute day/month is combined with explicit offsets like
+         * "in two years" or "three years ago". Falls back to parsing the base date against
+         * a shifted reference when necessary.
+         */
+        function parseAbsoluteYearOffset(normalized, referenceDate, preferMdy) {
+                const parseCountValue = (value) => {
+                        const cleaned = value.replace(/^['’]/, "");
+                        if (/^-?\d+$/.test(cleaned)) return parseInt(cleaned, 10);
+                        return wordsToNumber(cleaned.split(/[\s-]+/));
+                };
+
+                const futureMatch = /^(.*)\s+(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:from\s+)?(?:today|vandag|tomorrow|m\u00f4re|more))?$/;
+                const pastMatch = /^(.*)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:ago|gelede|terug)$/;
+                const ambiguousPast = /^(.*)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)$/;
+
+                let match = futureMatch.exec(normalized);
+                let direction = 1;
+                if (!match) {
+                        match = pastMatch.exec(normalized);
+                        direction = -1;
+                }
+                if (!match) {
+                        match = ambiguousPast.exec(normalized);
+                        direction = -1;
+                }
+                if (!match) return null;
+
+                const baseText = match[1].trim();
+                if (!baseText) return null;
+
+                const delta = parseCountValue(match[2]);
+                if (delta === null) return null;
+
+                let base = parseAbsolute(baseText, referenceDate, preferMdy);
+                if (!base) {
+                        const shiftedRef = shiftYears(referenceDate, direction * delta);
+                        base = parseAbsolute(baseText, shiftedRef, preferMdy);
+                }
+                if (!base || base.day === null || base.month === null) return null;
+
+                const baseYear = base.year ?? resolveYearForDayMonth(base.day, base.month, referenceDate);
+                const targetYear = baseYear + direction * delta;
+                if (!isValidDate(targetYear, base.month, base.day)) return null;
+                return buildResult(base.day, base.month, targetYear);
+        }
+
+        /**
+         * Public entry point. Normalises the input, then tries relative handling, absolute+relative-year
+         * hybrids, and finally plain absolute parsing. Returns `{ day, month, year, text }` or the
+         * failure sentinel.
+         */
+        function parsePartialDate(input, options = {}) {
+                if (input === null || input === undefined) return FAILURE_RESULT;
+                if (typeof input !== "string") return FAILURE_RESULT;
 
 		const referenceDate = normalizeReferenceDate(options.referenceDate ?? new Date());
 		const preferMdy = options.preferMdy === true || options.preferMdy === "true";
 
-		const normalized = normalizeInput(input);
-		if (!normalized) return FAILURE_RESULT;
+                const normalized = normalizeInput(input);
+                if (!normalized) return FAILURE_RESULT;
 
-		const relative = parseRelative(normalized, referenceDate);
-		if (relative) return relative;
+                const relative = parseRelative(normalized, referenceDate);
+                if (relative) return relative;
+                const absoluteYearOffset = parseAbsoluteYearOffset(normalized, referenceDate, preferMdy);
+                if (absoluteYearOffset) return absoluteYearOffset;
+                const relativeYear = parseWithRelativeYear(normalized, referenceDate, preferMdy);
+                if (relativeYear) return relativeYear;
 
-		const tokens = normalized.split(/[\s]+/).filter(Boolean);
-		const numericTokens = replaceNumberWords(tokens);
+                const absolute = parseAbsolute(normalized, referenceDate, preferMdy);
+                if (absolute) return absolute;
 
-		const monthResult = parseWithMonthTokens(numericTokens, referenceDate, preferMdy);
-		if (monthResult) return monthResult;
-
-		const threePart = parseThreePartNumeric(normalized, referenceDate, preferMdy);
-		if (threePart) return threePart;
-
-		const twoPart = parseTwoPartNumeric(normalized, referenceDate, preferMdy);
-		if (twoPart) return twoPart;
-
-		const twoToken = parseTwoNumberTokens(numericTokens, referenceDate, preferMdy);
-		if (twoToken) return twoToken;
-
-		const compact = parseCompactNumeric(normalized);
-		if (compact) return compact;
-
-		if (numericTokens.length === 1) {
-			const single = parseSingleToken(numericTokens[0], referenceDate);
-			if (single) return single;
-		}
-
-		return FAILURE_RESULT;
-	}
+                return FAILURE_RESULT;
+        }
 
 	const api = { parsePartialDate };
 	if (typeof module !== "undefined" && module.exports) {
