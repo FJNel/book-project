@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 # Smart deploy script with folder-specific restarts and detailed email notifications
 # Also suppresses failure emails for transient GitHub fetch/DNS/network issues.
