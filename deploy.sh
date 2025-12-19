@@ -172,4 +172,3 @@ if [ "$LOCAL" != "$REMOTE" ]; then
 else
   echo "[$(timestamp)] No changes detected." >> "$LOG_FILE"
 fi
-```
