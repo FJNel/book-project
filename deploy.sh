@@ -144,7 +144,7 @@ if [ "$LOCAL" != "$REMOTE" ]; then
   BODY+="From: $LOCAL_SHORT ($LOCAL)\n"
   BODY+="To:   $REMOTE_SHORT ($REMOTE)\n\n"
 
-  BODY+="Latest commit time (closest to push time): $LATEST_COMMIT_TIME\n"
+  BODY+="Latest commit time: $LATEST_COMMIT_TIME\n"
   BODY+="Deploy start: $DEPLOY_START_TS\n"
   BODY+="Deploy end:   $DEPLOY_END_TS\n"
   BODY+="Duration: ${DURATION}s\n\n"
