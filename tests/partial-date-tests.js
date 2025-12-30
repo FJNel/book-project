@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-const { parsePartialDate } = require("./web/assets/js/partial-date-parser");
+const { parsePartialDate } = require("../web/assets/js/partial-date-parser");
 
 const referenceDate = "2025-12-15";
 
