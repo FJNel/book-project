@@ -39,7 +39,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /booktype/:id](#get-booktypeid)
     - [GET /booktype/by-name](#get-booktypeby-name)
     - [POST /booktype](#post-booktype)
+    - [PUT /booktype](#put-booktype)
     - [PUT /booktype/:id](#put-booktypeid)
+    - [DELETE /booktype](#delete-booktype)
     - [DELETE /booktype/:id](#delete-booktypeid)
   - [Admin](#admin)
 
@@ -138,7 +140,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | Method | `GET` |
 | Path | `/` |
 | Authentication | None |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -2173,9 +2175,18 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `nameOnly` | boolean | No | When true, returns only `id` and `name`. |
+| `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 
-- **Response (200):**
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book type id to fetch. |
+| `name` | string | No | Book type name to fetch. |
+
+- **Response (200, list):**
 
 ```json
 {
@@ -2215,6 +2226,55 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
     ]
   },
   "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Book type retrieved successfully.",
+  "data": {
+    "id": 1,
+    "name": "Hardcover",
+    "description": "Hardback edition with rigid cover.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book Type Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
 }
 ```
 
@@ -2507,7 +2567,7 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | Yes | 2–100 characters; letters, numbers, spaces, and basic punctuation. |
-| `description` | string | No | Optional description (<= 500 characters). |
+| `description` | string | No | Optional description (<= 1000 characters). |
 
 - **Created (201):**
 
@@ -2623,7 +2683,7 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | No | Updated name. |
-| `description` | string | No | Updated description. |
+| `description` | string | No | Updated description (<= 1000 characters). |
 
 At least one field must be provided.
 
@@ -2736,9 +2796,159 @@ At least one field must be provided.
 }
 ```
 
-### DELETE /booktype/:id
+### PUT /booktype
 
-- **Purpose:** Delete a book type owned by the authenticated user.
+- **Purpose:** Update a book type by `id` or `name`.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/booktype` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | The book type id to update. |
+| `targetName` | string | Conditional | The current book type name to update (used to identify the record). |
+| `name` | string | No | New name to apply. |
+| `description` | string | No | Updated description (<= 1000 characters). |
+
+At least one of `id` or `targetName` must be provided to identify the record, and at least one updatable field must be included.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.92",
+  "message": "Book type updated successfully.",
+  "data": {
+    "id": 10,
+    "name": "Collector's Edition",
+    "description": "Premium binding with slipcase.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:05:48.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a book type id or name to update."
+  ]
+}
+```
+
+- **No Fields Provided (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.30",
+  "message": "No changes were provided.",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Book type already exists.",
+  "data": {},
+  "errors": [
+    "A book type with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the book type."
+  ]
+}
+```
+
+### DELETE /booktype
+
+- **Purpose:** Delete a book type by `id` or `name`.
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -2746,10 +2956,19 @@ At least one field must be provided.
 | Property | Value |
 | --- | --- |
 | Method | `DELETE` |
-| Path | `/booktype/:id` |
+| Path | `/booktype` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | The book type id to delete. |
+| `name` | string | Conditional | The book type name to delete. |
+
+At least one of `id` or `name` must be provided.
 
 - **Deleted (200):**
 
@@ -2766,45 +2985,17 @@ At least one field must be provided.
 }
 ```
 
-## Admin
-
-All `/admin/*` routes require an authenticated admin user and currently share the same placeholder implementation.
-
-#### Shared Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | Varies (`GET`, `POST`, `PUT`, `DELETE`) |
-| Path | `/admin/*` |
-| Authentication | `Authorization: Bearer <accessToken>` with `role=admin` |
-| Rate Limit | 60 requests / minute / admin user |
-| Content-Type | `application/json` for endpoints that accept a body |
-
-#### Required Headers
-
-| Header | Required | Value | Notes |
-| --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Token must belong to a user with the `admin` role. |
-| `Content-Type` | Conditional | `application/json` | Required when sending a JSON body. |
-| `Accept` | No | `application/json` | Responses are JSON. |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| *(varies)* | — | — | Admin endpoints are not yet implemented; request bodies will be documented once available. |
-
-- **Not Implemented (300):**
+- **Validation Error (400):**
 
 ```json
 {
   "status": "error",
-  "httpCode": 300,
-  "responseTime": "4.02",
-  "message": "This admin endpoint is not yet implemented.",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
   "data": {},
   "errors": [
-    "This admin endpoint is not yet implemented."
+    "Please provide a book type id or name to delete."
   ]
 }
 ```
@@ -2865,6 +3056,139 @@ All `/admin/*` routes require an authenticated admin user and currently share th
   "data": {},
   "errors": [
     "An error occurred while deleting the book type."
+  ]
+}
+```
+
+### DELETE /booktype/:id
+
+- **Purpose:** Delete a book type owned by the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/booktype/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Book type deleted successfully.",
+  "data": {
+    "id": 10
+  },
+  "errors": []
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the book type."
+  ]
+}
+```
+
+## Admin
+
+All `/admin/*` routes require an authenticated admin user and currently share the same placeholder implementation.
+
+#### Shared Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | Varies (`GET`, `POST`, `PUT`, `DELETE`) |
+| Path | `/admin/*` |
+| Authentication | `Authorization: Bearer <accessToken>` with `role=admin` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` for endpoints that accept a body |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Token must belong to a user with the `admin` role. |
+| `Content-Type` | Conditional | `application/json` | Required when sending a JSON body. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(varies)* | — | — | Admin endpoints are not yet implemented; request bodies will be documented once available. |
+
+- **Not Implemented (300):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 300,
+  "responseTime": "4.02",
+  "message": "This admin endpoint is not yet implemented.",
+  "data": {},
+  "errors": [
+    "This admin endpoint is not yet implemented."
   ]
 }
 ```

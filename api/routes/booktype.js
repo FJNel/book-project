@@ -8,7 +8,7 @@ const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 
 const MAX_BOOK_TYPE_NAME_LENGTH = 100;
-const MAX_BOOK_TYPE_DESCRIPTION_LENGTH = 500;
+const MAX_BOOK_TYPE_DESCRIPTION_LENGTH = 1000;
 
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
@@ -52,10 +52,81 @@ function parseBooleanFlag(value) {
 	return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
+function parseId(value) {
+	if (value === undefined || value === null || value === "") return null;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) return null;
+	return parsed;
+}
+
+async function resolveBookTypeId({ userId, id, name }) {
+	if (Number.isInteger(id)) {
+		return id;
+	}
+	if (name) {
+		const result = await pool.query(
+			`SELECT id FROM book_types WHERE user_id = $1 AND name = $2`,
+			[userId, name]
+		);
+		if (result.rows.length === 0) {
+			return null;
+		}
+		return result.rows[0].id;
+	}
+	return null;
+}
+
 // GET /booktype - List all book types for the authenticated user
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const nameOnly = parseBooleanFlag(req.query.nameOnly);
+	const targetId = parseId(req.query.id ?? req.body?.id);
+	const targetName = normalizeText(req.query.name ?? req.body?.name);
+
+	if (targetId !== null || targetName) {
+		if (targetName) {
+			const nameErrors = validateBookTypeName(targetName);
+			if (nameErrors.length > 0) {
+				return errorResponse(res, 400, "Validation Error", nameErrors);
+			}
+		}
+
+		try {
+		const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+		if (!Number.isInteger(resolvedId)) {
+			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+		}
+
+		const result = await pool.query(
+			`SELECT id, name, description, created_at, updated_at
+			 FROM book_types
+			 WHERE user_id = $1 AND id = $2`,
+			[userId, resolvedId]
+		);
+
+		const row = result.rows[0];
+			const payload = nameOnly
+				? { id: row.id, name: row.name }
+				: {
+					id: row.id,
+					name: row.name,
+					description: row.description,
+					createdAt: row.created_at,
+					updatedAt: row.updated_at
+				};
+
+			return successResponse(res, 200, "Book type retrieved successfully.", payload);
+		} catch (error) {
+			logToFile("BOOK_TYPE_GET", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the book type."]);
+		}
+	}
 
 	const fields = nameOnly
 		? "id, name"
@@ -241,13 +312,8 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
-// PUT /booktype/:id - Update a book type
-router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function handleBookTypeUpdate(req, res, targetId) {
 	const userId = req.user.id;
-	const id = Number.parseInt(req.params.id, 10);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Book type id must be a valid integer."]);
-	}
 
 	const rawName = req.body?.name !== undefined ? normalizeText(req.body.name) : undefined;
 	const rawDescription = req.body?.description !== undefined ? normalizeText(req.body.description) : undefined;
@@ -271,7 +337,7 @@ router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		if (rawName !== undefined) {
 			const existing = await pool.query(
 				`SELECT id FROM book_types WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
-				[userId, rawName, id]
+				[userId, rawName, targetId]
 			);
 			if (existing.rows.length > 0) {
 				return errorResponse(res, 409, "Book type already exists.", ["A book type with this name already exists."]);
@@ -279,7 +345,7 @@ router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const updateFields = [];
-		const params = [userId, id];
+		const params = [userId, targetId];
 		let index = 3;
 
 		if (rawName !== undefined) {
@@ -329,20 +395,47 @@ router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the book type."]);
 	}
-});
+}
 
-// DELETE /booktype/:id - Remove a book type
-router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const userId = req.user.id;
-	const id = Number.parseInt(req.params.id, 10);
+// PUT /booktype/:id - Update a book type by id
+router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const id = parseId(req.params.id);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Book type id must be a valid integer."]);
 	}
+	return handleBookTypeUpdate(req, res, id);
+});
+
+// PUT /booktype - Update a book type by id or name
+router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.targetName ?? req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book type id or name to update."]);
+	}
+	if (targetName) {
+		const nameErrors = validateBookTypeName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+	if (!Number.isInteger(resolvedId)) {
+		return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+	}
+	return handleBookTypeUpdate(req, res, resolvedId);
+});
+
+async function handleBookTypeDelete(req, res, targetId) {
+	const userId = req.user.id;
 
 	try {
 		const result = await pool.query(
 			`DELETE FROM book_types WHERE user_id = $1 AND id = $2`,
-			[userId, id]
+			[userId, targetId]
 		);
 
 		if (result.rowCount === 0) {
@@ -352,7 +445,7 @@ router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		logToFile("BOOK_TYPE_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
-			book_type_id: id,
+			book_type_id: targetId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
@@ -368,6 +461,38 @@ router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the book type."]);
 	}
+}
+
+// DELETE /booktype/:id - Remove a book type by id
+router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const id = parseId(req.params.id);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Book type id must be a valid integer."]);
+	}
+	return handleBookTypeDelete(req, res, id);
+});
+
+// DELETE /booktype - Remove a book type by id or name
+router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book type id or name to delete."]);
+	}
+	if (targetName) {
+		const nameErrors = validateBookTypeName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+	if (!Number.isInteger(resolvedId)) {
+		return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+	}
+	return handleBookTypeDelete(req, res, resolvedId);
 });
 
 module.exports = router;
