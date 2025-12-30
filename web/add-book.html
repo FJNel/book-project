@@ -46,7 +46,7 @@
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                             <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                         </svg></label>
-                                    <div class="input-group"><input class="form-control" type="text" id="oneISBN" name="isbnInput" placeholder="Enter ISBN" autofocus="" autocomplete="off"><button class="btn btn-primary booktypeCreateButton" id="oneBtnLookup" type="button" data-bs-target="#lookupByISBNLoadingModal" data-bs-toggle="modal">Lookup ISBN</button></div><small class="form-text" id="oneISBNHelp"></small>
+                                    <div class="input-group"><input class="form-control" type="text" id="oneISBN" name="isbnInput" placeholder="Enter ISBN" autofocus="" autocomplete="off" disabled=""><button class="btn btn-primary disabled booktypeCreateButton" id="oneBtnLookup" type="button" data-bs-target="#lookupByISBNLoadingModal" data-bs-toggle="modal" disabled="">Lookup ISBN</button></div><small class="form-text" id="oneISBNHelp"></small>
                                 </div>
                             </form>
                             <p class="text-secondary mb-0">An ISBN is a unique number used to identify a specific version or edition of a book. Before 2007, books were assigned 10-digit ISBNs, but since 2007, all books use 13-digit ISBNs. The 13-digit ISBN often also serves as the book’s barcode. You can usually find the ISBN on the back cover of the book, near the barcode.</p>
@@ -184,7 +184,7 @@
                         <p id="threeLblBookTypeDescription">No Book Type selected.</p>
                     </div>
                     <div>
-                        <p class="text-muted mb-1">If you can't find the book type you're looking for, you can create a new book type.</p><button class="btn btn-outline-secondary" id="threeBtnAddBookType" type="button">Create new Book Type<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                        <p class="text-muted mb-1">If you can't find the book type you're looking for, you can create a new book type.</p><button class="btn btn-outline-secondary" id="threeBtnAddBookType" type="button" data-bs-toggle="modal" data-bs-target="#addBookTypeModal">Create new Book Type<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                                 <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                                 <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                             </svg></button>
@@ -229,7 +229,7 @@
                     </div>
                     <div>
                         <p class="text-muted mb-1">If you can't find the author you're looking for, you can add a new author.</p>
-                    </div><button class="btn btn-outline-secondary" id="fourBtnAddAuthor" type="button">Add new Author<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                    </div><button class="btn btn-outline-secondary" id="fourBtnAddAuthor" type="button" data-bs-toggle="modal" data-bs-target="#addAuthorModal">Add new Author<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                             <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                         </svg></button>
@@ -250,7 +250,7 @@
                     <div id="bookPublisherDescriptionDisplay"><label class="form-label mb-1" for="publisherDescriptionDisplay"><strong>The selected Publisher's founded date:</strong></label>
                         <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p>
                     </div>
-                    <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher.</p><button class="btn btn-outline-secondary" id="fiveBtnAddPublisher" type="button">Add new Publisher<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                    <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher.</p><button class="btn btn-outline-secondary" id="fiveBtnAddPublisher" type="button" data-bs-toggle="modal" data-bs-target="#addPublisherModal">Add new Publisher<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                             <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                         </svg></button>
@@ -284,7 +284,7 @@
                     </div>
                     <div>
                         <p class="text-muted mb-1">If you can't find the series you're looking for, you can add a new series.</p>
-                    </div><button class="btn btn-outline-secondary" id="sixBtnAddSeries" type="button">Add new Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                    </div><button class="btn btn-outline-secondary" id="sixBtnAddSeries" type="button" data-bs-toggle="modal" data-bs-target="#addSeriesModal">Add new Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                             <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                         </svg></button>
@@ -337,7 +337,7 @@
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><select class="form-select" id="eightCmbLocation" name="bookTitle" placeholder="The Fellowship of the Ring" autocomplete="off" required="" minlength="2" maxlength="255"></select><small class="form-text" id="eightBookLocationHelp"></small></div>
                                         <p class="fs-6 text-secondary mb-1">Storage locations are hierarchical. You can store books broadly (for example, "<em>Home</em>") or very specifically (for example, "<em>Home → Study → Top Shelf</em>").</p>
-                                        <p class="text-secondary mb-1">If you can't find the storage location you're looking for, you can add a new storage location.</p><button class="btn btn-outline-secondary" id="eightBtnAddLocation" type="button">Add new Storage Location<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                                        <p class="text-secondary mb-1">If you can't find the storage location you're looking for, you can add a new storage location.</p><button class="btn btn-outline-secondary" id="eightBtnAddLocation" type="button" data-bs-toggle="modal" data-bs-target="#addLocationModal">Add new Storage Location<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                                                 <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                                                 <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                                             </svg></button>
@@ -348,7 +348,7 @@
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                             </svg><small class="form-text" id="bookTitleHelp-2"></small><textarea class="form-control" id="eightRdtStory" name="bookDescription" placeholder="I got this book from my grandmother in 2022 when we were at the Bidsa Books book day." autocomplete="off" spellcheck="true" minlength="2" maxlength="2000"></textarea></div>
-                                        <p class="text-secondary mt-1 mb-1">Automatically extract and suggest acquisition details based on the story above. You can review and edit the results.</p><button class="btn btn-outline-secondary mb-3" data-bs-toggle="tooltip" data-bss-tooltip="" id="eightBtnFillFromStory" type="button" title="Automatically generate a short description based on the book’s details. You can edit or replace the generated text afterward."><span class="d-none d-sm-inline" id="generateBookDescriptionButtonText-2">Fill from acquisition story</span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars ms-sm-1" data-bss-hover-animate="tada">
+                                        <p class="text-secondary mt-1 mb-1">Automatically extract and suggest acquisition details based on the story above. You can review and edit the results.</p><button class="btn btn-outline-secondary mb-3" data-bs-toggle="tooltip" data-bss-tooltip="" id="eightBtnFillFromStory" type="button" title="Automatically generate a short description based on the book’s details. You can edit or replace the generated text afterward."><span id="generateBookDescriptionButtonText-2">Fill from acquisition story</span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-stars ms-sm-1" data-bss-hover-animate="tada">
                                                 <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1z"></path>
                                             </svg><span id="generateBookDescriptionSpinner-2"><span class="spinner-border spinner-border-sm" role="status"></span></span></button>
                                         <div class="row">
@@ -405,18 +405,6 @@
                 </div>
             </div>
         </form>
-        <div class="modal fade" role="dialog" tabindex="-1" id="aboutAIModal">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">About AI Assistance in The Book Project</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>The content of your modal.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="aboutPartialDates">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -425,41 +413,30 @@
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info" role="alert">
-                            <p class="mb-0">You can enter a <strong>Partial date</strong> when you don’t know every part of the date. If you only know the year, or the month and year, enter just that. We’ll store the date with its precision so you never have to guess a specific day.</p>
+                            <p class="mb-0">You can enter a <strong>partial date</strong> when you don’t know every part. If you only know the year, or month and year, enter just that and we’ll store it with the right precision.</p>
                         </div>
-                        <p>The Book Project accepts most common date formats and natural-language phrases in English or Afrikaans. Numeric formats are read as day-month-year (DMY) by default. If you leave out the year, we'll assume the current year. If you supply two-digit years, we still treat the order as DMY.</p>
-                        <h5>Examples of accepted dates:</h5>
+                        <p class="mb-2">We accept most common formats in English or Afrikaans. Numeric dates default to day-month-year.</p>
+                        <h5>Examples:</h5>
                         <ul>
-                            <li>23 May 2005</li>
-                            <li>The 23rd of May 2005</li>
-                            <li>23/05/2005</li>
-                            <li>23-05-2005</li>
-                            <li>23 May of this year</li>
-                            <li>23 May&nbsp;<span class="fw-light">(assumes current year)</span></li>
-                            <li>23-05&nbsp;<span class="fw-light">(assumes current year)</span></li>
-                            <li>05-23&nbsp;<span class="fw-light">(assumes current year)</span></li>
-                            <li>May 2025</li>
-                            <li>The 5th month of 2025</li>
-                            <li>2025</li>
-                            <li>3 years and 2 months ago</li>
-                            <li>Twenty-three May 2025</li>
-                            <li>The third of May two years ago</li>
-                            <li>Drie-en-twintig Mei 2025</li>
+                            <li>23 October 2005</li>
+                            <li>October 2005</li>
+                            <li>2005</li>
+                            <li>23/10/2005 or 23-10-2005</li>
+                            <li>23 October <span class="fw-light">(uses the most recent past date)</span></li>
+                            <li>3 years ago</li>
                         </ul>
-                        <h5>Assumptions and handling:</h5>
+                        <h5>How we interpret dates:</h5>
                         <ul>
-                            <li><strong>DMY first: </strong>Numeric two-part dates like <strong>09-05</strong> are read as 9 May (current year), when valid. If that fails, we try month-day: <strong>09-23</strong> will be read as&nbsp;23 September (current year).</li>
-                            <li><strong>Two-digit years:&nbsp;</strong>Three-part numbers like <strong>05-05-05</strong> are treated as DMY (05 May 2005).</li>
-                            <li><strong><span style="color: rgb(0, 0, 0);">Ordinals and numbers normalised:</span></strong><span style="color: rgb(0, 0, 0);">&nbsp;Spelled-out numbers/ordinals (e.g.,&nbsp;twenty-three,&nbsp;third,&nbsp;drie-en-twintigste) are converted to digits.</span></li>
-                            <li><strong><span style="color: rgb(0, 0, 0);">Relative years with specific days:</span></strong><span style="color: rgb(0, 0, 0);">&nbsp;Phrases like </span><em><span style="color: rgb(0, 0, 0);">The third of May two years ago</span></em><span style="color: rgb(0, 0, 0);">&nbsp;become an absolute/exact date.&nbsp;</span></li>
-                            <li><strong><span style="color: rgb(0, 0, 0);">Relative dates: </span></strong><span style="color: rgb(0, 0, 0);">Relative dates take the precision of the most significant value:</span>&nbsp;If you say <em>Three years ago</em>, the date will only contain a year. If you say <em>Three years and two months ago</em>, the date will contain a year and month. If you say <em>Three years, two months and ten days ago</em>, the date will be exact. We prefer past dates when in doubt.</li>
+                            <li>Missing years use the most recent matching date (not in the future).</li>
+                            <li>Two-digit years are expanded based on the current year.</li>
+                            <li>Relative phrases (e.g. “2 months ago”) are based on today.</li>
                         </ul>
-                        <h5>Not supported (may be rejected):</h5>
+                        <h5>Not supported:</h5>
                         <ul>
-                            <li><span style="color: rgb(0, 0, 0);">Vague timeframes like </span><em><span style="color: rgb(0, 0, 0);">Next May</span></em><span style="color: rgb(0, 0, 0);">,&nbsp;</span><em><span style="color: rgb(0, 0, 0);">Q1 2025</span></em><span style="color: rgb(0, 0, 0);">,&nbsp;</span><em><span style="color: rgb(0, 0, 0);">Mid 2025</span></em><span style="color: rgb(0, 0, 0);">, </span><em><span style="color: rgb(0, 0, 0);">Early May 2025</span></em><span style="color: rgb(0, 0, 0);">, </span><em><span style="color: rgb(0, 0, 0);">Around May 2025</span></em><span style="color: rgb(0, 0, 0);">,&nbsp;</span><em><span style="color: rgb(0, 0, 0);">Summer 2025</span></em><span style="color: rgb(0, 0, 0);">.</span></li>
-                            <li><span style="color: rgb(0, 0, 0);">Languages other than English and Afrikaans (e.g. 23 Marzo 2025).</span></li>
+                            <li>Vague phrases like “Next May”, “Q1 2025”, or “Summer 2025”.</li>
+                            <li>Languages other than English or Afrikaans.</li>
                         </ul>
-                        <p class="mb-0"><strong>Note:&nbsp;</strong>Behind the scenes, The Book Project converts your input into a structured date and remembers how precise it is (full date, month and year, or just the year). Wherever that date appears in the application, it will be shown as a clear, readable text value (for example: <em>23 May 2005</em>, <em>May 2005</em>, or <em>2005</em>), regardless of how you originally typed it.</p>
+                        <p class="mb-0">We store the date with its precision and display it back clearly (for example, <em>23 October 2005</em>, <em>October 2005</em>, or <em>2005</em>).</p>
                     </div>
                 </div>
             </div>
@@ -476,6 +453,144 @@
                             <div class="card-body"><img class="rounded img-fluid" id="bookCoverPreviewImage" alt="Book Cover" src="assets/img/BookCoverPlaceholder.png"></div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addBookTypeModal" aria-labelledby="addBookTypeModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="addBookTypeModalLabel">Create a New Book Type</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="threeAddBookTypeForm">
+                            <div class="mb-3"><label class="form-label" for="threeEdtBookTypeName"><strong>Book Type Name</strong></label><label class="form-label text-danger" for="threeEdtBookTypeName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter a clear name for this book type, such as Hardcover or Softcover.">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                </svg><input class="form-control" type="text" id="threeEdtBookTypeName" name="bookTypeName" placeholder="Hardcover" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="threeBookTypeNameHelp"></small></div>
+                            <div class="mb-0"><label class="form-label" for="threeRdtBookTypeDescription"><strong>Description</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Describe the physical format and any special notes for this book type.">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                </svg><textarea class="form-control" id="threeRdtBookTypeDescription" name="bookTypeDescription" placeholder="Sturdy hardback with dust jacket." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea><small class="form-text" id="threeBookTypeDescriptionHelp"></small></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button">Save Book Type</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addAuthorModal" aria-labelledby="addAuthorModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="addAuthorModalLabel">Add a New Author</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="fourAddAuthorForm">
+                            <div class="row">
+                                <div class="col-12 col-md-4">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorFirstName"><strong>First Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorFirstName" name="authorFirstName" placeholder="John" autocomplete="off" minlength="2" maxlength="100"></div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorMiddleName"><strong>Middle Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorMiddleName" name="authorMiddleName" placeholder="Ronald Reuel" autocomplete="off" maxlength="100"></div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorLastName"><strong>Last Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorLastName" name="authorLastName" placeholder="Tolkien" autocomplete="off" minlength="2" maxlength="100"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3"><label class="form-label" for="fourEdtAuthorDisplayName"><strong>Display Name</strong></label><label class="form-label text-danger" for="fourEdtAuthorDisplayName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name shown in your collection (for example, a pen name or organization).">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                                </svg><input class="form-control" type="text" id="fourEdtAuthorDisplayName" name="authorDisplayName" placeholder="J.R.R. Tolkien" autocomplete="off" required="" minlength="2" maxlength="150"></div>
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorBirthDate"><strong>Birth Date</strong></label><input class="form-control" type="text" id="fourEdtAuthorBirthDate" name="authorBirthDate" placeholder="3 January 1892" autocomplete="off" maxlength="50"><small class="form-text" id="fourAuthorBirthDateHelp"></small></div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="fourChkAuthorDeceased" data-bs-toggle="collapse" data-bs-target="#authorDeathDateWrap" aria-expanded="false" aria-controls="authorDeathDateWrap">
+                                            <label class="form-check-label" for="fourChkAuthorDeceased">Author is deceased</label>
+                                        </div>
+                                        <div class="collapse" id="authorDeathDateWrap">
+                                            <label class="form-label" for="fourEdtAuthorDeathDate"><strong>Death Date</strong></label><input class="form-control" type="text" id="fourEdtAuthorDeathDate" name="authorDeathDate" placeholder="2 September 1973" autocomplete="off" maxlength="50"><small class="form-text" id="fourAuthorDeathDateHelp"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-0"><label class="form-label" for="fourRdtAuthorBio"><strong>Short Bio</strong></label><textarea class="form-control" id="fourRdtAuthorBio" name="authorBio" placeholder="Short background or notes about this author." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button">Save Author</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addPublisherModal" aria-labelledby="addPublisherModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="addPublisherModalLabel">Add a New Publisher</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="fiveAddPublisherForm">
+                            <div class="mb-3"><label class="form-label" for="fiveEdtPublisherName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="fiveEdtPublisherName"><strong>*</strong></label><input class="form-control" type="text" id="fiveEdtPublisherName" name="publisherName" placeholder="HarperCollins" autocomplete="off" required="" minlength="2" maxlength="150"></div>
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="fiveEdtPublisherFoundedDate"><strong>Founded Date</strong></label><input class="form-control" type="text" id="fiveEdtPublisherFoundedDate" name="publisherFoundedDate" placeholder="March 1989" autocomplete="off" maxlength="50"><small class="form-text" id="fivePublisherFoundedDateHelp"></small></div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="fiveEdtPublisherLocation"><strong>Headquarters Location</strong></label><input class="form-control" type="text" id="fiveEdtPublisherLocation" name="publisherLocation" placeholder="New York, USA" autocomplete="off" maxlength="150"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3"><label class="form-label" for="fiveEdtPublisherWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="fiveEdtPublisherWebsite" name="publisherWebsite" placeholder="https://www.publisher.com" inputmode="url" autocomplete="off"></div>
+                            <div class="mb-0"><label class="form-label" for="fiveRdtPublisherNotes"><strong>Notes</strong></label><textarea class="form-control" id="fiveRdtPublisherNotes" name="publisherNotes" placeholder="Optional description or notes about this publisher." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Save Publisher</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addSeriesModal" aria-labelledby="addSeriesModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="addSeriesModalLabel">Add a New Series</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="sixAddSeriesForm">
+                            <div class="mb-3"><label class="form-label" for="sixEdtSeriesName"><strong>Series Name</strong></label><label class="form-label text-danger" for="sixEdtSeriesName"><strong>*</strong></label><input class="form-control" type="text" id="sixEdtSeriesName" name="seriesName" placeholder="The Lord of the Rings" autocomplete="off" required="" minlength="2" maxlength="150"></div>
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="sixEdtSeriesStartDate"><strong>Series Start Date</strong></label><input class="form-control" type="text" id="sixEdtSeriesStartDate" name="seriesStartDate" placeholder="23 October 2005" autocomplete="off" maxlength="50"><small class="form-text" id="sixSeriesStartDateHelp"></small></div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="sixEdtSeriesWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="sixEdtSeriesWebsite" name="seriesWebsite" placeholder="https://www.series.com" inputmode="url" autocomplete="off"></div>
+                                </div>
+                            </div>
+                            <div class="mb-0"><label class="form-label" for="sixRdtSeriesDescription"><strong>Description</strong></label><textarea class="form-control" id="sixRdtSeriesDescription" name="seriesDescription" placeholder="Brief overview or notes about this series." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Save Series</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addLocationModal" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="addLocationModalLabel">Add a New Storage Location</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="eightAddLocationForm">
+                            <div class="mb-3"><label class="form-label" for="eightEdtLocationName"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationName"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationName" name="locationName" placeholder="Home - Study - Top Shelf" autocomplete="off" required="" minlength="2" maxlength="200"></div>
+                            <div class="mb-3"><label class="form-label" for="eightCmbParentLocation"><strong>Parent Location</strong></label><select class="form-select" id="eightCmbParentLocation" name="parentLocation">
+                                    <option value="none" selected="">No parent location</option>
+                                    <option value="Home">Home</option>
+                                    <option value="Office">Office</option>
+                                </select></div>
+                            <div class="mb-0"><label class="form-label" for="eightRdtLocationNotes"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotes" name="locationNotes" placeholder="Optional notes about this location." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Save Location</button></div>
                 </div>
             </div>
         </div>
