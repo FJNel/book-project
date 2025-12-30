@@ -335,7 +335,20 @@
                                         <div class="mb-0"><label class="form-label" for="bookTitle-1"><strong>Storage Location</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Select where this book copy is stored. Locations can be nested to reflect real-world organization (for example, Residence → Office → Bookshelf)." tabindex="-1">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                            </svg><select class="form-select" id="eightCmbLocation" name="bookTitle" placeholder="The Fellowship of the Ring" autocomplete="off" required="" minlength="2" maxlength="255"></select><small class="form-text" id="eightBookLocationHelp"></small></div>
+                                            </svg><select class="form-select" id="eightCmbLocation" name="bookTitle" placeholder="The Fellowship of the Ring" autocomplete="off" required="" minlength="2" maxlength="255">
+                                                <option value="none" selected="">Select storage location...</option>
+                                                <option value="Home">Home</option>
+                                                <option value="Home -> Living Room">Home -> Living Room</option>
+                                                <option value="Home -> Living Room -> Shelf A">Home -> Living Room -> Shelf A</option>
+                                                <option value="Home -> Living Room -> Shelf B">Home -> Living Room -> Shelf B</option>
+                                                <option value="Home -> My Bedroom">Home -> My Bedroom</option>
+                                                <option value="Home -> My Bedroom -> Top Rack">Home -> My Bedroom -> Top Rack</option>
+                                                <option value="Home -> My Bedroom -> Top Rack -> Box 1">Home -> My Bedroom -> Top Rack -> Box 1</option>
+                                                <option value="Uni Residence">Uni Residence</option>
+                                                <option value="Uni Residence -> Black Bookshelf">Uni Residence -> Black Bookshelf</option>
+                                                <option value="Uni Residence -> Black Bookshelf -> Top Rack">Uni Residence -> Black Bookshelf -> Top Rack</option>
+                                                <option value="Uni Residence -> Old Bookshelf">Uni Residence -> Old Bookshelf</option>
+                                            </select><small class="form-text" id="eightBookLocationHelp"></small></div>
                                         <p class="fs-6 text-secondary mb-1">Storage locations are hierarchical. You can store books broadly (for example, "<em>Home</em>") or very specifically (for example, "<em>Home → Study → Top Shelf</em>").</p>
                                         <p class="text-secondary mb-1">If you can't find the storage location you're looking for, you can add a new storage location.</p><button class="btn btn-outline-secondary" id="eightBtnAddLocation" type="button" data-bs-toggle="modal" data-bs-target="#addLocationModal">Add new Storage Location<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                                                 <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
@@ -581,13 +594,38 @@
                     </div>
                     <div class="modal-body">
                         <form id="eightAddLocationForm">
-                            <div class="mb-3"><label class="form-label" for="eightEdtLocationName"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationName"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationName" name="locationName" placeholder="Home - Study - Top Shelf" autocomplete="off" required="" minlength="2" maxlength="200"></div>
-                            <div class="mb-3"><label class="form-label" for="eightCmbParentLocation"><strong>Parent Location</strong></label><select class="form-select" id="eightCmbParentLocation" name="parentLocation">
-                                    <option value="none" selected="">No parent location</option>
-                                    <option value="Home">Home</option>
-                                    <option value="Office">Office</option>
-                                </select></div>
-                            <div class="mb-0"><label class="form-label" for="eightRdtLocationNotes"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotes" name="locationNotes" placeholder="Optional notes about this location." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Location Type</strong></label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationBase" value="base" checked="" data-bs-toggle="collapse" data-bs-target="#eightBaseLocationFields" aria-controls="eightBaseLocationFields eightNestedLocationFields">
+                                    <label class="form-check-label" for="eightRdoLocationBase">New base location</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationNested" value="nested" data-bs-toggle="collapse" data-bs-target="#eightNestedLocationFields" aria-controls="eightNestedLocationFields eightBaseLocationFields">
+                                    <label class="form-check-label" for="eightRdoLocationNested">Nested under an existing location</label>
+                                </div>
+                            </div>
+                            <div class="collapse show" id="eightBaseLocationFields">
+                                <div class="mb-3"><label class="form-label" for="eightEdtLocationNameBase"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameBase"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameBase" name="locationNameBase" placeholder="Residence" autocomplete="off" required="" minlength="2" maxlength="200"></div>
+                                <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesBase"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesBase" name="locationNotesBase" placeholder="Optional notes about this location." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
+                            </div>
+                            <div class="collapse" id="eightNestedLocationFields">
+                                <div class="mb-3"><label class="form-label" for="eightCmbParentLocation"><strong>Parent Location</strong></label><label class="form-label text-danger" for="eightCmbParentLocation"><strong>*</strong></label><select class="form-select" id="eightCmbParentLocation" name="parentLocation">
+                                        <option value="none" selected="">Select parent location...</option>
+                                        <option value="Home">Home</option>
+                                        <option value="Home -> Living Room">Home -> Living Room</option>
+                                        <option value="Home -> Living Room -> Shelf A">Home -> Living Room -> Shelf A</option>
+                                        <option value="Home -> Living Room -> Shelf B">Home -> Living Room -> Shelf B</option>
+                                        <option value="Home -> My Bedroom">Home -> My Bedroom</option>
+                                        <option value="Home -> My Bedroom -> Top Rack">Home -> My Bedroom -> Top Rack</option>
+                                        <option value="Home -> My Bedroom -> Top Rack -> Box 1">Home -> My Bedroom -> Top Rack -> Box 1</option>
+                                        <option value="Uni Residence">Uni Residence</option>
+                                        <option value="Uni Residence -> Black Bookshelf">Uni Residence -> Black Bookshelf</option>
+                                        <option value="Uni Residence -> Black Bookshelf -> Top Rack">Uni Residence -> Black Bookshelf -> Top Rack</option>
+                                        <option value="Uni Residence -> Old Bookshelf">Uni Residence -> Old Bookshelf</option>
+                                    </select></div>
+                                <div class="mb-0"><label class="form-label" for="eightEdtLocationNameNested"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameNested"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameNested" name="locationNameNested" placeholder="Top Shelf" autocomplete="off" required="" minlength="2" maxlength="200"></div>
+                            </div>
                         </form>
                     </div>
                     <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Save Location</button></div>

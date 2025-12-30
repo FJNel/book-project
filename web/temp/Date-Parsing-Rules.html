@@ -196,8 +196,8 @@
 <ul>
 <li>English: <code>today</code>, <code>now</code>, <code>yesterday</code>, <code>day before yesterday</code>, <code>tomorrow</code>, <code>day after tomorrow</code>, <code>today one year ago</code>, <code>yesterday one year ago</code>, <code>today one month ago</code>, <code>in one year from today</code>, <code>tomorrow in a year</code>, <code>in one month from today</code>, and numeric variants.</li>
 <li>Afrikaans: <code>vandag</code>, <code>nou</code>, <code>gister</code>, <code>eergister</code>, <code>môre/more</code>, <code>oormore</code>, <code>vandag een jaar gelede/terug</code>, <code>gister een jaar gelede/terug</code>, <code>more oor 'n jaar</code>, <code>oor een jaar van vandag</code>, etc.</li>
-<li>Supports anchored month/year shifts from <strong>today</strong> or <strong>tomorrow</strong> (<code>van môre</code> / <code>from tomorrow</code>) with <code>in/oor X month(s)/year(s)</code> phrasing.</li>
-<li>Also handles direct <code>X day(s)/month(s)/year(s) from today/tomorrow</code> and Afrikaans <code>X dag(e)/maand(e)/jaar van vandag/môre af</code> phrasing (numeric or spelled).</li>
+<li>Supports anchored month/year shifts from <strong>today</strong>, <strong>tomorrow</strong>, or <strong>now</strong> (<code>van môre</code> / <code>from tomorrow</code>) with <code>in/oor X month(s)/year(s)</code> phrasing.</li>
+<li>Also handles direct <code>X day(s)/month(s)/year(s) from today/tomorrow/now</code> and Afrikaans <code>X dag(e)/maand(e)/jaar van vandag/môre/nou af</code> phrasing (numeric or spelled).</li>
 </ul>
 <p>Year-only (month/day <code>null</code> unless anchored):</p>
 <ul>
@@ -214,6 +214,7 @@
 <p>Month + year (day <code>null</code> unless anchored):</p>
 <ul>
 <li><code>this/current month</code>, <code>last/previous month</code>, <code>next month</code>, <code>X months ago/gelede/terug</code>, <code>in/oor X months</code>, <code>X month</code> (interpreted as past).</li>
+<li><code>next &lt;month name&gt;</code> / <code>volgende &lt;month name&gt;</code> resolve to the next occurrence of that month (month + year).</li>
 </ul>
 <p>Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 28 in non-leap years).</p>
 <h2 id="absolute--partial-date-resolution">Absolute &amp; Partial Date Resolution</h2>
