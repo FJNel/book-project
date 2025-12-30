@@ -2186,6 +2186,8 @@ When `id` or `name` is provided (query string or JSON body), the endpoint return
 | `id` | integer | No | Book type id to fetch. |
 | `name` | string | No | Book type name to fetch. |
 
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
 - **Response (200, list):**
 
 ```json
@@ -2822,6 +2824,8 @@ At least one field must be provided.
 
 At least one of `id` or `targetName` must be provided to identify the record, and at least one updatable field must be included.
 
+If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
 - **Updated (200):**
 
 ```json
@@ -2969,6 +2973,8 @@ At least one of `id` or `targetName` must be provided to identify the record, an
 | `name` | string | Conditional | The book type name to delete. |
 
 At least one of `id` or `name` must be provided.
+
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 - **Deleted (200):**
 
