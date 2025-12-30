@@ -34,6 +34,13 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /users/me/sessions](#get-usersmesessions)
     - [DELETE /users/me/sessions/:fingerprint](#delete-usersmesessionsfingerprint)
     - [POST /users/me/change-password](#post-usersmechange-password)
+  - [Book Types](#book-types)
+    - [GET /booktype](#get-booktype)
+    - [GET /booktype/:id](#get-booktypeid)
+    - [GET /booktype/by-name](#get-booktypeby-name)
+    - [POST /booktype](#post-booktype)
+    - [PUT /booktype/:id](#put-booktypeid)
+    - [DELETE /booktype/:id](#delete-booktypeid)
   - [Admin](#admin)
 
 
@@ -100,7 +107,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -2143,6 +2150,622 @@ At least one of `fullName` or `preferredName` must be provided.
 
 ---
 
+## Book Types
+
+Book types are scoped per user. Each account starts with two defaults: `Hardcover` and `Softcover`.
+
+### GET /booktype
+
+- **Purpose:** Retrieve all book types for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/booktype` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When true, returns only `id` and `name`. |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Book types retrieved successfully.",
+  "data": {
+    "bookTypes": [
+      {
+        "id": 1,
+        "name": "Hardcover",
+        "description": "Hardback edition with rigid cover.",
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, nameOnly=true):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Book types retrieved successfully.",
+  "data": {
+    "bookTypes": [
+      {
+        "id": 1,
+        "name": "Hardcover"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "6.24",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving book types."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.31",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.14",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+### GET /booktype/:id
+
+- **Purpose:** Retrieve a specific book type by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/booktype/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.02",
+  "message": "Book type retrieved successfully.",
+  "data": {
+    "id": 2,
+    "name": "Softcover",
+    "description": null,
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book type id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the book type."
+  ]
+}
+```
+
+### GET /booktype/by-name
+
+- **Purpose:** Retrieve a specific book type by name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/booktype/by-name` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Book type name to look up. |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Book type retrieved successfully.",
+  "data": {
+    "id": 1,
+    "name": "Hardcover",
+    "description": "Hardback edition with rigid cover.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book Type Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the book type."
+  ]
+}
+```
+
+### POST /booktype
+
+- **Purpose:** Create a new book type for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/booktype` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–100 characters; letters, numbers, spaces, and basic punctuation. |
+| `description` | string | No | Optional description (<= 500 characters). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Book type created successfully.",
+  "data": {
+    "id": 10,
+    "name": "Collector's Edition",
+    "description": "Premium binding with slipcase.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book Type Name must be between 2 and 100 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Book type already exists.",
+  "data": {},
+  "errors": [
+    "A book type with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the book type."
+  ]
+}
+```
+
+### PUT /booktype/:id
+
+- **Purpose:** Update a book type.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/booktype/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | No | Updated name. |
+| `description` | string | No | Updated description. |
+
+At least one field must be provided.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.92",
+  "message": "Book type updated successfully.",
+  "data": {
+    "id": 10,
+    "name": "Collector's Edition",
+    "description": "Premium binding with slipcase.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:05:48.000Z"
+  },
+  "errors": []
+}
+```
+
+- **No Fields Provided (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.30",
+  "message": "No changes were provided.",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Book type already exists.",
+  "data": {},
+  "errors": [
+    "A book type with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the book type."
+  ]
+}
+```
+
+### DELETE /booktype/:id
+
+- **Purpose:** Delete a book type owned by the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/booktype/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Book type deleted successfully.",
+  "data": {
+    "id": 10
+  },
+  "errors": []
+}
+```
+
 ## Admin
 
 All `/admin/*` routes require an authenticated admin user and currently share the same placeholder implementation.
@@ -2182,6 +2805,66 @@ All `/admin/*` routes require an authenticated admin user and currently share th
   "data": {},
   "errors": [
     "This admin endpoint is not yet implemented."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book type not found.",
+  "data": {},
+  "errors": [
+    "The requested book type could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the book type."
   ]
 }
 ```

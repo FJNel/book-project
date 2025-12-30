@@ -72,8 +72,18 @@ const loginLimiter = rateLimit({
 		max: 10, // 10 requests
 		standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
 		legacyHeaders: false,
-		handler: rateLimitHandler
+	handler: rateLimitHandler
 });
+
+async function createDefaultBookTypes(client, userId) {
+	await client.query(
+		`INSERT INTO book_types (user_id, name, description, created_at, updated_at)
+		 VALUES ($1, 'Hardcover', 'A durable hardbound edition with rigid boards and a protective jacket or printed cover. Built to last, it resists wear and warping better than paperbacks and is ideal for collectors, frequent readers, and long-term shelving.', NOW(), NOW()),
+		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it\'s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
+		 ON CONFLICT (user_id, name) DO NOTHING`,
+		[userId]
+	);
+}
 
 // Helper: get an active (unexpired, unused) email verification token for a user, or create a new one
 async function ensureActiveVerificationToken(userId, client = null) {
@@ -255,6 +265,8 @@ router.post("/register", registerLimiter, async (req, res) => {
 		const insertUserValues = [fullName, preferredName, email, passwordHash, false];
 		const result = await client.query(insertUserText, insertUserValues);
 		const newUser = result.rows[0];
+
+		await createDefaultBookTypes(client, newUser.id);
 
 		//Generate email verification token
 		// Issue verification token (new if none active)
@@ -983,6 +995,8 @@ router.post("/google", async (req, res) => {
 		);
 			user = insertUser.rows[0];
  
+			await createDefaultBookTypes(client, user.id);
+
 			await client.query(
 				`INSERT INTO oauth_accounts (user_id, provider, provider_user_id, created_at)
 				 VALUES ($1, 'google', $2, NOW())`,

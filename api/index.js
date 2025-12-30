@@ -16,6 +16,7 @@ const rootRoute = require("./routes/root");
 const userRoutes = require("./routes/users");
 const authRoutes = require("./routes/auth");
 const tempRoutes = require("./routes/temp");
+const bookTypeRoutes = require("./routes/booktype");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -69,6 +70,7 @@ app.use("/", rootRoute);
 app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
 app.use("/temp", tempRoutes);
+app.use("/booktype", bookTypeRoutes);
 
 //404 Handler
 app.use((req, res) => {

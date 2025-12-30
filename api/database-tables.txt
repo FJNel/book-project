@@ -65,6 +65,16 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   user_agent        TEXT  -- Added for security auditing
 );
 
+CREATE TABLE IF NOT EXISTS book_types (
+  id                SERIAL PRIMARY KEY,
+  user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name              VARCHAR(100) NOT NULL,
+  description       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name)
+);
+
  id | user_id |          token_fingerprint           |         issued_at          |         expires_at         | revoked |   ip_address   |                 
                                               user_agent
 ----+---------+--------------------------------------+----------------------------+----------------------------+---------+----------------+-----------------------------------------------------------------------------------------------------------------------------------------
@@ -86,6 +96,11 @@ EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_oauth_accounts_modtime
 BEFORE UPDATE ON oauth_accounts
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_book_types_modtime
+BEFORE UPDATE ON book_types
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
