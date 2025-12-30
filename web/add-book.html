@@ -499,21 +499,18 @@
                     </div>
                     <div class="modal-body">
                         <form id="fourAddAuthorForm">
-                            <div class="row">
-                                <div class="col-12 col-md-4">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorFirstName"><strong>First Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorFirstName" name="authorFirstName" placeholder="John" autocomplete="off" minlength="2" maxlength="100"></div>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorMiddleName"><strong>Middle Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorMiddleName" name="authorMiddleName" placeholder="Ronald Reuel" autocomplete="off" maxlength="100"></div>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorLastName"><strong>Last Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorLastName" name="authorLastName" placeholder="Tolkien" autocomplete="off" minlength="2" maxlength="100"></div>
-                                </div>
-                            </div>
                             <div class="mb-3"><label class="form-label" for="fourEdtAuthorDisplayName"><strong>Display Name</strong></label><label class="form-label text-danger" for="fourEdtAuthorDisplayName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name shown in your collection (for example, a pen name or organization).">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                     <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                 </svg><input class="form-control" type="text" id="fourEdtAuthorDisplayName" name="authorDisplayName" placeholder="J.R.R. Tolkien" autocomplete="off" required="" minlength="2" maxlength="150"></div>
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorFirstName"><strong>First Name(s)</strong></label><input class="form-control" type="text" id="fourEdtAuthorFirstName" name="authorFirstName" placeholder="John Ronald Reuel" autocomplete="off" minlength="2" maxlength="150"></div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorLastName"><strong>Last Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorLastName" name="authorLastName" placeholder="Tolkien" autocomplete="off" minlength="2" maxlength="100"></div>
+                                </div>
+                            </div>
                             <div class="row">
                                 <div class="col-12 col-md-6">
                                     <div class="mb-3"><label class="form-label" for="fourEdtAuthorBirthDate"><strong>Birth Date</strong></label><input class="form-control" type="text" id="fourEdtAuthorBirthDate" name="authorBirthDate" placeholder="3 January 1892" autocomplete="off" maxlength="50"><small class="form-text" id="fourAuthorBirthDateHelp"></small></div>
@@ -550,9 +547,6 @@
                                 <div class="col-12 col-md-6">
                                     <div class="mb-3"><label class="form-label" for="fiveEdtPublisherFoundedDate"><strong>Founded Date</strong></label><input class="form-control" type="text" id="fiveEdtPublisherFoundedDate" name="publisherFoundedDate" placeholder="March 1989" autocomplete="off" maxlength="50"><small class="form-text" id="fivePublisherFoundedDateHelp"></small></div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="fiveEdtPublisherLocation"><strong>Headquarters Location</strong></label><input class="form-control" type="text" id="fiveEdtPublisherLocation" name="publisherLocation" placeholder="New York, USA" autocomplete="off" maxlength="150"></div>
-                                </div>
                             </div>
                             <div class="mb-3"><label class="form-label" for="fiveEdtPublisherWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="fiveEdtPublisherWebsite" name="publisherWebsite" placeholder="https://www.publisher.com" inputmode="url" autocomplete="off"></div>
                             <div class="mb-0"><label class="form-label" for="fiveRdtPublisherNotes"><strong>Notes</strong></label><textarea class="form-control" id="fiveRdtPublisherNotes" name="publisherNotes" placeholder="Optional description or notes about this publisher." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
@@ -574,9 +568,6 @@
                             <div class="row">
                                 <div class="col-12 col-md-6">
                                     <div class="mb-3"><label class="form-label" for="sixEdtSeriesStartDate"><strong>Series Start Date</strong></label><input class="form-control" type="text" id="sixEdtSeriesStartDate" name="seriesStartDate" placeholder="23 October 2005" autocomplete="off" maxlength="50"><small class="form-text" id="sixSeriesStartDateHelp"></small></div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="sixEdtSeriesWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="sixEdtSeriesWebsite" name="seriesWebsite" placeholder="https://www.series.com" inputmode="url" autocomplete="off"></div>
                                 </div>
                             </div>
                             <div class="mb-0"><label class="form-label" for="sixRdtSeriesDescription"><strong>Description</strong></label><textarea class="form-control" id="sixRdtSeriesDescription" name="seriesDescription" placeholder="Brief overview or notes about this series." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
