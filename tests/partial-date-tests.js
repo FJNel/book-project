@@ -217,6 +217,7 @@ const cases = [
 	["Two year ago", "2023"],
 	["In two years", "2027"],
 	["In 2 years", "2027"],
+	["2 years from now", "15 December 2027"],
 
 	["Three years ago", "2022"],
 	["In three years", "2028"],
@@ -226,6 +227,7 @@ const cases = [
 	["Last month", "November 2025"],
 	["Previous month", "November 2025"],
 	["Next month", "January 2026"],
+	["Next May", "May 2026"],
 
 	["One month ago", "November 2025"],
 	["A month ago", "November 2025"],
@@ -421,6 +423,7 @@ const cases = [
 	["Verlede maand", "November 2025"],
 	["Vorige maand", "November 2025"],
 	["Volgende maand", "January 2026"],
+	["Volgende Mei", "May 2026"],
 
 	["Een maand gelede", "November 2025"],
 	["'n maand gelede", "November 2025"],

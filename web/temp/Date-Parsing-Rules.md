@@ -64,8 +64,8 @@ Day-anchored (full dates):
 
 - English: `today`, `now`, `yesterday`, `day before yesterday`, `tomorrow`, `day after tomorrow`, `today one year ago`, `yesterday one year ago`, `today one month ago`, `in one year from today`, `tomorrow in a year`, `in one month from today`, and numeric variants.
 - Afrikaans: `vandag`, `nou`, `gister`, `eergister`, `môre/more`, `oormore`, `vandag een jaar gelede/terug`, `gister een jaar gelede/terug`, `more oor 'n jaar`, `oor een jaar van vandag`, etc.
-- Supports anchored month/year shifts from **today** or **tomorrow** (`van môre` / `from tomorrow`) with `in/oor X month(s)/year(s)` phrasing.
-- Also handles direct `X day(s)/month(s)/year(s) from today/tomorrow` and Afrikaans `X dag(e)/maand(e)/jaar van vandag/môre af` phrasing (numeric or spelled).
+- Supports anchored month/year shifts from **today**, **tomorrow**, or **now** (`van môre` / `from tomorrow`) with `in/oor X month(s)/year(s)` phrasing.
+- Also handles direct `X day(s)/month(s)/year(s) from today/tomorrow/now` and Afrikaans `X dag(e)/maand(e)/jaar van vandag/môre/nou af` phrasing (numeric or spelled).
 
 Year-only (month/day `null` unless anchored):
 
@@ -78,6 +78,7 @@ Year-only (month/day `null` unless anchored):
 Month + year (day `null` unless anchored):
 
 - `this/current month`, `last/previous month`, `next month`, `X months ago/gelede/terug`, `in/oor X months`, `X month` (interpreted as past).
+- `next <month name>` / `volgende <month name>` resolve to the next occurrence of that month (month + year).
 
 Relative shifts clamp days when moving to shorter months (e.g., Feb 29 → Feb 28 in non-leap years).
 

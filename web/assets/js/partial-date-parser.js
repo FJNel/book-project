@@ -351,6 +351,16 @@
         }
 
         /**
+         * Resolve a month name prefixed by "next" to the next occurrence after the reference date.
+         */
+        function resolveNextMonthOnly(month, referenceDate) {
+                const refMonth = referenceDate.getMonth() + 1;
+                const refYear = referenceDate.getFullYear();
+                if (month > refMonth) return { month, year: refYear };
+                return { month, year: refYear + 1 };
+        }
+
+        /**
          * Resolve day-only inputs by anchoring to the reference month, falling back to the previous
          * month when the day would be in the future. Days are clamped to the destination month length.
          */
@@ -490,8 +500,8 @@
 
                 const anchoredYearPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)(?:\s+(?:ago|gelede|terug))?$/;
                 const anchoredMonthPast = /^(today|vandag|nou|yesterday|gister)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)(?:\s+(?:ago|gelede|terug))?$/;
-                const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:(?:from\s+)?today|(?:van\s+)?vandag|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
-                const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:(?:from\s+)?today|(?:van\s+)?vandag|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
+                const anchoredYearFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:(?:from\s+)?(?:today|now)|(?:van\s+)?(?:vandag|nou)|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
+                const anchoredMonthFuture = /^(?:in|oor)\s+([\w\s'-]+)\s+(?:month|months|maand|maande)\s+(?:(?:from\s+)?(?:today|now)|(?:van\s+)?(?:vandag|nou)|(?:van\s+)?(?:m\u00f4re|more)|from\s+tomorrow)$/;
 
 		match = anchoredYearPast.exec(lowered);
 		if (match) {
@@ -535,7 +545,7 @@
                         }
                 }
 
-                const anchoredFromToday = /^([\w\s'-]+)\s+(day|days|dag|dae|month|months|maand|maande|year|years|jaar|jare)\s+((?:from\s+)?(?:today|tomorrow)|(?:van\s+)?(?:vandag|m\u00f4re|more)\s+af)$/;
+                const anchoredFromToday = /^([\w\s'-]+)\s+(day|days|dag|dae|month|months|maand|maande|year|years|jaar|jare)\s+((?:from\s+)?(?:today|tomorrow|now)|(?:van\s+)?(?:vandag|m\u00f4re|more|nou)\s+af)$/;
                 match = anchoredFromToday.exec(lowered);
                 if (match) {
                         const delta = relativeCount(match[1]);
@@ -580,6 +590,16 @@
 		if (monthOnlyMap[lowered] !== undefined) {
 			const shifted = shiftMonths(referenceDate, monthOnlyMap[lowered]);
 			return buildResult(null, shifted.getMonth() + 1, shifted.getFullYear());
+		}
+
+		const nextNamedMonth = /^(next|volgende)\s+([a-z.]+)$/;
+		match = nextNamedMonth.exec(lowered);
+		if (match) {
+			const month = monthFromToken(match[2]);
+			if (month) {
+				const resolved = resolveNextMonthOnly(month, referenceDate);
+				return buildResult(null, resolved.month, resolved.year);
+			}
 		}
 
 		const relativeYearAgo = /^([\w\s'-]+)\s+(?:year|years|jaar|jare)\s+(?:ago|gelede|terug)$/;
