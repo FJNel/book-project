@@ -594,22 +594,22 @@
                     </div>
                     <div class="modal-body">
                         <form id="eightAddLocationForm">
-                            <div class="mb-3">
+                            <div class="mb-3" id="eightLocationTypeGroup">
                                 <label class="form-label"><strong>Location Type</strong></label>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationBase" value="base" checked="" data-bs-toggle="collapse" data-bs-target="#eightBaseLocationFields" aria-controls="eightBaseLocationFields eightNestedLocationFields">
+                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationBase" value="base" checked="" data-bs-toggle="collapse" data-bs-target="#eightBaseLocationFields" aria-controls="eightBaseLocationFields">
                                     <label class="form-check-label" for="eightRdoLocationBase">New base location</label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationNested" value="nested" data-bs-toggle="collapse" data-bs-target="#eightNestedLocationFields" aria-controls="eightNestedLocationFields eightBaseLocationFields">
+                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationNested" value="nested" data-bs-toggle="collapse" data-bs-target="#eightNestedLocationFields" aria-controls="eightNestedLocationFields">
                                     <label class="form-check-label" for="eightRdoLocationNested">Nested under an existing location</label>
                                 </div>
                             </div>
-                            <div class="collapse show" id="eightBaseLocationFields">
+                            <div class="collapse show" id="eightBaseLocationFields" data-bs-parent="#eightLocationTypeGroup">
                                 <div class="mb-3"><label class="form-label" for="eightEdtLocationNameBase"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameBase"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameBase" name="locationNameBase" placeholder="Residence" autocomplete="off" required="" minlength="2" maxlength="200"></div>
                                 <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesBase"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesBase" name="locationNotesBase" placeholder="Optional notes about this location." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
                             </div>
-                            <div class="collapse" id="eightNestedLocationFields">
+                            <div class="collapse" id="eightNestedLocationFields" data-bs-parent="#eightLocationTypeGroup">
                                 <div class="mb-3"><label class="form-label" for="eightCmbParentLocation"><strong>Parent Location</strong></label><label class="form-label text-danger" for="eightCmbParentLocation"><strong>*</strong></label><select class="form-select" id="eightCmbParentLocation" name="parentLocation">
                                         <option value="none" selected="">Select parent location...</option>
                                         <option value="Home">Home</option>
@@ -624,7 +624,8 @@
                                         <option value="Uni Residence -> Black Bookshelf -> Top Rack">Uni Residence -> Black Bookshelf -> Top Rack</option>
                                         <option value="Uni Residence -> Old Bookshelf">Uni Residence -> Old Bookshelf</option>
                                     </select></div>
-                                <div class="mb-0"><label class="form-label" for="eightEdtLocationNameNested"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameNested"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameNested" name="locationNameNested" placeholder="Top Shelf" autocomplete="off" required="" minlength="2" maxlength="200"></div>
+                                <div class="mb-3"><label class="form-label" for="eightEdtLocationNameNested"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameNested"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameNested" name="locationNameNested" placeholder="Top Shelf" autocomplete="off" required="" minlength="2" maxlength="200"></div>
+                                <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesNested"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesNested" name="locationNotesNested" placeholder="Optional notes about this location." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
                             </div>
                         </form>
                     </div>
