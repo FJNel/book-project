@@ -112,7 +112,8 @@ All other endpoints currently have no dedicated custom limit.
 - **Global 404:** Unmatched routes return HTTP `404` with `message` `"Endpoint Not Found"` and guidance in `errors`.
 - **Unhandled Errors:** Unexpected exceptions return HTTP `500`, `message` `"Internal Server Error"`, and a generic error list.
 - **Account action quotas:** Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).
-- **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`—an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
+- **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`, an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
+- **Login metadata:** User profiles include `lastLogin`, an ISO timestamp of the most recent successful login (regardless of login method).
 
 ## Endpoints
 
@@ -597,7 +598,8 @@ Authentication flows combine email/password, Google OAuth, email verification, a
       "preferredName": "Jane",
       "role": "user",
       "isVerified": true,
-      "passwordUpdated": "2024-07-11T10:22:33.000Z"
+      "passwordUpdated": "2024-07-11T10:22:33.000Z",
+      "lastLogin": "2025-01-17T09:20:11.000Z"
     }
   },
   "errors": []
@@ -1360,6 +1362,7 @@ All user management endpoints require a valid access token (`Authorization: Bear
     "role": "user",
     "isVerified": true,
     "passwordUpdated": "2025-01-15T11:01:11.000Z",
+    "lastLogin": "2025-01-17T09:20:11.000Z",
     "oauthProviders": [
       "google"
     ],
@@ -1457,6 +1460,7 @@ At least one of `fullName` or `preferredName` must be provided.
     "role": "user",
     "isVerified": true,
     "passwordUpdated": "2025-01-15T11:01:11.000Z",
+    "lastLogin": "2025-01-17T09:20:11.000Z",
     "createdAt": "2025-01-10T09:15:23.000Z",
     "updatedAt": "2025-01-17T08:44:02.000Z"
   },

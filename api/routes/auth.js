@@ -513,6 +513,12 @@ router.post("/login", loginLimiter, async (req, res) => {
 						[user.id, fingerprint, now, expiresAt, req.ip, req.get("user-agent")]
 				);
 
+				const lastLoginRes = await pool.query(
+						"UPDATE users SET last_login = NOW() WHERE id = $1 RETURNING last_login",
+						[user.id]
+				);
+				user.last_login = lastLoginRes.rows[0]?.last_login ?? user.last_login;
+
 				logToFile("LOGIN_ATTEMPT", { status: "SUCCESS", user_id: user.id, email, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 				return successResponse(res, 200, "Login successful.", {
@@ -525,7 +531,8 @@ router.post("/login", loginLimiter, async (req, res) => {
 								preferredName: user.preferred_name,
 								role: user.role,
 								isVerified: user.is_verified,
-								passwordUpdated: user.password_updated
+								passwordUpdated: user.password_updated,
+								lastLogin: user.last_login
 						}
 				});
 		} catch (e) {
@@ -999,6 +1006,12 @@ router.post("/google", async (req, res) => {
 			[user.id, fingerprint, now, expiresAt, req.ip, req.get("user-agent")]
 		);
 
+		const lastLoginRes = await pool.query(
+			"UPDATE users SET last_login = NOW() WHERE id = $1 RETURNING last_login",
+			[user.id]
+		);
+		user.last_login = lastLoginRes.rows[0]?.last_login ?? user.last_login;
+
 		logToFile("OAUTH_LOGIN", { status: "SUCCESS", user_id: user.id, email, provider: "google", ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 		return successResponse(res, 200, "Login successful.", {
@@ -1011,7 +1024,8 @@ router.post("/google", async (req, res) => {
 				preferredName: user.preferred_name,
 				role: user.role,
 				isVerified: user.is_verified,
-				passwordUpdated: user.password_updated
+				passwordUpdated: user.password_updated,
+				lastLogin: user.last_login
 			}
 		});
 	} catch (e) {

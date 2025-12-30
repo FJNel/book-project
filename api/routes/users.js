@@ -224,6 +224,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 				u.role,
 				u.is_verified,
 				u.password_updated,
+				u.last_login,
 				u.created_at,
 				u.updated_at,
 				COALESCE(
@@ -251,6 +252,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
 			passwordUpdated: result.rows[0].password_updated,
+			lastLogin: result.rows[0].last_login,
 			oauthProviders: result.rows[0].oauth_providers,
 			createdAt: result.rows[0].created_at,
 			updatedAt: result.rows[0].updated_at,
@@ -314,7 +316,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		UPDATE users
 		SET ${updateFields.join(", ")}, updated_at = NOW()
 		WHERE id = $1 AND is_disabled = false
-		RETURNING id, email, full_name, preferred_name, role, is_verified, password_updated, created_at, updated_at;
+		RETURNING id, email, full_name, preferred_name, role, is_verified, password_updated, last_login, created_at, updated_at;
 	`;
 
 	try {
@@ -335,6 +337,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
 			passwordUpdated: result.rows[0].password_updated,
+			lastLogin: result.rows[0].last_login,
 			createdAt: result.rows[0].created_at,
 			updatedAt: result.rows[0].updated_at,
 		};
