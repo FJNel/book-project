@@ -1,4 +1,4 @@
-const rateLimit = require("express-rate-limit");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const { logToFile } = require("./logging");
 const { errorResponse } = require("./response");
 
@@ -22,7 +22,7 @@ const authenticatedLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	handler: rateLimitHandler,
-	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
+	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
 const emailCostLimiter = rateLimit({
@@ -31,7 +31,7 @@ const emailCostLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	handler: rateLimitHandler,
-	keyGenerator: (req) => req.ip
+	keyGenerator: (req) => ipKeyGenerator(req)
 });
 
 const sensitiveActionLimiter = rateLimit({
@@ -40,7 +40,7 @@ const sensitiveActionLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	handler: rateLimitHandler,
-	keyGenerator: (req) => (req.user && req.user.id ? req.user.id : req.ip)
+	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
 const incorrectDateReportLimiter = rateLimit({
@@ -49,7 +49,7 @@ const incorrectDateReportLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	handler: rateLimitHandler,
-	keyGenerator: (req) => req.ip
+	keyGenerator: (req) => ipKeyGenerator(req)
 });
 
 module.exports = {

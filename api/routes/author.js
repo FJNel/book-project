@@ -218,25 +218,24 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			);
 
 			const row = result.rows[0];
-	const row = result.rows[0];
-	const payload = nameOnly
-		? { id: row.id, displayName: row.display_name }
-		: {
-			id: row.id,
-			displayName: row.display_name,
-			firstNames: row.first_names,
-			lastName: row.last_name,
-			birthDate: row.birth_date_id
-				? { id: row.birth_date_id, day: row.birth_day, month: row.birth_month, year: row.birth_year, text: row.birth_text }
-				: null,
-			deceased: row.deceased,
-			deathDate: row.death_date_id
-				? { id: row.death_date_id, day: row.death_day, month: row.death_month, year: row.death_year, text: row.death_text }
-				: null,
-			bio: row.bio,
-			createdAt: row.created_at,
-			updatedAt: row.updated_at
-		};
+			const payload = nameOnly
+				? { id: row.id, displayName: row.display_name }
+				: {
+					id: row.id,
+					displayName: row.display_name,
+					firstNames: row.first_names,
+					lastName: row.last_name,
+					birthDate: row.birth_date_id
+						? { id: row.birth_date_id, day: row.birth_day, month: row.birth_month, year: row.birth_year, text: row.birth_text }
+						: null,
+					deceased: row.deceased,
+					deathDate: row.death_date_id
+						? { id: row.death_date_id, day: row.death_day, month: row.death_month, year: row.death_year, text: row.death_text }
+						: null,
+					bio: row.bio,
+					createdAt: row.created_at,
+					updatedAt: row.updated_at
+				};
 
 			return successResponse(res, 200, "Author retrieved successfully.", payload);
 		} catch (error) {
