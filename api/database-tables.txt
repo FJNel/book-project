@@ -75,11 +75,46 @@ CREATE TABLE IF NOT EXISTS book_types (
   UNIQUE (user_id, name)
 );
 
- id | user_id |          token_fingerprint           |         issued_at          |         expires_at         | revoked |   ip_address   |                 
-                                              user_agent
-----+---------+--------------------------------------+----------------------------+----------------------------+---------+----------------+-----------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dates (
+  id          SERIAL PRIMARY KEY,
+  day         INT,
+  month       INT,
+  year        INT,
+  text        VARCHAR(100) NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (day IS NULL OR (day BETWEEN 1 AND 31)),
+  CHECK (month IS NULL OR (month BETWEEN 1 AND 12)),
+  CHECK (year IS NULL OR (year BETWEEN 1 AND 9999)),
+  CHECK (day IS NULL OR month IS NOT NULL),
+  CHECK (month IS NULL OR year IS NOT NULL)
+);
 
----
+CREATE TABLE IF NOT EXISTS authors (
+  id             SERIAL PRIMARY KEY,
+  user_id        INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  display_name   VARCHAR(150) NOT NULL,
+  first_names    VARCHAR(150),
+  last_name      VARCHAR(100),
+  birth_date_id  INT REFERENCES dates(id) ON DELETE SET NULL,
+  deceased       BOOLEAN NOT NULL DEFAULT FALSE,
+  death_date_id  INT REFERENCES dates(id) ON DELETE SET NULL,
+  bio            TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, display_name)
+);
+
+CREATE TABLE IF NOT EXISTS book_authors (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id    INT NOT NULL,
+  author_id  INT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+  role       VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, book_id, author_id)
+);
 
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
@@ -101,6 +136,21 @@ EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_book_types_modtime
 BEFORE UPDATE ON book_types
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_dates_modtime
+BEFORE UPDATE ON dates
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_authors_modtime
+BEFORE UPDATE ON authors
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_book_authors_modtime
+BEFORE UPDATE ON book_authors
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 

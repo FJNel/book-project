@@ -43,6 +43,15 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /booktype/:id](#put-booktypeid)
     - [DELETE /booktype](#delete-booktype)
     - [DELETE /booktype/:id](#delete-booktypeid)
+  - [Authors](#authors)
+    - [GET /author](#get-author)
+    - [GET /author/:id](#get-authorid)
+    - [GET /author/by-name](#get-authorby-name)
+    - [POST /author](#post-author)
+    - [PUT /author](#put-author)
+    - [PUT /author/:id](#put-authorid)
+    - [DELETE /author](#delete-author)
+    - [DELETE /author/:id](#delete-authorid)
   - [Admin](#admin)
 
 
@@ -109,7 +118,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -2280,6 +2289,186 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
 - **Server Error (500):**
 
 ```json
@@ -3152,6 +3341,1164 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "data": {},
   "errors": [
     "An error occurred while deleting the book type."
+  ]
+}
+```
+
+## Authors
+
+Authors are scoped per user and can be linked to books later via a linking table. Dates use the partial date object described below.
+
+### Partial Date Object
+
+The API expects a partial date object in the following format:
+
+```json
+{
+  "day": 23,
+  "month": 10,
+  "year": 2005,
+  "text": "23 October 2005"
+}
+```
+
+Rules:
+- `day`, `month`, and `year` may be `null`, but `text` is required.
+- If `day` is provided, `month` and `year` must also be provided.
+- If `month` is provided, `year` must also be provided.
+- `text` must match the provided values in English (`"23 October 2005"`, `"October 2005"`, or `"2005"`).
+
+### GET /author
+
+- **Purpose:** Retrieve all authors for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/author` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When true, returns only `id` and `displayName`. Defaults to `false`. |
+
+#### Optional Lookup (query or body)
+
+When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Author id to fetch. |
+| `displayName` | string | No | Author display name to fetch. |
+
+If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+
+- **Response (200, list):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Authors retrieved successfully.",
+  "data": {
+    "authors": [
+      {
+        "id": 1,
+        "displayName": "J.R.R. Tolkien",
+        "firstNames": "John Ronald Reuel",
+        "lastName": "Tolkien",
+        "birthDate": {
+          "id": 12,
+          "day": 3,
+          "month": 1,
+          "year": 1892,
+          "text": "3 January 1892"
+        },
+        "deceased": true,
+        "deathDate": {
+          "id": 13,
+          "day": 2,
+          "month": 9,
+          "year": 1973,
+          "text": "2 September 1973"
+        },
+        "bio": "Author of The Lord of the Rings.",
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, nameOnly=true):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Authors retrieved successfully.",
+  "data": {
+    "authors": [
+      {
+        "id": 1,
+        "displayName": "J.R.R. Tolkien"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Author retrieved successfully.",
+  "data": {
+    "id": 1,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Display Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving authors."
+  ]
+}
+```
+
+### GET /author/:id
+
+- **Purpose:** Retrieve a specific author by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/author/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.02",
+  "message": "Author retrieved successfully.",
+  "data": {
+    "id": 1,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Author id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
+### GET /author/by-name
+
+- **Purpose:** Retrieve a specific author by display name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/author/by-name` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `displayName` | string | Yes | Display name to look up. |
+
+Edge cases:
+- Display names are user-scoped; a name that exists for another user will still return `404`.
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Author retrieved successfully.",
+  "data": {
+    "id": 1,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Display Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+### POST /author
+
+- **Purpose:** Create a new author for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/author` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `displayName` | string | Yes | 2–150 characters. |
+| `firstNames` | string | No | Optional first names (2–150 characters). |
+| `lastName` | string | No | Optional last name (2–100 characters). |
+| `birthDate` | object | No | Partial date object. |
+| `deceased` | boolean | No | Whether the author is deceased. Defaults to `false` unless a `deathDate` is provided. |
+| `deathDate` | object | No | Partial date object (optional even when `deceased=true`). |
+| `bio` | string | No | Optional bio (<= 1000 characters). |
+
+Edge cases:
+- If `deceased=false` and `deathDate` is provided, the request fails validation.
+- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Author created successfully.",
+  "data": {
+    "id": 10,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Display Name must be provided."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Author already exists.",
+  "data": {},
+  "errors": [
+    "An author with this display name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the author."
+  ]
+}
+```
+
+### PUT /author
+
+- **Purpose:** Update an author by `id` or `displayName`.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/author` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | The author id to update. |
+| `targetDisplayName` | string | Conditional | The author display name to update (used to identify the record). |
+| `displayName` | string | No | New display name to apply. |
+| `firstNames` | string | No | Updated first names. |
+| `lastName` | string | No | Updated last name. |
+| `birthDate` | object | No | Updated partial date object. |
+| `deceased` | boolean | No | Updated deceased flag. |
+| `deathDate` | object | No | Updated partial date object. |
+| `bio` | string | No | Updated bio (<= 1000 characters). |
+
+At least one of `id` or `targetDisplayName` must be provided to identify the record, and at least one updatable field must be included.
+
+If both `id` and `targetDisplayName` are provided, the API uses `id` and ignores `targetDisplayName`.
+
+Edge cases:
+- If `deceased=false` and `deathDate` is provided, the request fails validation.
+- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.92",
+  "message": "Author updated successfully.",
+  "data": {
+    "id": 10,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:05:48.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide an author id or display name to update."
+  ]
+}
+```
+
+- **No Fields Provided (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.30",
+  "message": "No changes were provided.",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Author already exists.",
+  "data": {},
+  "errors": [
+    "An author with this display name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the author."
+  ]
+}
+```
+
+### PUT /author/:id
+
+- **Purpose:** Update an author by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/author/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+Edge cases:
+- If `deceased=false` and `deathDate` is provided, the request fails validation.
+- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.92",
+  "message": "Author updated successfully.",
+  "data": {
+    "id": 10,
+    "displayName": "J.R.R. Tolkien",
+    "firstNames": "John Ronald Reuel",
+    "lastName": "Tolkien",
+    "birthDate": {
+      "id": 12,
+      "day": 3,
+      "month": 1,
+      "year": 1892,
+      "text": "3 January 1892"
+    },
+    "deceased": true,
+    "deathDate": {
+      "id": 13,
+      "day": 2,
+      "month": 9,
+      "year": 1973,
+      "text": "2 September 1973"
+    },
+    "bio": "Author of The Lord of the Rings.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:05:48.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Author id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the author."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the author."
+  ]
+}
+```
+
+### DELETE /author
+
+- **Purpose:** Delete an author by `id` or `displayName`.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/author` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | The author id to delete. |
+| `displayName` | string | Conditional | The author display name to delete. |
+
+At least one of `id` or `displayName` must be provided.
+
+If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Author deleted successfully.",
+  "data": {
+    "id": 10
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide an author id or display name to delete."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the author."
+  ]
+}
+```
+
+### DELETE /author/:id
+
+- **Purpose:** Delete an author by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/author/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Author deleted successfully.",
+  "data": {
+    "id": 10
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Author id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the author."
   ]
 }
 ```
