@@ -1232,7 +1232,8 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
       "preferredName": "Jane",
       "role": "user",
       "isVerified": true,
-      "passwordUpdated": null
+      "passwordUpdated": null,
+      "lastLogin": "2025-01-17T09:20:11.000Z"
     }
   },
   "errors": []
@@ -2285,6 +2286,51 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "data": {},
   "errors": [
     "The requested book type could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the author."
   ]
 }
 ```
