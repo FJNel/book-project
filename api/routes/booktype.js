@@ -9,6 +9,7 @@ const { logToFile } = require("../utils/logging");
 
 const MAX_BOOK_TYPE_NAME_LENGTH = 100;
 const MAX_BOOK_TYPE_DESCRIPTION_LENGTH = 1000;
+const MAX_LIST_LIMIT = 200;
 
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
@@ -59,6 +60,35 @@ function parseId(value) {
 	return parsed;
 }
 
+function parseSortOrder(value) {
+	if (!value) return "asc";
+	const normalized = String(value).trim().toLowerCase();
+	if (normalized === "asc" || normalized === "desc") return normalized;
+	return null;
+}
+
+function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) {
+		return { error: `${fieldLabel} must be an integer.` };
+	}
+	if (parsed < min || (max !== null && parsed > max)) {
+		const range = max !== null ? `between ${min} and ${max}` : `greater than or equal to ${min}`;
+		return { error: `${fieldLabel} must be ${range}.` };
+	}
+	return { value: parsed };
+}
+
+function parseDateFilter(value, fieldLabel) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Date.parse(value);
+	if (Number.isNaN(parsed)) {
+		return { error: `${fieldLabel} must be a valid ISO 8601 date.` };
+	}
+	return { value: new Date(parsed).toISOString() };
+}
+
 async function resolveBookTypeId({ userId, id, name }) {
 	if (Number.isInteger(id)) {
 		return id;
@@ -79,7 +109,8 @@ async function resolveBookTypeId({ userId, id, name }) {
 // GET /booktype - List all book types for the authenticated user
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const nameOnly = parseBooleanFlag(req.query.nameOnly);
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const nameOnly = parseBooleanFlag(listParams.nameOnly);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -133,12 +164,106 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		: "id, name, description, created_at, updated_at";
 
 	try {
-		const result = await pool.query(
-			`SELECT ${fields}
+		const errors = [];
+		const sortFields = {
+			id: "id",
+			name: "name",
+			description: "description",
+			createdAt: "created_at",
+			updatedAt: "updated_at"
+		};
+		const sortBy = normalizeText(listParams.sortBy) || "name";
+		const sortColumn = sortFields[sortBy];
+		if (!sortColumn) {
+			errors.push("sortBy must be one of: id, name, description, createdAt, updatedAt.");
+		}
+
+		const order = parseSortOrder(listParams.order);
+		if (!order) {
+			errors.push("order must be either asc or desc.");
+		}
+
+		const { value: limit, error: limitError } = parseOptionalInt(listParams.limit, "limit", { min: 1, max: MAX_LIST_LIMIT });
+		if (limitError) errors.push(limitError);
+		const { value: offset, error: offsetError } = parseOptionalInt(listParams.offset, "offset", { min: 0 });
+		if (offsetError) errors.push(offsetError);
+
+		const filters = [];
+		const values = [userId];
+		let paramIndex = 2;
+
+		if (listParams.filterId !== undefined) {
+			const filterId = parseId(listParams.filterId);
+			if (!Number.isInteger(filterId)) {
+				errors.push("filterId must be a valid integer.");
+			} else {
+				filters.push(`id = $${paramIndex++}`);
+				values.push(filterId);
+			}
+		}
+
+		const filterName = normalizeText(listParams.filterName);
+		if (filterName) {
+			if (filterName.length > MAX_BOOK_TYPE_NAME_LENGTH) {
+				errors.push(`filterName must be ${MAX_BOOK_TYPE_NAME_LENGTH} characters or fewer.`);
+			} else {
+				filters.push(`name ILIKE $${paramIndex++}`);
+				values.push(`%${filterName}%`);
+			}
+		}
+
+		const filterDescription = normalizeText(listParams.filterDescription);
+		if (filterDescription) {
+			if (filterDescription.length > MAX_BOOK_TYPE_DESCRIPTION_LENGTH) {
+				errors.push(`filterDescription must be ${MAX_BOOK_TYPE_DESCRIPTION_LENGTH} characters or fewer.`);
+			} else {
+				filters.push(`description ILIKE $${paramIndex++}`);
+				values.push(`%${filterDescription}%`);
+			}
+		}
+
+		const dateFilters = [
+			{ key: "filterCreatedAt", column: "created_at", op: "=" },
+			{ key: "filterUpdatedAt", column: "updated_at", op: "=" },
+			{ key: "filterCreatedAfter", column: "created_at", op: ">=" },
+			{ key: "filterCreatedBefore", column: "created_at", op: "<=" },
+			{ key: "filterUpdatedAfter", column: "updated_at", op: ">=" },
+			{ key: "filterUpdatedBefore", column: "updated_at", op: "<=" }
+		];
+
+		for (const filter of dateFilters) {
+			const { value, error } = parseDateFilter(listParams[filter.key], filter.key);
+			if (error) {
+				errors.push(error);
+			} else if (value) {
+				filters.push(`${filter.column} ${filter.op} $${paramIndex++}`);
+				values.push(value);
+			}
+		}
+
+		if (errors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", errors);
+		}
+
+		let query = `SELECT ${fields}
 			 FROM book_types
-			 WHERE user_id = $1
-			 ORDER BY name ASC`,
-			[userId]
+			 WHERE user_id = $1`;
+		if (filters.length > 0) {
+			query += ` AND ${filters.join(" AND ")}`;
+		}
+		query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+		if (limit !== null) {
+			query += ` LIMIT $${paramIndex++}`;
+			values.push(limit);
+		}
+		if (offset !== null) {
+			query += ` OFFSET $${paramIndex++}`;
+			values.push(offset);
+		}
+
+		const result = await pool.query(
+			query,
+			values
 		);
 
 		logToFile("BOOK_TYPE_LIST", {
@@ -175,7 +300,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 // GET /booktype/by-name?name=Hardcover - Fetch a specific book type by name
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const rawName = normalizeText(req.query.name);
+	const rawName = normalizeText(req.query.name ?? req.body?.name);
 
 	const errors = validateBookTypeName(rawName);
 	if (errors.length > 0) {

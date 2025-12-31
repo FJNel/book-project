@@ -2179,17 +2179,55 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Path | `/booktype` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Query Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter list by exact id. |
+| `filterName` | string | No | Case-insensitive partial match on name. |
+| `filterDescription` | string | No | Case-insensitive partial match on description. |
+| `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+
+`sortBy` accepts: `id`, `name`, `description`, `createdAt`, `updatedAt`.
+
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+#### Common Examples
+
+- **All book types containing "cover", sorted by updated date (desc), limit 10:**
+
+```json
+{
+  "filterName": "cover",
+  "sortBy": "updatedAt",
+  "order": "desc",
+  "limit": 10
+}
+```
+
+Query string equivalent:
+
+```
+GET /booktype?filterName=cover&sortBy=updatedAt&order=desc&limit=10
+```
 
 #### Optional Lookup (query or body)
 
 When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -2682,13 +2720,15 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Path | `/booktype/by-name` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Query Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `name` | string | Yes | Book type name to look up. |
+| `name` | string | Yes | Book type name to look up (query string or JSON body). |
+
+If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
 - **Response (200):**
 
@@ -3434,10 +3474,84 @@ Rules:
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `displayName`. Defaults to `false`. |
+| `sortBy` | string | No | Sort field for lists. Defaults to `displayName`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter list by exact id. |
+| `filterDisplayName` | string | No | Case-insensitive partial match on display name. |
+| `filterFirstNames` | string | No | Case-insensitive partial match on first names. |
+| `filterLastName` | string | No | Case-insensitive partial match on last name. |
+| `filterDeceased` | boolean | No | Filter by deceased flag. |
+| `filterBio` | string | No | Case-insensitive partial match on bio. |
+| `filterBirthDateId` | integer | No | Filter by exact birth date id. |
+| `filterDeathDateId` | integer | No | Filter by exact death date id. |
+| `filterBirthDay` | integer | No | Filter by birth day (1-31). |
+| `filterBirthMonth` | integer | No | Filter by birth month (1-12). |
+| `filterBirthYear` | integer | No | Filter by birth year (1-9999). |
+| `filterBirthText` | string | No | Case-insensitive partial match on birth date text. |
+| `filterDeathDay` | integer | No | Filter by death day (1-31). |
+| `filterDeathMonth` | integer | No | Filter by death month (1-12). |
+| `filterDeathYear` | integer | No | Filter by death year (1-9999). |
+| `filterDeathText` | string | No | Case-insensitive partial match on death date text. |
+| `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+| `filterBornBefore` | string | No | ISO date/time upper bound for birth date. |
+| `filterBornAfter` | string | No | ISO date/time lower bound for birth date. |
+| `filterDiedBefore` | string | No | ISO date/time upper bound for death date. |
+| `filterDiedAfter` | string | No | ISO date/time lower bound for death date. |
+
+`sortBy` accepts: `id`, `displayName`, `firstNames`, `lastName`, `deceased`, `bio`, `createdAt`, `updatedAt`, `birthDateId`, `deathDateId`, `birthDay`, `birthMonth`, `birthYear`, `birthText`, `deathDay`, `deathMonth`, `deathYear`, `deathText`.
+
+For born/died filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1).
+Authors without a birth/death date will not match the born/died filters.
+
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+#### Common Examples
+
+- **All deceased authors, sorted by death year (desc), limit 20:**
+
+```json
+{
+  "filterDeceased": true,
+  "sortBy": "deathYear",
+  "order": "desc",
+  "limit": 20
+}
+```
+
+Query string equivalent:
+
+```
+GET /author?filterDeceased=true&sortBy=deathYear&order=desc&limit=20
+```
+
+- **Authors born before 1900, sorted by display name (asc):**
+
+```json
+{
+  "filterBornBefore": "1900-01-01",
+  "sortBy": "displayName",
+  "order": "asc"
+}
+```
+
+Query string equivalent:
+
+```
+GET /author?filterBornBefore=1900-01-01&sortBy=displayName&order=asc
+```
 
 #### Optional Lookup (query or body)
 
 When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -3756,13 +3870,15 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Path | `/author/by-name` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Query Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `displayName` | string | Yes | Display name to look up. |
+| `displayName` | string | Yes | Display name to look up (query string or JSON body). |
+
+If `displayName` is provided in both the query string and JSON body, the JSON body takes precedence.
 
 Edge cases:
 - Display names are user-scoped; a name that exists for another user will still return `404`.

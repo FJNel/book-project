@@ -3569,7 +3569,7 @@
 </tr>
 <tr>
 <td>Content-Type</td>
-<td>N/A (no body)</td>
+<td><code>application/json</code> (optional body)</td>
 </tr>
 </tbody>
 </table>
@@ -3590,10 +3590,105 @@
 <td>No</td>
 <td>When true, returns only <code>id</code> and <code>name</code>. Defaults to <code>false</code>.</td>
 </tr>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>name</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Limits list results (1-200).</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Offset for list pagination (0+).</td>
+</tr>
+<tr>
+<td><code>filterId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter list by exact id.</td>
+</tr>
+<tr>
+<td><code>filterName</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on name.</td>
+</tr>
+<tr>
+<td><code>filterDescription</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on description.</td>
+</tr>
+<tr>
+<td><code>filterCreatedAt</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time match for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedAt</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time match for <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterCreatedAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterCreatedBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for <code>updatedAt</code>.</td>
+</tr>
 </tbody>
 </table>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>description</code>, <code>createdAt</code>, <code>updatedAt</code>.</p>
+<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+<h4 id="common-examples">Common Examples</h4>
+<ul>
+<li><strong>All book types containing &quot;cover&quot;, sorted by updated date (desc), limit 10:</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;cover&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;updatedAt&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;desc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>Query string equivalent:</p>
+<pre><code>GET /booktype?filterName=cover&amp;sortBy=updatedAt&amp;order=desc&amp;limit=10
+</code></pre>
 <h4 id="optional-lookup-query-or-body">Optional Lookup (query or body)</h4>
 <p>When <code>id</code> or <code>name</code> is provided (query string or JSON body), the endpoint returns a single book type instead of a list.</p>
+<p>Use the <code>filter...</code> parameters for list filtering to avoid conflicts with the single-record lookup.</p>
 <table>
 <thead>
 <tr>
@@ -4114,7 +4209,7 @@
 </tr>
 <tr>
 <td>Content-Type</td>
-<td>N/A (no body)</td>
+<td><code>application/json</code> (optional body)</td>
 </tr>
 </tbody>
 </table>
@@ -4133,10 +4228,11 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Book type name to look up.</td>
+<td>Book type name to look up (query string or JSON body).</td>
 </tr>
 </tbody>
 </table>
+<p>If <code>name</code> is provided in both the query string and JSON body, the JSON body takes precedence.</p>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -5053,10 +5149,221 @@
 <td>No</td>
 <td>When true, returns only <code>id</code> and <code>displayName</code>. Defaults to <code>false</code>.</td>
 </tr>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>displayName</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Limits list results (1-200).</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Offset for list pagination (0+).</td>
+</tr>
+<tr>
+<td><code>filterId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter list by exact id.</td>
+</tr>
+<tr>
+<td><code>filterDisplayName</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on display name.</td>
+</tr>
+<tr>
+<td><code>filterFirstNames</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on first names.</td>
+</tr>
+<tr>
+<td><code>filterLastName</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on last name.</td>
+</tr>
+<tr>
+<td><code>filterDeceased</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>Filter by deceased flag.</td>
+</tr>
+<tr>
+<td><code>filterBio</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on bio.</td>
+</tr>
+<tr>
+<td><code>filterBirthDateId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by exact birth date id.</td>
+</tr>
+<tr>
+<td><code>filterDeathDateId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by exact death date id.</td>
+</tr>
+<tr>
+<td><code>filterBirthDay</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by birth day (1-31).</td>
+</tr>
+<tr>
+<td><code>filterBirthMonth</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by birth month (1-12).</td>
+</tr>
+<tr>
+<td><code>filterBirthYear</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by birth year (1-9999).</td>
+</tr>
+<tr>
+<td><code>filterBirthText</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on birth date text.</td>
+</tr>
+<tr>
+<td><code>filterDeathDay</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by death day (1-31).</td>
+</tr>
+<tr>
+<td><code>filterDeathMonth</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by death month (1-12).</td>
+</tr>
+<tr>
+<td><code>filterDeathYear</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter by death year (1-9999).</td>
+</tr>
+<tr>
+<td><code>filterDeathText</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive partial match on death date text.</td>
+</tr>
+<tr>
+<td><code>filterCreatedAt</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time match for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedAt</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time match for <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterCreatedAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterCreatedBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for <code>createdAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterUpdatedBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>filterBornBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for birth date.</td>
+</tr>
+<tr>
+<td><code>filterBornAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for birth date.</td>
+</tr>
+<tr>
+<td><code>filterDiedBefore</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time upper bound for death date.</td>
+</tr>
+<tr>
+<td><code>filterDiedAfter</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO date/time lower bound for death date.</td>
+</tr>
 </tbody>
 </table>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>displayName</code>, <code>firstNames</code>, <code>lastName</code>, <code>deceased</code>, <code>bio</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>birthDateId</code>, <code>deathDateId</code>, <code>birthDay</code>, <code>birthMonth</code>, <code>birthYear</code>, <code>birthText</code>, <code>deathDay</code>, <code>deathMonth</code>, <code>deathYear</code>, <code>deathText</code>.</p>
+<p>For born/died filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1).
+Authors without a birth/death date will not match the born/died filters.</p>
+<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+<h4 id="common-examples-1">Common Examples</h4>
+<ul>
+<li><strong>All deceased authors, sorted by death year (desc), limit 20:</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;filterDeceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;deathYear&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;desc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>Query string equivalent:</p>
+<pre><code>GET /author?filterDeceased=true&amp;sortBy=deathYear&amp;order=desc&amp;limit=20
+</code></pre>
+<ul>
+<li><strong>Authors born before 1900, sorted by display name (asc):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;filterBornBefore&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1900-01-01&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;displayName&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>Query string equivalent:</p>
+<pre><code>GET /author?filterBornBefore=1900-01-01&amp;sortBy=displayName&amp;order=asc
+</code></pre>
 <h4 id="optional-lookup-query-or-body-1">Optional Lookup (query or body)</h4>
 <p>When <code>id</code> or <code>displayName</code> is provided (query string or JSON body), the endpoint returns a single author instead of a list.</p>
+<p>Use the <code>filter...</code> parameters for list filtering to avoid conflicts with the single-record lookup.</p>
 <table>
 <thead>
 <tr>
@@ -5418,7 +5725,7 @@
 </tr>
 <tr>
 <td>Content-Type</td>
-<td>N/A (no body)</td>
+<td><code>application/json</code> (optional body)</td>
 </tr>
 </tbody>
 </table>
@@ -5437,10 +5744,11 @@
 <td><code>displayName</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Display name to look up.</td>
+<td>Display name to look up (query string or JSON body).</td>
 </tr>
 </tbody>
 </table>
+<p>If <code>displayName</code> is provided in both the query string and JSON body, the JSON body takes precedence.</p>
 <p>Edge cases:</p>
 <ul>
 <li>

@@ -11,6 +11,7 @@ const MAX_DISPLAY_NAME_LENGTH = 150;
 const MAX_FIRST_NAMES_LENGTH = 150;
 const MAX_LAST_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 1000;
+const MAX_LIST_LIMIT = 200;
 
 const MONTH_NAMES = [
 	"January", "February", "March", "April", "May", "June",
@@ -155,6 +156,48 @@ function parseId(value) {
 	return parsed;
 }
 
+function parseSortOrder(value) {
+	if (!value) return "asc";
+	const normalized = String(value).trim().toLowerCase();
+	if (normalized === "asc" || normalized === "desc") return normalized;
+	return null;
+}
+
+function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) {
+		return { error: `${fieldLabel} must be an integer.` };
+	}
+	if (parsed < min || (max !== null && parsed > max)) {
+		const range = max !== null ? `between ${min} and ${max}` : `greater than or equal to ${min}`;
+		return { error: `${fieldLabel} must be ${range}.` };
+	}
+	return { value: parsed };
+}
+
+function parseOptionalIntRange(value, fieldLabel, { min = 0, max = null } = {}) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) {
+		return { error: `${fieldLabel} must be an integer.` };
+	}
+	if (parsed < min || (max !== null && parsed > max)) {
+		const range = max !== null ? `between ${min} and ${max}` : `greater than or equal to ${min}`;
+		return { error: `${fieldLabel} must be ${range}.` };
+	}
+	return { value: parsed };
+}
+
+function parseDateFilter(value, fieldLabel) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Date.parse(value);
+	if (Number.isNaN(parsed)) {
+		return { error: `${fieldLabel} must be a valid ISO 8601 date.` };
+	}
+	return { value: new Date(parsed).toISOString() };
+}
+
 async function resolveAuthorId({ userId, id, displayName }) {
 	if (Number.isInteger(id)) {
 		return id;
@@ -187,7 +230,8 @@ async function insertPartialDate(client, dateValue) {
 // GET /author - List or fetch a specific author
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const nameOnly = req.query.nameOnly === "true" || req.query.nameOnly === "1";
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.displayName ?? req.body?.displayName);
 
@@ -250,18 +294,258 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	try {
-		const result = await pool.query(
-			`SELECT a.id, a.display_name, a.first_names, a.last_name, a.deceased, a.bio,
+	const errors = [];
+	const sortFields = {
+		id: "a.id",
+		displayName: "a.display_name",
+		firstNames: "a.first_names",
+		lastName: "a.last_name",
+		deceased: "a.deceased",
+		bio: "a.bio",
+		createdAt: "a.created_at",
+		updatedAt: "a.updated_at",
+		birthDateId: "a.birth_date_id",
+		deathDateId: "a.death_date_id",
+		birthDay: "bd.day",
+		birthMonth: "bd.month",
+		birthYear: "bd.year",
+		birthText: "bd.text",
+		deathDay: "dd.day",
+		deathMonth: "dd.month",
+		deathYear: "dd.year",
+		deathText: "dd.text"
+	};
+	const sortBy = normalizeText(listParams.sortBy) || "displayName";
+	const sortColumn = sortFields[sortBy];
+	if (!sortColumn) {
+		errors.push("sortBy must be one of: id, displayName, firstNames, lastName, deceased, bio, createdAt, updatedAt, birthDateId, deathDateId, birthDay, birthMonth, birthYear, birthText, deathDay, deathMonth, deathYear, deathText.");
+	}
+
+	const order = parseSortOrder(listParams.order);
+	if (!order) {
+		errors.push("order must be either asc or desc.");
+	}
+
+	const { value: limit, error: limitError } = parseOptionalInt(listParams.limit, "limit", { min: 1, max: MAX_LIST_LIMIT });
+	if (limitError) errors.push(limitError);
+	const { value: offset, error: offsetError } = parseOptionalInt(listParams.offset, "offset", { min: 0 });
+	if (offsetError) errors.push(offsetError);
+
+	const filters = [];
+	const values = [userId];
+	let paramIndex = 2;
+
+	const filterIdRaw = listParams.filterId;
+	if (filterIdRaw !== undefined) {
+		const filterId = parseId(filterIdRaw);
+		if (!Number.isInteger(filterId)) {
+			errors.push("filterId must be a valid integer.");
+		} else {
+			filters.push(`a.id = $${paramIndex++}`);
+			values.push(filterId);
+		}
+	}
+
+	const filterDisplayName = normalizeText(listParams.filterDisplayName);
+	if (filterDisplayName) {
+		if (filterDisplayName.length > MAX_DISPLAY_NAME_LENGTH) {
+			errors.push(`filterDisplayName must be ${MAX_DISPLAY_NAME_LENGTH} characters or fewer.`);
+		} else {
+			filters.push(`a.display_name ILIKE $${paramIndex++}`);
+			values.push(`%${filterDisplayName}%`);
+		}
+	}
+
+	const filterFirstNames = normalizeText(listParams.filterFirstNames);
+	if (filterFirstNames) {
+		if (filterFirstNames.length > MAX_FIRST_NAMES_LENGTH) {
+			errors.push(`filterFirstNames must be ${MAX_FIRST_NAMES_LENGTH} characters or fewer.`);
+		} else {
+			filters.push(`a.first_names ILIKE $${paramIndex++}`);
+			values.push(`%${filterFirstNames}%`);
+		}
+	}
+
+	const filterLastName = normalizeText(listParams.filterLastName);
+	if (filterLastName) {
+		if (filterLastName.length > MAX_LAST_NAME_LENGTH) {
+			errors.push(`filterLastName must be ${MAX_LAST_NAME_LENGTH} characters or fewer.`);
+		} else {
+			filters.push(`a.last_name ILIKE $${paramIndex++}`);
+			values.push(`%${filterLastName}%`);
+		}
+	}
+
+	const filterBio = normalizeText(listParams.filterBio);
+	if (filterBio) {
+		if (filterBio.length > MAX_BIO_LENGTH) {
+			errors.push(`filterBio must be ${MAX_BIO_LENGTH} characters or fewer.`);
+		} else {
+			filters.push(`a.bio ILIKE $${paramIndex++}`);
+			values.push(`%${filterBio}%`);
+		}
+	}
+
+	if (listParams.filterDeceased !== undefined) {
+		const filterDeceased = parseBooleanFlag(listParams.filterDeceased);
+		if (filterDeceased === null) {
+			errors.push("filterDeceased must be a boolean.");
+		} else {
+			filters.push(`a.deceased = $${paramIndex++}`);
+			values.push(filterDeceased);
+		}
+	}
+
+	if (listParams.filterBirthDateId !== undefined) {
+		const filterBirthDateId = parseId(listParams.filterBirthDateId);
+		if (!Number.isInteger(filterBirthDateId)) {
+			errors.push("filterBirthDateId must be a valid integer.");
+		} else {
+			filters.push(`a.birth_date_id = $${paramIndex++}`);
+			values.push(filterBirthDateId);
+		}
+	}
+
+	if (listParams.filterDeathDateId !== undefined) {
+		const filterDeathDateId = parseId(listParams.filterDeathDateId);
+		if (!Number.isInteger(filterDeathDateId)) {
+			errors.push("filterDeathDateId must be a valid integer.");
+		} else {
+			filters.push(`a.death_date_id = $${paramIndex++}`);
+			values.push(filterDeathDateId);
+		}
+	}
+
+	const birthDay = parseOptionalIntRange(listParams.filterBirthDay, "filterBirthDay", { min: 1, max: 31 });
+	if (birthDay.error) errors.push(birthDay.error);
+	if (birthDay.value !== null) {
+		filters.push(`bd.day = $${paramIndex++}`);
+		values.push(birthDay.value);
+	}
+
+	const birthMonth = parseOptionalIntRange(listParams.filterBirthMonth, "filterBirthMonth", { min: 1, max: 12 });
+	if (birthMonth.error) errors.push(birthMonth.error);
+	if (birthMonth.value !== null) {
+		filters.push(`bd.month = $${paramIndex++}`);
+		values.push(birthMonth.value);
+	}
+
+	const birthYear = parseOptionalIntRange(listParams.filterBirthYear, "filterBirthYear", { min: 1, max: 9999 });
+	if (birthYear.error) errors.push(birthYear.error);
+	if (birthYear.value !== null) {
+		filters.push(`bd.year = $${paramIndex++}`);
+		values.push(birthYear.value);
+	}
+
+	const birthText = normalizeText(listParams.filterBirthText);
+	if (birthText) {
+		filters.push(`bd.text ILIKE $${paramIndex++}`);
+		values.push(`%${birthText}%`);
+	}
+
+	const deathDay = parseOptionalIntRange(listParams.filterDeathDay, "filterDeathDay", { min: 1, max: 31 });
+	if (deathDay.error) errors.push(deathDay.error);
+	if (deathDay.value !== null) {
+		filters.push(`dd.day = $${paramIndex++}`);
+		values.push(deathDay.value);
+	}
+
+	const deathMonth = parseOptionalIntRange(listParams.filterDeathMonth, "filterDeathMonth", { min: 1, max: 12 });
+	if (deathMonth.error) errors.push(deathMonth.error);
+	if (deathMonth.value !== null) {
+		filters.push(`dd.month = $${paramIndex++}`);
+		values.push(deathMonth.value);
+	}
+
+	const deathYear = parseOptionalIntRange(listParams.filterDeathYear, "filterDeathYear", { min: 1, max: 9999 });
+	if (deathYear.error) errors.push(deathYear.error);
+	if (deathYear.value !== null) {
+		filters.push(`dd.year = $${paramIndex++}`);
+		values.push(deathYear.value);
+	}
+
+	const deathText = normalizeText(listParams.filterDeathText);
+	if (deathText) {
+		filters.push(`dd.text ILIKE $${paramIndex++}`);
+		values.push(`%${deathText}%`);
+	}
+
+	const dateFilters = [
+		{ key: "filterCreatedAt", column: "a.created_at", op: "=" },
+		{ key: "filterUpdatedAt", column: "a.updated_at", op: "=" },
+		{ key: "filterCreatedAfter", column: "a.created_at", op: ">=" },
+		{ key: "filterCreatedBefore", column: "a.created_at", op: "<=" },
+		{ key: "filterUpdatedAfter", column: "a.updated_at", op: ">=" },
+		{ key: "filterUpdatedBefore", column: "a.updated_at", op: "<=" }
+	];
+
+	for (const filter of dateFilters) {
+		const { value, error } = parseDateFilter(listParams[filter.key], filter.key);
+		if (error) {
+			errors.push(error);
+		} else if (value) {
+			filters.push(`${filter.column} ${filter.op} $${paramIndex++}`);
+			values.push(value);
+		}
+	}
+
+	const birthBefore = parseDateFilter(listParams.filterBornBefore, "filterBornBefore");
+	if (birthBefore.error) errors.push(birthBefore.error);
+	if (birthBefore.value) {
+		filters.push(`make_date(bd.year, COALESCE(bd.month, 1), COALESCE(bd.day, 1)) <= $${paramIndex++}::date`);
+		values.push(birthBefore.value);
+	}
+
+	const birthAfter = parseDateFilter(listParams.filterBornAfter, "filterBornAfter");
+	if (birthAfter.error) errors.push(birthAfter.error);
+	if (birthAfter.value) {
+		filters.push(`make_date(bd.year, COALESCE(bd.month, 1), COALESCE(bd.day, 1)) >= $${paramIndex++}::date`);
+		values.push(birthAfter.value);
+	}
+
+	const deathBefore = parseDateFilter(listParams.filterDiedBefore, "filterDiedBefore");
+	if (deathBefore.error) errors.push(deathBefore.error);
+	if (deathBefore.value) {
+		filters.push(`make_date(dd.year, COALESCE(dd.month, 1), COALESCE(dd.day, 1)) <= $${paramIndex++}::date`);
+		values.push(deathBefore.value);
+	}
+
+	const deathAfter = parseDateFilter(listParams.filterDiedAfter, "filterDiedAfter");
+	if (deathAfter.error) errors.push(deathAfter.error);
+	if (deathAfter.value) {
+		filters.push(`make_date(dd.year, COALESCE(dd.month, 1), COALESCE(dd.day, 1)) >= $${paramIndex++}::date`);
+		values.push(deathAfter.value);
+	}
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	let query = `SELECT a.id, a.display_name, a.first_names, a.last_name, a.deceased, a.bio,
 			        a.created_at, a.updated_at,
 			        bd.id AS birth_date_id, bd.day AS birth_day, bd.month AS birth_month, bd.year AS birth_year, bd.text AS birth_text,
 			        dd.id AS death_date_id, dd.day AS death_day, dd.month AS death_month, dd.year AS death_year, dd.text AS death_text
 			 FROM authors a
 			 LEFT JOIN dates bd ON a.birth_date_id = bd.id
 			 LEFT JOIN dates dd ON a.death_date_id = dd.id
-			 WHERE a.user_id = $1
-			 ORDER BY a.display_name ASC`,
-			[userId]
+			 WHERE a.user_id = $1`;
+	if (filters.length > 0) {
+		query += ` AND ${filters.join(" AND ")}`;
+	}
+	query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+	if (limit !== null) {
+		query += ` LIMIT $${paramIndex++}`;
+		values.push(limit);
+	}
+	if (offset !== null) {
+		query += ` OFFSET $${paramIndex++}`;
+		values.push(offset);
+	}
+
+	try {
+		const result = await pool.query(
+			query,
+			values
 		);
 
 		const payload = result.rows.map((row) => {
@@ -406,7 +690,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 // GET /author/by-name?displayName=... - Fetch an author by display name
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const displayName = normalizeText(req.query.displayName ?? req.query.name);
+	const displayName = normalizeText(req.query.displayName ?? req.query.name ?? req.body?.displayName ?? req.body?.name);
 
 	const errors = validateDisplayName(displayName);
 	if (errors.length > 0) {
