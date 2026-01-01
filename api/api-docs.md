@@ -2896,8 +2896,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Book type created successfully.",
   "data": {
     "id": 10,
-    "name": "Collector's Edition",
-    "description": "Premium binding with slipcase.",
+    "name": "Hogwarts Illustrated Edition",
+    "description": "Harry Potter special edition with illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -3014,8 +3014,8 @@ At least one field must be provided.
   "message": "Book type updated successfully.",
   "data": {
     "id": 10,
-    "name": "Collector's Edition",
-    "description": "Premium binding with slipcase.",
+    "name": "Hogwarts Illustrated Edition",
+    "description": "Harry Potter special edition with illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:05:48.000Z"
   },
@@ -3151,8 +3151,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "message": "Book type updated successfully.",
   "data": {
     "id": 10,
-    "name": "Collector's Edition",
-    "description": "Premium binding with slipcase.",
+    "name": "Hogwarts Illustrated Edition",
+    "description": "Harry Potter special edition with illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:05:48.000Z"
   },
@@ -4763,16 +4763,16 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "publishers": [
       {
         "id": 5,
-        "name": "HarperCollins",
+        "name": "Bloomsbury",
         "foundedDate": {
           "id": 21,
           "day": 1,
-          "month": 7,
-          "year": 1989,
-          "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
         },
-        "website": "https://www.harpercollins.com",
-        "notes": "Major international publisher.",
+        "website": "https://www.bloomsbury.com",
+        "notes": "Publisher of the Harry Potter series.",
         "createdAt": "2025-01-10T09:15:23.000Z",
         "updatedAt": "2025-01-14T16:58:41.000Z"
       }
@@ -4794,7 +4794,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "publishers": [
       {
         "id": 5,
-        "name": "HarperCollins"
+        "name": "Bloomsbury"
       }
     ]
   },
@@ -4812,16 +4812,16 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
   "message": "Publisher retrieved successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
-    "notes": "Major international publisher.",
+    "website": "https://www.bloomsbury.com",
+    "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-10T09:15:23.000Z",
     "updatedAt": "2025-01-14T16:58:41.000Z"
   },
@@ -4923,11 +4923,11 @@ Query string equivalent:
 GET /publisher?filterFoundedBefore=1950-01-01&sortBy=foundedYear&order=desc&limit=20
 ```
 
-- **Publishers with "press" in the name, sorted by name (asc), offset 10, limit 10:**
+- **Publishers with "blooms" in the name, sorted by name (asc), offset 10, limit 10:**
 
 ```json
 {
-  "filterName": "press",
+  "filterName": "blooms",
   "sortBy": "name",
   "order": "asc",
   "offset": 10,
@@ -4938,7 +4938,7 @@ GET /publisher?filterFoundedBefore=1950-01-01&sortBy=foundedYear&order=desc&limi
 Query string equivalent:
 
 ```
-GET /publisher?filterName=press&sortBy=name&order=asc&offset=10&limit=10
+GET /publisher?filterName=blooms&sortBy=name&order=asc&offset=10&limit=10
 ```
 
 ### GET /publisher/by-name
@@ -4974,16 +4974,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Publisher retrieved successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
-    "notes": "Major international publisher.",
+    "website": "https://www.bloomsbury.com",
+    "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-10T09:15:23.000Z",
     "updatedAt": "2025-01-14T16:58:41.000Z"
   },
@@ -5091,16 +5091,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Publisher retrieved successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
-    "notes": "Major international publisher.",
+    "website": "https://www.bloomsbury.com",
+    "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-10T09:15:23.000Z",
     "updatedAt": "2025-01-14T16:58:41.000Z"
   },
@@ -5217,16 +5217,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Publisher created successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
-    "notes": "Major international publisher.",
+    "website": "https://www.bloomsbury.com",
+    "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -5347,15 +5347,15 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "message": "Publisher updated successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
+    "website": "https://www.bloomsbury.com",
     "notes": "Updated notes.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
@@ -5479,15 +5479,15 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "message": "Publisher updated successfully.",
   "data": {
     "id": 5,
-    "name": "HarperCollins",
+    "name": "Bloomsbury",
     "foundedDate": {
       "id": 21,
       "day": 1,
-      "month": 7,
-      "year": 1989,
-      "text": "1 July 1989"
+          "month": 3,
+          "year": 1986,
+          "text": "1 March 1986"
     },
-    "website": "https://www.harpercollins.com",
+    "website": "https://www.bloomsbury.com",
     "notes": "Updated notes.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
@@ -5792,7 +5792,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 ## Book Series
 
-Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest published dates). Books can be linked to multiple series; the link can optionally store the book order within the series.
+Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest published dates). Links without a published date are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.
 
 If a series has no linked books with published dates, `startDate` and `endDate` will be `null`.
 
@@ -5876,23 +5876,23 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "series": [
       {
         "id": 8,
-        "name": "Discworld",
+        "name": "The Lord of the Rings",
         "startDate": {
           "id": 42,
-          "day": 3,
-          "month": 6,
-          "year": 1983,
-          "text": "3 June 1983"
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
         },
         "endDate": {
           "id": 43,
-          "day": 9,
-          "month": 4,
-          "year": 2015,
-          "text": "9 April 2015"
+          "day": 20,
+          "month": 10,
+          "year": 1955,
+          "text": "20 October 1955"
         },
-        "description": "Fantasy series by Terry Pratchett.",
-        "website": "https://www.terrypratchettbooks.com",
+        "description": "Epic fantasy series by J.R.R. Tolkien.",
+        "website": "https://www.tolkien.co.uk",
         "createdAt": "2025-01-10T09:15:23.000Z",
         "updatedAt": "2025-01-14T16:58:41.000Z"
       }
@@ -5914,7 +5914,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "series": [
       {
         "id": 8,
-        "name": "Discworld"
+        "name": "The Lord of the Rings"
       }
     ]
   },
@@ -5932,33 +5932,33 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
   "message": "Series retrieved successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
+    "name": "The Lord of the Rings",
     "startDate": {
       "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
     },
     "endDate": {
       "id": 43,
-      "day": 9,
-      "month": 4,
-      "year": 2015,
-      "text": "9 April 2015"
+      "day": 20,
+      "month": 10,
+      "year": 1955,
+      "text": "20 October 1955"
     },
-    "description": "Fantasy series by Terry Pratchett.",
-    "website": "https://www.terrypratchettbooks.com",
+    "description": "Epic fantasy series by J.R.R. Tolkien.",
+    "website": "https://www.tolkien.co.uk",
     "books": [
       {
         "bookId": 101,
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 44,
-          "day": 3,
-          "month": 6,
-          "year": 1983,
-          "text": "3 June 1983"
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
         }
       },
       {
@@ -5966,10 +5966,21 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
         "bookOrder": 2,
         "bookPublishedDate": {
           "id": 45,
-          "day": 17,
+          "day": 11,
           "month": 11,
-          "year": 1983,
-          "text": "17 November 1983"
+          "year": 1954,
+          "text": "11 November 1954"
+        }
+      },
+      {
+        "bookId": 103,
+        "bookOrder": 3,
+        "bookPublishedDate": {
+          "id": 46,
+          "day": 20,
+          "month": 10,
+          "year": 1955,
+          "text": "20 October 1955"
         }
       }
     ],
@@ -6074,11 +6085,11 @@ Query string equivalent:
 GET /bookseries?filterStartedBefore=1990-01-01&sortBy=startYear&order=desc&limit=10
 ```
 
-- **Series with "chronicles" in the name, sorted by name (asc), offset 20, limit 10:**
+- **Series with "harry" in the name, sorted by name (asc), offset 20, limit 10:**
 
 ```json
 {
-  "filterName": "chronicles",
+  "filterName": "harry",
   "sortBy": "name",
   "order": "asc",
   "offset": 20,
@@ -6089,7 +6100,7 @@ GET /bookseries?filterStartedBefore=1990-01-01&sortBy=startYear&order=desc&limit
 Query string equivalent:
 
 ```
-GET /bookseries?filterName=chronicles&sortBy=name&order=asc&offset=20&limit=10
+GET /bookseries?filterName=harry&sortBy=name&order=asc&offset=20&limit=10
 ```
 
 ### GET /bookseries/by-name
@@ -6125,33 +6136,33 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Series retrieved successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
+    "name": "The Lord of the Rings",
     "startDate": {
       "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
     },
     "endDate": {
       "id": 43,
-      "day": 9,
-      "month": 4,
-      "year": 2015,
-      "text": "9 April 2015"
+      "day": 20,
+      "month": 10,
+      "year": 1955,
+      "text": "20 October 1955"
     },
-    "description": "Fantasy series by Terry Pratchett.",
-    "website": "https://www.terrypratchettbooks.com",
+    "description": "Epic fantasy series by J.R.R. Tolkien.",
+    "website": "https://www.tolkien.co.uk",
     "books": [
       {
         "bookId": 101,
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 44,
-          "day": 3,
-          "month": 6,
-          "year": 1983,
-          "text": "3 June 1983"
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
         }
       }
     ],
@@ -6262,33 +6273,33 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Series retrieved successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
+    "name": "The Lord of the Rings",
     "startDate": {
       "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
     },
     "endDate": {
       "id": 43,
-      "day": 9,
-      "month": 4,
-      "year": 2015,
-      "text": "9 April 2015"
+      "day": 20,
+      "month": 10,
+      "year": 1955,
+      "text": "20 October 1955"
     },
-    "description": "Fantasy series by Terry Pratchett.",
-    "website": "https://www.terrypratchettbooks.com",
+    "description": "Epic fantasy series by J.R.R. Tolkien.",
+    "website": "https://www.tolkien.co.uk",
     "books": [
       {
         "bookId": 101,
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 44,
-          "day": 3,
-          "month": 6,
-          "year": 1983,
-          "text": "3 June 1983"
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
         }
       }
     ],
@@ -6407,9 +6418,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Series created successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
-    "description": "Fantasy series by Terry Pratchett.",
-    "website": "https://www.terrypratchettbooks.com",
+    "name": "The Lord of the Rings",
+    "description": "Epic fantasy series by J.R.R. Tolkien.",
+    "website": "https://www.tolkien.co.uk",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -6529,9 +6540,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "message": "Series updated successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
+    "name": "The Lord of the Rings",
     "description": "Updated description.",
-    "website": "https://www.terrypratchettbooks.com",
+    "website": "https://www.tolkien.co.uk",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -6654,9 +6665,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "message": "Series updated successfully.",
   "data": {
     "id": 8,
-    "name": "Discworld",
+    "name": "The Lord of the Rings",
     "description": "Updated description.",
-    "website": "https://www.terrypratchettbooks.com",
+    "website": "https://www.tolkien.co.uk",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -6987,7 +6998,8 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 
 Notes:
 - Until the books table is implemented, `bookId` is treated as a numeric identifier without additional validation.
-- `bookPublishedDate` is used to derive the series `startDate` and `endDate`.
+- `bookPublishedDate` is used to derive the series `startDate` and `endDate`. If it is `null`, the link is stored without a published date and does not affect series date ranges.
+- If a link already exists for the same series and book, the API updates that link instead of returning a conflict. Only provided fields are updated; omitted fields remain unchanged.
 
 - **Created (201):**
 
@@ -7004,13 +7016,40 @@ Notes:
     "bookOrder": 1,
     "bookPublishedDate": {
       "id": 44,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
     },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Updated (200, when link already exists):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Book-series link updated successfully.",
+  "data": {
+    "id": 77,
+    "seriesId": 8,
+    "bookId": 101,
+    "bookOrder": 2,
+    "bookPublishedDate": {
+      "id": 44,
+      "day": 11,
+      "month": 11,
+      "year": 1954,
+      "text": "11 November 1954"
+    },
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
   },
   "errors": []
 }
@@ -7042,21 +7081,6 @@ Notes:
   "data": {},
   "errors": [
     "The requested series could not be located."
-  ]
-}
-```
-
-- **Conflict (409):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 409,
-  "responseTime": "2.18",
-  "message": "Link already exists.",
-  "data": {},
-  "errors": [
-    "This book is already linked to the series."
   ]
 }
 ```
@@ -7148,10 +7172,10 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
     "bookOrder": 2,
     "bookPublishedDate": {
       "id": 44,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
+      "day": 11,
+      "month": 11,
+      "year": 1954,
+      "text": "11 November 1954"
     },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"

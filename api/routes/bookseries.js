@@ -945,6 +945,8 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const seriesName = normalizeText(req.body?.seriesName ?? req.body?.name);
 	const bookId = parseId(req.body?.bookId);
 	const bookPublishedDate = req.body?.bookPublishedDate ?? null;
+	const hasBookOrder = Object.prototype.hasOwnProperty.call(req.body || {}, "bookOrder");
+	const hasBookPublishedDate = Object.prototype.hasOwnProperty.call(req.body || {}, "bookPublishedDate");
 	const { value: bookOrder, error: orderError } = parseBookOrder(req.body?.bookOrder, "bookOrder");
 
 	const errors = [];
@@ -957,10 +959,12 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	if (seriesName) {
 		errors.push(...validateSeriesName(seriesName));
 	}
-	if (orderError) {
+	if (hasBookOrder && orderError) {
 		errors.push(orderError);
 	}
-	errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
+	if (hasBookPublishedDate) {
+		errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
+	}
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
@@ -975,17 +979,105 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			`SELECT id FROM book_series_books WHERE user_id = $1 AND series_id = $2 AND book_id = $3`,
 			[userId, resolvedId, bookId]
 		);
-		if (existing.rows.length > 0) {
-			return errorResponse(res, 409, "Link already exists.", ["This book is already linked to the series."]);
-		}
 
 		const client = await pool.connect();
 		let publishedDateId = null;
 		try {
 			await client.query("BEGIN");
-			if (bookPublishedDate) {
+			if (hasBookPublishedDate && bookPublishedDate) {
 				publishedDateId = await insertPartialDate(client, bookPublishedDate);
 			}
+
+			if (existing.rows.length > 0) {
+				const updateFields = [];
+				const params = [];
+				let index = 1;
+
+				if (hasBookOrder) {
+					updateFields.push(`book_order = $${index++}`);
+					params.push(bookOrder);
+				}
+				if (hasBookPublishedDate) {
+					updateFields.push(`book_published_date_id = $${index++}`);
+					params.push(bookPublishedDate ? publishedDateId : null);
+				}
+
+				if (updateFields.length > 0) {
+					updateFields.push(`updated_at = NOW()`);
+					params.push(userId, resolvedId, bookId);
+
+					const result = await client.query(
+						`UPDATE book_series_books
+						 SET ${updateFields.join(", ")}
+						 WHERE user_id = $${index++} AND series_id = $${index++} AND book_id = $${index++}
+						 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
+						params
+					);
+					await client.query("COMMIT");
+
+					const row = result.rows[0];
+					logToFile("BOOK_SERIES_LINK_UPDATE", {
+						status: "SUCCESS",
+						user_id: userId,
+						series_id: row.series_id,
+						book_id: row.book_id,
+						ip: req.ip,
+						user_agent: req.get("user-agent")
+					}, "info");
+
+					return successResponse(res, 200, "Book-series link updated successfully.", {
+						id: row.id,
+						seriesId: row.series_id,
+						bookId: row.book_id,
+						bookOrder: row.book_order,
+						bookPublishedDate: row.book_published_date_id && bookPublishedDate
+							? { ...bookPublishedDate, id: row.book_published_date_id }
+							: null,
+						createdAt: row.created_at,
+						updatedAt: row.updated_at
+					});
+				}
+
+				const current = await client.query(
+					`SELECT bsb.id, bsb.series_id, bsb.book_id, bsb.book_order, bsb.book_published_date_id,
+					        bsb.created_at, bsb.updated_at,
+					        d.day AS published_day, d.month AS published_month, d.year AS published_year, d.text AS published_text
+					 FROM book_series_books bsb
+					 LEFT JOIN dates d ON bsb.book_published_date_id = d.id
+					 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND bsb.book_id = $3`,
+					[userId, resolvedId, bookId]
+				);
+				await client.query("COMMIT");
+
+				const row = current.rows[0];
+				logToFile("BOOK_SERIES_LINK_UPDATE", {
+					status: "SUCCESS",
+					user_id: userId,
+					series_id: row.series_id,
+					book_id: row.book_id,
+					ip: req.ip,
+					user_agent: req.get("user-agent")
+				}, "info");
+
+				return successResponse(res, 200, "Book-series link updated successfully.", {
+					id: row.id,
+					seriesId: row.series_id,
+					bookId: row.book_id,
+					bookOrder: row.book_order,
+					bookPublishedDate: row.book_published_date_id
+						? {
+							id: row.book_published_date_id,
+							day: row.published_day,
+							month: row.published_month,
+							year: row.published_year,
+							text: row.published_text
+						}
+						: null,
+					createdAt: row.created_at,
+					updatedAt: row.updated_at
+				});
+			}
+
 			const result = await client.query(
 				`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at)
 				 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
