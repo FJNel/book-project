@@ -5792,7 +5792,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 ## Book Series
 
-Book series are scoped per user. Series start dates use the Partial Date Object described in **Shared Behaviours**. Books can be linked to multiple series; the link can optionally store the book order within the series.
+Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest published dates). Books can be linked to multiple series; the link can optionally store the book order within the series.
+
+If a series has no linked books with published dates, `startDate` and `endDate` will be `null`.
 
 ### GET /bookseries
 
@@ -5821,13 +5823,21 @@ Book series are scoped per user. Series start dates use the Partial Date Object 
 | `filterId` | integer | No | Filter list by exact id. |
 | `filterName` | string | No | Case-insensitive partial match on name. |
 | `filterDescription` | string | No | Case-insensitive partial match on description. |
+| `filterWebsite` | string | No | Case-insensitive partial match on website. |
 | `filterStartDateId` | integer | No | Filter by exact start date id. |
 | `filterStartDay` | integer | No | Filter by start day (1-31). |
 | `filterStartMonth` | integer | No | Filter by start month (1-12). |
 | `filterStartYear` | integer | No | Filter by start year (1-9999). |
 | `filterStartText` | string | No | Case-insensitive partial match on start date text. |
+| `filterEndDateId` | integer | No | Filter by exact end date id. |
+| `filterEndDay` | integer | No | Filter by end day (1-31). |
+| `filterEndMonth` | integer | No | Filter by end month (1-12). |
+| `filterEndYear` | integer | No | Filter by end year (1-9999). |
+| `filterEndText` | string | No | Case-insensitive partial match on end date text. |
 | `filterStartedBefore` | string | No | ISO date/time upper bound for series start date. |
 | `filterStartedAfter` | string | No | ISO date/time lower bound for series start date. |
+| `filterEndedBefore` | string | No | ISO date/time upper bound for series end date. |
+| `filterEndedAfter` | string | No | ISO date/time lower bound for series end date. |
 | `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
 | `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
 | `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
@@ -5835,9 +5845,9 @@ Book series are scoped per user. Series start dates use the Partial Date Object 
 | `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 
-`sortBy` accepts: `id`, `name`, `description`, `createdAt`, `updatedAt`, `startDateId`, `startDay`, `startMonth`, `startYear`, `startText`.
+`sortBy` accepts: `id`, `name`, `description`, `website`, `createdAt`, `updatedAt`, `startDate`, `startDateId`, `startDay`, `startMonth`, `startYear`, `startText`, `endDate`, `endDateId`, `endDay`, `endMonth`, `endYear`, `endText`.
 
-For started filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without a start date will not match the started filters.
+For started/ended filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without start/end dates will not match the corresponding filters.
 
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
@@ -5874,7 +5884,15 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
           "year": 1983,
           "text": "3 June 1983"
         },
+        "endDate": {
+          "id": 43,
+          "day": 9,
+          "month": 4,
+          "year": 2015,
+          "text": "9 April 2015"
+        },
         "description": "Fantasy series by Terry Pratchett.",
+        "website": "https://www.terrypratchettbooks.com",
         "createdAt": "2025-01-10T09:15:23.000Z",
         "updatedAt": "2025-01-14T16:58:41.000Z"
       }
@@ -5922,15 +5940,37 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
       "year": 1983,
       "text": "3 June 1983"
     },
+    "endDate": {
+      "id": 43,
+      "day": 9,
+      "month": 4,
+      "year": 2015,
+      "text": "9 April 2015"
+    },
     "description": "Fantasy series by Terry Pratchett.",
+    "website": "https://www.terrypratchettbooks.com",
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 44,
+          "day": 3,
+          "month": 6,
+          "year": 1983,
+          "text": "3 June 1983"
+        }
       },
       {
         "bookId": 102,
-        "bookOrder": 2
+        "bookOrder": 2,
+        "bookPublishedDate": {
+          "id": 45,
+          "day": 17,
+          "month": 11,
+          "year": 1983,
+          "text": "17 November 1983"
+        }
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -6093,11 +6133,26 @@ If `name` is provided in both the query string and JSON body, the JSON body take
       "year": 1983,
       "text": "3 June 1983"
     },
+    "endDate": {
+      "id": 43,
+      "day": 9,
+      "month": 4,
+      "year": 2015,
+      "text": "9 April 2015"
+    },
     "description": "Fantasy series by Terry Pratchett.",
+    "website": "https://www.terrypratchettbooks.com",
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 44,
+          "day": 3,
+          "month": 6,
+          "year": 1983,
+          "text": "3 June 1983"
+        }
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -6215,11 +6270,26 @@ If `name` is provided in both the query string and JSON body, the JSON body take
       "year": 1983,
       "text": "3 June 1983"
     },
+    "endDate": {
+      "id": 43,
+      "day": 9,
+      "month": 4,
+      "year": 2015,
+      "text": "9 April 2015"
+    },
     "description": "Fantasy series by Terry Pratchett.",
+    "website": "https://www.terrypratchettbooks.com",
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 44,
+          "day": 3,
+          "month": 6,
+          "year": 1983,
+          "text": "3 June 1983"
+        }
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -6324,8 +6394,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
-| `startDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
 | `description` | string | No | Optional description (<= 1000 characters). |
+| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
 
 - **Created (201):**
 
@@ -6338,14 +6408,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "data": {
     "id": 8,
     "name": "Discworld",
-    "startDate": {
-      "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
-    },
     "description": "Fantasy series by Terry Pratchett.",
+    "website": "https://www.terrypratchettbooks.com",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -6450,8 +6514,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `id` | integer | No | Series id to update. |
 | `targetName` | string | No | Series name to update (used if `id` is not provided). |
 | `name` | string | No | New series name. |
-| `startDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). Use `null` to clear. |
 | `description` | string | No | New description. Use `null` to clear. |
+| `website` | string | No | New website. Use `null` to clear. |
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
 
@@ -6466,14 +6530,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "data": {
     "id": 8,
     "name": "Discworld",
-    "startDate": {
-      "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
-    },
     "description": "Updated description.",
+    "website": "https://www.terrypratchettbooks.com",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -6597,14 +6655,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "data": {
     "id": 8,
     "name": "Discworld",
-    "startDate": {
-      "id": 42,
-      "day": 3,
-      "month": 6,
-      "year": 1983,
-      "text": "3 June 1983"
-    },
     "description": "Updated description.",
+    "website": "https://www.terrypratchettbooks.com",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -6929,10 +6981,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `seriesName` | string | No | Series name to link (used if `seriesId` is not provided). |
 | `bookId` | integer | Yes | Book id to link. |
 | `bookOrder` | integer | No | Order of the book in the series (1-10000). |
+| `bookPublishedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
-Note: Until the books table is implemented, `bookId` is treated as a numeric identifier without additional validation.
+Notes:
+- Until the books table is implemented, `bookId` is treated as a numeric identifier without additional validation.
+- `bookPublishedDate` is used to derive the series `startDate` and `endDate`.
 
 - **Created (201):**
 
@@ -6947,6 +7002,13 @@ Note: Until the books table is implemented, `bookId` is treated as a numeric ide
     "seriesId": 8,
     "bookId": 101,
     "bookOrder": 1,
+    "bookPublishedDate": {
+      "id": 44,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -7067,6 +7129,7 @@ Note: Until the books table is implemented, `bookId` is treated as a numeric ide
 | `seriesName` | string | No | Series name to update (used if `seriesId` is not provided). |
 | `bookId` | integer | Yes | Book id for the link. |
 | `bookOrder` | integer | No | New order of the book in the series (1-10000). Use `null` to clear. |
+| `bookPublishedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). Use `null` to clear. |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
@@ -7083,6 +7146,13 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
     "seriesId": 8,
     "bookId": 101,
     "bookOrder": 2,
+    "bookPublishedDate": {
+      "id": 44,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },

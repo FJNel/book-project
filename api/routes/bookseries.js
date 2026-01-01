@@ -10,6 +10,7 @@ const { validatePartialDateObject } = require("../utils/partial-date");
 
 const MAX_SERIES_NAME_LENGTH = 150;
 const MAX_SERIES_DESCRIPTION_LENGTH = 1000;
+const MAX_WEBSITE_LENGTH = 300;
 const MAX_LIST_LIMIT = 200;
 
 function normalizeText(value) {
@@ -43,6 +44,31 @@ function validateSeriesDescription(value) {
 	}
 	if (value.trim().length > MAX_SERIES_DESCRIPTION_LENGTH) {
 		errors.push(`Description must be ${MAX_SERIES_DESCRIPTION_LENGTH} characters or fewer.`);
+	}
+	return errors;
+}
+
+function validateWebsite(value) {
+	const errors = [];
+	if (value === undefined || value === null || value === "") {
+		return errors;
+	}
+	if (typeof value !== "string") {
+		errors.push("Website must be a string.");
+		return errors;
+	}
+	const trimmed = value.trim();
+	if (trimmed.length > MAX_WEBSITE_LENGTH) {
+		errors.push(`Website must be ${MAX_WEBSITE_LENGTH} characters or fewer.`);
+		return errors;
+	}
+	try {
+		const parsed = new URL(trimmed);
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+			errors.push("Website must start with http:// or https://.");
+		}
+	} catch (error) {
+		errors.push("Website must be a valid URL starting with http:// or https://.");
 	}
 	return errors;
 }
@@ -148,16 +174,51 @@ async function insertPartialDate(client, dateValue) {
 
 async function fetchSeriesBooks(userId, seriesId) {
 	const result = await pool.query(
-		`SELECT book_id, book_order
-		 FROM book_series_books
-		 WHERE user_id = $1 AND series_id = $2
-		 ORDER BY book_order ASC NULLS LAST, book_id ASC`,
+		`SELECT bsb.book_id, bsb.book_order,
+		        d.id AS published_date_id, d.day AS published_day, d.month AS published_month, d.year AS published_year, d.text AS published_text
+		 FROM book_series_books bsb
+		 LEFT JOIN dates d ON bsb.book_published_date_id = d.id
+		 WHERE bsb.user_id = $1 AND bsb.series_id = $2
+		 ORDER BY bsb.book_order ASC NULLS LAST, bsb.book_id ASC`,
 		[userId, seriesId]
 	);
 	return result.rows.map((row) => ({
 		bookId: row.book_id,
-		bookOrder: row.book_order
+		bookOrder: row.book_order,
+		bookPublishedDate: row.published_date_id
+			? { id: row.published_date_id, day: row.published_day, month: row.published_month, year: row.published_year, text: row.published_text }
+			: null
 	}));
+}
+
+async function fetchSeriesDateRange(userId, seriesId) {
+	const startResult = await pool.query(
+		`SELECT d.id, d.day, d.month, d.year, d.text
+		 FROM book_series_books bsb
+		 JOIN dates d ON bsb.book_published_date_id = d.id
+		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
+		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) ASC
+		 LIMIT 1`,
+		[userId, seriesId]
+	);
+
+	const endResult = await pool.query(
+		`SELECT d.id, d.day, d.month, d.year, d.text
+		 FROM book_series_books bsb
+		 JOIN dates d ON bsb.book_published_date_id = d.id
+		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
+		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
+		 LIMIT 1`,
+		[userId, seriesId]
+	);
+
+	const startRow = startResult.rows[0];
+	const endRow = endResult.rows[0];
+
+	return {
+		startDate: startRow ? { id: startRow.id, day: startRow.day, month: startRow.month, year: startRow.year, text: startRow.text } : null,
+		endDate: endRow ? { id: endRow.id, day: endRow.day, month: endRow.month, year: endRow.year, text: endRow.text } : null
+	};
 }
 
 // GET /bookseries - List or fetch a specific series
@@ -183,25 +244,24 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 
 			const result = await pool.query(
-				`SELECT s.id, s.name, s.description, s.created_at, s.updated_at,
-				        sd.id AS start_date_id, sd.day AS start_day, sd.month AS start_month, sd.year AS start_year, sd.text AS start_text
+				`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 				 FROM book_series s
-				 LEFT JOIN dates sd ON s.start_date_id = sd.id
 				 WHERE s.user_id = $1 AND s.id = $2`,
 				[userId, resolvedId]
 			);
 
 			const row = result.rows[0];
 			const books = await fetchSeriesBooks(userId, resolvedId);
+			const { startDate, endDate } = await fetchSeriesDateRange(userId, resolvedId);
 			const payload = nameOnly
 				? { id: row.id, name: row.name }
 				: {
 					id: row.id,
 					name: row.name,
-					startDate: row.start_date_id
-						? { id: row.start_date_id, day: row.start_day, month: row.start_month, year: row.start_year, text: row.start_text }
-						: null,
+					startDate,
+					endDate,
 					description: row.description,
+					website: row.website,
 					books,
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
@@ -222,26 +282,35 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	const fields = nameOnly
 		? "s.id, s.name"
-		: `s.id, s.name, s.description, s.created_at, s.updated_at,
-		   sd.id AS start_date_id, sd.day AS start_day, sd.month AS start_month, sd.year AS start_year, sd.text AS start_text`;
+		: `s.id, s.name, s.description, s.website, s.created_at, s.updated_at,
+		   start_date.id AS start_date_id, start_date.day AS start_day, start_date.month AS start_month, start_date.year AS start_year, start_date.text AS start_text,
+		   end_date.id AS end_date_id, end_date.day AS end_day, end_date.month AS end_month, end_date.year AS end_year, end_date.text AS end_text`;
 
 	const errors = [];
 	const sortFields = {
 		id: "s.id",
 		name: "s.name",
 		description: "s.description",
+		website: "s.website",
 		createdAt: "s.created_at",
 		updatedAt: "s.updated_at",
-		startDateId: "s.start_date_id",
-		startDay: "sd.day",
-		startMonth: "sd.month",
-		startYear: "sd.year",
-		startText: "sd.text"
+		startDateId: "start_date.id",
+		startDay: "start_date.day",
+		startMonth: "start_date.month",
+		startYear: "start_date.year",
+		startText: "start_date.text",
+		endDateId: "end_date.id",
+		endDay: "end_date.day",
+		endMonth: "end_date.month",
+		endYear: "end_date.year",
+		endText: "end_date.text",
+		startDate: "start_date.start_sort",
+		endDate: "end_date.end_sort"
 	};
 	const sortBy = normalizeText(listParams.sortBy) || "name";
 	const sortColumn = sortFields[sortBy];
 	if (!sortColumn) {
-		errors.push("sortBy must be one of: id, name, description, createdAt, updatedAt, startDateId, startDay, startMonth, startYear, startText.");
+		errors.push("sortBy must be one of: id, name, description, website, createdAt, updatedAt, startDate, startDateId, startDay, startMonth, startYear, startText, endDate, endDateId, endDay, endMonth, endYear, endText.");
 	}
 
 	const order = parseSortOrder(listParams.order);
@@ -288,12 +357,22 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
+	const filterWebsite = normalizeText(listParams.filterWebsite);
+	if (filterWebsite) {
+		if (filterWebsite.length > MAX_WEBSITE_LENGTH) {
+			errors.push(`filterWebsite must be ${MAX_WEBSITE_LENGTH} characters or fewer.`);
+		} else {
+			filters.push(`s.website ILIKE $${paramIndex++}`);
+			values.push(`%${filterWebsite}%`);
+		}
+	}
+
 	if (listParams.filterStartDateId !== undefined) {
 		const filterStartDateId = parseId(listParams.filterStartDateId);
 		if (!Number.isInteger(filterStartDateId)) {
 			errors.push("filterStartDateId must be a valid integer.");
 		} else {
-			filters.push(`s.start_date_id = $${paramIndex++}`);
+			filters.push(`start_date.id = $${paramIndex++}`);
 			values.push(filterStartDateId);
 		}
 	}
@@ -301,28 +380,65 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const startDay = parseOptionalIntRange(listParams.filterStartDay, "filterStartDay", { min: 1, max: 31 });
 	if (startDay.error) errors.push(startDay.error);
 	if (startDay.value !== null) {
-		filters.push(`sd.day = $${paramIndex++}`);
+		filters.push(`start_date.day = $${paramIndex++}`);
 		values.push(startDay.value);
 	}
 
 	const startMonth = parseOptionalIntRange(listParams.filterStartMonth, "filterStartMonth", { min: 1, max: 12 });
 	if (startMonth.error) errors.push(startMonth.error);
 	if (startMonth.value !== null) {
-		filters.push(`sd.month = $${paramIndex++}`);
+		filters.push(`start_date.month = $${paramIndex++}`);
 		values.push(startMonth.value);
 	}
 
 	const startYear = parseOptionalIntRange(listParams.filterStartYear, "filterStartYear", { min: 1, max: 9999 });
 	if (startYear.error) errors.push(startYear.error);
 	if (startYear.value !== null) {
-		filters.push(`sd.year = $${paramIndex++}`);
+		filters.push(`start_date.year = $${paramIndex++}`);
 		values.push(startYear.value);
 	}
 
 	const startText = normalizeText(listParams.filterStartText);
 	if (startText) {
-		filters.push(`sd.text ILIKE $${paramIndex++}`);
+		filters.push(`start_date.text ILIKE $${paramIndex++}`);
 		values.push(`%${startText}%`);
+	}
+
+	if (listParams.filterEndDateId !== undefined) {
+		const filterEndDateId = parseId(listParams.filterEndDateId);
+		if (!Number.isInteger(filterEndDateId)) {
+			errors.push("filterEndDateId must be a valid integer.");
+		} else {
+			filters.push(`end_date.id = $${paramIndex++}`);
+			values.push(filterEndDateId);
+		}
+	}
+
+	const endDay = parseOptionalIntRange(listParams.filterEndDay, "filterEndDay", { min: 1, max: 31 });
+	if (endDay.error) errors.push(endDay.error);
+	if (endDay.value !== null) {
+		filters.push(`end_date.day = $${paramIndex++}`);
+		values.push(endDay.value);
+	}
+
+	const endMonth = parseOptionalIntRange(listParams.filterEndMonth, "filterEndMonth", { min: 1, max: 12 });
+	if (endMonth.error) errors.push(endMonth.error);
+	if (endMonth.value !== null) {
+		filters.push(`end_date.month = $${paramIndex++}`);
+		values.push(endMonth.value);
+	}
+
+	const endYear = parseOptionalIntRange(listParams.filterEndYear, "filterEndYear", { min: 1, max: 9999 });
+	if (endYear.error) errors.push(endYear.error);
+	if (endYear.value !== null) {
+		filters.push(`end_date.year = $${paramIndex++}`);
+		values.push(endYear.value);
+	}
+
+	const endText = normalizeText(listParams.filterEndText);
+	if (endText) {
+		filters.push(`end_date.text ILIKE $${paramIndex++}`);
+		values.push(`%${endText}%`);
 	}
 
 	const dateFilters = [
@@ -347,15 +463,29 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const startBefore = parseDateFilter(listParams.filterStartedBefore, "filterStartedBefore");
 	if (startBefore.error) errors.push(startBefore.error);
 	if (startBefore.value) {
-		filters.push(`make_date(sd.year, COALESCE(sd.month, 1), COALESCE(sd.day, 1)) <= $${paramIndex++}::date`);
+		filters.push(`start_date.start_sort <= $${paramIndex++}::date`);
 		values.push(startBefore.value);
 	}
 
 	const startAfter = parseDateFilter(listParams.filterStartedAfter, "filterStartedAfter");
 	if (startAfter.error) errors.push(startAfter.error);
 	if (startAfter.value) {
-		filters.push(`make_date(sd.year, COALESCE(sd.month, 1), COALESCE(sd.day, 1)) >= $${paramIndex++}::date`);
+		filters.push(`start_date.start_sort >= $${paramIndex++}::date`);
 		values.push(startAfter.value);
+	}
+
+	const endBefore = parseDateFilter(listParams.filterEndedBefore, "filterEndedBefore");
+	if (endBefore.error) errors.push(endBefore.error);
+	if (endBefore.value) {
+		filters.push(`end_date.end_sort <= $${paramIndex++}::date`);
+		values.push(endBefore.value);
+	}
+
+	const endAfter = parseDateFilter(listParams.filterEndedAfter, "filterEndedAfter");
+	if (endAfter.error) errors.push(endAfter.error);
+	if (endAfter.value) {
+		filters.push(`end_date.end_sort >= $${paramIndex++}::date`);
+		values.push(endAfter.value);
 	}
 
 	if (errors.length > 0) {
@@ -364,7 +494,24 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	let query = `SELECT ${fields}
 			 FROM book_series s
-			 LEFT JOIN dates sd ON s.start_date_id = sd.id
+			 LEFT JOIN LATERAL (
+				SELECT d.id, d.day, d.month, d.year, d.text,
+				       make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) AS start_sort
+				FROM book_series_books bsb
+				JOIN dates d ON bsb.book_published_date_id = d.id
+				WHERE bsb.user_id = s.user_id AND bsb.series_id = s.id AND d.year IS NOT NULL
+				ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) ASC
+				LIMIT 1
+			 ) start_date ON true
+			 LEFT JOIN LATERAL (
+				SELECT d.id, d.day, d.month, d.year, d.text,
+				       make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) AS end_sort
+				FROM book_series_books bsb
+				JOIN dates d ON bsb.book_published_date_id = d.id
+				WHERE bsb.user_id = s.user_id AND bsb.series_id = s.id AND d.year IS NOT NULL
+				ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
+				LIMIT 1
+			 ) end_date ON true
 			 WHERE s.user_id = $1`;
 	if (filters.length > 0) {
 		query += ` AND ${filters.join(" AND ")}`;
@@ -400,7 +547,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				startDate: row.start_date_id
 					? { id: row.start_date_id, day: row.start_day, month: row.start_month, year: row.start_year, text: row.start_text }
 					: null,
+				endDate: row.end_date_id
+					? { id: row.end_date_id, day: row.end_day, month: row.end_month, year: row.end_year, text: row.end_text }
+					: null,
 				description: row.description,
+				website: row.website,
 				createdAt: row.created_at,
 				updatedAt: row.updated_at
 			};
@@ -424,12 +575,12 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const name = normalizeText(req.body?.name);
 	const description = normalizeText(req.body?.description);
-	const startDate = req.body?.startDate ?? null;
+	const website = normalizeText(req.body?.website);
 
 	const errors = [
 		...validateSeriesName(name),
 		...validateSeriesDescription(description),
-		...validatePartialDateObject(startDate, "Series Start Date")
+		...validateWebsite(website)
 	];
 
 	if (errors.length > 0) {
@@ -448,13 +599,11 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const client = await pool.connect();
 		try {
 			await client.query("BEGIN");
-			const startDateId = await insertPartialDate(client, startDate);
-
 			const result = await client.query(
-				`INSERT INTO book_series (user_id, name, start_date_id, description, created_at, updated_at)
+				`INSERT INTO book_series (user_id, name, description, website, created_at, updated_at)
 				 VALUES ($1, $2, $3, $4, NOW(), NOW())
-				 RETURNING id, name, start_date_id, description, created_at, updated_at`,
-				[userId, name, startDateId, description || null]
+				 RETURNING id, name, description, website, created_at, updated_at`,
+				[userId, name, description || null, website || null]
 			);
 
 			await client.query("COMMIT");
@@ -471,8 +620,8 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			return successResponse(res, 201, "Series created successfully.", {
 				id: row.id,
 				name: row.name,
-				startDate: startDateId ? { ...startDate, id: startDateId } : null,
 				description: row.description,
+				website: row.website,
 				createdAt: row.created_at,
 				updatedAt: row.updated_at
 			});
@@ -506,10 +655,8 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const result = await pool.query(
-			`SELECT s.id, s.name, s.description, s.created_at, s.updated_at,
-			        sd.id AS start_date_id, sd.day AS start_day, sd.month AS start_month, sd.year AS start_year, sd.text AS start_text
+			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 			 FROM book_series s
-			 LEFT JOIN dates sd ON s.start_date_id = sd.id
 			 WHERE s.user_id = $1 AND s.name = $2`,
 			[userId, rawName]
 		);
@@ -520,13 +667,14 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 		const row = result.rows[0];
 		const books = await fetchSeriesBooks(userId, row.id);
+		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
 		return successResponse(res, 200, "Series retrieved successfully.", {
 			id: row.id,
 			name: row.name,
-			startDate: row.start_date_id
-				? { id: row.start_date_id, day: row.start_day, month: row.start_month, year: row.start_year, text: row.start_text }
-				: null,
+			startDate,
+			endDate,
 			description: row.description,
+			website: row.website,
 			books,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
@@ -553,10 +701,8 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const result = await pool.query(
-			`SELECT s.id, s.name, s.description, s.created_at, s.updated_at,
-			        sd.id AS start_date_id, sd.day AS start_day, sd.month AS start_month, sd.year AS start_year, sd.text AS start_text
+			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 			 FROM book_series s
-			 LEFT JOIN dates sd ON s.start_date_id = sd.id
 			 WHERE s.user_id = $1 AND s.id = $2`,
 			[userId, id]
 		);
@@ -567,13 +713,14 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 		const row = result.rows[0];
 		const books = await fetchSeriesBooks(userId, row.id);
+		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
 		return successResponse(res, 200, "Series retrieved successfully.", {
 			id: row.id,
 			name: row.name,
-			startDate: row.start_date_id
-				? { id: row.start_date_id, day: row.start_day, month: row.start_month, year: row.start_year, text: row.start_text }
-				: null,
+			startDate,
+			endDate,
 			description: row.description,
+			website: row.website,
 			books,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
@@ -593,20 +740,20 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 async function handleSeriesUpdate(req, res, seriesId) {
 	const userId = req.user.id;
 	const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, "name");
-	const hasStartDate = Object.prototype.hasOwnProperty.call(req.body || {}, "startDate");
 	const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, "description");
+	const hasWebsite = Object.prototype.hasOwnProperty.call(req.body || {}, "website");
 
 	const name = hasName ? normalizeText(req.body?.name) : undefined;
-	const startDate = hasStartDate ? req.body?.startDate : undefined;
 	const description = hasDescription ? normalizeText(req.body?.description) : undefined;
+	const website = hasWebsite ? normalizeText(req.body?.website) : undefined;
 
 	const errors = [
 		...(hasName ? validateSeriesName(name) : []),
 		...(hasDescription ? validateSeriesDescription(description) : []),
-		...(hasStartDate ? validatePartialDateObject(startDate, "Series Start Date") : [])
+		...(hasWebsite ? validateWebsite(website) : [])
 	];
 
-	if (!hasName && !hasStartDate && !hasDescription) {
+	if (!hasName && !hasDescription && !hasWebsite) {
 		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
 	}
 	if (errors.length > 0) {
@@ -631,27 +778,24 @@ async function handleSeriesUpdate(req, res, seriesId) {
 			const params = [userId, seriesId];
 			let index = 3;
 
-			let startDateId;
-
 			if (hasName) {
 				updateFields.push(`name = $${index++}`);
 				params.push(name);
 			}
-			if (hasStartDate) {
-				startDateId = await insertPartialDate(client, startDate);
-				updateFields.push(`start_date_id = $${index++}`);
-				params.push(startDateId);
-			}
 			if (hasDescription) {
 				updateFields.push(`description = $${index++}`);
 				params.push(description || null);
+			}
+			if (hasWebsite) {
+				updateFields.push(`website = $${index++}`);
+				params.push(website || null);
 			}
 
 			const result = await client.query(
 				`UPDATE book_series
 				 SET ${updateFields.join(", ")}, updated_at = NOW()
 				 WHERE user_id = $1 AND id = $2
-				 RETURNING id, name, start_date_id, description, created_at, updated_at`,
+				 RETURNING id, name, description, website, created_at, updated_at`,
 				params
 			);
 
@@ -674,8 +818,8 @@ async function handleSeriesUpdate(req, res, seriesId) {
 			return successResponse(res, 200, "Series updated successfully.", {
 				id: row.id,
 				name: row.name,
-				startDate: hasStartDate && startDateId ? { ...startDate, id: startDateId } : null,
 				description: row.description,
+				website: row.website,
 				createdAt: row.created_at,
 				updatedAt: row.updated_at
 			});
@@ -800,6 +944,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const seriesId = parseId(req.body?.seriesId);
 	const seriesName = normalizeText(req.body?.seriesName ?? req.body?.name);
 	const bookId = parseId(req.body?.bookId);
+	const bookPublishedDate = req.body?.bookPublishedDate ?? null;
 	const { value: bookOrder, error: orderError } = parseBookOrder(req.body?.bookOrder, "bookOrder");
 
 	const errors = [];
@@ -815,6 +960,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	if (orderError) {
 		errors.push(orderError);
 	}
+	errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
@@ -833,31 +979,49 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			return errorResponse(res, 409, "Link already exists.", ["This book is already linked to the series."]);
 		}
 
-		const result = await pool.query(
-			`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
-			 VALUES ($1, $2, $3, $4, NOW(), NOW())
-			 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
-			[userId, resolvedId, bookId, bookOrder]
-		);
+		const client = await pool.connect();
+		let publishedDateId = null;
+		try {
+			await client.query("BEGIN");
+			if (bookPublishedDate) {
+				publishedDateId = await insertPartialDate(client, bookPublishedDate);
+			}
+			const result = await client.query(
+				`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at)
+				 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+				 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
+				[userId, resolvedId, bookId, bookOrder, publishedDateId]
+			);
+			await client.query("COMMIT");
 
-		const row = result.rows[0];
-		logToFile("BOOK_SERIES_LINK_CREATE", {
-			status: "SUCCESS",
-			user_id: userId,
-			series_id: row.series_id,
-			book_id: row.book_id,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
+			const row = result.rows[0];
+			logToFile("BOOK_SERIES_LINK_CREATE", {
+				status: "SUCCESS",
+				user_id: userId,
+				series_id: row.series_id,
+				book_id: row.book_id,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
 
-		return successResponse(res, 201, "Book linked to series successfully.", {
-			id: row.id,
-			seriesId: row.series_id,
-			bookId: row.book_id,
-			bookOrder: row.book_order,
-			createdAt: row.created_at,
-			updatedAt: row.updated_at
-		});
+			return successResponse(res, 201, "Book linked to series successfully.", {
+				id: row.id,
+				seriesId: row.series_id,
+				bookId: row.book_id,
+				bookOrder: row.book_order,
+				bookPublishedDate: row.book_published_date_id && bookPublishedDate
+					? { ...bookPublishedDate, id: row.book_published_date_id }
+					: null,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at
+			});
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		} finally {
+			client.release();
+		}
+
 	} catch (error) {
 		logToFile("BOOK_SERIES_LINK_CREATE", {
 			status: "FAILURE",
@@ -876,6 +1040,9 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const seriesId = parseId(req.body?.seriesId);
 	const seriesName = normalizeText(req.body?.seriesName ?? req.body?.name);
 	const bookId = parseId(req.body?.bookId);
+	const hasBookOrder = Object.prototype.hasOwnProperty.call(req.body || {}, "bookOrder");
+	const hasBookPublishedDate = Object.prototype.hasOwnProperty.call(req.body || {}, "bookPublishedDate");
+	const bookPublishedDate = hasBookPublishedDate ? req.body?.bookPublishedDate : undefined;
 	const { value: bookOrder, error: orderError } = parseBookOrder(req.body?.bookOrder, "bookOrder");
 
 	const errors = [];
@@ -888,8 +1055,14 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	if (seriesName) {
 		errors.push(...validateSeriesName(seriesName));
 	}
-	if (orderError) {
+	if (hasBookOrder && orderError) {
 		errors.push(orderError);
+	}
+	if (hasBookPublishedDate) {
+		errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
+	}
+	if (!hasBookOrder && !hasBookPublishedDate) {
+		errors.push("Please provide at least one field to update for the link.");
 	}
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
@@ -901,36 +1074,74 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
 
-		const result = await pool.query(
-			`UPDATE book_series_books
-			 SET book_order = $1, updated_at = NOW()
-			 WHERE user_id = $2 AND series_id = $3 AND book_id = $4
-			 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
-			[bookOrder, userId, resolvedId, bookId]
-		);
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const updateFields = [];
+			const params = [];
+			let index = 1;
 
-		if (result.rows.length === 0) {
-			return errorResponse(res, 404, "Link not found.", ["The requested book-series link could not be located."]);
+			let publishedDateId;
+
+			if (hasBookOrder) {
+				updateFields.push(`book_order = $${index++}`);
+				params.push(bookOrder);
+			}
+			if (hasBookPublishedDate) {
+				if (bookPublishedDate) {
+					publishedDateId = await insertPartialDate(client, bookPublishedDate);
+				} else {
+					publishedDateId = null;
+				}
+				updateFields.push(`book_published_date_id = $${index++}`);
+				params.push(publishedDateId);
+			}
+
+			updateFields.push(`updated_at = NOW()`);
+			params.push(userId, resolvedId, bookId);
+
+			const result = await client.query(
+				`UPDATE book_series_books
+				 SET ${updateFields.join(", ")}
+				 WHERE user_id = $${index++} AND series_id = $${index++} AND book_id = $${index++}
+				 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
+				params
+			);
+
+			if (result.rows.length === 0) {
+				await client.query("ROLLBACK");
+				return errorResponse(res, 404, "Link not found.", ["The requested book-series link could not be located."]);
+			}
+
+			await client.query("COMMIT");
+
+			const row = result.rows[0];
+			logToFile("BOOK_SERIES_LINK_UPDATE", {
+				status: "SUCCESS",
+				user_id: userId,
+				series_id: row.series_id,
+				book_id: row.book_id,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+
+			return successResponse(res, 200, "Book-series link updated successfully.", {
+				id: row.id,
+				seriesId: row.series_id,
+				bookId: row.book_id,
+				bookOrder: row.book_order,
+				bookPublishedDate: row.book_published_date_id && bookPublishedDate
+					? { ...bookPublishedDate, id: row.book_published_date_id }
+					: null,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at
+			});
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		} finally {
+			client.release();
 		}
-
-		const row = result.rows[0];
-		logToFile("BOOK_SERIES_LINK_UPDATE", {
-			status: "SUCCESS",
-			user_id: userId,
-			series_id: row.series_id,
-			book_id: row.book_id,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
-
-		return successResponse(res, 200, "Book-series link updated successfully.", {
-			id: row.id,
-			seriesId: row.series_id,
-			bookId: row.book_id,
-			bookOrder: row.book_order,
-			createdAt: row.created_at,
-			updatedAt: row.updated_at
-		});
 	} catch (error) {
 		logToFile("BOOK_SERIES_LINK_UPDATE", {
 			status: "FAILURE",

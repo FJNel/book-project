@@ -132,8 +132,8 @@ CREATE TABLE IF NOT EXISTS book_series (
   id             SERIAL PRIMARY KEY,
   user_id        INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name           VARCHAR(150) NOT NULL,
-  start_date_id  INT REFERENCES dates(id) ON DELETE SET NULL,
   description    TEXT,
+  website        VARCHAR(300),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS book_series_books (
   series_id  INT NOT NULL REFERENCES book_series(id) ON DELETE CASCADE,
   book_id    INT NOT NULL,
   book_order INT,
+  book_published_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, series_id, book_id)
