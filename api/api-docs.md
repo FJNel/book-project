@@ -81,6 +81,22 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /book](#put-book)
     - [PUT /book/:id](#put-bookid)
     - [DELETE /book/:id](#delete-bookid)
+  - [Storage Locations](#storage-locations)
+    - [GET /storagelocation](#get-storagelocation)
+    - [POST /storagelocation](#post-storagelocation)
+    - [PUT /storagelocation](#put-storagelocation)
+    - [PUT /storagelocation/:id](#put-storagelocationid)
+    - [DELETE /storagelocation](#delete-storagelocation)
+    - [DELETE /storagelocation/:id](#delete-storagelocationid)
+  - [Book Copies](#book-copies)
+    - [GET /bookcopy](#get-bookcopy)
+    - [POST /bookcopy](#post-bookcopy)
+    - [PUT /bookcopy](#put-bookcopy)
+    - [PUT /bookcopy/:id](#put-bookcopyid)
+    - [DELETE /bookcopy](#delete-bookcopy)
+    - [DELETE /bookcopy/:id](#delete-bookcopyid)
+  - [Tags](#tags)
+    - [GET /tags](#get-tags)
   - [Admin](#admin)
     - [POST /admin/languages](#post-adminlanguages)
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
@@ -150,7 +166,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/storagelocation/*`, `/bookcopy/*`, `/tags`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -167,7 +183,7 @@ All other endpoints currently have no dedicated custom limit.
 
 ### Partial Date Object
 
-Some endpoints accept partial dates for fields like author birth/death dates and publisher founded dates. The API expects a partial date object in the following format:
+Some endpoints accept partial dates for fields like author birth/death dates, publisher founded dates, book publication dates, and acquisition dates. The API expects a partial date object in the following format:
 
 ```json
 {
@@ -6088,7 +6104,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 ## Book Series
 
-Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest published dates). Links without a published date are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.
+Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest publication dates). Books without a `publicationDate` are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.
 
 If a series has no linked books with published dates, `startDate` and `endDate` will be `null`.
 
@@ -6248,36 +6264,15 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1,
-        "bookPublishedDate": {
-          "id": 44,
-          "day": 29,
-          "month": 7,
-          "year": 1954,
-          "text": "29 July 1954"
-        }
+        "bookOrder": 1
       },
       {
         "bookId": 102,
-        "bookOrder": 2,
-        "bookPublishedDate": {
-          "id": 45,
-          "day": 11,
-          "month": 11,
-          "year": 1954,
-          "text": "11 November 1954"
-        }
+        "bookOrder": 2
       },
       {
         "bookId": 103,
-        "bookOrder": 3,
-        "bookPublishedDate": {
-          "id": 46,
-          "day": 20,
-          "month": 10,
-          "year": 1955,
-          "text": "20 October 1955"
-        }
+        "bookOrder": 3
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -6313,6 +6308,21 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
   "data": {},
   "errors": [
     "The requested series could not be located."
+  ]
+}
+```
+
+- **Not Found (404, book missing):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
   ]
 }
 ```
@@ -6452,14 +6462,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1,
-        "bookPublishedDate": {
-          "id": 44,
-          "day": 29,
-          "month": 7,
-          "year": 1954,
-          "text": "29 July 1954"
-        }
+        "bookOrder": 1
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -6589,14 +6592,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
     "books": [
       {
         "bookId": 101,
-        "bookOrder": 1,
-        "bookPublishedDate": {
-          "id": 44,
-          "day": 29,
-          "month": 7,
-          "year": 1954,
-          "text": "29 July 1954"
-        }
+        "bookOrder": 1
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -7288,13 +7284,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `seriesName` | string | No | Series name to link (used if `seriesId` is not provided). |
 | `bookId` | integer | Yes | Book id to link. |
 | `bookOrder` | integer | No | Order of the book in the series (1-10000). |
-| `bookPublishedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
 Notes:
-- Until the books table is implemented, `bookId` is treated as a numeric identifier without additional validation.
-- `bookPublishedDate` is used to derive the series `startDate` and `endDate`. If it is `null`, the link is stored without a published date and does not affect series date ranges.
+- `bookId` must reference an existing book owned by the authenticated user.
+- Series `startDate` and `endDate` are derived from the linked books' `publicationDate`. Books without a publication date are ignored for date ranges.
 - If a link already exists for the same series and book, the API updates that link instead of returning a conflict. Only provided fields are updated; omitted fields remain unchanged.
 
 - **Created (201):**
@@ -7310,13 +7305,6 @@ Notes:
     "seriesId": 8,
     "bookId": 101,
     "bookOrder": 1,
-    "bookPublishedDate": {
-      "id": 44,
-      "day": 29,
-      "month": 7,
-      "year": 1954,
-      "text": "29 July 1954"
-    },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -7337,13 +7325,6 @@ Notes:
     "seriesId": 8,
     "bookId": 101,
     "bookOrder": 2,
-    "bookPublishedDate": {
-      "id": 44,
-      "day": 11,
-      "month": 11,
-      "year": 1954,
-      "text": "11 November 1954"
-    },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -7449,7 +7430,6 @@ Notes:
 | `seriesName` | string | No | Series name to update (used if `seriesId` is not provided). |
 | `bookId` | integer | Yes | Book id for the link. |
 | `bookOrder` | integer | No | New order of the book in the series (1-10000). Use `null` to clear. |
-| `bookPublishedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). Use `null` to clear. |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
@@ -7466,13 +7446,6 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
     "seriesId": 8,
     "bookId": 101,
     "bookOrder": 2,
-    "bookPublishedDate": {
-      "id": 44,
-      "day": 11,
-      "month": 11,
-      "year": 1954,
-      "text": "11 November 1954"
-    },
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
@@ -7506,6 +7479,36 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
   "data": {},
   "errors": [
     "The requested book-series link could not be located."
+  ]
+}
+```
+
+- **Not Found (404, series missing):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Not Found (404, book missing):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
   ]
 }
 ```
@@ -7699,7 +7702,7 @@ Languages are global and shared across users. They are used to tag books with on
 Books are scoped per user. Titles are not unique, so multiple books can share the same title (e.g., different formats). ISBNs are unique per user when provided. When identifying a book by title, the API returns `409` if multiple books share that title.
 
 Tags are normalised on ingest (trimmed, lowercased, punctuation stripped, whitespace collapsed) and stored per user. The original display name is retained.
-If a book's `publicationDate` is `null`, date-based filters will not match it, and any series links that omit `bookPublishedDate` will not contribute to series start/end dates.
+If a book's `publicationDate` is `null`, date-based filters will not match it, and it will not affect series start/end date ranges.
 
 ### GET /book
 
@@ -7769,6 +7772,9 @@ When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpo
 If multiple identifiers are provided, the API uses `id`, then `isbn`, then `title`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+Notes:
+- `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
 
 - **Response (200, list, view=card):**
 
@@ -7853,6 +7859,27 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
           "year": 1954,
           "text": "29 July 1954"
         }
+      }
+    ],
+    "bookCopies": [
+      {
+        "id": 501,
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
@@ -8044,11 +8071,32 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `languageIds` | array | No | Array of language ids. |
 | `languageNames` | array | No | Array of language names (case-insensitive). |
 | `tags` | array | No | Array of tag strings (<= 50 chars). |
-| `series` | array | No | Array of series ids or objects with `seriesId`, `bookOrder`, and optional `bookPublishedDate`. |
+| `series` | array | No | Array of series ids or objects with `seriesId` and optional `bookOrder`. |
+| `bookCopy` | object | No | First book copy to create (see fields below). |
+| `bookCopies` | array | No | Array of book copy objects; only the first entry is used. |
 
 Notes:
 - Tags are normalised and de-duplicated per user.
-- If a series entry omits `bookPublishedDate`, the book's `publicationDate` is used (if provided).
+- Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
+- If no `bookCopy` is provided, the API creates a blank copy so every book has at least one copy.
+- The response includes `series[].bookPublishedDate` derived from the book's `publicationDate`.
+
+Book copy fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `storageLocationId` | integer | No | Storage location id for this copy. |
+| `storageLocationPath` | string | No | Storage location path (e.g., `Home -> Living Room`). |
+| `acquisitionStory` | string | No | Free-text acquisition story (<= 2000 chars). |
+| `acquisitionDate` | object | No | Partial Date Object. |
+| `acquiredFrom` | string | No | Who the copy was acquired from (<= 255 chars). |
+| `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
+| `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
+| `notes` | string | No | Additional notes (<= 2000 chars). |
+
+If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
+
+If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
 - **Created (201):**
 
@@ -8094,6 +8142,27 @@ Notes:
           "year": 1954,
           "text": "29 July 1954"
         }
+      }
+    ],
+    "bookCopies": [
+      {
+        "id": 502,
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
       }
     ],
     "createdAt": "2025-01-17T10:02:11.000Z",
@@ -8224,7 +8293,7 @@ Updatable fields (all optional):
 
 Notes:
 - If a relation array is provided, the API replaces existing links with the supplied list.
-- If `series` entries omit `bookPublishedDate`, the book's `publicationDate` is used (if available).
+- Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
 
 - **Updated (200):**
 
@@ -8269,6 +8338,27 @@ Notes:
           "year": 1954,
           "text": "29 July 1954"
         }
+      }
+    ],
+    "bookCopies": [
+      {
+        "id": 502,
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
       }
     ],
     "createdAt": "2025-01-17T10:02:11.000Z",
@@ -8484,6 +8574,1110 @@ Notes:
   "data": {},
   "errors": [
     "An error occurred while deleting the book."
+  ]
+}
+```
+
+## Storage Locations
+
+Storage locations are hierarchical and scoped per user. The API returns a human-readable `path` for each location, e.g. `Home -> Living Room -> Shelf A`.
+
+### GET /storagelocation
+
+- **Purpose:** Retrieve all storage locations or fetch a single location by id/path.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/storagelocation` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Location id to fetch (query or body). |
+| `path` | string | No | Location path to fetch (query or body). |
+| `nameOnly` | boolean | No | When true, returns only `id`, `name`, and `path`. |
+| `sortBy` | string | No | `id`, `name`, `path`, `parentId`, `notes`, `createdAt`, `updatedAt`. |
+| `order` | string | No | `asc` or `desc`. |
+| `limit` | integer | No | Limit list results (1–200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter by exact id. |
+| `filterName` | string | No | Case-insensitive partial match on name. |
+| `filterParentId` | integer | No | Filter by parent id. |
+| `filterRootOnly` | boolean | No | When true, return only root locations. |
+| `filterPath` | string | No | Exact path match. |
+| `filterPathContains` | string | No | Case-insensitive path match. |
+
+If both `id` and `path` are provided, `id` takes precedence.
+
+- **Response (200, list):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.11",
+  "message": "Storage locations retrieved successfully.",
+  "data": {
+    "storageLocations": [
+      {
+        "id": 1,
+        "name": "Home",
+        "parentId": null,
+        "notes": null,
+        "path": "Home",
+        "createdAt": "2025-01-05T08:15:23.000Z",
+        "updatedAt": "2025-01-05T08:15:23.000Z"
+      },
+      {
+        "id": 2,
+        "name": "Living Room",
+        "parentId": 1,
+        "notes": "Main shelves",
+        "path": "Home -> Living Room",
+        "createdAt": "2025-01-06T10:22:11.000Z",
+        "updatedAt": "2025-01-06T10:22:11.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Storage location retrieved successfully.",
+  "data": {
+    "id": 2,
+    "name": "Living Room",
+    "parentId": 1,
+    "notes": "Main shelves",
+    "path": "Home -> Living Room",
+    "createdAt": "2025-01-06T10:22:11.000Z",
+    "updatedAt": "2025-01-06T10:22:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "sortBy must be one of: id, name, path, parentId, notes, createdAt, updatedAt."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.18",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving storage locations."
+  ]
+}
+```
+
+### POST /storagelocation
+
+- **Purpose:** Create a new storage location (base or nested).
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–150 characters. |
+| `parentId` | integer | No | Parent location id (omit or `null` for base). |
+| `notes` | string | No | Optional notes (<= 2000 chars). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "3.02",
+  "message": "Storage location created successfully.",
+  "data": {
+    "id": 3,
+    "name": "Shelf A",
+    "parentId": 2,
+    "notes": "Top row",
+    "path": "Home -> Living Room -> Shelf A",
+    "createdAt": "2025-01-10T10:12:11.000Z",
+    "updatedAt": "2025-01-10T10:12:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Parent location could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.04",
+  "message": "Storage location already exists.",
+  "data": {},
+  "errors": [
+    "A storage location with this name already exists at the same level."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the storage location."
+  ]
+}
+```
+
+### PUT /storagelocation
+
+- **Purpose:** Update a storage location by id or path.
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Location id to update. |
+| `path` | string | No | Location path to update. |
+| `name` | string | No | New name. |
+| `parentId` | integer | No | New parent id (use `null` to move to root). |
+| `notes` | string | No | New notes (use `null` to clear). |
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.02",
+  "message": "Storage location updated successfully.",
+  "data": {
+    "id": 3,
+    "name": "Shelf A",
+    "parentId": 2,
+    "notes": "Updated notes",
+    "path": "Home -> Living Room -> Shelf A",
+    "createdAt": "2025-01-10T10:12:11.000Z",
+    "updatedAt": "2025-01-12T09:31:00.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Parent location cannot be a child of this location."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.18",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the storage location."
+  ]
+}
+```
+
+### PUT /storagelocation/:id
+
+Same payload and responses as `PUT /storagelocation`, with the target id supplied in the URL path.
+
+### DELETE /storagelocation
+
+- **Purpose:** Delete a storage location by id or path.
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Location id to delete. |
+| `path` | string | No | Location path to delete. |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Storage location deleted successfully.",
+  "data": {
+    "id": 3,
+    "name": "Shelf A"
+  },
+  "errors": []
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.18",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the storage location."
+  ]
+}
+```
+
+### DELETE /storagelocation/:id
+
+Same payload and responses as `DELETE /storagelocation`, with the target id supplied in the URL path.
+
+## Book Copies
+
+Book copies represent the physical copies you own. Every book must have at least one copy.
+
+### GET /bookcopy
+
+- **Purpose:** Retrieve all book copies, or fetch a specific copy by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookcopy` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book copy id to fetch. |
+| `sortBy` | string | No | `id`, `bookId`, `storageLocationId`, `acquisitionStory`, `acquisitionDateId`, `acquiredFrom`, `acquisitionType`, `acquisitionLocation`, `notes`, `createdAt`, `updatedAt`, `acquisitionDay`, `acquisitionMonth`, `acquisitionYear`, `acquisitionText`, `acquisitionDate`. |
+| `order` | string | No | `asc` or `desc`. |
+| `limit` | integer | No | Limit list results (1–200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter by exact copy id. |
+| `filterBookId` | integer | No | Filter by book id. |
+| `filterStorageLocationId` | integer | No | Filter by storage location id. |
+| `filterStorageLocationPath` | string | No | Filter by storage location path (e.g., `Home -> Living Room`). |
+| `includeNested` | boolean | No | When filtering by location, include nested locations (default true). |
+| `filterAcquisitionStory` | string | No | Case-insensitive partial match. |
+| `filterAcquiredFrom` | string | No | Case-insensitive partial match. |
+| `filterAcquisitionType` | string | No | Case-insensitive partial match. |
+| `filterAcquisitionLocation` | string | No | Case-insensitive partial match. |
+| `filterNotes` | string | No | Case-insensitive partial match. |
+| `filterAcquisitionDateId` | integer | No | Filter by acquisition date id. |
+| `filterAcquisitionDay` | integer | No | Filter by acquisition day. |
+| `filterAcquisitionMonth` | integer | No | Filter by acquisition month. |
+| `filterAcquisitionYear` | integer | No | Filter by acquisition year. |
+| `filterAcquisitionText` | string | No | Case-insensitive partial match on acquisition date text. |
+| `filterAcquiredBefore` | string | No | ISO date/time upper bound for acquisition date. |
+| `filterAcquiredAfter` | string | No | ISO date/time lower bound for acquisition date. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+
+Notes:
+- Use `filterStorageLocationId` or `filterStorageLocationPath` with `includeNested=true` to list all copies under a location tree.
+
+- **Response (200, list):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Book copies retrieved successfully.",
+  "data": {
+    "bookCopies": [
+      {
+        "id": 501,
+        "bookId": 22,
+        "bookTitle": "The Lord of the Rings",
+        "bookIsbn": "978-0-261-10235-4",
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Book copy retrieved successfully.",
+  "data": {
+    "id": 501,
+    "bookId": 22,
+    "bookTitle": "The Lord of the Rings",
+    "bookIsbn": "978-0-261-10235-4",
+    "storageLocationId": 12,
+    "storageLocationPath": "Home -> Living Room -> Shelf A",
+    "acquisitionStory": "Gifted for a birthday.",
+    "acquisitionDate": {
+      "id": 71,
+      "day": 21,
+      "month": 12,
+      "year": 2010,
+      "text": "21 December 2010"
+    },
+    "acquiredFrom": "Family",
+    "acquisitionType": "Gift",
+    "acquisitionLocation": "Cape Town",
+    "notes": "Hardcover edition.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "filterStorageLocationId must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book copy not found.",
+  "data": {},
+  "errors": [
+    "The requested book copy could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving book copies."
+  ]
+}
+```
+
+### POST /bookcopy
+
+- **Purpose:** Add a new book copy to a book.
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `bookId` | integer | Yes | Book id to attach the copy to. |
+| `storageLocationId` | integer | No | Storage location id for this copy. |
+| `storageLocationPath` | string | No | Storage location path (e.g., `Home -> Living Room`). |
+| `acquisitionStory` | string | No | Free-text acquisition story (<= 2000 chars). |
+| `acquisitionDate` | object | No | Partial Date Object. |
+| `acquiredFrom` | string | No | Who the copy was acquired from (<= 255 chars). |
+| `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
+| `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
+| `notes` | string | No | Additional notes (<= 2000 chars). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "3.02",
+  "message": "Book copy created successfully.",
+  "data": {
+    "id": 503
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the book copy."
+  ]
+}
+```
+
+### PUT /bookcopy
+
+- **Purpose:** Update a book copy by id.
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | Book copy id to update. |
+| `storageLocationId` | integer | No | New storage location id. |
+| `storageLocationPath` | string | No | New storage location path. |
+| `acquisitionStory` | string | No | New acquisition story. |
+| `acquisitionDate` | object | No | Partial Date Object (use `null` to clear). |
+| `acquiredFrom` | string | No | New acquired-from value. |
+| `acquisitionType` | string | No | New acquisition type. |
+| `acquisitionLocation` | string | No | New acquisition location. |
+| `notes` | string | No | New notes. |
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.90",
+  "message": "Book copy updated successfully.",
+  "data": {
+    "id": 503
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Storage location id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book copy not found.",
+  "data": {},
+  "errors": [
+    "The requested book copy could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the book copy."
+  ]
+}
+```
+
+### PUT /bookcopy/:id
+
+Same payload and responses as `PUT /bookcopy`, with the target id supplied in the URL path.
+
+### DELETE /bookcopy
+
+- **Purpose:** Delete a book copy by id.
+- **Authentication:** Access token required.
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | Book copy id to delete. |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Book copy deleted successfully.",
+  "data": {
+    "id": 503
+  },
+  "errors": []
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.12",
+  "message": "Book copy required.",
+  "data": {},
+  "errors": [
+    "A book must have at least one copy."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book copy not found.",
+  "data": {},
+  "errors": [
+    "The requested book copy could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the book copy."
+  ]
+}
+```
+
+### DELETE /bookcopy/:id
+
+Same payload and responses as `DELETE /bookcopy`, with the target id supplied in the URL path.
+
+## Tags
+
+Tags are user-defined labels attached to books. The endpoint returns all tags owned by the authenticated user, sorted alphabetically.
+
+### GET /tags
+
+- **Purpose:** Retrieve all tags for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/tags` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.40",
+  "message": "Tags retrieved successfully.",
+  "data": {
+    "tags": [
+      {
+        "id": 7,
+        "name": "Fantasy",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
+      },
+      {
+        "id": 8,
+        "name": "Adventure",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving tags."
   ]
 }
 ```

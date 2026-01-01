@@ -6,7 +6,6 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
-const { validatePartialDateObject } = require("../utils/partial-date");
 
 const MAX_SERIES_NAME_LENGTH = 150;
 const MAX_SERIES_DESCRIPTION_LENGTH = 1000;
@@ -174,20 +173,15 @@ async function insertPartialDate(client, dateValue) {
 
 async function fetchSeriesBooks(userId, seriesId) {
 	const result = await pool.query(
-		`SELECT bsb.book_id, bsb.book_order,
-		        d.id AS published_date_id, d.day AS published_day, d.month AS published_month, d.year AS published_year, d.text AS published_text
+		`SELECT bsb.book_id, bsb.book_order
 		 FROM book_series_books bsb
-		 LEFT JOIN dates d ON bsb.book_published_date_id = d.id
 		 WHERE bsb.user_id = $1 AND bsb.series_id = $2
 		 ORDER BY bsb.book_order ASC NULLS LAST, bsb.book_id ASC`,
 		[userId, seriesId]
 	);
 	return result.rows.map((row) => ({
 		bookId: row.book_id,
-		bookOrder: row.book_order,
-		bookPublishedDate: row.published_date_id
-			? { id: row.published_date_id, day: row.published_day, month: row.published_month, year: row.published_year, text: row.published_text }
-			: null
+		bookOrder: row.book_order
 	}));
 }
 
@@ -195,7 +189,8 @@ async function fetchSeriesDateRange(userId, seriesId) {
 	const startResult = await pool.query(
 		`SELECT d.id, d.day, d.month, d.year, d.text
 		 FROM book_series_books bsb
-		 JOIN dates d ON bsb.book_published_date_id = d.id
+		 JOIN books b ON bsb.book_id = b.id
+		 JOIN dates d ON b.publication_date_id = d.id
 		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
 		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) ASC
 		 LIMIT 1`,
@@ -205,7 +200,8 @@ async function fetchSeriesDateRange(userId, seriesId) {
 	const endResult = await pool.query(
 		`SELECT d.id, d.day, d.month, d.year, d.text
 		 FROM book_series_books bsb
-		 JOIN dates d ON bsb.book_published_date_id = d.id
+		 JOIN books b ON bsb.book_id = b.id
+		 JOIN dates d ON b.publication_date_id = d.id
 		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
 		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
 		 LIMIT 1`,
@@ -498,7 +494,8 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				SELECT d.id, d.day, d.month, d.year, d.text,
 				       make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) AS start_sort
 				FROM book_series_books bsb
-				JOIN dates d ON bsb.book_published_date_id = d.id
+				JOIN books b ON bsb.book_id = b.id
+				JOIN dates d ON b.publication_date_id = d.id
 				WHERE bsb.user_id = s.user_id AND bsb.series_id = s.id AND d.year IS NOT NULL
 				ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) ASC
 				LIMIT 1
@@ -507,7 +504,8 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				SELECT d.id, d.day, d.month, d.year, d.text,
 				       make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) AS end_sort
 				FROM book_series_books bsb
-				JOIN dates d ON bsb.book_published_date_id = d.id
+				JOIN books b ON bsb.book_id = b.id
+				JOIN dates d ON b.publication_date_id = d.id
 				WHERE bsb.user_id = s.user_id AND bsb.series_id = s.id AND d.year IS NOT NULL
 				ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
 				LIMIT 1
@@ -944,7 +942,6 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const seriesId = parseId(req.body?.seriesId);
 	const seriesName = normalizeText(req.body?.seriesName ?? req.body?.name);
 	const bookId = parseId(req.body?.bookId);
-	const bookPublishedDate = req.body?.bookPublishedDate ?? null;
 	const hasBookOrder = Object.prototype.hasOwnProperty.call(req.body || {}, "bookOrder");
 	const hasBookPublishedDate = Object.prototype.hasOwnProperty.call(req.body || {}, "bookPublishedDate");
 	const { value: bookOrder, error: orderError } = parseBookOrder(req.body?.bookOrder, "bookOrder");
@@ -963,7 +960,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		errors.push(orderError);
 	}
 	if (hasBookPublishedDate) {
-		errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
+		errors.push("bookPublishedDate is no longer supported. Use the book's publicationDate instead.");
 	}
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
@@ -974,6 +971,13 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		if (!Number.isInteger(resolvedId)) {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
+		const bookCheck = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2`,
+			[userId, bookId]
+		);
+		if (bookCheck.rows.length === 0) {
+			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+		}
 
 		const existing = await pool.query(
 			`SELECT id FROM book_series_books WHERE user_id = $1 AND series_id = $2 AND book_id = $3`,
@@ -981,12 +985,8 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		);
 
 		const client = await pool.connect();
-		let publishedDateId = null;
 		try {
 			await client.query("BEGIN");
-			if (hasBookPublishedDate && bookPublishedDate) {
-				publishedDateId = await insertPartialDate(client, bookPublishedDate);
-			}
 
 			if (existing.rows.length > 0) {
 				const updateFields = [];
@@ -997,10 +997,6 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 					updateFields.push(`book_order = $${index++}`);
 					params.push(bookOrder);
 				}
-				if (hasBookPublishedDate) {
-					updateFields.push(`book_published_date_id = $${index++}`);
-					params.push(bookPublishedDate ? publishedDateId : null);
-				}
 
 				if (updateFields.length > 0) {
 					updateFields.push(`updated_at = NOW()`);
@@ -1010,7 +1006,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 						`UPDATE book_series_books
 						 SET ${updateFields.join(", ")}
 						 WHERE user_id = $${index++} AND series_id = $${index++} AND book_id = $${index++}
-						 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
+						 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
 						params
 					);
 					await client.query("COMMIT");
@@ -1030,20 +1026,15 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 						seriesId: row.series_id,
 						bookId: row.book_id,
 						bookOrder: row.book_order,
-						bookPublishedDate: row.book_published_date_id && bookPublishedDate
-							? { ...bookPublishedDate, id: row.book_published_date_id }
-							: null,
 						createdAt: row.created_at,
 						updatedAt: row.updated_at
 					});
 				}
 
 				const current = await client.query(
-					`SELECT bsb.id, bsb.series_id, bsb.book_id, bsb.book_order, bsb.book_published_date_id,
-					        bsb.created_at, bsb.updated_at,
-					        d.day AS published_day, d.month AS published_month, d.year AS published_year, d.text AS published_text
+					`SELECT bsb.id, bsb.series_id, bsb.book_id, bsb.book_order,
+					        bsb.created_at, bsb.updated_at
 					 FROM book_series_books bsb
-					 LEFT JOIN dates d ON bsb.book_published_date_id = d.id
 					 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND bsb.book_id = $3`,
 					[userId, resolvedId, bookId]
 				);
@@ -1064,25 +1055,16 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 					seriesId: row.series_id,
 					bookId: row.book_id,
 					bookOrder: row.book_order,
-					bookPublishedDate: row.book_published_date_id
-						? {
-							id: row.book_published_date_id,
-							day: row.published_day,
-							month: row.published_month,
-							year: row.published_year,
-							text: row.published_text
-						}
-						: null,
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
 				});
 			}
 
 			const result = await client.query(
-				`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at)
-				 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-				 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
-				[userId, resolvedId, bookId, bookOrder, publishedDateId]
+				`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+				 VALUES ($1, $2, $3, $4, NOW(), NOW())
+				 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
+				[userId, resolvedId, bookId, bookOrder]
 			);
 			await client.query("COMMIT");
 
@@ -1101,9 +1083,6 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 				seriesId: row.series_id,
 				bookId: row.book_id,
 				bookOrder: row.book_order,
-				bookPublishedDate: row.book_published_date_id && bookPublishedDate
-					? { ...bookPublishedDate, id: row.book_published_date_id }
-					: null,
 				createdAt: row.created_at,
 				updatedAt: row.updated_at
 			});
@@ -1134,7 +1113,6 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const bookId = parseId(req.body?.bookId);
 	const hasBookOrder = Object.prototype.hasOwnProperty.call(req.body || {}, "bookOrder");
 	const hasBookPublishedDate = Object.prototype.hasOwnProperty.call(req.body || {}, "bookPublishedDate");
-	const bookPublishedDate = hasBookPublishedDate ? req.body?.bookPublishedDate : undefined;
 	const { value: bookOrder, error: orderError } = parseBookOrder(req.body?.bookOrder, "bookOrder");
 
 	const errors = [];
@@ -1151,7 +1129,7 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		errors.push(orderError);
 	}
 	if (hasBookPublishedDate) {
-		errors.push(...validatePartialDateObject(bookPublishedDate, "Book Published Date"));
+		errors.push("bookPublishedDate is no longer supported. Use the book's publicationDate instead.");
 	}
 	if (!hasBookOrder && !hasBookPublishedDate) {
 		errors.push("Please provide at least one field to update for the link.");
@@ -1165,6 +1143,13 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		if (!Number.isInteger(resolvedId)) {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
+		const bookCheck = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2`,
+			[userId, bookId]
+		);
+		if (bookCheck.rows.length === 0) {
+			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+		}
 
 		const client = await pool.connect();
 		try {
@@ -1173,20 +1158,9 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const params = [];
 			let index = 1;
 
-			let publishedDateId;
-
 			if (hasBookOrder) {
 				updateFields.push(`book_order = $${index++}`);
 				params.push(bookOrder);
-			}
-			if (hasBookPublishedDate) {
-				if (bookPublishedDate) {
-					publishedDateId = await insertPartialDate(client, bookPublishedDate);
-				} else {
-					publishedDateId = null;
-				}
-				updateFields.push(`book_published_date_id = $${index++}`);
-				params.push(publishedDateId);
 			}
 
 			updateFields.push(`updated_at = NOW()`);
@@ -1196,7 +1170,7 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 				`UPDATE book_series_books
 				 SET ${updateFields.join(", ")}
 				 WHERE user_id = $${index++} AND series_id = $${index++} AND book_id = $${index++}
-				 RETURNING id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at`,
+				 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
 				params
 			);
 
@@ -1222,9 +1196,6 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 				seriesId: row.series_id,
 				bookId: row.book_id,
 				bookOrder: row.book_order,
-				bookPublishedDate: row.book_published_date_id && bookPublishedDate
-					? { ...bookPublishedDate, id: row.book_published_date_id }
-					: null,
 				createdAt: row.created_at,
 				updatedAt: row.updated_at
 			});

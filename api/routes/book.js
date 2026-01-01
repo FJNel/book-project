@@ -14,10 +14,22 @@ const MAX_SUBTITLE_LENGTH = 255;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_TAG_LENGTH = 50;
 const MAX_LIST_LIMIT = 200;
+const MAX_ACQUISITION_STORY_LENGTH = 2000;
+const MAX_ACQUIRED_FROM_LENGTH = 255;
+const MAX_ACQUISITION_TYPE_LENGTH = 100;
+const MAX_ACQUISITION_LOCATION_LENGTH = 255;
+const MAX_COPY_NOTES_LENGTH = 2000;
 
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
 	return value.trim();
+}
+
+function normalizeOptionalText(value) {
+	if (value === undefined || value === null) return null;
+	if (typeof value !== "string") return value;
+	const trimmed = value.trim();
+	return trimmed === "" ? null : trimmed;
 }
 
 function parseBooleanFlag(value) {
@@ -34,6 +46,76 @@ function parseId(value) {
 	const parsed = Number.parseInt(value, 10);
 	if (!Number.isInteger(parsed)) return null;
 	return parsed;
+}
+
+function validateOptionalText(value, fieldLabel, maxLength) {
+	const errors = [];
+	if (value === undefined || value === null || value === "") {
+		return errors;
+	}
+	if (typeof value !== "string") {
+		errors.push(`${fieldLabel} must be a string.`);
+		return errors;
+	}
+	if (value.trim().length > maxLength) {
+		errors.push(`${fieldLabel} must be ${maxLength} characters or fewer.`);
+	}
+	return errors;
+}
+
+function extractBookCopyInput(body) {
+	if (!body) return null;
+	if (Object.prototype.hasOwnProperty.call(body, "bookCopy")) {
+		return body.bookCopy;
+	}
+	if (Array.isArray(body.bookCopies) && body.bookCopies.length > 0) {
+		return body.bookCopies[0];
+	}
+	return null;
+}
+
+function validateBookCopyPayload(input) {
+	const errors = [];
+	if (input === undefined || input === null) {
+		return { errors, normalized: null };
+	}
+	if (typeof input !== "object" || Array.isArray(input)) {
+		return { errors: ["Book copy must be an object."], normalized: null };
+	}
+
+	const storageLocationIdRaw = input.storageLocationId;
+	const storageLocationPathRaw = input.storageLocationPath;
+	const storageLocationId = storageLocationIdRaw !== undefined ? parseId(storageLocationIdRaw) : null;
+	const storageLocationPath = normalizeOptionalText(storageLocationPathRaw);
+
+	if (storageLocationIdRaw !== undefined && !Number.isInteger(storageLocationId)) {
+		errors.push("Storage location id must be a valid integer.");
+	}
+	if (storageLocationPathRaw !== undefined && storageLocationPathRaw !== null && typeof storageLocationPathRaw !== "string") {
+		errors.push("Storage location path must be a string.");
+	} else if (storageLocationPathRaw !== undefined && !storageLocationPath) {
+		errors.push("Storage location path must be a non-empty string.");
+	}
+
+	errors.push(...validateOptionalText(input.acquisitionStory, "Acquisition story", MAX_ACQUISITION_STORY_LENGTH));
+	errors.push(...validatePartialDateObject(input.acquisitionDate, "Acquisition date"));
+	errors.push(...validateOptionalText(input.acquiredFrom, "Acquired from", MAX_ACQUIRED_FROM_LENGTH));
+	errors.push(...validateOptionalText(input.acquisitionType, "Acquisition type", MAX_ACQUISITION_TYPE_LENGTH));
+	errors.push(...validateOptionalText(input.acquisitionLocation, "Acquisition location", MAX_ACQUISITION_LOCATION_LENGTH));
+	errors.push(...validateOptionalText(input.notes, "Notes", MAX_COPY_NOTES_LENGTH));
+
+	const normalized = {
+		storageLocationId,
+		storageLocationPath,
+		acquisitionStory: normalizeOptionalText(input.acquisitionStory),
+		acquisitionDate: input.acquisitionDate ?? null,
+		acquiredFrom: normalizeOptionalText(input.acquiredFrom),
+		acquisitionType: normalizeOptionalText(input.acquisitionType),
+		acquisitionLocation: normalizeOptionalText(input.acquisitionLocation),
+		notes: normalizeOptionalText(input.notes)
+	};
+
+	return { errors, normalized };
 }
 
 function parseSortOrder(value) {
@@ -181,6 +263,88 @@ async function insertPartialDate(client, dateValue) {
 	return result.rows[0]?.id ?? null;
 }
 
+async function resolveStorageLocationId(client, userId, { id, path }) {
+	let resolvedId = null;
+	if (Number.isInteger(id)) {
+		const existing = await client.query(
+			`SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (existing.rows.length === 0) {
+			return { error: "Storage location not found." };
+		}
+		resolvedId = id;
+	}
+
+	if (path) {
+		const result = await client.query(
+			`WITH RECURSIVE location_paths AS (
+				SELECT id, parent_id, name, name::text AS path
+				FROM storage_locations
+				WHERE user_id = $1 AND parent_id IS NULL
+				UNION ALL
+				SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+				FROM storage_locations sl
+				JOIN location_paths lp ON sl.parent_id = lp.id
+				WHERE sl.user_id = $1
+			)
+			SELECT id FROM location_paths WHERE path = $2 LIMIT 1`,
+			[userId, path]
+		);
+		if (result.rows.length === 0) {
+			return { error: "Storage location path not found." };
+		}
+		const pathId = result.rows[0].id;
+		if (resolvedId && resolvedId !== pathId) {
+			return { error: "Storage location id and path do not match." };
+		}
+		resolvedId = pathId;
+	}
+
+	return { id: resolvedId };
+}
+
+async function fetchBookCopies(userId, bookId) {
+	const result = await pool.query(
+		`WITH RECURSIVE location_paths AS (
+			SELECT id, parent_id, name, name::text AS path
+			FROM storage_locations
+			WHERE user_id = $1 AND parent_id IS NULL
+			UNION ALL
+			SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+			FROM storage_locations sl
+			JOIN location_paths lp ON sl.parent_id = lp.id
+			WHERE sl.user_id = $1
+		)
+		SELECT bc.id, bc.storage_location_id, bc.acquisition_story, bc.acquisition_date_id, bc.acquired_from,
+		       bc.acquisition_type, bc.acquisition_location, bc.notes, bc.created_at, bc.updated_at,
+		       d.day AS acq_day, d.month AS acq_month, d.year AS acq_year, d.text AS acq_text,
+		       lp.path AS storage_location_path
+		FROM book_copies bc
+		LEFT JOIN dates d ON bc.acquisition_date_id = d.id
+		LEFT JOIN location_paths lp ON bc.storage_location_id = lp.id
+		WHERE bc.user_id = $1 AND bc.book_id = $2
+		ORDER BY bc.id ASC`,
+		[userId, bookId]
+	);
+
+	return result.rows.map((row) => ({
+		id: row.id,
+		storageLocationId: row.storage_location_id,
+		storageLocationPath: row.storage_location_path,
+		acquisitionStory: row.acquisition_story,
+		acquisitionDate: row.acquisition_date_id
+			? { id: row.acquisition_date_id, day: row.acq_day, month: row.acq_month, year: row.acq_year, text: row.acq_text }
+			: null,
+		acquiredFrom: row.acquired_from,
+		acquisitionType: row.acquisition_type,
+		acquisitionLocation: row.acquisition_location,
+		notes: row.notes,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at
+	}));
+}
+
 async function resolveBookId({ userId, id, isbn, title }) {
 	if (Number.isInteger(id)) {
 		return { id };
@@ -267,7 +431,7 @@ async function ensureLanguageIdsExist(ids) {
 }
 
 async function fetchBookRelations(userId, bookId) {
-	const [authors, languages, tags, series] = await Promise.all([
+	const [authors, languages, tags, series, copies] = await Promise.all([
 		pool.query(
 			`SELECT author_id FROM book_authors WHERE user_id = $1 AND book_id = $2 ORDER BY author_id ASC`,
 			[userId, bookId]
@@ -289,13 +453,16 @@ async function fetchBookRelations(userId, bookId) {
 			[userId, bookId]
 		),
 		pool.query(
-			`SELECT series_id, book_order, d.id AS published_date_id, d.day, d.month, d.year, d.text
+			`SELECT bsb.series_id, bsb.book_order,
+			        d.id AS published_date_id, d.day, d.month, d.year, d.text
 			 FROM book_series_books bsb
-			 LEFT JOIN dates d ON bsb.book_published_date_id = d.id
+			 JOIN books b ON bsb.book_id = b.id
+			 LEFT JOIN dates d ON b.publication_date_id = d.id
 			 WHERE bsb.user_id = $1 AND bsb.book_id = $2
 			 ORDER BY series_id ASC`,
 			[userId, bookId]
-		)
+		),
+		fetchBookCopies(userId, bookId)
 	]);
 
 	return {
@@ -308,7 +475,8 @@ async function fetchBookRelations(userId, bookId) {
 			bookPublishedDate: row.published_date_id
 				? { id: row.published_date_id, day: row.day, month: row.month, year: row.year, text: row.text }
 				: null
-		}))
+		})),
+		bookCopies: copies
 	};
 }
 
@@ -354,7 +522,8 @@ function buildBookPayload(row, view, relations) {
 		authors: relations?.authorIds || [],
 		languages: relations?.languages || [],
 		tags: relations?.tags || [],
-		series: relations?.series || []
+		series: relations?.series || [],
+		bookCopies: relations?.bookCopies || []
 	};
 }
 
@@ -744,6 +913,8 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	const tags = Array.isArray(req.body?.tags) ? req.body.tags : [];
 	const series = Array.isArray(req.body?.series) ? req.body.series : [];
+	const bookCopyInput = extractBookCopyInput(req.body);
+	const { errors: bookCopyErrors, normalized: normalizedBookCopy } = validateBookCopyPayload(bookCopyInput);
 
 	const errors = [
 		...validateTitle(title),
@@ -771,9 +942,10 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 	for (const entry of series) {
 		if (entry && typeof entry === "object" && entry.bookPublishedDate) {
-			errors.push(...validatePartialDateObject(entry.bookPublishedDate, "Book Published Date"));
+			errors.push("bookPublishedDate is no longer supported. Series dates are derived from book publicationDate.");
 		}
 	}
+	errors.push(...bookCopyErrors);
 
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
@@ -882,6 +1054,34 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				}
 			}
 
+			const copyResolution = await resolveStorageLocationId(client, userId, {
+				id: normalizedBookCopy?.storageLocationId ?? null,
+				path: normalizedBookCopy?.storageLocationPath ?? null
+			});
+			if (copyResolution.error) {
+				throw new Error(copyResolution.error);
+			}
+			const acquisitionDateId = await insertPartialDate(client, normalizedBookCopy?.acquisitionDate ?? null);
+
+			await client.query(
+				`INSERT INTO book_copies (
+					user_id, book_id, storage_location_id, acquisition_story, acquisition_date_id,
+					acquired_from, acquisition_type, acquisition_location, notes, created_at, updated_at
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+				[
+					userId,
+					row.id,
+					copyResolution.id ?? null,
+					normalizedBookCopy?.acquisitionStory ?? null,
+					acquisitionDateId,
+					normalizedBookCopy?.acquiredFrom ?? null,
+					normalizedBookCopy?.acquisitionType ?? null,
+					normalizedBookCopy?.acquisitionLocation ?? null,
+					normalizedBookCopy?.notes ?? null
+				]
+			);
+
 			if (series.length > 0) {
 				for (const entry of series) {
 					const seriesId = parseId(typeof entry === "number" ? entry : entry?.seriesId ?? entry?.id);
@@ -889,14 +1089,10 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					if (!Number.isInteger(seriesId) || orderError) {
 						throw new Error("Series link data is invalid.");
 					}
-					let publishedDateId = publicationDateId;
-					if (entry?.bookPublishedDate) {
-						publishedDateId = await insertPartialDate(client, entry.bookPublishedDate);
-					}
 					await client.query(
-						`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at)
-						 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-						[userId, seriesId, row.id, bookOrder ?? null, publishedDateId]
+						`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+						 VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+						[userId, seriesId, row.id, bookOrder ?? null]
 					);
 				}
 			}
@@ -937,6 +1133,9 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		if (error.message === "Series link data is invalid.") {
 			return errorResponse(res, 400, "Validation Error", ["Series entries must include a valid seriesId and optional bookOrder."]);
+		}
+		if (["Storage location not found.", "Storage location path not found.", "Storage location id and path do not match."].includes(error.message)) {
+			return errorResponse(res, 400, "Validation Error", [error.message]);
 		}
 		return errorResponse(res, 500, "Database Error", ["An error occurred while creating the book."]);
 	}
@@ -989,7 +1188,7 @@ async function handleBookUpdate(req, res, bookId) {
 	if (hasSeries && Array.isArray(req.body?.series)) {
 		for (const entry of req.body.series) {
 			if (entry && typeof entry === "object" && entry.bookPublishedDate) {
-				errors.push(...validatePartialDateObject(entry.bookPublishedDate, "Book Published Date"));
+				errors.push("bookPublishedDate is no longer supported. Series dates are derived from book publicationDate.");
 			}
 		}
 	}
@@ -1206,14 +1405,10 @@ async function handleBookUpdate(req, res, bookId) {
 					if (!Number.isInteger(seriesId) || orderError) {
 						throw new Error("Series link data is invalid.");
 					}
-					let publishedDateId = updatedRow.publication_date_id;
-					if (entry?.bookPublishedDate) {
-						publishedDateId = await insertPartialDate(client, entry.bookPublishedDate);
-					}
 					await client.query(
-						`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, book_published_date_id, created_at, updated_at)
-						 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-						[userId, seriesId, bookId, bookOrder ?? null, publishedDateId]
+						`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+						 VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+						[userId, seriesId, bookId, bookOrder ?? null]
 					);
 				}
 			}

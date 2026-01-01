@@ -22,6 +22,9 @@ const publisherRoutes = require("./routes/publisher");
 const bookSeriesRoutes = require("./routes/bookseries");
 const languageRoutes = require("./routes/languages");
 const bookRoutes = require("./routes/book");
+const storageLocationRoutes = require("./routes/storagelocation");
+const bookCopyRoutes = require("./routes/bookcopy");
+const tagRoutes = require("./routes/tags");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -81,6 +84,9 @@ app.use("/publisher", publisherRoutes);
 app.use("/bookseries", bookSeriesRoutes);
 app.use("/languages", languageRoutes);
 app.use("/book", bookRoutes);
+app.use("/storagelocation", storageLocationRoutes);
+app.use("/bookcopy", bookCopyRoutes);
+app.use("/tags", tagRoutes);
 
 //404 Handler
 app.use((req, res) => {

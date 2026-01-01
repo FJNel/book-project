@@ -183,7 +183,6 @@ CREATE TABLE IF NOT EXISTS book_copies (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 CREATE TABLE IF NOT EXISTS books (
   id                 SERIAL PRIMARY KEY,
   user_id            INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -199,6 +198,21 @@ CREATE TABLE IF NOT EXISTS books (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, isbn)
+);
+
+CREATE TABLE IF NOT EXISTS book_copies (
+  id                    SERIAL PRIMARY KEY,
+  user_id               INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id               INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  storage_location_id   INT REFERENCES storage_locations(id) ON DELETE SET NULL,
+  acquisition_story     TEXT,
+  acquisition_date_id   INT REFERENCES dates(id) ON DELETE SET NULL,
+  acquired_from         VARCHAR(255),
+  acquisition_type      VARCHAR(100),
+  acquisition_location  VARCHAR(255),
+  notes                 TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS book_languages (
