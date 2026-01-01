@@ -61,6 +61,18 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /publisher/:id](#put-publisherid)
     - [DELETE /publisher](#delete-publisher)
     - [DELETE /publisher/:id](#delete-publisherid)
+  - [Book Series](#book-series)
+    - [GET /bookseries](#get-bookseries)
+    - [GET /bookseries/:id](#get-bookseriesid)
+    - [GET /bookseries/by-name](#get-bookseriesby-name)
+    - [POST /bookseries](#post-bookseries)
+    - [PUT /bookseries](#put-bookseries)
+    - [PUT /bookseries/:id](#put-bookseriesid)
+    - [DELETE /bookseries](#delete-bookseries)
+    - [DELETE /bookseries/:id](#delete-bookseriesid)
+    - [POST /bookseries/link](#post-bookserieslink)
+    - [PUT /bookseries/link](#put-bookserieslink)
+    - [DELETE /bookseries/link](#delete-bookserieslink)
   - [Admin](#admin)
 
 
@@ -127,7 +139,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -5774,6 +5786,1497 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "data": {},
   "errors": [
     "An error occurred while deleting the publisher."
+  ]
+}
+```
+
+## Book Series
+
+Book series are scoped per user. Series start dates use the Partial Date Object described in **Shared Behaviours**. Books can be linked to multiple series; the link can optionally store the book order within the series.
+
+### GET /bookseries
+
+- **Purpose:** Retrieve all book series for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseries` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter list by exact id. |
+| `filterName` | string | No | Case-insensitive partial match on name. |
+| `filterDescription` | string | No | Case-insensitive partial match on description. |
+| `filterStartDateId` | integer | No | Filter by exact start date id. |
+| `filterStartDay` | integer | No | Filter by start day (1-31). |
+| `filterStartMonth` | integer | No | Filter by start month (1-12). |
+| `filterStartYear` | integer | No | Filter by start year (1-9999). |
+| `filterStartText` | string | No | Case-insensitive partial match on start date text. |
+| `filterStartedBefore` | string | No | ISO date/time upper bound for series start date. |
+| `filterStartedAfter` | string | No | ISO date/time lower bound for series start date. |
+| `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+
+`sortBy` accepts: `id`, `name`, `description`, `createdAt`, `updatedAt`, `startDateId`, `startDay`, `startMonth`, `startYear`, `startText`.
+
+For started filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without a start date will not match the started filters.
+
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single series instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Series id to fetch. |
+| `name` | string | No | Series name to fetch. |
+
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+- **Response (200, list):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Series retrieved successfully.",
+  "data": {
+    "series": [
+      {
+        "id": 8,
+        "name": "Discworld",
+        "startDate": {
+          "id": 42,
+          "day": 3,
+          "month": 6,
+          "year": 1983,
+          "text": "3 June 1983"
+        },
+        "description": "Fantasy series by Terry Pratchett.",
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, nameOnly=true):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Series retrieved successfully.",
+  "data": {
+    "series": [
+      {
+        "id": 8,
+        "name": "Discworld"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Series retrieved successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Fantasy series by Terry Pratchett.",
+    "books": [
+      {
+        "bookId": 101,
+        "bookOrder": 1
+      },
+      {
+        "bookId": 102,
+        "bookOrder": 2
+      }
+    ],
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving series."
+  ]
+}
+```
+
+#### Common Examples
+
+- **All series started before 1990, sorted by start year (desc), limit 10:**
+
+```json
+{
+  "filterStartedBefore": "1990-01-01",
+  "sortBy": "startYear",
+  "order": "desc",
+  "limit": 10
+}
+```
+
+Query string equivalent:
+
+```
+GET /bookseries?filterStartedBefore=1990-01-01&sortBy=startYear&order=desc&limit=10
+```
+
+- **Series with "chronicles" in the name, sorted by name (asc), offset 20, limit 10:**
+
+```json
+{
+  "filterName": "chronicles",
+  "sortBy": "name",
+  "order": "asc",
+  "offset": 20,
+  "limit": 10
+}
+```
+
+Query string equivalent:
+
+```
+GET /bookseries?filterName=chronicles&sortBy=name&order=asc&offset=20&limit=10
+```
+
+### GET /bookseries/by-name
+
+- **Purpose:** Retrieve a specific series by name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseries/by-name` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Series name to look up (query string or JSON body). |
+
+If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Series retrieved successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Fantasy series by Terry Pratchett.",
+    "books": [
+      {
+        "bookId": 101,
+        "bookOrder": 1
+      }
+    ],
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the series."
+  ]
+}
+```
+
+### GET /bookseries/:id
+
+- **Purpose:** Retrieve a specific series by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseries/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Series retrieved successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Fantasy series by Terry Pratchett.",
+    "books": [
+      {
+        "bookId": 101,
+        "bookOrder": 1
+      }
+    ],
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the series."
+  ]
+}
+```
+
+### POST /bookseries
+
+- **Purpose:** Create a new book series.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/bookseries` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
+| `startDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
+| `description` | string | No | Optional description (<= 1000 characters). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Series created successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Fantasy series by Terry Pratchett.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series Name must be between 2 and 150 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Series already exists.",
+  "data": {},
+  "errors": [
+    "A series with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the series."
+  ]
+}
+```
+
+### PUT /bookseries
+
+- **Purpose:** Update a series by id or name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/bookseries` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Series id to update. |
+| `targetName` | string | No | Series name to update (used if `id` is not provided). |
+| `name` | string | No | New series name. |
+| `startDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). Use `null` to clear. |
+| `description` | string | No | New description. Use `null` to clear. |
+
+If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Series updated successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Updated description.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Series already exists.",
+  "data": {},
+  "errors": [
+    "A series with this name already exists."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the series."
+  ]
+}
+```
+
+### PUT /bookseries/:id
+
+- **Purpose:** Update a series by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/bookseries/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Series updated successfully.",
+  "data": {
+    "id": 8,
+    "name": "Discworld",
+    "startDate": {
+      "id": 42,
+      "day": 3,
+      "month": 6,
+      "year": 1983,
+      "text": "3 June 1983"
+    },
+    "description": "Updated description.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the series."
+  ]
+}
+```
+
+### DELETE /bookseries
+
+- **Purpose:** Delete a series by id or name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/bookseries` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Series id to delete. |
+| `name` | string | No | Series name to delete (used if `id` is not provided). |
+
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Series deleted successfully.",
+  "data": {
+    "id": 8
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a series id or name to delete."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the series."
+  ]
+}
+```
+
+### DELETE /bookseries/:id
+
+- **Purpose:** Delete a series by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/bookseries/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Series deleted successfully.",
+  "data": {
+    "id": 8
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Series id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the series."
+  ]
+}
+```
+
+### POST /bookseries/link
+
+- **Purpose:** Link a book to a series with an optional order.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/bookseries/link` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `seriesId` | integer | No | Series id to link. |
+| `seriesName` | string | No | Series name to link (used if `seriesId` is not provided). |
+| `bookId` | integer | Yes | Book id to link. |
+| `bookOrder` | integer | No | Order of the book in the series (1-10000). |
+
+If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+
+Note: Until the books table is implemented, `bookId` is treated as a numeric identifier without additional validation.
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Book linked to series successfully.",
+  "data": {
+    "id": 77,
+    "seriesId": 8,
+    "bookId": 101,
+    "bookOrder": 1,
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a valid bookId to link."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Link already exists.",
+  "data": {},
+  "errors": [
+    "This book is already linked to the series."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while linking the book to the series."
+  ]
+}
+```
+
+### PUT /bookseries/link
+
+- **Purpose:** Update a book-series link (book order).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/bookseries/link` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `seriesId` | integer | No | Series id to update. |
+| `seriesName` | string | No | Series name to update (used if `seriesId` is not provided). |
+| `bookId` | integer | Yes | Book id for the link. |
+| `bookOrder` | integer | No | New order of the book in the series (1-10000). Use `null` to clear. |
+
+If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Book-series link updated successfully.",
+  "data": {
+    "id": 77,
+    "seriesId": 8,
+    "bookId": 101,
+    "bookOrder": 2,
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a valid bookId for the link."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Link not found.",
+  "data": {},
+  "errors": [
+    "The requested book-series link could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the link."
+  ]
+}
+```
+
+### DELETE /bookseries/link
+
+- **Purpose:** Remove a book-series link.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/bookseries/link` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `seriesId` | integer | No | Series id to unlink. |
+| `seriesName` | string | No | Series name to unlink (used if `seriesId` is not provided). |
+| `bookId` | integer | Yes | Book id to unlink. |
+
+If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Book unlinked from series successfully.",
+  "data": {
+    "seriesId": 8,
+    "bookId": 101
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a valid bookId for the link."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Link not found.",
+  "data": {},
+  "errors": [
+    "The requested book-series link could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while removing the link."
   ]
 }
 ```
