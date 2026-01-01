@@ -52,6 +52,15 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /author/:id](#put-authorid)
     - [DELETE /author](#delete-author)
     - [DELETE /author/:id](#delete-authorid)
+  - [Publishers](#publishers)
+    - [GET /publisher](#get-publisher)
+    - [GET /publisher/:id](#get-publisherid)
+    - [GET /publisher/by-name](#get-publisherby-name)
+    - [POST /publisher](#post-publisher)
+    - [PUT /publisher](#put-publisher)
+    - [PUT /publisher/:id](#put-publisherid)
+    - [DELETE /publisher](#delete-publisher)
+    - [DELETE /publisher/:id](#delete-publisherid)
   - [Admin](#admin)
 
 
@@ -118,7 +127,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -132,6 +141,25 @@ All other endpoints currently have no dedicated custom limit.
 - **Account action quotas:** Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).
 - **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`, an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
 - **Login metadata:** User profiles include `lastLogin`, an ISO timestamp of the most recent successful login (regardless of login method).
+
+### Partial Date Object
+
+Some endpoints accept partial dates for fields like author birth/death dates and publisher founded dates. The API expects a partial date object in the following format:
+
+```json
+{
+  "day": 23,
+  "month": 10,
+  "year": 2005,
+  "text": "23 October 2005"
+}
+```
+
+Rules:
+- `day`, `month`, and `year` may be `null`, but `text` is required.
+- If `day` is provided, `month` and `year` must also be provided.
+- If `month` is provided, `year` must also be provided.
+- `text` must match the provided values in English (`"23 October 2005"`, `"October 2005"`, or `"2005"`).
 
 ## Endpoints
 
@@ -3435,25 +3463,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 Authors are scoped per user and can be linked to books later via a linking table. Dates use the partial date object described below.
 
-### Partial Date Object
-
-The API expects a partial date object in the following format:
-
-```json
-{
-  "day": 23,
-  "month": 10,
-  "year": 2005,
-  "text": "23 October 2005"
-}
-```
-
-Rules:
-- `day`, `month`, and `year` may be `null`, but `text` is required.
-- If `day` is provided, `month` and `year` must also be provided.
-- If `month` is provided, `year` must also be provided.
-- `text` must match the provided values in English (`"23 October 2005"`, `"October 2005"`, or `"2005"`).
-
 ### GET /author
 
 - **Purpose:** Retrieve all authors for the authenticated user.
@@ -4661,6 +4670,1110 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
   "data": {},
   "errors": [
     "An error occurred while deleting the author."
+  ]
+}
+```
+
+## Publishers
+
+Publishers are scoped per user. Founded dates use the same Partial Date Object described in **Shared Behaviours**.
+
+### GET /publisher
+
+- **Purpose:** Retrieve all publishers for the authenticated user.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/publisher` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter list by exact id. |
+| `filterName` | string | No | Case-insensitive partial match on name. |
+| `filterWebsite` | string | No | Case-insensitive partial match on website. |
+| `filterNotes` | string | No | Case-insensitive partial match on notes. |
+| `filterFoundedDateId` | integer | No | Filter by exact founded date id. |
+| `filterFoundedDay` | integer | No | Filter by founded day (1-31). |
+| `filterFoundedMonth` | integer | No | Filter by founded month (1-12). |
+| `filterFoundedYear` | integer | No | Filter by founded year (1-9999). |
+| `filterFoundedText` | string | No | Case-insensitive partial match on founded date text. |
+| `filterFoundedBefore` | string | No | ISO date/time upper bound for founded date. |
+| `filterFoundedAfter` | string | No | ISO date/time lower bound for founded date. |
+| `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+
+`sortBy` accepts: `id`, `name`, `website`, `notes`, `createdAt`, `updatedAt`, `foundedDateId`, `foundedDay`, `foundedMonth`, `foundedYear`, `foundedText`.
+
+For founded filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Publishers without a founded date will not match the founded filters.
+
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single publisher instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Publisher id to fetch. |
+| `name` | string | No | Publisher name to fetch. |
+
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+- **Response (200, list):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Publishers retrieved successfully.",
+  "data": {
+    "publishers": [
+      {
+        "id": 5,
+        "name": "HarperCollins",
+        "foundedDate": {
+          "id": 21,
+          "day": 1,
+          "month": 7,
+          "year": 1989,
+          "text": "1 July 1989"
+        },
+        "website": "https://www.harpercollins.com",
+        "notes": "Major international publisher.",
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, nameOnly=true):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Publishers retrieved successfully.",
+  "data": {
+    "publishers": [
+      {
+        "id": 5,
+        "name": "HarperCollins"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Publisher retrieved successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Major international publisher.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving publishers."
+  ]
+}
+```
+
+#### Common Examples
+
+- **All publishers founded before 1950, sorted by founded year (desc), limit 20:**
+
+```json
+{
+  "filterFoundedBefore": "1950-01-01",
+  "sortBy": "foundedYear",
+  "order": "desc",
+  "limit": 20
+}
+```
+
+Query string equivalent:
+
+```
+GET /publisher?filterFoundedBefore=1950-01-01&sortBy=foundedYear&order=desc&limit=20
+```
+
+- **Publishers with "press" in the name, sorted by name (asc), offset 10, limit 10:**
+
+```json
+{
+  "filterName": "press",
+  "sortBy": "name",
+  "order": "asc",
+  "offset": 10,
+  "limit": 10
+}
+```
+
+Query string equivalent:
+
+```
+GET /publisher?filterName=press&sortBy=name&order=asc&offset=10&limit=10
+```
+
+### GET /publisher/by-name
+
+- **Purpose:** Retrieve a specific publisher by name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/publisher/by-name` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Publisher name to look up (query string or JSON body). |
+
+If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Publisher retrieved successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Major international publisher.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher Name must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the publisher."
+  ]
+}
+```
+
+### GET /publisher/:id
+
+- **Purpose:** Retrieve a specific publisher by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/publisher/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Publisher retrieved successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Major international publisher.",
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the publisher."
+  ]
+}
+```
+
+### POST /publisher
+
+- **Purpose:** Create a new publisher.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/publisher` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
+| `foundedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
+| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
+| `notes` | string | No | Optional notes (<= 1000 characters). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Publisher created successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Major international publisher.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher Name must be between 2 and 150 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Publisher already exists.",
+  "data": {},
+  "errors": [
+    "A publisher with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the publisher."
+  ]
+}
+```
+
+### PUT /publisher
+
+- **Purpose:** Update a publisher by id or name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/publisher` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Publisher id to update. |
+| `targetName` | string | No | Publisher name to update (used if `id` is not provided). |
+| `name` | string | No | New publisher name. |
+| `foundedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). Use `null` to clear. |
+| `website` | string | No | New website. Use `null` to clear. |
+| `notes` | string | No | New notes. Use `null` to clear. |
+
+If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Publisher updated successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Updated notes.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Publisher already exists.",
+  "data": {},
+  "errors": [
+    "A publisher with this name already exists."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the publisher."
+  ]
+}
+```
+
+### PUT /publisher/:id
+
+- **Purpose:** Update a publisher by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/publisher/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Publisher updated successfully.",
+  "data": {
+    "id": 5,
+    "name": "HarperCollins",
+    "foundedDate": {
+      "id": 21,
+      "day": 1,
+      "month": 7,
+      "year": 1989,
+      "text": "1 July 1989"
+    },
+    "website": "https://www.harpercollins.com",
+    "notes": "Updated notes.",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the publisher."
+  ]
+}
+```
+
+### DELETE /publisher
+
+- **Purpose:** Delete a publisher by id or name.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/publisher` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Publisher id to delete. |
+| `name` | string | No | Publisher name to delete (used if `id` is not provided). |
+
+If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Publisher deleted successfully.",
+  "data": {
+    "id": 5
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a publisher id or name to delete."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the publisher."
+  ]
+}
+```
+
+### DELETE /publisher/:id
+
+- **Purpose:** Delete a publisher by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/publisher/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Publisher deleted successfully.",
+  "data": {
+    "id": 5
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Publisher id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the publisher."
   ]
 }
 ```

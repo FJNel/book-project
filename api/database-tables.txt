@@ -105,6 +105,18 @@ CREATE TABLE IF NOT EXISTS authors (
   UNIQUE (user_id, display_name)
 );
 
+CREATE TABLE IF NOT EXISTS publishers (
+  id              SERIAL PRIMARY KEY,
+  user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name            VARCHAR(150) NOT NULL,
+  founded_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
+  website         VARCHAR(300),
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS book_authors (
   id         SERIAL PRIMARY KEY,
   user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -146,6 +158,11 @@ EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_authors_modtime
 BEFORE UPDATE ON authors
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_publishers_modtime
+BEFORE UPDATE ON publishers
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 

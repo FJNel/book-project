@@ -6,6 +6,7 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const { validatePartialDateObject } = require("../utils/partial-date");
 
 const MAX_DISPLAY_NAME_LENGTH = 150;
 const MAX_FIRST_NAMES_LENGTH = 150;
@@ -13,26 +14,9 @@ const MAX_LAST_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 1000;
 const MAX_LIST_LIMIT = 200;
 
-const MONTH_NAMES = [
-	"January", "February", "March", "April", "May", "June",
-	"July", "August", "September", "October", "November", "December"
-];
-
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
 	return value.trim();
-}
-
-function normalizeDateText(value) {
-	if (typeof value !== "string") return "";
-	return value.trim().replace(/\s+/g, " ");
-}
-
-function formatPartialDate(day, month, year) {
-	if (day && month && year) return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
-	if (!day && month && year) return `${MONTH_NAMES[month - 1]} ${year}`;
-	if (!day && !month && year) return String(year);
-	return "";
 }
 
 function validateDisplayName(name) {
@@ -78,65 +62,6 @@ function validateBio(value) {
 	if (value.trim().length > MAX_BIO_LENGTH) {
 		errors.push(`Bio must be ${MAX_BIO_LENGTH} characters or fewer.`);
 	}
-	return errors;
-}
-
-function validatePartialDateObject(dateValue, fieldLabel) {
-	const errors = [];
-	if (dateValue === undefined || dateValue === null) {
-		return errors;
-	}
-	if (typeof dateValue !== "object" || Array.isArray(dateValue)) {
-		errors.push(`${fieldLabel} must be an object with day, month, year, and text.`);
-		return errors;
-	}
-
-	const { day, month, year, text } = dateValue;
-	const textValue = normalizeDateText(text);
-
-	if (!textValue) {
-		errors.push(`${fieldLabel} text must be provided.`);
-	}
-
-	const hasDay = day !== null && day !== undefined;
-	const hasMonth = month !== null && month !== undefined;
-	const hasYear = year !== null && year !== undefined;
-
-	if (hasDay && (!hasMonth || !hasYear)) {
-		errors.push(`${fieldLabel} requires month and year when day is provided.`);
-	}
-	if (hasMonth && !hasYear) {
-		errors.push(`${fieldLabel} requires year when month is provided.`);
-	}
-
-	if (hasDay && (!Number.isInteger(day) || day < 1 || day > 31)) {
-		errors.push(`${fieldLabel} day must be an integer between 1 and 31.`);
-	}
-	if (hasMonth && (!Number.isInteger(month) || month < 1 || month > 12)) {
-		errors.push(`${fieldLabel} month must be an integer between 1 and 12.`);
-	}
-	if (hasYear && (!Number.isInteger(year) || year < 1 || year > 9999)) {
-		errors.push(`${fieldLabel} year must be an integer between 1 and 9999.`);
-	}
-
-	if (errors.length > 0) {
-		return errors;
-	}
-
-	if (hasDay && hasMonth && hasYear) {
-		const probe = new Date(year, month - 1, day);
-		if (probe.getFullYear() !== year || probe.getMonth() + 1 !== month || probe.getDate() !== day) {
-			errors.push(`${fieldLabel} is not a valid calendar date.`);
-		}
-	}
-
-	const expectedText = formatPartialDate(hasDay ? day : null, hasMonth ? month : null, hasYear ? year : null);
-	if (!expectedText) {
-		errors.push(`${fieldLabel} must include at least a year.`);
-	} else if (expectedText.toLowerCase() !== textValue.toLowerCase()) {
-		errors.push(`${fieldLabel} text must match the provided day, month, and year.`);
-	}
-
 	return errors;
 }
 

@@ -18,6 +18,7 @@ const authRoutes = require("./routes/auth");
 const tempRoutes = require("./routes/temp");
 const bookTypeRoutes = require("./routes/booktype");
 const authorRoutes = require("./routes/author");
+const publisherRoutes = require("./routes/publisher");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -73,6 +74,7 @@ app.use("/auth", authRoutes);
 app.use("/temp", tempRoutes);
 app.use("/booktype", bookTypeRoutes);
 app.use("/author", authorRoutes);
+app.use("/publisher", publisherRoutes);
 
 //404 Handler
 app.use((req, res) => {
