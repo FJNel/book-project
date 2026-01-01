@@ -73,7 +73,18 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /bookseries/link](#post-bookserieslink)
     - [PUT /bookseries/link](#put-bookserieslink)
     - [DELETE /bookseries/link](#delete-bookserieslink)
+  - [Languages](#languages)
+    - [GET /languages](#get-languages)
+  - [Books](#books)
+    - [GET /book](#get-book)
+    - [POST /book](#post-book)
+    - [PUT /book](#put-book)
+    - [PUT /book/:id](#put-bookid)
+    - [DELETE /book/:id](#delete-bookid)
   - [Admin](#admin)
+    - [POST /admin/languages](#post-adminlanguages)
+    - [PUT /admin/languages/:id](#put-adminlanguagesid)
+    - [DELETE /admin/languages/:id](#delete-adminlanguagesid)
 
 
 **Base URL:** `https://api.fjnel.co.za`
@@ -139,7 +150,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
-| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
+| Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
@@ -2911,6 +2922,96 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 {
   "status": "error",
   "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language name must be between 2 and 100 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Language already exists.",
+  "data": {},
+  "errors": [
+    "A language with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.18",
+  "message": "Forbidden: Insufficient permissions.",
+  "data": {},
+  "errors": [
+    "Admin privileges are required for this action."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the language."
+  ]
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
   "responseTime": "2.22",
   "message": "Validation Error",
   "data": {},
@@ -3020,6 +3121,111 @@ At least one field must be provided.
     "updatedAt": "2025-01-17T10:05:48.000Z"
   },
   "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language name must be between 2 and 100 characters."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Language not found.",
+  "data": {},
+  "errors": [
+    "The requested language could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Language already exists.",
+  "data": {},
+  "errors": [
+    "A language with this name already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.18",
+  "message": "Forbidden: Insufficient permissions.",
+  "data": {},
+  "errors": [
+    "Admin privileges are required for this action."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the language."
+  ]
 }
 ```
 
@@ -3303,6 +3509,96 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
     "id": 10
   },
   "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Language not found.",
+  "data": {},
+  "errors": [
+    "The requested language could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.18",
+  "message": "Forbidden: Insufficient permissions.",
+  "data": {},
+  "errors": [
+    "Admin privileges are required for this action."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the language."
+  ]
 }
 ```
 
@@ -7315,6 +7611,995 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
+## Languages
+
+Languages are global and shared across users. They are used to tag books with one or more languages.
+
+### GET /languages
+
+- **Purpose:** Retrieve all available languages (alphabetical).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/languages` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Languages retrieved successfully.",
+  "data": {
+    "languages": [
+      { "id": 1, "name": "Afrikaans" },
+      { "id": 2, "name": "English" },
+      { "id": 3, "name": "Netherlands" }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving languages."
+  ]
+}
+```
+
+## Books
+
+Books are scoped per user. Titles are not unique, so multiple books can share the same title (e.g., different formats). ISBNs are unique per user when provided. When identifying a book by title, the API returns `409` if multiple books share that title.
+
+Tags are normalised on ingest (trimmed, lowercased, punctuation stripped, whitespace collapsed) and stored per user. The original display name is retained.
+If a book's `publicationDate` is `null`, date-based filters will not match it, and any series links that omit `bookPublishedDate` will not contribute to series start/end dates.
+
+### GET /book
+
+- **Purpose:** Retrieve all books for the authenticated user, or fetch a specific book by id, ISBN, or title.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/book` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Query Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `view` | string | No | `all` (default), `card`, or `nameOnly`. |
+| `nameOnly` | boolean | No | When true, returns only `id` and `title` (overrides `view`). |
+| `sort` | array | No | Array of `{ field, order }` objects (JSON body only). |
+| `sortBy` | string | No | Comma-separated sort fields (query or body). |
+| `order` | string | No | Comma-separated sort orders (`asc`/`desc`). |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+| `filterId` | integer | No | Filter by exact id. |
+| `filterTitle` | string | No | Case-insensitive partial match on title. |
+| `filterSubtitle` | string | No | Case-insensitive partial match on subtitle. |
+| `filterIsbn` | string | No | Exact ISBN match. |
+| `filterBookTypeId` | integer | No | Filter by book type id. |
+| `filterPublisherId` | integer | No | Filter by publisher id. |
+| `filterAuthorId` | integer | No | Filter by author id. |
+| `filterSeriesId` | integer | No | Filter by series id. |
+| `filterTag` | string | No | Filter by tag name (normalised). |
+| `filterLanguageId` | integer | No | Filter by language id. |
+| `filterLanguage` | string | No | Filter by language name (normalised). |
+| `filterPageMin` | integer | No | Minimum page count. |
+| `filterPageMax` | integer | No | Maximum page count. |
+| `filterPublishedBefore` | string | No | ISO date/time upper bound for publication date. |
+| `filterPublishedAfter` | string | No | ISO date/time lower bound for publication date. |
+| `filterPublishedYear` | integer | No | Filter by publication year. |
+| `filterPublishedMonth` | integer | No | Filter by publication month. |
+| `filterPublishedDay` | integer | No | Filter by publication day. |
+| `filterCreatedAt` | string | No | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | No | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | No | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | No | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
+
+`sortBy` accepts: `id`, `title`, `subtitle`, `isbn`, `pageCount`, `createdAt`, `updatedAt`, `publicationDate`.
+
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+#### Optional Lookup (query or body)
+
+When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpoint returns a single book instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book id to fetch. |
+| `isbn` | string | No | Book ISBN to fetch. |
+| `title` | string | No | Book title to fetch. |
+
+If multiple identifiers are provided, the API uses `id`, then `isbn`, then `title`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+- **Response (200, list, view=card):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.21",
+  "message": "Books retrieved successfully.",
+  "data": {
+    "books": [
+      {
+        "id": 15,
+        "title": "Harry Potter and the Philosopher's Stone",
+        "subtitle": null,
+        "coverImageUrl": "https://example.com/hp1.jpg",
+        "publicationDate": {
+          "id": 60,
+          "day": 26,
+          "month": 6,
+          "year": 1997,
+          "text": "26 June 1997"
+        },
+        "pageCount": 223,
+        "bookTypeId": 1,
+        "publisherId": 5,
+        "languages": [
+          { "id": 2, "name": "English" }
+        ],
+        "tags": [
+          { "id": 7, "name": "Fantasy" },
+          { "id": 8, "name": "Adventure" }
+        ]
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Response (200, single result, view=all):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.78",
+  "message": "Book retrieved successfully.",
+  "data": {
+    "id": 22,
+    "title": "The Lord of the Rings",
+    "subtitle": "The Fellowship of the Ring",
+    "isbn": "978-0-261-10235-4",
+    "publicationDate": {
+      "id": 61,
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
+    },
+    "pageCount": 423,
+    "bookTypeId": 1,
+    "publisherId": 5,
+    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+    "description": "The first volume of The Lord of the Rings.",
+    "authors": [1],
+    "languages": [
+      { "id": 2, "name": "English" }
+    ],
+    "tags": [
+      { "id": 7, "name": "Fantasy" },
+      { "id": 9, "name": "Epic" }
+    ],
+    "series": [
+      {
+        "seriesId": 8,
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        }
+      }
+    ],
+    "createdAt": "2025-01-10T09:15:23.000Z",
+    "updatedAt": "2025-01-14T16:58:41.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Multiple Matches (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Multiple books matched.",
+  "data": {},
+  "errors": [
+    "Multiple books share this title. Please use id or ISBN."
+  ]
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide at least one field to update."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the book."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while retrieving the book."
+  ]
+}
+```
+
+### POST /book
+
+- **Purpose:** Create a new book and link it to related entities.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/book` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `title` | string | Yes | 2–255 characters. |
+| `subtitle` | string | No | Optional subtitle (<= 255 characters). |
+| `isbn` | string | No | ISBN (10–17 chars, digits/hyphen/X). Unique per user when provided. |
+| `publicationDate` | object | No | Partial Date Object. |
+| `pageCount` | integer | No | Number of pages (1–10000). |
+| `coverImageUrl` | string | No | Valid URL for a cover image. |
+| `description` | string | No | Optional description (<= 2000 characters). |
+| `bookTypeId` | integer or array | No | Book type id (single number or array with one number). |
+| `publisherId` | integer or array | No | Publisher id (single number or array with one number). |
+| `authorIds` | array | No | Array of author ids. |
+| `languageIds` | array | No | Array of language ids. |
+| `languageNames` | array | No | Array of language names (case-insensitive). |
+| `tags` | array | No | Array of tag strings (<= 50 chars). |
+| `series` | array | No | Array of series ids or objects with `seriesId`, `bookOrder`, and optional `bookPublishedDate`. |
+
+Notes:
+- Tags are normalised and de-duplicated per user.
+- If a series entry omits `bookPublishedDate`, the book's `publicationDate` is used (if provided).
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "4.33",
+  "message": "Book created successfully.",
+  "data": {
+    "id": 22,
+    "title": "The Lord of the Rings",
+    "subtitle": "The Fellowship of the Ring",
+    "isbn": "978-0-261-10235-4",
+    "publicationDate": {
+      "id": 61,
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
+    },
+    "pageCount": 423,
+    "bookTypeId": 1,
+    "publisherId": 5,
+    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+    "description": "The first volume of The Lord of the Rings.",
+    "authors": [1],
+    "languages": [
+      { "id": 2, "name": "English" }
+    ],
+    "tags": [
+      { "id": 7, "name": "Fantasy" },
+      { "id": 9, "name": "Epic" }
+    ],
+    "series": [
+      {
+        "seriesId": 8,
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        }
+      }
+    ],
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Title must be between 2 and 255 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Book already exists.",
+  "data": {},
+  "errors": [
+    "A book with this ISBN already exists."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while creating the book."
+  ]
+}
+```
+
+### PUT /book
+
+- **Purpose:** Update a book by id, ISBN, or title.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/book` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+Identification (one of):
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book id to update. |
+| `isbn` | string | No | Book ISBN to update. |
+| `title` | string | No | Book title to update (returns 409 if multiple matches). |
+
+Updatable fields (all optional):
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title` | string | New title. |
+| `subtitle` | string | New subtitle (use `null` to clear). |
+| `isbn` | string | New ISBN (use `null` to clear). |
+| `publicationDate` | object | Partial Date Object (use `null` to clear). |
+| `pageCount` | integer | New page count. |
+| `coverImageUrl` | string | New cover image URL (use `null` to clear). |
+| `description` | string | New description (use `null` to clear). |
+| `bookTypeId` | integer or array | New book type id (single number or array with one number). |
+| `publisherId` | integer or array | New publisher id (single number or array with one number). |
+| `authorIds` | array | Replace author links (empty array clears). |
+| `languageIds` | array | Replace language links (empty array clears). |
+| `languageNames` | array | Replace language links by name (empty array clears). |
+| `tags` | array | Replace tags (empty array clears). |
+| `series` | array | Replace series links (empty array clears). |
+
+Notes:
+- If a relation array is provided, the API replaces existing links with the supplied list.
+- If `series` entries omit `bookPublishedDate`, the book's `publicationDate` is used (if available).
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Book updated successfully.",
+  "data": {
+    "id": 22,
+    "title": "The Lord of the Rings",
+    "subtitle": "The Fellowship of the Ring",
+    "isbn": "978-0-261-10235-4",
+    "publicationDate": {
+      "id": 61,
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
+    },
+    "pageCount": 423,
+    "bookTypeId": 2,
+    "publisherId": 5,
+    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+    "description": "Updated description.",
+    "authors": [1],
+    "languages": [
+      { "id": 2, "name": "English" }
+    ],
+    "tags": [
+      { "id": 7, "name": "Fantasy" }
+    ],
+    "series": [
+      {
+        "seriesId": 8,
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        }
+      }
+    ],
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Multiple Matches (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.18",
+  "message": "Multiple books matched.",
+  "data": {},
+  "errors": [
+    "Multiple books share this title. Please use id or ISBN."
+  ]
+}
+```
+
+### PUT /book/:id
+
+- **Purpose:** Update a book by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/book/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while updating the book."
+  ]
+}
+```
+
+### DELETE /book/:id
+
+- **Purpose:** Delete a book by id.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/book/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Book deleted successfully.",
+  "data": {
+    "id": 22
+  },
+  "errors": []
+}
+```
+
+- **Invalid ID (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+- **Rate Limit (429):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
+- **Server Error (500):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
+  "data": {},
+  "errors": [
+    "An error occurred while deleting the book."
+  ]
+}
+```
+
+## Admin
+
+All `/admin/*` routes require an authenticated admin user.
+
+### POST /admin/languages
+
+- **Purpose:** Add a new language.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/languages` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Language name (2–100 characters). |
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "3.10",
+  "message": "Language created successfully.",
+  "data": {
+    "id": 4,
+    "name": "Elvish",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+### PUT /admin/languages/:id
+
+- **Purpose:** Update a language.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/admin/languages/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Language name (2–100 characters). |
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.10",
+  "message": "Language updated successfully.",
+  "data": {
+    "id": 4,
+    "name": "Elvish",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+### DELETE /admin/languages/:id
+
+- **Purpose:** Delete a language.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/admin/languages/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | N/A (no body) |
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Language deleted successfully.",
+  "data": {
+    "id": 4
+  },
+  "errors": []
+}
+```
+
 - **Not Found (404):**
 
 ```json
@@ -7374,51 +8659,3 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
   ]
 }
 ```
-
-## Admin
-
-All `/admin/*` routes require an authenticated admin user and currently share the same placeholder implementation.
-
-#### Shared Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | Varies (`GET`, `POST`, `PUT`, `DELETE`) |
-| Path | `/admin/*` |
-| Authentication | `Authorization: Bearer <accessToken>` with `role=admin` |
-| Rate Limit | 60 requests / minute / admin user |
-| Content-Type | `application/json` for endpoints that accept a body |
-
-#### Required Headers
-
-| Header | Required | Value | Notes |
-| --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Token must belong to a user with the `admin` role. |
-| `Content-Type` | Conditional | `application/json` | Required when sending a JSON body. |
-| `Accept` | No | `application/json` | Responses are JSON. |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| *(varies)* | — | — | Admin endpoints are not yet implemented; request bodies will be documented once available. |
-
-- **Not Implemented (300):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 300,
-  "responseTime": "4.02",
-  "message": "This admin endpoint is not yet implemented.",
-  "data": {},
-  "errors": [
-    "This admin endpoint is not yet implemented."
-  ]
-}
-```
-
-- **Unauthorized (401):** When no valid access token is provided the standard authentication error response is returned.
-- **Forbidden (403):** Authenticated users without the `admin` role receive the shared `"Forbidden: Insufficient permissions."` envelope.
-
-Further details will be documented once the admin endpoints are implemented.

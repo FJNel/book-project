@@ -115,7 +115,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 			  Hello${preferredName ? `, ${preferredName}` : ""}!
 			</h2>
 			<p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
-			  We received a request to reset your password for the <strong>Book Project</strong>.<br>
+			  We received a request to set or reset your password for the <strong>Book Project</strong>.<br>
 			  If this was you, click the button below to set a new password.
 			</p>
 			<div style="text-align: center; margin: 32px 0;">
@@ -330,7 +330,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 	          You asked us to permanently delete your Book Project account and all associated data.
 	          Our administrators will only proceed once you confirm this request. If this wasn’t you, email
 			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Deletion%20Request" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
-			  immediately to ensure that your account remains secure.
+			  immediately to ensure that your account remains secure and intact.
 	        </p>
 	        <div style="text-align: center; margin: 32px 0;">
 	          <a href="${verifyUrl}" style="background-color: #dd6b20; color: #ffffff;

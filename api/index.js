@@ -20,6 +20,8 @@ const bookTypeRoutes = require("./routes/booktype");
 const authorRoutes = require("./routes/author");
 const publisherRoutes = require("./routes/publisher");
 const bookSeriesRoutes = require("./routes/bookseries");
+const languageRoutes = require("./routes/languages");
+const bookRoutes = require("./routes/book");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -77,6 +79,8 @@ app.use("/booktype", bookTypeRoutes);
 app.use("/author", authorRoutes);
 app.use("/publisher", publisherRoutes);
 app.use("/bookseries", bookSeriesRoutes);
+app.use("/languages", languageRoutes);
+app.use("/book", bookRoutes);
 
 //404 Handler
 app.use((req, res) => {

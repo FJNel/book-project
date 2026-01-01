@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   user_agent        TEXT  -- Added for security auditing
 );
 
+CREATE TABLE IF NOT EXISTS languages (
+  id              SERIAL PRIMARY KEY,
+  name            VARCHAR(100) NOT NULL,
+  name_normalized VARCHAR(100) NOT NULL UNIQUE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS book_types (
   id                SERIAL PRIMARY KEY,
   user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -145,10 +153,82 @@ CREATE TABLE IF NOT EXISTS book_series_books (
   series_id  INT NOT NULL REFERENCES book_series(id) ON DELETE CASCADE,
   book_id    INT NOT NULL,
   book_order INT,
-  book_published_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, series_id, book_id)
+);
+
+CREATE TABLE IF NOT EXISTS storage_locations (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       VARCHAR(150) NOT NULL,
+  parent_id  INT REFERENCES storage_locations(id) ON DELETE CASCADE,
+  notes      TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, parent_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS book_copies (
+  id                    SERIAL PRIMARY KEY,
+  user_id               INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id               INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  storage_location_id   INT REFERENCES storage_locations(id) ON DELETE SET NULL,
+  acquisition_story     TEXT,
+  acquisition_date_id   INT REFERENCES dates(id) ON DELETE SET NULL,
+  acquired_from         VARCHAR(255),
+  acquisition_type      VARCHAR(100),
+  acquisition_location  VARCHAR(255),
+  notes                 TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS books (
+  id                 SERIAL PRIMARY KEY,
+  user_id            INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title              VARCHAR(255) NOT NULL,
+  subtitle           VARCHAR(255),
+  isbn               VARCHAR(20),
+  publication_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
+  page_count         INT,
+  cover_image_url    TEXT,
+  description        TEXT,
+  book_type_id       INT REFERENCES book_types(id) ON DELETE SET NULL,
+  publisher_id       INT REFERENCES publishers(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, isbn)
+);
+
+CREATE TABLE IF NOT EXISTS book_languages (
+  id          SERIAL PRIMARY KEY,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id     INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  language_id INT NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, book_id, language_id)
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+  id              SERIAL PRIMARY KEY,
+  user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name            VARCHAR(50) NOT NULL,
+  name_normalized VARCHAR(50) NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name_normalized)
+);
+
+CREATE TABLE IF NOT EXISTS book_tags (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id    INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  tag_id     INT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, book_id, tag_id)
 );
 
 CREATE OR REPLACE FUNCTION update_timestamp()
@@ -201,6 +281,41 @@ EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_book_series_books_modtime
 BEFORE UPDATE ON book_series_books
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_storage_locations_modtime
+BEFORE UPDATE ON storage_locations
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_book_copies_modtime
+BEFORE UPDATE ON book_copies
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_languages_modtime
+BEFORE UPDATE ON languages
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_books_modtime
+BEFORE UPDATE ON books
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_book_languages_modtime
+BEFORE UPDATE ON book_languages
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_tags_modtime
+BEFORE UPDATE ON tags
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_book_tags_modtime
+BEFORE UPDATE ON book_tags
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
