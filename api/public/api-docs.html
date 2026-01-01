@@ -388,6 +388,18 @@
 </tbody>
 </table>
 <p>All other endpoints currently have no dedicated custom limit.</p>
+<h3 id="common-rate-limit-response-429">Common Rate Limit Response (429)</h3>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h2 id="shared-behaviours">Shared Behaviours</h2>
 <ul>
 <li><strong>Authentication:</strong> Routes guarded by <code>requiresAuth</code> return HTTP <code>401</code> with <code>message</code> <code>&quot;Authentication required for this action.&quot;</code> when the Authorization header is missing or invalid. Disabled accounts receive HTTP <code>403</code> with <code>message</code> <code>&quot;Your account has been disabled.&quot;</code>.</li>
@@ -449,6 +461,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers">Required Headers</h4>
 <table>
 <thead>
@@ -553,6 +568,15 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-1">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-1">Required Headers</h4>
 <table>
 <thead>
@@ -627,17 +651,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Generic Success (200):</strong> Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.</li>
 </ul>
@@ -753,6 +766,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-2">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-2">Required Headers</h4>
 <table>
 <thead>
@@ -809,14 +828,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Generic Success (200):</strong></li>
 </ul>
@@ -902,6 +913,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-3">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-3">Required Headers</h4>
 <table>
 <thead>
@@ -964,15 +981,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;f1b8d0c7...&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Verified (200):</strong></li>
 </ul>
@@ -1118,6 +1126,13 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-4">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-4">Required Headers</h4>
 <table>
 <thead>
@@ -1180,15 +1195,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Authenticated (200):</strong></li>
 </ul>
@@ -1303,6 +1309,11 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-5">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-5">Required Headers</h4>
 <table>
 <thead>
@@ -1353,13 +1364,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;jwt&gt;&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Refreshed (200):</strong></li>
 </ul>
@@ -1481,6 +1485,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-6">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;allDevices&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-6">Required Headers</h4>
 <table>
 <thead>
@@ -1537,14 +1547,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;jwt&gt;&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;allDevices&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <p>Set <code>allDevices</code> truthy (<code>true</code>, <code>&quot;true&quot;</code>, <code>1</code>, <code>&quot;1&quot;</code>, or <code>&quot;all&quot;</code>) to revoke every active session without supplying a refresh token.</p>
 <ul>
 <li><strong>Single Session Logout (200):</strong></li>
@@ -1675,6 +1677,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-7">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-7">Required Headers</h4>
 <table>
 <thead>
@@ -1731,14 +1739,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Generic Success (200):</strong></li>
 </ul>
@@ -1827,6 +1827,13 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-8">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;reset-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;newPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;NewP@ssw0rd123!&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-8">Required Headers</h4>
 <table>
 <thead>
@@ -1895,16 +1902,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;string&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;f1b8d0c7...&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;newPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;N3wP@ssw0rd!!!&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Password Reset (200):</strong></li>
 </ul>
@@ -2027,6 +2024,11 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-9">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;idToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;google-id-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-9">Required Headers</h4>
 <table>
 <thead>
@@ -2077,13 +2079,6 @@
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;idToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;google-id-token&gt;&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Authenticated (200):</strong></li>
 </ul>
@@ -2233,6 +2228,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-10">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-10">Required Headers</h4>
 <table>
 <thead>
@@ -2367,6 +2365,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-11">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Q. Doe&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jan&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-11">Required Headers</h4>
 <table>
 <thead>
@@ -2424,14 +2428,6 @@
 </tbody>
 </table>
 <p>At least one of <code>fullName</code> or <code>preferredName</code> must be provided.</p>
-<ul>
-<li><strong>Request Body:</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Q. Doe&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jan&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -2547,6 +2543,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-12">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-12">Required Headers</h4>
 <table>
 <thead>
@@ -2673,6 +2672,13 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-13">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-13">Required Headers</h4>
 <table>
 <thead>
@@ -2795,6 +2801,11 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-14">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;newEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.new@example.com&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-14">Required Headers</h4>
 <table>
 <thead>
@@ -2913,6 +2924,15 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-15">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;oldEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;newEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.new@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-15">Body Parameters</h4>
 <table>
 <thead>
@@ -3022,6 +3042,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-16">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-15">Required Headers</h4>
 <table>
 <thead>
@@ -3134,6 +3157,15 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-17">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;confirm&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-17">Body Parameters</h4>
 <table>
 <thead>
@@ -3242,6 +3274,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-18">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-16">Required Headers</h4>
 <table>
 <thead>
@@ -3375,6 +3410,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-19">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-17">Required Headers</h4>
 <table>
 <thead>
@@ -3537,6 +3575,13 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-20">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;currentPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;newPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;N3wP@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="required-headers-18">Required Headers</h4>
 <table>
 <thead>
@@ -3661,6 +3706,17 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-21">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hard&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterCreatedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-01&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters">Query Parameters</h4>
 <table>
 <thead>
@@ -3904,16 +3960,30 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
+<li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.42&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
+    <span class="hljs-string">&quot;An error occurred while retrieving the author.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Authentication Required (401):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.18&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Authentication required for this action.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -3946,20 +4016,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -3988,20 +4044,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4026,62 +4068,6 @@
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Server Error (500):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.42&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Database Error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;An error occurred while retrieving the author.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Authentication Required (401):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">401</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.18&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Authentication required for this action.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -4127,20 +4113,6 @@
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.14&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <h3 id="get-booktypeid">GET /booktype/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific book type by id.</li>
@@ -4177,6 +4149,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-22">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -4238,20 +4213,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4301,6 +4262,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-23">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-1">Query Parameters</h4>
 <table>
 <thead>
@@ -4382,20 +4349,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4445,6 +4398,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-24">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Standard hardcover binding.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-21">Body Parameters</h4>
 <table>
 <thead>
@@ -4545,20 +4504,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4615,20 +4560,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4678,6 +4609,12 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-25">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated description.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-22">Body Parameters</h4>
 <table>
 <thead>
@@ -4793,20 +4730,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4877,20 +4800,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -4940,6 +4849,13 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-26">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated description.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-23">Body Parameters</h4>
 <table>
 <thead>
@@ -5068,20 +4984,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -5131,6 +5033,11 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-27">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-24">Body Parameters</h4>
 <table>
 <thead>
@@ -5229,20 +5136,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -5299,20 +5192,6 @@
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -5362,6 +5241,9 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-28">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -5401,20 +5283,6 @@
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -5470,6 +5338,17 @@
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-29">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;displayName&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterDeceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterBirthYear&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1950</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-2">Query Parameters</h4>
 <table>
 <thead>
@@ -5863,20 +5742,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -5926,6 +5791,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-30">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -6004,20 +5872,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -6067,6 +5921,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-31">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-3">Query Parameters</h4>
 <table>
 <thead>
@@ -6192,6 +6052,27 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-32">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;firstNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Ronald Reuel&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;lastName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Tolkien&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;birthDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1892</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3 January 1892&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;deceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;deathDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">9</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1973</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2 September 1973&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English writer and philologist.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-25">Body Parameters</h4>
 <table>
 <thead>
@@ -6334,20 +6215,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -6397,6 +6264,13 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-33">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated biography.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-26">Body Parameters</h4>
 <table>
 <thead>
@@ -6581,20 +6455,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -6644,6 +6504,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-34">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated biography.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <p>Edge cases:</p>
 <ul>
 <li>
@@ -6731,20 +6597,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -6769,20 +6621,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -6836,6 +6674,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-35">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-27">Body Parameters</h4>
 <table>
 <thead>
@@ -6920,20 +6763,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -6983,6 +6812,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-36">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -7040,20 +6872,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -7105,6 +6923,16 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-37">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-4">Query Parameters</h4>
 <table>
 <thead>
@@ -7399,20 +7227,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -7490,6 +7304,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-38">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-5">Query Parameters</h4>
 <table>
 <thead>
@@ -7579,20 +7399,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -7642,6 +7448,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-39">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -7711,20 +7520,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -7774,6 +7569,18 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-40">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;foundedDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1986</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;January 1986&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.bloomsbury.com&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;UK publisher.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-28">Body Parameters</h4>
 <table>
 <thead>
@@ -7880,20 +7687,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -7943,6 +7736,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-41">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-29">Body Parameters</h4>
 <table>
 <thead>
@@ -8076,20 +7875,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -8139,6 +7924,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-42">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -8208,20 +7998,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -8271,6 +8047,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-43">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-30">Body Parameters</h4>
 <table>
 <thead>
@@ -8354,20 +8135,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -8417,6 +8184,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-44">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -8474,20 +8244,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -8540,6 +8296,16 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-45">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Rings&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-6">Query Parameters</h4>
 <table>
 <thead>
@@ -8918,20 +8684,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9009,6 +8761,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-46">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-7">Query Parameters</h4>
 <table>
 <thead>
@@ -9111,20 +8868,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9174,6 +8917,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-47">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -9256,20 +9002,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9319,6 +9051,13 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-48">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Epic fantasy series.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.tolkien.co.uk&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-31">Body Parameters</h4>
 <table>
 <thead>
@@ -9412,20 +9151,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9475,6 +9200,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-49">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated series description.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-32">Body Parameters</h4>
 <table>
 <thead>
@@ -9595,20 +9326,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9658,6 +9375,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-50">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated series description.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -9720,20 +9442,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9783,6 +9491,11 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-51">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-33">Body Parameters</h4>
 <table>
 <thead>
@@ -9866,20 +9579,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -9929,6 +9628,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-52">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -9986,20 +9688,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -10049,6 +9737,13 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-53">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-34">Body Parameters</h4>
 <table>
 <thead>
@@ -10180,20 +9875,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -10243,6 +9924,13 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-54">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-35">Body Parameters</h4>
 <table>
 <thead>
@@ -10371,20 +10059,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -10434,6 +10108,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-55">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-36">Body Parameters</h4>
 <table>
 <thead>
@@ -10533,6 +10213,9 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-56">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -10562,20 +10245,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -10633,6 +10302,17 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-57">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;view&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;card&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;title&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterTag&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;fantasy&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterPublishedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-8">Query Parameters</h4>
 <table>
 <thead>
@@ -11042,20 +10722,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -11094,20 +10760,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -11161,6 +10813,54 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-58">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;title&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;subtitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Fellowship of the Ring&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;isbn&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;978-0-261-10235-4&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;publicationDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">29</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1954</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;29 July 1954&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">423</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;coverImageUrl&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://example.com/lotr-fotr.jpg&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The first volume of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookTypeId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;authorIds&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-number">1</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;languageNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;English&quot;</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Fantasy&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-string">&quot;Epic&quot;</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;bookCopy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
+    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-37">Body Parameters</h4>
 <table>
 <thead>
@@ -11456,20 +11156,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -11519,6 +11205,21 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-59">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">430</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Fantasy&quot;</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-38">Body Parameters</h4>
 <p>Identification (one of):</p>
 <table>
@@ -11764,6 +11465,20 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-60">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">430</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Fantasy&quot;</span>
+  <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+    <span class="hljs-punctuation">}</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -11803,20 +11518,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -11870,6 +11571,9 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-61">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -11927,20 +11631,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -11992,6 +11682,16 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-62">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;path&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterPathContains&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-9">Query Parameters</h4>
 <table>
 <thead>
@@ -12180,20 +11880,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -12302,20 +11988,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -12444,20 +12116,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -12547,20 +12205,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -12614,6 +12258,43 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-63">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Top row&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-64">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-65">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-66">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-67">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-68">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;createdAt&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;desc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterStorageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;includeNested&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="query-parameters-10">Query Parameters</h4>
 <table>
 <thead>
@@ -12902,20 +12583,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -13054,20 +12721,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -13214,20 +12867,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -13324,20 +12963,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
 <li><strong>Server Error (500):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -13391,6 +13016,45 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-69">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-70">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-71">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-72">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-73">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-json-74">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -13429,20 +13093,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -13498,6 +13148,11 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-75">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Zulu&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-45">Body Parameters</h4>
 <table>
 <thead>
@@ -13570,6 +13225,11 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-76">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h4 id="body-parameters-46">Body Parameters</h4>
 <table>
 <thead>
@@ -13642,6 +13302,9 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="example-request-json-77">Example Request (JSON)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
+</code></pre>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -13681,20 +13344,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;Missing or invalid Authorization header.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Rate Limit (429):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>

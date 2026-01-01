@@ -170,6 +170,21 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 
 All other endpoints currently have no dedicated custom limit.
 
+### Common Rate Limit Response (429)
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
 ## Shared Behaviours
 
 - **Authentication:** Routes guarded by `requiresAuth` return HTTP `401` with `message` `"Authentication required for this action."` when the Authorization header is missing or invalid. Disabled accounts receive HTTP `403` with `message` `"Your account has been disabled."`.
@@ -217,6 +232,12 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | Path | `/` |
 | Authentication | None |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 #### Required Headers
 
@@ -271,6 +292,18 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `register` (reCAPTCHA v3) |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "fullName": "Jane Doe",
+  "preferredName": "Jane",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -288,18 +321,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `preferredName` | string | No | 2–100 alphabetic characters; optional friendly name. |
 | `email` | string | Yes | 5–255 characters; must be unique and in valid email format. |
 | `password` | string | Yes | 10–100 characters; must include upper, lower, digit, and special character. |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "fullName": "Jane Doe",
-  "preferredName": "Jane",
-  "email": "jane@example.com",
-  "password": "P@ssw0rd123!"
-}
-```
 
 - **Generic Success (200):** Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.
 
@@ -397,6 +418,15 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `resend_verification` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -411,15 +441,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | --- | --- | --- | --- |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `resend_verification` action. |
 | `email` | string | Yes | Email address to resend verification for; must be 5–255 chars and valid format. |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "email": "jane@example.com"
-}
-```
 
 - **Generic Success (200):**
 
@@ -485,6 +506,15 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `verify_email` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "email": "jane@example.com",
+  "token": "<verification-token>"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -500,16 +530,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `verify_email` action. |
 | `email` | string | Yes | Email address to verify (5–255 characters, valid format). |
 | `token` | string | Yes | Email verification token (32-byte hex string). |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "email": "jane@example.com",
-  "token": "f1b8d0c7..."
-}
-```
 
 - **Verified (200):**
 
@@ -639,6 +659,16 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `login` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -654,16 +684,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `login` action. |
 | `email` | string | Yes | Email address of the user (case-insensitive). |
 | `password` | string | Yes | Plain-text password to verify; not stored. |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "email": "jane@example.com",
-  "password": "P@ssw0rd123!"
-}
-```
 
 - **Authenticated (200):**
 
@@ -766,6 +786,14 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Authentication | Not required |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "refreshToken": "<refresh-token>"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -779,14 +807,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `refreshToken` | string (JWT) | Yes | Refresh token previously issued by `/auth/login` or `/auth/google`. |
-
-- **Request Body:**
-
-```json
-{
-  "refreshToken": "<jwt>"
-}
-```
 
 - **Refreshed (200):**
 
@@ -894,6 +914,15 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "refreshToken": "<refresh-token>",
+  "allDevices": false
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -908,15 +937,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | --- | --- | --- | --- |
 | `refreshToken` | string (JWT) | Conditionally | Required unless `allDevices` is provided; identifies the session to revoke. |
 | `allDevices` | boolean \| string | No | Set to `true`, `1`, `"true"`, `"1"`, or `"all"` to revoke every active session without supplying `refreshToken`. |
-
-- **Request Body:**
-
-```json
-{
-  "refreshToken": "<jwt>",
-  "allDevices": false
-}
-```
 
 Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke every active session without supplying a refresh token.
 
@@ -1031,6 +1051,15 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | CAPTCHA Action | `request_password_reset` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1045,15 +1074,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | --- | --- | --- | --- |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `request_password_reset` action. |
 | `email` | string | Yes | Email address to send the password reset link to. |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "email": "jane@example.com"
-}
-```
 
 - **Generic Success (200):**
 
@@ -1121,6 +1141,16 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | CAPTCHA Action | `reset_password` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "email": "jane@example.com",
+  "token": "<reset-token>",
+  "newPassword": "NewP@ssw0rd123!"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1137,17 +1167,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | `email` | string | Yes | Email address associated with the password reset request. |
 | `token` | string | Yes | Password-reset token sent via email (32-byte hex). |
 | `newPassword` | string | Yes | 10–100 characters, including upper, lower, digit, and special character. |
-
-- **Request Body:**
-
-```json
-{
-  "captchaToken": "string",
-  "email": "jane@example.com",
-  "token": "f1b8d0c7...",
-  "newPassword": "N3wP@ssw0rd!!!"
-}
-```
 
 - **Password Reset (200):**
 
@@ -1259,6 +1278,14 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | Authentication | None |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "idToken": "<google-id-token>"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1272,14 +1299,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `idToken` | string | Yes | ID token returned by Google OAuth (must be for the configured client ID). |
-
-- **Request Body:**
-
-```json
-{
-  "idToken": "<google-id-token>"
-}
-```
 
 - **Authenticated (200):**
 
@@ -1419,6 +1438,12 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
+#### Example Request (JSON)
+
+```json
+{}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1504,6 +1529,15 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "fullName": "Jane Q. Doe",
+  "preferredName": "Jan"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1520,15 +1554,6 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | `preferredName` | string | Conditionally | 2–100 alphabetic characters (letters only). |
 
 At least one of `fullName` or `preferredName` must be provided.
-
-- **Request Body:**
-
-```json
-{
-  "fullName": "Jane Q. Doe",
-  "preferredName": "Jan"
-}
-```
 
 - **Updated (200):**
 
@@ -1629,6 +1654,12 @@ At least one of `fullName` or `preferredName` must be provided.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
+#### Example Request (JSON)
+
+```json
+{}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1703,6 +1734,16 @@ At least one of `fullName` or `preferredName` must be provided.
 | CAPTCHA Action | `verify_delete` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "email": "jane@example.com",
+  "captchaToken": "<captcha-token>"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1766,6 +1807,14 @@ At least one of `fullName` or `preferredName` must be provided.
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 1 request / day / account |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "newEmail": "jane.new@example.com"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1826,6 +1875,18 @@ At least one of `fullName` or `preferredName` must be provided.
 | CAPTCHA Action | `verify_email_change` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "oldEmail": "jane@example.com",
+  "newEmail": "jane.new@example.com",
+  "password": "P@ssw0rd123!",
+  "captchaToken": "<captcha-token>"
+}
+```
+
 #### Body Parameters
 
 | Field | Type | Required | Notes |
@@ -1883,6 +1944,12 @@ At least one of `fullName` or `preferredName` must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 #### Required Headers
 
@@ -1943,6 +2010,18 @@ At least one of `fullName` or `preferredName` must be provided.
 | CAPTCHA Action | `verify_account_deletion` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!",
+  "confirm": true,
+  "captchaToken": "<captcha-token>"
+}
+```
+
 #### Body Parameters
 
 | Field | Type | Required | Notes |
@@ -1999,6 +2078,12 @@ At least one of `fullName` or `preferredName` must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 #### Required Headers
 
@@ -2082,6 +2167,12 @@ At least one of `fullName` or `preferredName` must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 #### Required Headers
 
@@ -2181,6 +2272,16 @@ At least one of `fullName` or `preferredName` must be provided.
 | CAPTCHA Action | `change_password` |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "currentPassword": "P@ssw0rd123!",
+  "newPassword": "N3wP@ssw0rd123!",
+  "captchaToken": "<captcha-token>"
+}
+```
+
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -2247,6 +2348,20 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Hard",
+  "filterCreatedAfter": "2024-01-01"
+}
+```
 
 #### Query Parameters
 
@@ -2410,17 +2525,32 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
+- **Server Error (500):**
 
 ```json
 {
   "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
+  "httpCode": 500,
+  "responseTime": "5.42",
+  "message": "Database Error",
   "data": {},
   "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
+    "An error occurred while retrieving the author."
+  ]
+}
+```
+
+- **Authentication Required (401):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
   ]
 }
 ```
@@ -2455,21 +2585,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -2500,21 +2615,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -2541,66 +2641,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
@@ -2650,21 +2690,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.14",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 ### GET /booktype/:id
 
 - **Purpose:** Retrieve a specific book type by id.
@@ -2679,6 +2704,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Response (200):**
 
@@ -2744,21 +2775,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -2788,6 +2804,15 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Hardcover",
+  "nameOnly": false
+}
+```
 
 #### Query Parameters
 
@@ -2861,21 +2886,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -2905,6 +2915,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Hardcover",
+  "description": "Standard hardcover binding."
+}
+```
 
 #### Body Parameters
 
@@ -2992,21 +3011,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3067,21 +3071,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3111,6 +3100,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Hardcover",
+  "description": "Updated description."
+}
+```
 
 #### Body Parameters
 
@@ -3215,21 +3213,6 @@ At least one field must be provided.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3305,21 +3288,6 @@ At least one field must be provided.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3349,6 +3317,16 @@ At least one field must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1,
+  "name": "Hardcover",
+  "description": "Updated description."
+}
+```
 
 #### Body Parameters
 
@@ -3457,21 +3435,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3501,6 +3464,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1
+}
+```
 
 #### Body Parameters
 
@@ -3588,21 +3559,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3663,21 +3619,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3707,6 +3648,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -3753,21 +3700,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -3801,6 +3733,20 @@ Authors are scoped per user and can be linked to books later via a linking table
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "displayName",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterDeceased": true,
+  "filterBirthYear": 1950
+}
+```
 
 #### Query Parameters
 
@@ -4034,21 +3980,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4078,6 +4009,12 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Response (200):**
 
@@ -4160,21 +4097,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4204,6 +4126,15 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "displayName": "J.R.R. Tolkien",
+  "nameOnly": false
+}
+```
 
 #### Query Parameters
 
@@ -4296,6 +4227,30 @@ Edge cases:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "displayName": "J.R.R. Tolkien",
+  "firstNames": "John Ronald Reuel",
+  "lastName": "Tolkien",
+  "birthDate": {
+    "day": 3,
+    "month": 1,
+    "year": 1892,
+    "text": "3 January 1892"
+  },
+  "deceased": true,
+  "deathDate": {
+    "day": 2,
+    "month": 9,
+    "year": 1973,
+    "text": "2 September 1973"
+  },
+  "bio": "English writer and philologist."
+}
+```
 
 #### Body Parameters
 
@@ -4394,21 +4349,6 @@ Edge cases:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4438,6 +4378,16 @@ Edge cases:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1,
+  "displayName": "J.R.R. Tolkien",
+  "bio": "Updated biography."
+}
+```
 
 #### Body Parameters
 
@@ -4572,21 +4522,6 @@ Edge cases:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4616,6 +4551,15 @@ Edge cases:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "displayName": "J.R.R. Tolkien",
+  "bio": "Updated biography."
+}
+```
 
 Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
@@ -4702,21 +4646,6 @@ Edge cases:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4743,21 +4672,6 @@ Edge cases:
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
@@ -4791,6 +4705,14 @@ Edge cases:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1
+}
+```
 
 #### Body Parameters
 
@@ -4863,21 +4785,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -4907,6 +4814,12 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -4968,21 +4881,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5016,6 +4914,19 @@ Publishers are scoped per user. Founded dates use the same Partial Date Object d
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Bloomsbury"
+}
+```
 
 #### Query Parameters
 
@@ -5186,21 +5097,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5267,6 +5163,15 @@ GET /publisher?filterName=blooms&sortBy=name&order=asc&offset=10&limit=10
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Bloomsbury",
+  "nameOnly": false
+}
+```
 
 #### Query Parameters
 
@@ -5348,21 +5253,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5392,6 +5282,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Response (200):**
 
@@ -5465,21 +5361,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5509,6 +5390,21 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Bloomsbury",
+  "foundedDate": {
+    "month": 1,
+    "year": 1986,
+    "text": "January 1986"
+  },
+  "website": "https://www.bloomsbury.com",
+  "notes": "UK publisher."
+}
+```
 
 #### Body Parameters
 
@@ -5591,21 +5487,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5635,6 +5516,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 5,
+  "notes": "Updated notes."
+}
+```
 
 #### Body Parameters
 
@@ -5736,21 +5626,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5780,6 +5655,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "notes": "Updated notes."
+}
+```
 
 - **Updated (200):**
 
@@ -5853,21 +5736,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -5897,6 +5765,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 5
+}
+```
 
 #### Body Parameters
 
@@ -5967,21 +5843,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6011,6 +5872,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -6072,21 +5939,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6122,6 +5974,19 @@ If a series has no linked books with published dates, `startDate` and `endDate` 
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Rings"
+}
+```
 
 #### Query Parameters
 
@@ -6342,21 +6207,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6423,6 +6273,14 @@ GET /bookseries?filterName=harry&sortBy=name&order=asc&offset=20&limit=10
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "The Lord of the Rings"
+}
+```
 
 #### Query Parameters
 
@@ -6517,21 +6375,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6561,6 +6404,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Response (200):**
 
@@ -6647,21 +6496,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6691,6 +6525,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "The Lord of the Rings",
+  "description": "Epic fantasy series.",
+  "website": "https://www.tolkien.co.uk"
+}
+```
 
 #### Body Parameters
 
@@ -6765,21 +6609,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6809,6 +6638,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 8,
+  "description": "Updated series description."
+}
+```
 
 #### Body Parameters
 
@@ -6902,21 +6740,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -6946,6 +6769,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "description": "Updated series description."
+}
+```
 
 - **Updated (200):**
 
@@ -7012,21 +6843,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -7056,6 +6872,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 8
+}
+```
 
 #### Body Parameters
 
@@ -7126,21 +6950,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -7170,6 +6979,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -7231,21 +7046,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -7275,6 +7075,16 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22,
+  "bookOrder": 1
+}
+```
 
 #### Body Parameters
 
@@ -7377,21 +7187,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -7421,6 +7216,16 @@ Notes:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22,
+  "bookOrder": 2
+}
+```
 
 #### Body Parameters
 
@@ -7528,21 +7333,6 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -7572,6 +7362,15 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22
+}
+```
 
 #### Body Parameters
 
@@ -7633,6 +7432,12 @@ Languages are global and shared across users. They are used to tag books with on
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
+#### Example Request (JSON)
+
+```json
+{}
+```
+
 - **Response (200):**
 
 ```json
@@ -7663,21 +7468,6 @@ Languages are global and shared across users. They are used to tag books with on
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
@@ -7718,6 +7508,20 @@ If a book's `publicationDate` is `null`, date-based filters will not match it, a
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "view": "card",
+  "sortBy": "title",
+  "order": "asc",
+  "limit": 20,
+  "offset": 0,
+  "filterTag": "fantasy",
+  "filterPublishedAfter": "1950-01-01"
+}
+```
 
 #### Query Parameters
 
@@ -7949,21 +7753,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8009,21 +7798,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8053,6 +7827,57 @@ Notes:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "title": "The Lord of the Rings",
+  "subtitle": "The Fellowship of the Ring",
+  "isbn": "978-0-261-10235-4",
+  "publicationDate": {
+    "day": 29,
+    "month": 7,
+    "year": 1954,
+    "text": "29 July 1954"
+  },
+  "pageCount": 423,
+  "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+  "description": "The first volume of The Lord of the Rings.",
+  "bookTypeId": 1,
+  "publisherId": 5,
+  "authorIds": [
+    1
+  ],
+  "languageNames": [
+    "English"
+  ],
+  "tags": [
+    "Fantasy",
+    "Epic"
+  ],
+  "series": [
+    {
+      "seriesId": 8,
+      "bookOrder": 1
+    }
+  ],
+  "bookCopy": {
+    "storageLocationPath": "Home -> Living Room -> Shelf A",
+    "acquisitionStory": "Gifted for a birthday.",
+    "acquisitionDate": {
+      "day": 21,
+      "month": 12,
+      "year": 2010,
+      "text": "21 December 2010"
+    },
+    "acquiredFrom": "Family",
+    "acquisitionType": "Gift",
+    "acquisitionLocation": "Cape Town",
+    "notes": "Hardcover edition."
+  }
+}
+```
 
 #### Body Parameters
 
@@ -8217,21 +8042,6 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8261,6 +8071,24 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 22,
+  "pageCount": 430,
+  "tags": [
+    "Fantasy"
+  ],
+  "series": [
+    {
+      "seriesId": 8,
+      "bookOrder": 1
+    }
+  ]
+}
+```
 
 #### Body Parameters
 
@@ -8398,6 +8226,23 @@ Notes:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "pageCount": 430,
+  "tags": [
+    "Fantasy"
+  ],
+  "series": [
+    {
+      "seriesId": 8,
+      "bookOrder": 1
+    }
+  ]
+}
+```
+
 - **Invalid ID (400):**
 
 ```json
@@ -8443,21 +8288,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8487,6 +8317,12 @@ Notes:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -8548,21 +8384,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8596,6 +8417,19 @@ Storage locations are hierarchical and scoped per user. The API returns a human-
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "path",
+  "order": "asc",
+  "limit": 100,
+  "offset": 0,
+  "filterPathContains": "Home"
+}
+```
 
 #### Query Parameters
 
@@ -8717,21 +8551,6 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -8822,21 +8641,6 @@ If both `id` and `path` are provided, `id` takes precedence.
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
@@ -8937,21 +8741,6 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9029,21 +8818,6 @@ Same payload and responses as `PUT /storagelocation`, with the target id supplie
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9081,6 +8855,61 @@ Book copies represent the physical copies you own. Every book must have at least
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Shelf A",
+  "parentId": 2,
+  "notes": "Top row"
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 3,
+  "notes": "Updated notes"
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Shelf A",
+  "notes": "Updated notes"
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 3
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "sortBy": "createdAt",
+  "order": "desc",
+  "limit": 50,
+  "offset": 0,
+  "filterStorageLocationPath": "Home",
+  "includeNested": true
+}
+```
 
 #### Query Parameters
 
@@ -9233,21 +9062,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9338,21 +9152,6 @@ Notes:
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
@@ -9451,21 +9250,6 @@ Notes:
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9556,21 +9340,6 @@ Same payload and responses as `PUT /bookcopy`, with the target id supplied in th
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9608,6 +9377,63 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
+
+#### Example Request (JSON)
+
+```json
+{
+  "bookId": 22,
+  "storageLocationPath": "Home -> Living Room -> Shelf A",
+  "acquisitionStory": "Gifted for a birthday.",
+  "acquisitionDate": {
+    "day": 21,
+    "month": 12,
+    "year": 2010,
+    "text": "21 December 2010"
+  },
+  "acquiredFrom": "Family",
+  "acquisitionType": "Gift",
+  "acquisitionLocation": "Cape Town",
+  "notes": "Hardcover edition."
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 503,
+  "notes": "Updated notes"
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "notes": "Updated notes"
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 503
+}
+```
+
+#### Example Request (JSON)
+
+```json
+{}
+```
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Response (200):**
 
@@ -9652,21 +9478,6 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 }
 ```
 
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 - **Server Error (500):**
 
 ```json
@@ -9700,6 +9511,14 @@ All `/admin/*` routes require an authenticated admin user.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Zulu"
+}
+```
 
 #### Body Parameters
 
@@ -9740,6 +9559,14 @@ All `/admin/*` routes require an authenticated admin user.
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
+#### Example Request (JSON)
+
+```json
+{
+  "name": "isiZulu"
+}
+```
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
@@ -9778,6 +9605,12 @@ All `/admin/*` routes require an authenticated admin user.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | N/A (no body) |
+
+#### Example Request (JSON)
+
+```json
+{}
+```
 
 - **Deleted (200):**
 
@@ -9820,21 +9653,6 @@ All `/admin/*` routes require an authenticated admin user.
   "data": {},
   "errors": [
     "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Rate Limit (429):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
   ]
 }
 ```
