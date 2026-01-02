@@ -25,6 +25,7 @@ const bookRoutes = require("./routes/book");
 const storageLocationRoutes = require("./routes/storagelocation");
 const bookCopyRoutes = require("./routes/bookcopy");
 const tagRoutes = require("./routes/tags");
+const adminRoutes = require("./routes/admin");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -87,6 +88,7 @@ app.use("/book", bookRoutes);
 app.use("/storagelocation", storageLocationRoutes);
 app.use("/bookcopy", bookCopyRoutes);
 app.use("/tags", tagRoutes);
+app.use("/admin", adminRoutes);
 
 //404 Handler
 app.use((req, res) => {

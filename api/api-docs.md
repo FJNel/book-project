@@ -99,7 +99,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /tags](#get-tags)
   - [Admin](#admin)
     - [POST /admin/languages](#post-adminlanguages)
+    - [PUT /admin/languages](#put-adminlanguages)
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
+    - [DELETE /admin/languages](#delete-adminlanguages)
     - [DELETE /admin/languages/:id](#delete-adminlanguagesid)
 
 **Base URL:** `https://api.fjnel.co.za`
@@ -391,20 +393,8 @@ This link will expire in <expiresIn> minutes.
 
 #### Example Responses
 
-- **Generic Success (200):** Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "11.02",
-  "message": "If this email can be registered, you will receive an email with the next steps shortly.",
-  "data": {
-    "disclaimer": "If you do not see an email within a few minutes, please check your spam folder or try again later."
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -468,6 +458,8 @@ This link will expire in <expiresIn> minutes.
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/resend-verification
 
@@ -547,6 +539,9 @@ This link will expire in <expiresIn> minutes.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **CAPTCHA Failure (400):**
 
 ```json
@@ -577,6 +572,8 @@ This link will expire in <expiresIn> minutes.
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/verify-email
 
@@ -672,6 +669,9 @@ If you did not verify this email address, please contact the system administrato
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **CAPTCHA Failure (400):**
 
 ```json
@@ -750,6 +750,8 @@ If you did not verify this email address, please contact the system administrato
 }
 ```
 
+</details>
+
 ### POST /auth/login
 
 - **Purpose:** Authenticate with email and password and issue access/refresh tokens.
@@ -827,6 +829,9 @@ If you did not verify this email address, please contact the system administrato
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Credentials (401):**
 
 ```json
@@ -872,6 +877,8 @@ If you did not verify this email address, please contact the system administrato
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/refresh-token
 
@@ -930,6 +937,9 @@ If you did not verify this email address, please contact the system administrato
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
 
 - **Missing Token (400):**
 
@@ -990,6 +1000,8 @@ If you did not verify this email address, please contact the system administrato
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/logout
 
@@ -1072,6 +1084,9 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Missing Refresh Token (400):**
 
 ```json
@@ -1117,6 +1132,8 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/request-password-reset
 
@@ -1196,6 +1213,9 @@ This link will expire in <expiresIn> minutes.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **CAPTCHA Failure (400):**
 
 ```json
@@ -1227,7 +1247,7 @@ This link will expire in <expiresIn> minutes.
 }
 ```
 
-> **Note:** Unexpected errors still respond with the same generic `200` envelope to avoid leaking account existence.
+</details>
 
 ### POST /auth/reset-password
 
@@ -1310,6 +1330,9 @@ If you did not reset your password, please contact the system administrator at <
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **CAPTCHA Failure (400):**
 
 ```json
@@ -1372,6 +1395,8 @@ If you did not reset your password, please contact the system administrator at <
   ]
 }
 ```
+
+</details>
 
 ### POST /auth/google
 
@@ -1442,6 +1467,9 @@ If you did not reset your password, please contact the system administrator at <
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
 
 - **ID Token Missing (400):**
 
@@ -1520,11 +1548,7 @@ If you did not reset your password, please contact the system administrator at <
 }
 ```
 
----
-
-## User Management
-
-All user management endpoints require a valid access token (`Authorization: Bearer <accessToken>`) and are subject to the `authenticatedLimiter` (60 requests per minute per user).
+</details>
 
 ### GET /users/me
 
@@ -1587,6 +1611,9 @@ All user management endpoints require a valid access token (`Authorization: Bear
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **User Not Found (404):**
 
 ```json
@@ -1601,6 +1628,8 @@ All user management endpoints require a valid access token (`Authorization: Bear
   ]
 }
 ```
+
+</details>
 
 ### PUT /users/me
 
@@ -1675,6 +1704,9 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **No Fields Provided (400):**
 
 ```json
@@ -1719,6 +1751,8 @@ At least one of `fullName` or `preferredName` must be provided.
   ]
 }
 ```
+
+</details>
 
 ### DELETE /users/me
 
@@ -1784,6 +1818,9 @@ This link will expire in <expiresIn> minutes. If it expires, simply sign in and 
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **User Not Found (404):**
 
 ```json
@@ -1798,6 +1835,8 @@ This link will expire in <expiresIn> minutes. If it expires, simply sign in and 
   ]
 }
 ```
+
+</details>
 
 ### POST /users/me/verify-delete
 
@@ -1879,6 +1918,9 @@ If you would like to reactivate your account, please contact the System Administ
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Token / Email (400):**
 
 ```json
@@ -1893,6 +1935,8 @@ If you would like to reactivate your account, please contact the System Administ
   ]
 }
 ```
+
+</details>
 
 ### POST /users/me/request-email-change
 
@@ -1967,6 +2011,9 @@ This link expires in <expiresIn> minutes. If you did not request this change, yo
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -1981,6 +2028,8 @@ This link expires in <expiresIn> minutes. If you did not request this change, yo
   ]
 }
 ```
+
+</details>
 
 ### POST /users/me/verify-email-change
 
@@ -2062,6 +2111,9 @@ If you did not authorise this change, please contact our support team immediatel
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Token / Data (400):**
 
 ```json
@@ -2076,6 +2128,8 @@ If you did not authorise this change, please contact our support team immediatel
   ]
 }
 ```
+
+</details>
 
 ### DELETE /users/me/request-account-deletion (also available as POST)
 
@@ -2229,6 +2283,9 @@ Please reach out to the user before fully deleting this account and all associat
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Token / Credentials (400):**
 
 ```json
@@ -2243,6 +2300,8 @@ Please reach out to the user before fully deleting this account and all associat
   ]
 }
 ```
+
+</details>
 
 ### GET /users/me/sessions
 
@@ -2392,6 +2451,9 @@ Please reach out to the user before fully deleting this account and all associat
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Fingerprint (400):**
 
 ```json
@@ -2406,6 +2468,8 @@ Please reach out to the user before fully deleting this account and all associat
   ]
 }
 ```
+
+</details>
 
 ### POST /users/me/change-password
 
@@ -2473,6 +2537,9 @@ Please reach out to the user before fully deleting this account and all associat
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid Current Password (400):**
 
 ```json
@@ -2488,11 +2555,7 @@ Please reach out to the user before fully deleting this account and all associat
 }
 ```
 
----
-
-## Book Types
-
-Book types are scoped per user. Each account starts with two defaults: `Hardcover` and `Softcover`.
+</details>
 
 ### GET /booktype
 
@@ -2517,7 +2580,7 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -2596,67 +2659,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Book types retrieved successfully.",
-  "data": {
-    "bookTypes": [
-      {
-        "id": 1,
-        "name": "Hardcover",
-        "description": "Hardback edition with rigid cover.",
-        "createdAt": "2025-01-10T09:15:23.000Z",
-        "updatedAt": "2025-01-14T16:58:41.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, nameOnly=true):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.91",
-  "message": "Book types retrieved successfully.",
-  "data": {
-    "bookTypes": [
-      {
-        "id": 1,
-        "name": "Hardcover"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Book type retrieved successfully.",
-  "data": {
-    "id": 1,
-    "name": "Hardcover",
-    "description": "Hardback edition with rigid cover.",
-    "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -2687,6 +2691,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   ]
 }
 ```
+
+</details>
 
 ### GET /booktype/:id
 
@@ -2736,6 +2742,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -2766,6 +2775,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+</details>
+
 ### GET /booktype/by-name
 
 - **Purpose:** Retrieve a specific book type by name.
@@ -2789,7 +2800,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -2833,6 +2844,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -2862,6 +2876,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### POST /booktype
 
@@ -2927,6 +2943,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -3003,6 +3022,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+</details>
+
 ### PUT /booktype/:id
 
 - **Purpose:** Update a book type.
@@ -3071,6 +3092,9 @@ At least one field must be provided.
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -3177,6 +3201,8 @@ At least one field must be provided.
 }
 ```
 
+</details>
+
 ### PUT /booktype
 
 - **Purpose:** Update a book type by `id` or `name`.
@@ -3251,6 +3277,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -3310,6 +3339,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   ]
 }
 ```
+
+</details>
 
 ### DELETE /booktype
 
@@ -3374,6 +3405,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
 
 - **Invalid ID (400):**
 
@@ -3450,6 +3484,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+</details>
+
 ### DELETE /booktype/:id
 
 - **Purpose:** Delete a book type owned by the authenticated user.
@@ -3494,6 +3530,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Not Found (404):**
 
 ```json
@@ -3509,9 +3548,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-## Authors
-
-Authors are scoped per user and can be linked to books later via a linking table. Dates use the partial date object described below.
+</details>
 
 ### GET /author
 
@@ -3536,7 +3573,7 @@ Authors are scoped per user and can be linked to books later via a linking table
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -3645,101 +3682,8 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Authors retrieved successfully.",
-  "data": {
-    "authors": [
-      {
-        "id": 1,
-        "displayName": "J.R.R. Tolkien",
-        "firstNames": "John Ronald Reuel",
-        "lastName": "Tolkien",
-        "birthDate": {
-          "id": 12,
-          "day": 3,
-          "month": 1,
-          "year": 1892,
-          "text": "3 January 1892"
-        },
-        "deceased": true,
-        "deathDate": {
-          "id": 13,
-          "day": 2,
-          "month": 9,
-          "year": 1973,
-          "text": "2 September 1973"
-        },
-        "bio": "Author of The Lord of the Rings.",
-        "createdAt": "2025-01-10T09:15:23.000Z",
-        "updatedAt": "2025-01-14T16:58:41.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, nameOnly=true):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.91",
-  "message": "Authors retrieved successfully.",
-  "data": {
-    "authors": [
-      {
-        "id": 1,
-        "displayName": "J.R.R. Tolkien"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Author retrieved successfully.",
-  "data": {
-    "id": 1,
-    "displayName": "J.R.R. Tolkien",
-    "firstNames": "John Ronald Reuel",
-    "lastName": "Tolkien",
-    "birthDate": {
-      "id": 12,
-      "day": 3,
-      "month": 1,
-      "year": 1892,
-      "text": "3 January 1892"
-    },
-    "deceased": true,
-    "deathDate": {
-      "id": 13,
-      "day": 2,
-      "month": 9,
-      "year": 1973,
-      "text": "2 September 1973"
-    },
-    "bio": "Author of The Lord of the Rings.",
-    "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -3770,6 +3714,8 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
   ]
 }
 ```
+
+</details>
 
 ### GET /author/:id
 
@@ -3836,6 +3782,9 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -3866,6 +3815,8 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
+</details>
+
 ### GET /author/by-name
 
 - **Purpose:** Retrieve a specific author by display name.
@@ -3889,7 +3840,7 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -3953,6 +3904,9 @@ Edge cases:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -3982,6 +3936,8 @@ Edge cases:
   ]
 }
 ```
+
+</details>
 
 ### POST /author
 
@@ -4089,6 +4045,9 @@ Edge cases:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -4118,6 +4077,8 @@ Edge cases:
   ]
 }
 ```
+
+</details>
 
 ### PUT /author
 
@@ -4219,6 +4180,9 @@ Edge cases:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -4278,6 +4242,8 @@ Edge cases:
   ]
 }
 ```
+
+</details>
 
 ### PUT /author/:id
 
@@ -4358,6 +4324,9 @@ Edge cases:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -4387,6 +4356,8 @@ Edge cases:
   ]
 }
 ```
+
+</details>
 
 ### DELETE /author
 
@@ -4452,6 +4423,9 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -4481,6 +4455,8 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
   ]
 }
 ```
+
+</details>
 
 ### DELETE /author/:id
 
@@ -4526,6 +4502,9 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -4556,9 +4535,7 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-## Publishers
-
-Publishers are scoped per user. Founded dates use the same Partial Date Object described in **Shared Behaviours**.
+</details>
 
 ### GET /publisher
 
@@ -4583,7 +4560,7 @@ Publishers are scoped per user. Founded dates use the same Partial Date Object d
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -4658,83 +4635,8 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Publishers retrieved successfully.",
-  "data": {
-    "publishers": [
-      {
-        "id": 5,
-        "name": "Bloomsbury",
-        "foundedDate": {
-          "id": 21,
-          "day": 1,
-          "month": 3,
-          "year": 1986,
-          "text": "1 March 1986"
-        },
-        "website": "https://www.bloomsbury.com",
-        "notes": "Publisher of the Harry Potter series.",
-        "createdAt": "2025-01-10T09:15:23.000Z",
-        "updatedAt": "2025-01-14T16:58:41.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, nameOnly=true):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.91",
-  "message": "Publishers retrieved successfully.",
-  "data": {
-    "publishers": [
-      {
-        "id": 5,
-        "name": "Bloomsbury"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Publisher retrieved successfully.",
-  "data": {
-    "id": 5,
-    "name": "Bloomsbury",
-    "foundedDate": {
-      "id": 21,
-      "day": 1,
-          "month": 3,
-          "year": 1986,
-          "text": "1 March 1986"
-    },
-    "website": "https://www.bloomsbury.com",
-    "notes": "Publisher of the Harry Potter series.",
-    "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -4765,6 +4667,8 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
   ]
 }
 ```
+
+</details>
 
 #### Common Examples
 
@@ -4814,7 +4718,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -4866,6 +4770,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -4895,6 +4802,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### GET /publisher/:id
 
@@ -4952,6 +4861,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -4981,6 +4893,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### POST /publisher
 
@@ -5063,6 +4977,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -5092,6 +5009,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### PUT /publisher
 
@@ -5173,6 +5092,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -5217,6 +5139,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   ]
 }
 ```
+
+</details>
 
 ### PUT /publisher/:id
 
@@ -5283,6 +5207,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -5312,6 +5239,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   ]
 }
 ```
+
+</details>
 
 ### DELETE /publisher
 
@@ -5375,6 +5304,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -5404,6 +5336,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   ]
 }
 ```
+
+</details>
 
 ### DELETE /publisher/:id
 
@@ -5449,6 +5383,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -5479,11 +5416,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-## Book Series
-
-Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest publication dates). Books without a `publicationDate` are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.
-
-If a series has no linked books with published dates, `startDate` and `endDate` will be `null`.
+</details>
 
 ### GET /bookseries
 
@@ -5508,7 +5441,7 @@ If a series has no linked books with published dates, `startDate` and `endDate` 
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -5590,111 +5523,8 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Series retrieved successfully.",
-  "data": {
-    "series": [
-      {
-        "id": 8,
-        "name": "The Lord of the Rings",
-        "startDate": {
-          "id": 42,
-          "day": 29,
-          "month": 7,
-          "year": 1954,
-          "text": "29 July 1954"
-        },
-        "endDate": {
-          "id": 43,
-          "day": 20,
-          "month": 10,
-          "year": 1955,
-          "text": "20 October 1955"
-        },
-        "description": "Epic fantasy series by J.R.R. Tolkien.",
-        "website": "https://www.tolkien.co.uk",
-        "createdAt": "2025-01-10T09:15:23.000Z",
-        "updatedAt": "2025-01-14T16:58:41.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, nameOnly=true):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.91",
-  "message": "Series retrieved successfully.",
-  "data": {
-    "series": [
-      {
-        "id": 8,
-        "name": "The Lord of the Rings"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Series retrieved successfully.",
-  "data": {
-    "id": 8,
-    "name": "The Lord of the Rings",
-    "startDate": {
-      "id": 42,
-      "day": 29,
-      "month": 7,
-      "year": 1954,
-      "text": "29 July 1954"
-    },
-    "endDate": {
-      "id": 43,
-      "day": 20,
-      "month": 10,
-      "year": 1955,
-      "text": "20 October 1955"
-    },
-    "description": "Epic fantasy series by J.R.R. Tolkien.",
-    "website": "https://www.tolkien.co.uk",
-    "books": [
-      {
-        "bookId": 101,
-        "bookOrder": 1
-      },
-      {
-        "bookId": 102,
-        "bookOrder": 2
-      },
-      {
-        "bookId": 103,
-        "bookOrder": 3
-      }
-    ],
-    "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -5726,20 +5556,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-- **Not Found (404, book missing):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Book not found.",
-  "data": {},
-  "errors": [
-    "The requested book could not be located."
-  ]
-}
-```
+</details>
 
 #### Common Examples
 
@@ -5789,7 +5606,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -5853,6 +5670,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -5882,6 +5702,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### GET /bookseries/:id
 
@@ -5952,6 +5774,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -5981,6 +5806,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### POST /bookseries
 
@@ -6050,6 +5877,9 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -6079,6 +5909,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   ]
 }
 ```
+
+</details>
 
 ### PUT /bookseries
 
@@ -6152,6 +5984,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -6196,6 +6031,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   ]
 }
 ```
+
+</details>
 
 ### PUT /bookseries/:id
 
@@ -6255,6 +6092,9 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -6284,6 +6124,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   ]
 }
 ```
+
+</details>
 
 ### DELETE /bookseries
 
@@ -6347,6 +6189,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -6376,6 +6221,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   ]
 }
 ```
+
+</details>
 
 ### DELETE /bookseries/:id
 
@@ -6421,6 +6268,9 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -6450,6 +6300,8 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   ]
 }
 ```
+
+</details>
 
 ### POST /bookseries/link
 
@@ -6527,25 +6379,8 @@ Notes:
 }
 ```
 
-- **Updated (200, when link already exists):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.42",
-  "message": "Book-series link updated successfully.",
-  "data": {
-    "id": 77,
-    "seriesId": 8,
-    "bookId": 101,
-    "bookOrder": 2,
-    "createdAt": "2025-01-17T10:02:11.000Z",
-    "updatedAt": "2025-01-20T08:45:10.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -6576,6 +6411,8 @@ Notes:
   ]
 }
 ```
+
+</details>
 
 ### PUT /bookseries/link
 
@@ -6648,6 +6485,9 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -6678,35 +6518,7 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
-- **Not Found (404, series missing):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Series not found.",
-  "data": {},
-  "errors": [
-    "The requested series could not be located."
-  ]
-}
-```
-
-- **Not Found (404, book missing):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Book not found.",
-  "data": {},
-  "errors": [
-    "The requested book could not be located."
-  ]
-}
-```
+</details>
 
 ### DELETE /bookseries/link
 
@@ -6773,6 +6585,9 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -6788,9 +6603,7 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
-## Languages
-
-Languages are global and shared across users. They are used to tag books with one or more languages.
+</details>
 
 ### GET /languages
 
@@ -6822,8 +6635,8 @@ Languages are global and shared across users. They are used to tag books with on
 
 #### Validation & Edge Cases
 
-- Validation errors return `400 Validation Error` with details in the `errors` array.
 - If no languages exist, the API returns an empty list.
+- This endpoint does not accept a request body; any supplied body is ignored.
 
 #### Example Responses
 
@@ -6845,13 +6658,6 @@ Languages are global and shared across users. They are used to tag books with on
   "errors": []
 }
 ```
-
-## Books
-
-Books are scoped per user. Titles are not unique, so multiple books can share the same title (e.g., different formats). ISBNs are unique per user when provided. When identifying a book by title, the API returns `409` if multiple books share that title.
-
-Tags are normalised on ingest (trimmed, lowercased, punctuation stripped, whitespace collapsed) and stored per user. The original display name is retained.
-If a book's `publicationDate` is `null`, date-based filters will not match it, and it will not affect series start/end date ranges.
 
 ### GET /book
 
@@ -6876,7 +6682,7 @@ If a book's `publicationDate` is `null`, date-based filters will not match it, a
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -6965,118 +6771,8 @@ Notes:
 
 #### Example Responses
 
-- **Response (200, list, view=card):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Books retrieved successfully.",
-  "data": {
-    "books": [
-      {
-        "id": 15,
-        "title": "Harry Potter and the Philosopher's Stone",
-        "subtitle": null,
-        "coverImageUrl": "https://example.com/hp1.jpg",
-        "publicationDate": {
-          "id": 60,
-          "day": 26,
-          "month": 6,
-          "year": 1997,
-          "text": "26 June 1997"
-        },
-        "pageCount": 223,
-        "bookTypeId": 1,
-        "publisherId": 5,
-        "languages": [
-          { "id": 2, "name": "English" }
-        ],
-        "tags": [
-          { "id": 7, "name": "Fantasy" },
-          { "id": 8, "name": "Adventure" }
-        ]
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result, view=all):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Book retrieved successfully.",
-  "data": {
-    "id": 22,
-    "title": "The Lord of the Rings",
-    "subtitle": "The Fellowship of the Ring",
-    "isbn": "978-0-261-10235-4",
-    "publicationDate": {
-      "id": 61,
-      "day": 29,
-      "month": 7,
-      "year": 1954,
-      "text": "29 July 1954"
-    },
-    "pageCount": 423,
-    "bookTypeId": 1,
-    "publisherId": 5,
-    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
-    "description": "The first volume of The Lord of the Rings.",
-    "authors": [1],
-    "languages": [
-      { "id": 2, "name": "English" }
-    ],
-    "tags": [
-      { "id": 7, "name": "Fantasy" },
-      { "id": 9, "name": "Epic" }
-    ],
-    "series": [
-      {
-        "seriesId": 8,
-        "bookOrder": 1,
-        "bookPublishedDate": {
-          "id": 61,
-          "day": 29,
-          "month": 7,
-          "year": 1954,
-          "text": "29 July 1954"
-        }
-      }
-    ],
-    "bookCopies": [
-      {
-        "id": 501,
-        "storageLocationId": 12,
-        "storageLocationPath": "Home -> Living Room -> Shelf A",
-        "acquisitionStory": "Gifted for a birthday.",
-        "acquisitionDate": {
-          "id": 71,
-          "day": 21,
-          "month": 12,
-          "year": 2010,
-          "text": "21 December 2010"
-        },
-        "acquiredFrom": "Family",
-        "acquisitionType": "Gift",
-        "acquisitionLocation": "Cape Town",
-        "notes": "Hardcover edition.",
-        "createdAt": "2025-01-17T10:02:11.000Z",
-        "updatedAt": "2025-01-17T10:02:11.000Z"
-      }
-    ],
-    "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Multiple Matches (409):**
 
@@ -7122,6 +6818,8 @@ Notes:
   ]
 }
 ```
+
+</details>
 
 ### POST /book
 
@@ -7322,6 +7020,9 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -7351,6 +7052,8 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
   ]
 }
 ```
+
+</details>
 
 ### PUT /book
 
@@ -7507,6 +7210,9 @@ Notes:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Multiple Matches (409):**
 
 ```json
@@ -7521,6 +7227,8 @@ Notes:
   ]
 }
 ```
+
+</details>
 
 ### PUT /book/:id
 
@@ -7569,6 +7277,9 @@ Notes:
 
 #### Example Responses
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -7598,6 +7309,8 @@ Notes:
   ]
 }
 ```
+
+</details>
 
 ### DELETE /book/:id
 
@@ -7643,6 +7356,9 @@ Notes:
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Invalid ID (400):**
 
 ```json
@@ -7673,9 +7389,7 @@ Notes:
 }
 ```
 
-## Storage Locations
-
-Storage locations are hierarchical and scoped per user. The API returns a human-readable `path` for each location, e.g. `Home -> Living Room -> Shelf A`.
+</details>
 
 ### GET /storagelocation
 
@@ -7700,7 +7414,7 @@ Storage locations are hierarchical and scoped per user. The API returns a human-
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -7749,60 +7463,8 @@ If both `id` and `path` are provided, `id` takes precedence.
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.11",
-  "message": "Storage locations retrieved successfully.",
-  "data": {
-    "storageLocations": [
-      {
-        "id": 1,
-        "name": "Home",
-        "parentId": null,
-        "notes": null,
-        "path": "Home",
-        "createdAt": "2025-01-05T08:15:23.000Z",
-        "updatedAt": "2025-01-05T08:15:23.000Z"
-      },
-      {
-        "id": 2,
-        "name": "Living Room",
-        "parentId": 1,
-        "notes": "Main shelves",
-        "path": "Home -> Living Room",
-        "createdAt": "2025-01-06T10:22:11.000Z",
-        "updatedAt": "2025-01-06T10:22:11.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.64",
-  "message": "Storage location retrieved successfully.",
-  "data": {
-    "id": 2,
-    "name": "Living Room",
-    "parentId": 1,
-    "notes": "Main shelves",
-    "path": "Home -> Living Room",
-    "createdAt": "2025-01-06T10:22:11.000Z",
-    "updatedAt": "2025-01-06T10:22:11.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -7833,6 +7495,8 @@ If both `id` and `path` are provided, `id` takes precedence.
   ]
 }
 ```
+
+</details>
 
 ### POST /storagelocation
 
@@ -7903,6 +7567,9 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -7932,6 +7599,8 @@ If both `id` and `path` are provided, `id` takes precedence.
   ]
 }
 ```
+
+</details>
 
 ### PUT /storagelocation
 
@@ -8005,6 +7674,9 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8034,6 +7706,8 @@ If both `id` and `path` are provided, `id` takes precedence.
   ]
 }
 ```
+
+</details>
 
 ### PUT /storagelocation/:id
 
@@ -8104,6 +7778,9 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8133,6 +7810,8 @@ If both `id` and `path` are provided, `id` takes precedence.
   ]
 }
 ```
+
+</details>
 
 ### DELETE /storagelocation
 
@@ -8195,6 +7874,9 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Not Found (404):**
 
 ```json
@@ -8209,6 +7891,8 @@ If both `id` and `path` are provided, `id` takes precedence.
   ]
 }
 ```
+
+</details>
 
 ### DELETE /storagelocation/:id
 
@@ -8262,6 +7946,9 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8292,9 +7979,7 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
-## Book Copies
-
-Book copies represent the physical copies you own. Every book must have at least one copy.
+</details>
 
 ### GET /bookcopy
 
@@ -8319,7 +8004,7 @@ Book copies represent the physical copies you own. Every book must have at least
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Query Parameters
+#### Body Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -8390,77 +8075,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 
 #### Example Responses
 
-- **Response (200, list):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.21",
-  "message": "Book copies retrieved successfully.",
-  "data": {
-    "bookCopies": [
-      {
-        "id": 501,
-        "bookId": 22,
-        "bookTitle": "The Lord of the Rings",
-        "bookIsbn": "978-0-261-10235-4",
-        "storageLocationId": 12,
-        "storageLocationPath": "Home -> Living Room -> Shelf A",
-        "acquisitionStory": "Gifted for a birthday.",
-        "acquisitionDate": {
-          "id": 71,
-          "day": 21,
-          "month": 12,
-          "year": 2010,
-          "text": "21 December 2010"
-        },
-        "acquiredFrom": "Family",
-        "acquisitionType": "Gift",
-        "acquisitionLocation": "Cape Town",
-        "notes": "Hardcover edition.",
-        "createdAt": "2025-01-17T10:02:11.000Z",
-        "updatedAt": "2025-01-17T10:02:11.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-- **Response (200, single result):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.78",
-  "message": "Book copy retrieved successfully.",
-  "data": {
-    "id": 501,
-    "bookId": 22,
-    "bookTitle": "The Lord of the Rings",
-    "bookIsbn": "978-0-261-10235-4",
-    "storageLocationId": 12,
-    "storageLocationPath": "Home -> Living Room -> Shelf A",
-    "acquisitionStory": "Gifted for a birthday.",
-    "acquisitionDate": {
-      "id": 71,
-      "day": 21,
-      "month": 12,
-      "year": 2010,
-      "text": "21 December 2010"
-    },
-    "acquiredFrom": "Family",
-    "acquisitionType": "Gift",
-    "acquisitionLocation": "Cape Town",
-    "notes": "Hardcover edition.",
-    "createdAt": "2025-01-17T10:02:11.000Z",
-    "updatedAt": "2025-01-17T10:02:11.000Z"
-  },
-  "errors": []
-}
-```
+<details>
+<summary>Error Responses</summary>
 
 - **Validation Error (400):**
 
@@ -8491,6 +8107,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   ]
 }
 ```
+
+</details>
 
 ### POST /bookcopy
 
@@ -8571,6 +8189,9 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8600,6 +8221,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   ]
 }
 ```
+
+</details>
 
 ### PUT /bookcopy
 
@@ -8671,6 +8294,9 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8700,6 +8326,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   ]
 }
 ```
+
+</details>
 
 ### PUT /bookcopy/:id
 
@@ -8770,6 +8398,9 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Validation Error (400):**
 
 ```json
@@ -8799,6 +8430,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   ]
 }
 ```
+
+</details>
 
 ### DELETE /bookcopy
 
@@ -8860,6 +8493,9 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Conflict (409):**
 
 ```json
@@ -8889,6 +8525,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   ]
 }
 ```
+
+</details>
 
 ### DELETE /bookcopy/:id
 
@@ -8942,6 +8580,9 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Conflict (409):**
 
 ```json
@@ -8987,9 +8628,7 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
-## Tags
-
-Tags are user-defined labels that help describe and filter books (for example: genre, theme, setting).
+</details>
 
 ### GET /tags
 
@@ -9054,10 +8693,6 @@ Tags are user-defined labels that help describe and filter books (for example: g
 }
 ```
 
-## Admin
-
-All `/admin/*` routes require an authenticated admin user.
-
 ### POST /admin/languages
 
 - **Purpose:** Add a new language.
@@ -9085,12 +8720,12 @@ All `/admin/*` routes require an authenticated admin user.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | string | Yes | Language name (2–100 characters). |
+| `name` | string | Yes | 2–100 characters; letters, spaces, hyphens, periods, and apostrophes only. |
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
-- Duplicate language names return `409`.
+- Duplicate language names (case-insensitive) return `409`.
 
 #### Example Request Body
 
@@ -9112,13 +8747,258 @@ All `/admin/*` routes require an authenticated admin user.
   "message": "Language created successfully.",
   "data": {
     "id": 4,
-    "name": "Elvish",
+    "name": "Zulu",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language name must be between 2 and 100 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "Language already exists.",
+  "data": {},
+  "errors": [
+    "A language with this name already exists."
+  ]
+}
+```
+
+</details>
+
+### PUT /admin/languages
+
+- **Purpose:** Update a language using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/admin/languages` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | Language id to update. |
+| `name` | string | Yes | 2–100 characters; letters, spaces, hyphens, periods, and apostrophes only. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the language does not exist, the API returns `404`. Duplicate names (case-insensitive) return `409`.
+- The `id` field must be a valid integer.
+
+#### Example Request Body
+
+```json
+{
+  "id": 4,
+  "name": "isiZulu"
+}
+```
+
+#### Example Responses
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.10",
+  "message": "Language updated successfully.",
+  "data": {
+    "id": 4,
+    "name": "isiZulu",
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-20T08:45:10.000Z"
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Language not found.",
+  "data": {},
+  "errors": [
+    "The requested language could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "Language already exists.",
+  "data": {},
+  "errors": [
+    "A language with this name already exists."
+  ]
+}
+```
+
+</details>
+
+### DELETE /admin/languages
+
+- **Purpose:** Delete a language using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/admin/languages` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | Language id to delete. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- The `id` field must be a valid integer.
+
+#### Example Request Body
+
+```json
+{
+  "id": 4
+}
+```
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Language deleted successfully.",
+  "data": {
+    "id": 4
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Language not found.",
+  "data": {},
+  "errors": [
+    "The requested language could not be located."
+  ]
+}
+```
+
+</details>
 
 ### PUT /admin/languages/:id
 
@@ -9147,12 +9027,13 @@ All `/admin/*` routes require an authenticated admin user.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | string | Yes | Language name (2–100 characters). |
+| `name` | string | Yes | 2–100 characters; letters, spaces, hyphens, periods, and apostrophes only. |
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
-- If the language does not exist, the API returns `404`. Duplicate names return `409`.
+- If the language does not exist, the API returns `404`. Duplicate names (case-insensitive) return `409`.
+- The `:id` path parameter must be a valid integer.
 
 #### Example Request Body
 
@@ -9174,13 +9055,63 @@ All `/admin/*` routes require an authenticated admin user.
   "message": "Language updated successfully.",
   "data": {
     "id": 4,
-    "name": "Elvish",
+    "name": "isiZulu",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-20T08:45:10.000Z"
   },
   "errors": []
 }
 ```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Language not found.",
+  "data": {},
+  "errors": [
+    "The requested language could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "Language already exists.",
+  "data": {},
+  "errors": [
+    "A language with this name already exists."
+  ]
+}
+```
+
+</details>
 
 ### DELETE /admin/languages/:id
 
@@ -9208,6 +9139,7 @@ All `/admin/*` routes require an authenticated admin user.
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the requested record cannot be found, the API returns `404`.
+- The `:id` path parameter must be a valid integer.
 
 #### Example Responses
 
@@ -9226,6 +9158,9 @@ All `/admin/*` routes require an authenticated admin user.
 }
 ```
 
+<details>
+<summary>Error Responses</summary>
+
 - **Not Found (404):**
 
 ```json
@@ -9233,10 +9168,27 @@ All `/admin/*` routes require an authenticated admin user.
   "status": "error",
   "httpCode": 404,
   "responseTime": "2.84",
-  "message": "Link not found.",
+  "message": "Language not found.",
   "data": {},
   "errors": [
-    "The requested book-series link could not be located."
+    "The requested language could not be located."
   ]
 }
 ```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Language id must be a valid integer."
+  ]
+}
+```
+
+</details>

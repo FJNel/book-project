@@ -279,7 +279,9 @@
 <li><a href="#admin">Admin</a>
 <ul>
 <li><a href="#post-adminlanguages">POST /admin/languages</a></li>
+<li><a href="#put-adminlanguages">PUT /admin/languages</a></li>
 <li><a href="#put-adminlanguagesid">PUT /admin/languages/:id</a></li>
+<li><a href="#delete-adminlanguages">DELETE /admin/languages</a></li>
 <li><a href="#delete-adminlanguagesid">DELETE /admin/languages/:id</a></li>
 </ul>
 </li>
@@ -708,20 +710,8 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses">Example Responses</h4>
-<ul>
-<li><strong>Generic Success (200):</strong> Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.</li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;11.02&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If this email can be registered, you will receive an email with the next steps shortly.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;disclaimer&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;If you do not see an email within a few minutes, please check your spam folder or try again later.&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -781,6 +771,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authresend-verification">POST /auth/resend-verification</h3>
 <ul>
 <li><strong>Purpose:</strong> Re-send the verification email for an unverified account.</li>
@@ -917,6 +908,8 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>CAPTCHA Failure (400):</strong></li>
 </ul>
@@ -946,6 +939,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authverify-email">POST /auth/verify-email</h3>
 <ul>
 <li><strong>Purpose:</strong> Mark a user as verified using the token emailed during registration.</li>
@@ -1102,6 +1096,8 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>CAPTCHA Failure (400):</strong></li>
 </ul>
@@ -1175,6 +1171,7 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authlogin">POST /auth/login</h3>
 <ul>
 <li><strong>Purpose:</strong> Authenticate with email and password and issue access/refresh tokens.</li>
@@ -1317,6 +1314,8 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Credentials (401):</strong></li>
 </ul>
@@ -1360,6 +1359,7 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authrefresh-token">POST /auth/refresh-token</h3>
 <ul>
 <li><strong>Purpose:</strong> Exchange a valid refresh token for a new access token.</li>
@@ -1467,6 +1467,8 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Missing Token (400):</strong></li>
 </ul>
@@ -1523,6 +1525,7 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authlogout">POST /auth/logout</h3>
 <ul>
 <li><strong>Purpose:</strong> Revoke one or all active refresh tokens for the authenticated user.</li>
@@ -1659,6 +1662,8 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Missing Refresh Token (400):</strong></li>
 </ul>
@@ -1702,6 +1707,7 @@ If you did not verify this email address, please contact the system administrato
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authrequest-password-reset">POST /auth/request-password-reset</h3>
 <ul>
 <li><strong>Purpose:</strong> Send a password reset email if the account exists.</li>
@@ -1838,6 +1844,8 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>CAPTCHA Failure (400):</strong></li>
 </ul>
@@ -1867,9 +1875,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<blockquote>
-<p><strong>Note:</strong> Unexpected errors still respond with the same generic <code>200</code> envelope to avoid leaking account existence.</p>
-</blockquote>
+</details>
 <h3 id="post-authreset-password">POST /auth/reset-password</h3>
 <ul>
 <li><strong>Purpose:</strong> Reset the account password using the emailed token.</li>
@@ -2019,6 +2025,8 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>CAPTCHA Failure (400):</strong></li>
 </ul>
@@ -2078,6 +2086,7 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-authgoogle">POST /auth/google</h3>
 <ul>
 <li><strong>Purpose:</strong> Sign up or sign in a user using a verified Google ID token.</li>
@@ -2197,6 +2206,8 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>ID Token Missing (400):</strong></li>
 </ul>
@@ -2269,9 +2280,7 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
-<h2 id="user-management">User Management</h2>
-<p>All user management endpoints require a valid access token (<code>Authorization: Bearer &lt;accessToken&gt;</code>) and are subject to the <code>authenticatedLimiter</code> (60 requests per minute per user).</p>
+</details>
 <h3 id="get-usersme">GET /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve the authenticated user's profile and connected OAuth providers.</li>
@@ -2383,6 +2392,8 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>User Not Found (404):</strong></li>
 </ul>
@@ -2397,6 +2408,7 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-usersme">PUT /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Update <code>fullName</code> and/or <code>preferredName</code>. To change the email or password, use the dedicated endpoints.</li>
@@ -2526,6 +2538,8 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>No Fields Provided (400):</strong></li>
 </ul>
@@ -2568,6 +2582,7 @@ If you did not reset your password, please contact the system administrator at &
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-usersme">DELETE /users/me</h3>
 <ul>
 <li><strong>Purpose:</strong> Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.</li>
@@ -2680,6 +2695,8 @@ This link will expire in &lt;expiresIn&gt; minutes. If it expires, simply sign i
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>User Not Found (404):</strong></li>
 </ul>
@@ -2694,6 +2711,7 @@ This link will expire in &lt;expiresIn&gt; minutes. If it expires, simply sign i
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-usersmeverify-delete">POST /users/me/verify-delete</h3>
 <ul>
 <li><strong>Purpose:</strong> Confirms the disable request using the emailed token, validates the user’s email, and revokes all active sessions.</li>
@@ -2831,6 +2849,8 @@ If you would like to reactivate your account, please contact the System Administ
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Token / Email (400):</strong></li>
 </ul>
@@ -2845,6 +2865,7 @@ If you would like to reactivate your account, please contact the System Administ
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-usersmerequest-email-change">POST /users/me/request-email-change</h3>
 <ul>
 <li><strong>Purpose:</strong> Initiate an email change for the authenticated user. Sends a verification link to the new email address. The user is signed out everywhere once the new email is confirmed.</li>
@@ -2968,6 +2989,8 @@ This link expires in &lt;expiresIn&gt; minutes. If you did not request this chan
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -2982,6 +3005,7 @@ This link expires in &lt;expiresIn&gt; minutes. If you did not request this chan
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-usersmeverify-email-change">POST /users/me/verify-email-change</h3>
 <ul>
 <li><strong>Purpose:</strong> Confirms the pending email change using the token sent to the new email address. Requires the user’s current email, the new email, password confirmation, and a CAPTCHA check before revoking sessions and removing OAuth links.</li>
@@ -3129,6 +3153,8 @@ If you did not authorise this change, please contact our support team immediatel
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Token / Data (400):</strong></li>
 </ul>
@@ -3143,6 +3169,7 @@ If you did not authorise this change, please contact our support team immediatel
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-usersmerequest-account-deletion-also-available-as-post">DELETE /users/me/request-account-deletion (also available as POST)</h3>
 <ul>
 <li><strong>Purpose:</strong> Starts the permanent deletion workflow. Sends a confirmation link to the account email. After confirmation, support (<a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a>) is notified with the account details needed to complete the deletion.</li>
@@ -3410,6 +3437,8 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Token / Credentials (400):</strong></li>
 </ul>
@@ -3424,6 +3453,7 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-usersmesessions">GET /users/me/sessions</h3>
 <ul>
 <li><strong>Purpose:</strong> List the authenticated user’s active refresh-token sessions, including device, browser, IP hint, and remaining lifetime.</li>
@@ -3684,6 +3714,8 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Fingerprint (400):</strong></li>
 </ul>
@@ -3698,6 +3730,7 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-usersmechange-password">POST /users/me/change-password</h3>
 <ul>
 <li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked.</li>
@@ -3824,6 +3857,8 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid Current Password (400):</strong></li>
 </ul>
@@ -3838,9 +3873,7 @@ Please reach out to the user before fully deleting this account and all associat
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<hr>
-<h2 id="book-types">Book Types</h2>
-<p>Book types are scoped per user. Each account starts with two defaults: <code>Hardcover</code> and <code>Softcover</code>.</p>
+</details>
 <h3 id="get-booktype">GET /booktype</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all book types for the authenticated user.</li>
@@ -3908,7 +3941,7 @@ Please reach out to the user before fully deleting this account and all associat
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters">Query Parameters</h4>
+<h4 id="body-parameters-21">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -4080,65 +4113,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-20">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book types retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;bookTypes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardback edition with rigid cover.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, nameOnly=true):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.91&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book types retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;bookTypes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book type retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardback edition with rigid cover.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -4167,6 +4143,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-booktypeid">GET /booktype/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific book type by id.</li>
@@ -4252,6 +4229,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -4280,6 +4259,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-booktypeby-name">GET /booktype/by-name</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific book type by name.</li>
@@ -4347,7 +4327,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-1">Query Parameters</h4>
+<h4 id="body-parameters-22">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -4398,6 +4378,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -4426,6 +4408,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-booktype">POST /booktype</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new book type for the authenticated user.</li>
@@ -4493,7 +4476,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-21">Body Parameters</h4>
+<h4 id="body-parameters-23">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -4548,6 +4531,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -4618,6 +4603,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-booktypeid">PUT /booktype/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book type.</li>
@@ -4685,7 +4671,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-22">Body Parameters</h4>
+<h4 id="body-parameters-24">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -4743,6 +4729,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -4841,6 +4829,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-booktype">PUT /booktype</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book type by <code>id</code> or <code>name</code>.</li>
@@ -4908,7 +4897,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-23">Body Parameters</h4>
+<h4 id="body-parameters-25">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -4980,6 +4969,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -5036,6 +5027,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-booktype">DELETE /booktype</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book type by <code>id</code> or <code>name</code>.</li>
@@ -5103,7 +5095,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-24">Body Parameters</h4>
+<h4 id="body-parameters-26">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -5155,6 +5147,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -5225,6 +5219,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-booktypeid">DELETE /booktype/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book type owned by the authenticated user.</li>
@@ -5306,6 +5301,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Not Found (404):</strong></li>
 </ul>
@@ -5320,8 +5317,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="authors">Authors</h2>
-<p>Authors are scoped per user and can be linked to books later via a linking table. Dates use the partial date object described below.</p>
+</details>
 <h3 id="get-author">GET /author</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all authors for the authenticated user.</li>
@@ -5389,7 +5385,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-2">Query Parameters</h4>
+<h4 id="body-parameters-27">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -5674,99 +5670,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-28">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Authors retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;firstNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Ronald Reuel&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;lastName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Tolkien&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;birthDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1892</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3 January 1892&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;deceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;deathDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">13</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">9</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1973</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2 September 1973&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Author of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, nameOnly=true):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.91&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Authors retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Author retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;firstNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Ronald Reuel&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;lastName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Tolkien&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;birthDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1892</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3 January 1892&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;deceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;deathDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">13</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">9</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1973</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2 September 1973&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Author of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -5795,6 +5700,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-authorid">GET /author/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific author by id.</li>
@@ -5897,6 +5803,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -5925,6 +5833,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-authorby-name">GET /author/by-name</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific author by display name.</li>
@@ -5992,7 +5901,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-3">Query Parameters</h4>
+<h4 id="body-parameters-28">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -6064,6 +5973,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -6092,6 +6003,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-author">POST /author</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new author for the authenticated user.</li>
@@ -6159,7 +6071,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-25">Body Parameters</h4>
+<h4 id="body-parameters-29">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -6281,6 +6193,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -6309,6 +6223,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-author">PUT /author</h3>
 <ul>
 <li><strong>Purpose:</strong> Update an author by <code>id</code> or <code>displayName</code>.</li>
@@ -6376,7 +6291,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-26">Body Parameters</h4>
+<h4 id="body-parameters-30">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -6500,6 +6415,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -6556,6 +6473,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-authorid">PUT /author/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update an author by id.</li>
@@ -6675,6 +6593,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -6703,6 +6623,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-author">DELETE /author</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete an author by <code>id</code> or <code>displayName</code>.</li>
@@ -6770,7 +6691,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-27">Body Parameters</h4>
+<h4 id="body-parameters-31">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -6822,6 +6743,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -6850,6 +6773,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-authorid">DELETE /author/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete an author by id.</li>
@@ -6931,6 +6855,8 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -6959,8 +6885,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="publishers">Publishers</h2>
-<p>Publishers are scoped per user. Founded dates use the same Partial Date Object described in <strong>Shared Behaviours</strong>.</p>
+</details>
 <h3 id="get-publisher">GET /publisher</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all publishers for the authenticated user.</li>
@@ -7028,7 +6953,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-4">Query Parameters</h4>
+<h4 id="body-parameters-32">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -7237,81 +7162,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-36">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Publishers retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;publishers&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;foundedDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1986</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 March 1986&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.bloomsbury.com&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Publisher of the Harry Potter series.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, nameOnly=true):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.91&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Publishers retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;publishers&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Publisher retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;foundedDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1986</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 March 1986&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.bloomsbury.com&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Publisher of the Harry Potter series.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -7340,6 +7192,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h4 id="common-examples-2">Common Examples</h4>
 <ul>
 <li><strong>All publishers founded before 1950, sorted by founded year (desc), limit 20:</strong></li>
@@ -7429,7 +7282,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-5">Query Parameters</h4>
+<h4 id="body-parameters-33">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -7488,6 +7341,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -7516,6 +7371,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-publisherid">GET /publisher/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific publisher by id.</li>
@@ -7609,6 +7465,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -7637,6 +7495,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-publisher">POST /publisher</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new publisher.</li>
@@ -7704,7 +7563,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-28">Body Parameters</h4>
+<h4 id="body-parameters-34">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -7785,6 +7644,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -7813,6 +7674,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-publisher">PUT /publisher</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a publisher by id or name.</li>
@@ -7880,7 +7742,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-29">Body Parameters</h4>
+<h4 id="body-parameters-35">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -7969,6 +7831,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -8011,6 +7875,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-publisherid">PUT /publisher/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a publisher by id.</li>
@@ -8115,6 +7980,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -8143,6 +8010,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-publisher">DELETE /publisher</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a publisher by id or name.</li>
@@ -8210,7 +8078,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-30">Body Parameters</h4>
+<h4 id="body-parameters-36">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -8261,6 +8129,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -8289,6 +8159,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-publisherid">DELETE /publisher/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a publisher by id.</li>
@@ -8370,6 +8241,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -8398,9 +8271,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="book-series">Book Series</h2>
-<p>Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest publication dates). Books without a <code>publicationDate</code> are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.</p>
-<p>If a series has no linked books with published dates, <code>startDate</code> and <code>endDate</code> will be <code>null</code>.</p>
+</details>
 <h3 id="get-bookseries">GET /bookseries</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all book series for the authenticated user.</li>
@@ -8468,7 +8339,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-6">Query Parameters</h4>
+<h4 id="body-parameters-37">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -8719,109 +8590,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-44">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Series retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;startDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">42</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">29</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1954</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;29 July 1954&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;endDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">43</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1955</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;20 October 1955&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Epic fantasy series by J.R.R. Tolkien.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.tolkien.co.uk&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, nameOnly=true):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.91&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Series retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Series retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;startDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">42</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">29</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1954</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;29 July 1954&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;endDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">43</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1955</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;20 October 1955&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Epic fantasy series by J.R.R. Tolkien.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.tolkien.co.uk&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;books&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">101</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
-      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">102</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
-      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">103</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -8850,20 +8620,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<ul>
-<li><strong>Not Found (404, book missing):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested book could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+</details>
 <h4 id="common-examples-3">Common Examples</h4>
 <ul>
 <li><strong>All series started before 1990, sorted by start year (desc), limit 10:</strong></li>
@@ -8953,7 +8710,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-7">Query Parameters</h4>
+<h4 id="body-parameters-38">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -9024,6 +8781,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -9052,6 +8811,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="get-bookseriesid">GET /bookseries/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve a specific series by id.</li>
@@ -9158,6 +8918,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -9186,6 +8948,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-bookseries">POST /bookseries</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new book series.</li>
@@ -9253,7 +9016,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-31">Body Parameters</h4>
+<h4 id="body-parameters-39">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -9316,6 +9079,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -9344,6 +9109,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookseries">PUT /bookseries</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a series by id or name.</li>
@@ -9411,7 +9177,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-32">Body Parameters</h4>
+<h4 id="body-parameters-40">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -9487,6 +9253,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -9529,6 +9297,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookseriesid">PUT /bookseries/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a series by id.</li>
@@ -9626,6 +9395,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -9654,6 +9425,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-bookseries">DELETE /bookseries</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a series by id or name.</li>
@@ -9721,7 +9493,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-33">Body Parameters</h4>
+<h4 id="body-parameters-41">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -9772,6 +9544,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -9800,6 +9574,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-bookseriesid">DELETE /bookseries/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a series by id.</li>
@@ -9881,6 +9656,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -9909,6 +9686,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-bookserieslink">POST /bookseries/link</h3>
 <ul>
 <li><strong>Purpose:</strong> Link a book to a series with an optional order.</li>
@@ -9976,7 +9754,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-34">Body Parameters</h4>
+<h4 id="body-parameters-42">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10052,25 +9830,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<ul>
-<li><strong>Updated (200, when link already exists):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.42&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book-series link updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">77</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">101</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-20T08:45:10.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -10099,6 +9860,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookserieslink">PUT /bookseries/link</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book-series link (book order).</li>
@@ -10166,7 +9928,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-35">Body Parameters</h4>
+<h4 id="body-parameters-43">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10236,6 +9998,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -10264,34 +10028,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<ul>
-<li><strong>Not Found (404, series missing):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Series not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested series could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Not Found (404, book missing):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested book could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+</details>
 <h3 id="delete-bookserieslink">DELETE /bookseries/link</h3>
 <ul>
 <li><strong>Purpose:</strong> Remove a book-series link.</li>
@@ -10359,7 +10096,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-36">Body Parameters</h4>
+<h4 id="body-parameters-44">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10418,6 +10155,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -10432,8 +10171,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="languages">Languages</h2>
-<p>Languages are global and shared across users. They are used to tag books with one or more languages.</p>
+</details>
 <h3 id="get-languages">GET /languages</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all available languages (alphabetical).</li>
@@ -10495,7 +10233,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-37">Body Parameters</h4>
+<h4 id="body-parameters-45">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10516,8 +10254,8 @@ You can provide these list controls via query string or JSON body. If both are p
 </table>
 <h4 id="validation--edge-cases-55">Validation &amp; Edge Cases</h4>
 <ul>
-<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If no languages exist, the API returns an empty list.</li>
+<li>This endpoint does not accept a request body; any supplied body is ignored.</li>
 </ul>
 <h4 id="example-responses-55">Example Responses</h4>
 <ul>
@@ -10538,10 +10276,6 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="books">Books</h2>
-<p>Books are scoped per user. Titles are not unique, so multiple books can share the same title (e.g., different formats). ISBNs are unique per user when provided. When identifying a book by title, the API returns <code>409</code> if multiple books share that title.</p>
-<p>Tags are normalised on ingest (trimmed, lowercased, punctuation stripped, whitespace collapsed) and stored per user. The original display name is retained.
-If a book's <code>publicationDate</code> is <code>null</code>, date-based filters will not match it, and it will not affect series start/end date ranges.</p>
 <h3 id="get-book">GET /book</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all books for the authenticated user, or fetch a specific book by id, ISBN, or title.</li>
@@ -10609,7 +10343,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-8">Query Parameters</h4>
+<h4 id="body-parameters-46">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10884,117 +10618,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-56">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list, view=card):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Books retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;books&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">15</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;title&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Harry Potter and the Philosopher&#x27;s Stone&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;subtitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;coverImageUrl&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://example.com/hp1.jpg&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;publicationDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">60</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">26</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">6</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1997</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;26 June 1997&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">223</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookTypeId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;languages&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-          <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English&quot;</span> <span class="hljs-punctuation">}</span>
-        <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-          <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Fantasy&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Adventure&quot;</span> <span class="hljs-punctuation">}</span>
-        <span class="hljs-punctuation">]</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result, view=all):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;title&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;subtitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Fellowship of the Ring&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;isbn&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;978-0-261-10235-4&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;publicationDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">61</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">29</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1954</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;29 July 1954&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">423</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookTypeId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;coverImageUrl&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://example.com/lotr-fotr.jpg&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The first volume of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-number">1</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;languages&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English&quot;</span> <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Fantasy&quot;</span> <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">9</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Epic&quot;</span> <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;series&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookPublishedDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">61</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">29</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1954</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;29 July 1954&quot;</span>
-        <span class="hljs-punctuation">}</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookCopies&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">501</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;storageLocationId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">71</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T09:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Multiple Matches (409):</strong></li>
 </ul>
@@ -11037,6 +10662,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-book">POST /book</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new book and link it to related entities.</li>
@@ -11104,7 +10730,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-38">Body Parameters</h4>
+<h4 id="body-parameters-47">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -11410,6 +11036,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -11438,6 +11066,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-book">PUT /book</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book by id, ISBN, or title.</li>
@@ -11505,7 +11134,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-39">Body Parameters</h4>
+<h4 id="body-parameters-48">Body Parameters</h4>
 <p>Identification (one of):</p>
 <table>
 <thead>
@@ -11718,6 +11347,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Multiple Matches (409):</strong></li>
 </ul>
@@ -11732,6 +11363,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookid">PUT /book/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book by id.</li>
@@ -11819,6 +11451,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-59">Example Responses</h4>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -11847,6 +11481,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-bookid">DELETE /book/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book by id.</li>
@@ -11928,6 +11563,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -11956,8 +11593,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="storage-locations">Storage Locations</h2>
-<p>Storage locations are hierarchical and scoped per user. The API returns a human-readable <code>path</code> for each location, e.g. <code>Home -&gt; Living Room -&gt; Shelf A</code>.</p>
+</details>
 <h3 id="get-storagelocation">GET /storagelocation</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all storage locations or fetch a single location by id/path.</li>
@@ -12025,7 +11661,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-9">Query Parameters</h4>
+<h4 id="body-parameters-49">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12149,59 +11785,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-61">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.11&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage locations retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;storageLocations&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">null</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;path&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-05T08:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-05T08:15:23.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Living Room&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Main shelves&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;path&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-06T10:22:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-06T10:22:11.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.64&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage location retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Living Room&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Main shelves&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;path&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-06T10:22:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-06T10:22:11.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12230,6 +11815,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-storagelocation">POST /storagelocation</h3>
 <ul>
 <li><strong>Purpose:</strong> Create a new storage location (base or nested).</li>
@@ -12297,7 +11883,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-40">Body Parameters</h4>
+<h4 id="body-parameters-50">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12361,6 +11947,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12389,6 +11977,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-storagelocation">PUT /storagelocation</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a storage location by id or path.</li>
@@ -12456,7 +12045,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-41">Body Parameters</h4>
+<h4 id="body-parameters-51">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12533,6 +12122,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12561,6 +12152,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-storagelocationid">PUT /storagelocation/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a storage location by id (path parameter).</li>
@@ -12628,7 +12220,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-42">Body Parameters</h4>
+<h4 id="body-parameters-52">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12692,6 +12284,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12720,6 +12314,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-storagelocation">DELETE /storagelocation</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a storage location by id or path.</li>
@@ -12787,7 +12382,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-43">Body Parameters</h4>
+<h4 id="body-parameters-53">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12838,6 +12433,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Not Found (404):</strong></li>
 </ul>
@@ -12852,6 +12449,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-storagelocationid">DELETE /storagelocation/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a storage location by id (path parameter).</li>
@@ -12913,7 +12511,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-44">Body Parameters</h4>
+<h4 id="body-parameters-54">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12954,6 +12552,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12982,8 +12582,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="book-copies">Book Copies</h2>
-<p>Book copies represent the physical copies you own. Every book must have at least one copy.</p>
+</details>
 <h3 id="get-bookcopy">GET /bookcopy</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all book copies, or fetch a specific copy by id.</li>
@@ -13051,7 +12650,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="query-parameters-10">Query Parameters</h4>
+<h4 id="body-parameters-55">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -13276,76 +12875,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-67">Example Responses</h4>
-<ul>
-<li><strong>Response (200, list):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.21&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copies retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;bookCopies&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-      <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">501</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookTitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;bookIsbn&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;978-0-261-10235-4&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;storageLocationId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-          <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">71</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
-          <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
-        <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
-      <span class="hljs-punctuation">}</span>
-    <span class="hljs-punctuation">]</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Response (200, single result):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.78&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">501</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookTitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;bookIsbn&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;978-0-261-10235-4&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;storageLocationId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">71</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
-      <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
-    <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -13374,6 +12905,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="post-bookcopy">POST /bookcopy</h3>
 <ul>
 <li><strong>Purpose:</strong> Add a new book copy to a book.</li>
@@ -13441,7 +12973,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-45">Body Parameters</h4>
+<h4 id="body-parameters-56">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -13545,6 +13077,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -13573,6 +13107,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookcopy">PUT /bookcopy</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book copy by id.</li>
@@ -13640,7 +13175,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-46">Body Parameters</h4>
+<h4 id="body-parameters-57">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -13735,6 +13270,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -13763,6 +13300,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="put-bookcopyid">PUT /bookcopy/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Update a book copy by id (path parameter).</li>
@@ -13830,7 +13368,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-47">Body Parameters</h4>
+<h4 id="body-parameters-58">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -13919,6 +13457,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -13947,6 +13487,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-bookcopy">DELETE /bookcopy</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book copy by id.</li>
@@ -14014,7 +13555,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-48">Body Parameters</h4>
+<h4 id="body-parameters-59">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -14059,6 +13600,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Conflict (409):</strong></li>
 </ul>
@@ -14087,6 +13630,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+</details>
 <h3 id="delete-bookcopyid">DELETE /bookcopy/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book copy by id (path parameter).</li>
@@ -14148,7 +13692,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-49">Body Parameters</h4>
+<h4 id="body-parameters-60">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -14189,6 +13733,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Conflict (409):</strong></li>
 </ul>
@@ -14231,8 +13777,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="tags">Tags</h2>
-<p>Tags are user-defined labels that help describe and filter books (for example: genre, theme, setting).</p>
+</details>
 <h3 id="get-tags">GET /tags</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all tags for the authenticated user (alphabetical order).</li>
@@ -14294,7 +13839,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-50">Body Parameters</h4>
+<h4 id="body-parameters-61">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -14346,8 +13891,6 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h2 id="admin">Admin</h2>
-<p>All <code>/admin/*</code> routes require an authenticated admin user.</p>
 <h3 id="post-adminlanguages">POST /admin/languages</h3>
 <ul>
 <li><strong>Purpose:</strong> Add a new language.</li>
@@ -14415,7 +13958,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-51">Body Parameters</h4>
+<h4 id="body-parameters-62">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -14430,14 +13973,14 @@ You can provide these list controls via query string or JSON body. If both are p
 <td><code>name</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Language name (2–100 characters).</td>
+<td>2–100 characters; letters, spaces, hyphens, periods, and apostrophes only.</td>
 </tr>
 </tbody>
 </table>
 <h4 id="validation--edge-cases-74">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
-<li>Duplicate language names return <code>409</code>.</li>
+<li>Duplicate language names (case-insensitive) return <code>409</code>.</li>
 </ul>
 <h4 id="example-request-body-57">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -14455,16 +13998,47 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language created successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Elvish&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Zulu&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h3 id="put-adminlanguagesid">PUT /admin/languages/:id</h3>
+<details>
+<summary>Error Responses</summary>
 <ul>
-<li><strong>Purpose:</strong> Update a language.</li>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Language name must be between 2 and 100 characters.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Conflict (409):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.08&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language already exists.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A language with this name already exists.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="put-adminlanguages">PUT /admin/languages</h3>
+<ul>
+<li><strong>Purpose:</strong> Update a language using a JSON body id.</li>
 <li><strong>Authentication:</strong> Admin access token required.</li>
 </ul>
 <h4 id="request-overview-76">Request Overview</h4>
@@ -14482,7 +14056,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/languages/:id</code></td>
+<td><code>/admin/languages</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -14529,7 +14103,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-52">Body Parameters</h4>
+<h4 id="body-parameters-63">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -14541,20 +14115,28 @@ You can provide these list controls via query string or JSON body. If both are p
 </thead>
 <tbody>
 <tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>Yes</td>
+<td>Language id to update.</td>
+</tr>
+<tr>
 <td><code>name</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Language name (2–100 characters).</td>
+<td>2–100 characters; letters, spaces, hyphens, periods, and apostrophes only.</td>
 </tr>
 </tbody>
 </table>
 <h4 id="validation--edge-cases-75">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
-<li>If the language does not exist, the API returns <code>404</code>. Duplicate names return <code>409</code>.</li>
+<li>If the language does not exist, the API returns <code>404</code>. Duplicate names (case-insensitive) return <code>409</code>.</li>
+<li>The <code>id</code> field must be a valid integer.</li>
 </ul>
 <h4 id="example-request-body-58">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -14569,19 +14151,367 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Elvish&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-20T08:45:10.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Language id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested language could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Conflict (409):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.08&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language already exists.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A language with this name already exists.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="delete-adminlanguages">DELETE /admin/languages</h3>
+<ul>
+<li><strong>Purpose:</strong> Delete a language using a JSON body id.</li>
+<li><strong>Authentication:</strong> Admin access token required.</li>
+</ul>
+<h4 id="request-overview-77">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/languages</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-77">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-64">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>Yes</td>
+<td>Language id to delete.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-76">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>The <code>id</code> field must be a valid integer.</li>
+</ul>
+<h4 id="example-request-body-59">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-76">Example Responses</h4>
+<ul>
+<li><strong>Deleted (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.48&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language deleted successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Language id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested language could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="put-adminlanguagesid">PUT /admin/languages/:id</h3>
+<ul>
+<li><strong>Purpose:</strong> Update a language.</li>
+<li><strong>Authentication:</strong> Admin access token required.</li>
+</ul>
+<h4 id="request-overview-78">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/languages/:id</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-78">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-65">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>2–100 characters; letters, spaces, hyphens, periods, and apostrophes only.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-77">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the language does not exist, the API returns <code>404</code>. Duplicate names (case-insensitive) return <code>409</code>.</li>
+<li>The <code>:id</code> path parameter must be a valid integer.</li>
+</ul>
+<h4 id="example-request-body-60">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-77">Example Responses</h4>
+<ul>
+<li><strong>Updated (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.10&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-20T08:45:10.000Z&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Language id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested language could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Conflict (409):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.08&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language already exists.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A language with this name already exists.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
 <h3 id="delete-adminlanguagesid">DELETE /admin/languages/:id</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a language.</li>
 <li><strong>Authentication:</strong> Admin access token required.</li>
 </ul>
-<h4 id="request-overview-77">Request Overview</h4>
+<h4 id="request-overview-79">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -14612,7 +14542,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-77">Required Headers</h4>
+<h4 id="required-headers-79">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -14637,12 +14567,13 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-76">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-78">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>The <code>:id</code> path parameter must be a valid integer.</li>
 </ul>
-<h4 id="example-responses-76">Example Responses</h4>
+<h4 id="example-responses-78">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -14657,6 +14588,8 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<details>
+<summary>Error Responses</summary>
 <ul>
 <li><strong>Not Found (404):</strong></li>
 </ul>
@@ -14664,13 +14597,28 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Link not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Language not found.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested book-series link could not be located.&quot;</span>
+    <span class="hljs-string">&quot;The requested language could not be located.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Language id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
 
             
             

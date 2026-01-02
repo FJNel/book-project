@@ -147,13 +147,7 @@ router.post("/languages", adminAuth, async (req, res) => {
 	}
 });
 
-// `PUT /admin/languages/:id` - Update a language (admin only)
-router.put("/languages/:id", adminAuth, async (req, res) => {
-	const id = Number.parseInt(req.params.id, 10);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Language id must be a valid integer."]);
-	}
-
+async function handleLanguageUpdate(req, res, id) {
 	const rawName = normalizeText(req.body?.name);
 	const normalized = normalizeLanguageName(rawName);
 	const errors = validateLanguageName(rawName);
@@ -207,15 +201,27 @@ router.put("/languages/:id", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the language."]);
 	}
-});
+}
 
-// `DELETE /admin/languages/:id` - Delete a language (admin only)
-router.delete("/languages/:id", adminAuth, async (req, res) => {
+// `PUT /admin/languages/:id` - Update a language (admin only)
+router.put("/languages/:id", adminAuth, async (req, res) => {
 	const id = Number.parseInt(req.params.id, 10);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Language id must be a valid integer."]);
 	}
+	return handleLanguageUpdate(req, res, id);
+});
 
+// `PUT /admin/languages` - Update a language using JSON body (admin only)
+router.put("/languages", adminAuth, async (req, res) => {
+	const id = Number.parseInt(req.body?.id, 10);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Language id must be a valid integer."]);
+	}
+	return handleLanguageUpdate(req, res, id);
+});
+
+async function handleLanguageDelete(req, res, id) {
 	try {
 		const result = await pool.query(
 			`DELETE FROM languages WHERE id = $1`,
@@ -245,6 +251,24 @@ router.delete("/languages/:id", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the language."]);
 	}
+}
+
+// `DELETE /admin/languages/:id` - Delete a language (admin only)
+router.delete("/languages/:id", adminAuth, async (req, res) => {
+	const id = Number.parseInt(req.params.id, 10);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Language id must be a valid integer."]);
+	}
+	return handleLanguageDelete(req, res, id);
+});
+
+// `DELETE /admin/languages` - Delete a language using JSON body (admin only)
+router.delete("/languages", adminAuth, async (req, res) => {
+	const id = Number.parseInt(req.body?.id, 10);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Language id must be a valid integer."]);
+	}
+	return handleLanguageDelete(req, res, id);
 });
 
 
