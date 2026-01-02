@@ -354,7 +354,7 @@ async function resolveBookId({ userId, id, isbn, title }) {
 
 	if (hasId) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND id = $2`,
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 			[userId, id]
 		);
 		if (result.rows.length === 0) {
@@ -365,7 +365,7 @@ async function resolveBookId({ userId, id, isbn, title }) {
 
 	if (hasIsbn) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2`,
+			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND deleted_at IS NULL`,
 			[userId, isbn]
 		);
 		if (result.rows.length === 0) {
@@ -380,7 +380,68 @@ async function resolveBookId({ userId, id, isbn, title }) {
 
 	if (hasTitle) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND title = $2`,
+			`SELECT id FROM books WHERE user_id = $1 AND title = $2 AND deleted_at IS NULL`,
+			[userId, title]
+		);
+		if (result.rows.length === 0) {
+			return { id: null, mismatch: hasMultiple };
+		}
+		if (result.rows.length > 1) {
+			if (!resolvedId) {
+				return { id: null, conflict: true };
+			}
+			const ids = result.rows.map((row) => row.id);
+			if (!ids.includes(resolvedId)) {
+				return { id: resolvedId, mismatch: true };
+			}
+			return { id: resolvedId };
+		}
+		const foundId = result.rows[0].id;
+		if (resolvedId && resolvedId !== foundId) {
+			return { id: resolvedId, mismatch: true };
+		}
+		resolvedId = foundId;
+	}
+
+	return { id: resolvedId };
+}
+
+async function resolveDeletedBookId({ userId, id, isbn, title }) {
+	const hasId = Number.isInteger(id);
+	const hasIsbn = Boolean(isbn);
+	const hasTitle = Boolean(title);
+	const hasMultiple = Number(hasId) + Number(hasIsbn) + Number(hasTitle) > 1;
+	let resolvedId = null;
+
+	if (hasId) {
+		const result = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+			[userId, id]
+		);
+		if (result.rows.length === 0) {
+			return { id: null, mismatch: hasMultiple };
+		}
+		resolvedId = id;
+	}
+
+	if (hasIsbn) {
+		const result = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND deleted_at IS NOT NULL`,
+			[userId, isbn]
+		);
+		if (result.rows.length === 0) {
+			return { id: null, mismatch: hasMultiple };
+		}
+		const foundId = result.rows[0].id;
+		if (resolvedId && resolvedId !== foundId) {
+			return { id: resolvedId, mismatch: true };
+		}
+		resolvedId = foundId;
+	}
+
+	if (hasTitle) {
+		const result = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND title = $2 AND deleted_at IS NOT NULL`,
 			[userId, title]
 		);
 		if (result.rows.length === 0) {
@@ -571,6 +632,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const view = parseView(listParams);
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
 
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetIsbn = normalizeIsbn(req.query.isbn ?? req.body?.isbn);
@@ -605,7 +667,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
-				 WHERE b.user_id = $1 AND b.id = $2`,
+				 WHERE b.user_id = $1 AND b.id = $2 AND b.deleted_at IS NULL`,
 				[userId, resolved.id]
 			);
 
@@ -679,6 +741,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const filters = [];
 	const values = [userId];
 	let paramIndex = 2;
+
+	if (!includeDeleted) {
+		filters.push("b.deleted_at IS NULL");
+	}
 
 	if (listParams.filterId !== undefined) {
 		const filterId = parseId(listParams.filterId);
@@ -988,7 +1054,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	try {
 		if (isbn) {
 			const existing = await pool.query(
-				`SELECT id FROM books WHERE user_id = $1 AND isbn = $2`,
+				`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND deleted_at IS NULL`,
 				[userId, isbn]
 			);
 			if (existing.rows.length > 0) {
@@ -1238,7 +1304,7 @@ async function handleBookUpdate(req, res, bookId) {
 	try {
 		if (hasIsbn && isbn) {
 			const existing = await pool.query(
-				`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND id <> $3`,
+				`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND id <> $3 AND deleted_at IS NULL`,
 				[userId, isbn, bookId]
 			);
 			if (existing.rows.length > 0) {
@@ -1346,7 +1412,7 @@ async function handleBookUpdate(req, res, bookId) {
 				const result = await client.query(
 					`UPDATE books
 					 SET ${updateFields.join(", ")}, updated_at = NOW()
-					 WHERE user_id = $1 AND id = $2
+					 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 					 RETURNING id, title, subtitle, isbn, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at`,
 					params
 				);
@@ -1359,7 +1425,7 @@ async function handleBookUpdate(req, res, bookId) {
 				const result = await client.query(
 					`SELECT id, title, subtitle, isbn, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at
 					 FROM books
-					 WHERE user_id = $1 AND id = $2`,
+					 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 					[userId, bookId]
 				);
 				if (result.rows.length === 0) {
@@ -1541,7 +1607,10 @@ async function handleBookDelete(req, res, bookId) {
 
 	try {
 		const result = await pool.query(
-			`DELETE FROM books WHERE user_id = $1 AND id = $2`,
+			`UPDATE books
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
 			[userId, bookId]
 		);
 		if (result.rowCount === 0) {
@@ -1556,7 +1625,10 @@ async function handleBookDelete(req, res, bookId) {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Book deleted successfully.", { id: bookId });
+		return successResponse(res, 200, "Book moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at
+		});
 	} catch (error) {
 		logToFile("BOOK_DELETE", {
 			status: "FAILURE",
@@ -1612,6 +1684,149 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	return handleBookDelete(req, res, resolved.id);
+});
+
+// GET /book/trash - List deleted books
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, title, subtitle, isbn, deleted_at, created_at, updated_at
+			 FROM books
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			title: row.title,
+			subtitle: row.subtitle,
+			isbn: row.isbn,
+			deletedAt: row.deleted_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "Deleted books retrieved successfully.", { books: payload });
+	} catch (error) {
+		logToFile("BOOK_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted books."]);
+	}
+});
+
+// GET /book/stats - Book statistics
+router.get("/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const fieldMap = {
+		total: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL) AS total",
+		deleted: "COUNT(*) FILTER (WHERE b.deleted_at IS NOT NULL) AS deleted",
+		withIsbn: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.isbn IS NOT NULL AND b.isbn <> '') AS with_isbn",
+		withoutIsbn: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND (b.isbn IS NULL OR b.isbn = '')) AS without_isbn",
+		withPublicationDate: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publication_date_id IS NOT NULL) AS with_publication_date",
+		withCoverImage: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.cover_image_url IS NOT NULL AND b.cover_image_url <> '') AS with_cover_image",
+		withDescription: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.description IS NOT NULL AND b.description <> '') AS with_description",
+		withBookType: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.book_type_id IS NOT NULL) AS with_book_type",
+		withPublisher: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publisher_id IS NOT NULL) AS with_publisher",
+		avgPageCount: "AVG(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS avg_page_count",
+		minPageCount: "MIN(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS min_page_count",
+		maxPageCount: "MAX(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS max_page_count",
+		withTags: "(SELECT COUNT(DISTINCT bt.book_id) FROM book_tags bt JOIN books b2 ON bt.book_id = b2.id WHERE bt.user_id = $1 AND b2.deleted_at IS NULL) AS with_tags",
+		withLanguages: "(SELECT COUNT(DISTINCT bl.book_id) FROM book_languages bl JOIN books b2 ON bl.book_id = b2.id WHERE bl.user_id = $1 AND b2.deleted_at IS NULL) AS with_languages",
+		withAuthors: "(SELECT COUNT(DISTINCT ba.book_id) FROM book_authors ba JOIN books b2 ON ba.book_id = b2.id WHERE ba.user_id = $1 AND b2.deleted_at IS NULL) AS with_authors",
+		withSeries: "(SELECT COUNT(DISTINCT bsb.book_id) FROM book_series_books bsb JOIN books b2 ON bsb.book_id = b2.id WHERE bsb.user_id = $1 AND b2.deleted_at IS NULL) AS with_series",
+		totalCopies: "(SELECT COUNT(*) FROM book_copies bc JOIN books b2 ON bc.book_id = b2.id WHERE bc.user_id = $1 AND b2.deleted_at IS NULL) AS total_copies"
+	};
+
+	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
+	const invalid = selected.filter((field) => !fieldMap[field]);
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	try {
+		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
+			FROM books b
+			WHERE b.user_id = $1`;
+		const result = await pool.query(query, [userId]);
+		const row = result.rows[0] || {};
+		const payload = {};
+		selected.forEach((field) => {
+			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			payload[field] = row[key] ?? null;
+		});
+
+		return successResponse(res, 200, "Book stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("BOOK_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book stats at this time."]);
+	}
+});
+
+// POST /book/restore - Restore a deleted book
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetIsbn = normalizeIsbn(req.body?.isbn);
+	const targetTitle = normalizeText(req.body?.title);
+
+	if (!Number.isInteger(targetId) && !targetIsbn && !targetTitle) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book id, ISBN, or title to restore."]);
+	}
+	if (req.body?.isbn && !targetIsbn) {
+		return errorResponse(res, 400, "Validation Error", ["ISBN must be 10–17 characters and contain only digits, hyphens, or X."]);
+	}
+	if (targetTitle) {
+		const titleErrors = validateTitle(targetTitle);
+		if (titleErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", titleErrors);
+		}
+	}
+
+	const resolved = await resolveDeletedBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
+	}
+	if (resolved.conflict) {
+		return errorResponse(res, 409, "Multiple books matched.", ["Multiple deleted books share this title. Please use id or ISBN."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
+		return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+	}
+
+	try {
+		const result = await pool.query(
+			`UPDATE books SET deleted_at = NULL WHERE user_id = $1 AND id = $2 RETURNING id`,
+			[userId, resolved.id]
+		);
+		return successResponse(res, 200, "Book restored successfully.", { id: result.rows[0].id });
+	} catch (error) {
+		logToFile("BOOK_RESTORE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the book."]);
+	}
 });
 
 module.exports = router;

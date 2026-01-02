@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS authors (
   deceased       BOOLEAN NOT NULL DEFAULT FALSE,
   death_date_id  INT REFERENCES dates(id) ON DELETE SET NULL,
   bio            TEXT,
+  deleted_at     TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, display_name)
@@ -120,6 +121,7 @@ CREATE TABLE IF NOT EXISTS publishers (
   founded_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
   website         VARCHAR(300),
   notes           TEXT,
+  deleted_at      TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
@@ -142,6 +144,7 @@ CREATE TABLE IF NOT EXISTS book_series (
   name           VARCHAR(150) NOT NULL,
   description    TEXT,
   website        VARCHAR(300),
+  deleted_at     TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
@@ -195,6 +198,7 @@ CREATE TABLE IF NOT EXISTS books (
   description        TEXT,
   book_type_id       INT REFERENCES book_types(id) ON DELETE SET NULL,
   publisher_id       INT REFERENCES publishers(id) ON DELETE SET NULL,
+  deleted_at         TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, isbn)
@@ -243,6 +247,21 @@ CREATE TABLE IF NOT EXISTS book_tags (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, book_id, tag_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_api_keys (
+  id            SERIAL PRIMARY KEY,
+  user_id       INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name          VARCHAR(120) NOT NULL,
+  key_prefix    VARCHAR(12) NOT NULL,
+  key_hash      VARCHAR(128) NOT NULL,
+  last_used_at  TIMESTAMPTZ,
+  expires_at    TIMESTAMPTZ,
+  revoked_at    TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, name),
+  UNIQUE (key_hash)
 );
 
 CREATE OR REPLACE FUNCTION update_timestamp()
@@ -330,6 +349,11 @@ EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_book_tags_modtime
 BEFORE UPDATE ON book_tags
+FOR EACH ROW
+EXECUTE FUNCTION update_timestamp();
+
+CREATE TRIGGER update_user_api_keys_modtime
+BEFORE UPDATE ON user_api_keys
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 

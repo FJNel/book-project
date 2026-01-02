@@ -489,6 +489,475 @@ This link will expire in <expiresIn> minutes.
 
 </details>
 
+## Utilities
+
+### GET /health
+
+- **Purpose:** Basic health check endpoint.
+- **Authentication:** None.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/health` |
+| Authentication | None |
+| Rate Limit | None |
+| Content-Type | N/A |
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "1.20",
+  "message": "OK",
+  "data": {
+    "status": "ok",
+    "timestamp": "2026-01-12T08:30:00.000Z"
+  },
+  "errors": []
+}
+```
+
+### GET /status
+
+- **Purpose:** Admin-only service status (database connectivity + email queue).
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/status` |
+| Authentication | `Authorization: Bearer <accessToken>` (admin) |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A |
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.42",
+  "message": "Status retrieved successfully.",
+  "data": {
+    "status": "ok",
+    "db": {
+      "healthy": true,
+      "latencyMs": 4
+    },
+    "emailQueue": {
+      "queueLength": 0,
+      "isProcessing": false
+    }
+  },
+  "errors": []
+}
+```
+
+### GET /rate-limits
+
+- **Purpose:** Return remaining rate limit information for the authenticated user.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/rate-limits` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A |
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "1.44",
+  "message": "Rate limit status retrieved successfully.",
+  "data": {
+    "limit": 60,
+    "remaining": 52,
+    "resetTime": "2026-01-12T08:31:00.000Z"
+  },
+  "errors": []
+}
+```
+
+### GET /search
+
+- **Purpose:** Global search across books, authors, publishers, series, and tags.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/search` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `q` | string | Yes | Search query. |
+| `types` | array/string | No | Filter types (`books`, `authors`, `publishers`, `series`, `tags`). |
+| `limit` | integer | No | Per-type limit (1–50). |
+| `offset` | integer | No | Offset for pagination (0+). |
+
+#### Example Request Body
+
+```json
+{
+  "q": "ring",
+  "types": ["books", "series"],
+  "limit": 10
+}
+```
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.18",
+  "message": "Search results retrieved successfully.",
+  "data": {
+    "query": "ring",
+    "limit": 10,
+    "offset": 0,
+    "results": {
+      "books": [
+        {
+          "id": 12,
+          "title": "The Lord of the Rings",
+          "subtitle": "The Fellowship of the Ring"
+        }
+      ],
+      "series": [
+        {
+          "id": 8,
+          "name": "The Lord of the Rings"
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+## Import/Export
+
+### GET /export
+
+- **Purpose:** Export the user’s library data as JSON or CSV.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/export` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `format` | string | No | `json` (default) or `csv`. |
+| `entity` | string | No | `all` (default) or a specific entity (`books`, `authors`, `publishers`, `bookSeries`, `tags`, `bookTypes`, `languages`, `storageLocations`). |
+| `includeDeleted` | boolean | No | Include soft-deleted records. |
+
+#### Example Request Body
+
+```json
+{
+  "format": "json",
+  "entity": "all",
+  "includeDeleted": false
+}
+```
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "7.44",
+  "message": "Export generated successfully.",
+  "data": {
+    "format": "json",
+    "entity": "all",
+    "exportedAt": "2026-01-12T08:40:00.000Z",
+    "data": {
+      "books": [],
+      "authors": [],
+      "publishers": []
+    }
+  },
+  "errors": []
+}
+```
+
+### POST /import
+
+- **Purpose:** Import library data in JSON or CSV with optional dry-run validation.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/import` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `format` | string | No | `json` (default) or `csv`. |
+| `entity` | string | No | `all` (default) or a specific entity. |
+| `dryRun` | boolean | No | When true, validates without writing to the database. |
+| `data` | object/array | Conditional | JSON payload when `format=json`. |
+| `csv` | string | Conditional | CSV text when `format=csv`. |
+
+#### Example Request Body
+
+```json
+{
+  "format": "json",
+  "entity": "all",
+  "dryRun": true,
+  "data": {
+    "authors": [
+      {
+        "displayName": "J.R.R. Tolkien",
+        "deceased": true
+      }
+    ],
+    "books": [
+      {
+        "title": "The Hobbit",
+        "authorDisplayNames": ["J.R.R. Tolkien"]
+      }
+    ]
+  }
+}
+```
+
+#### Example Responses
+
+- **Dry Run (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "5.88",
+  "message": "Dry run completed.",
+  "data": {
+    "entity": "all",
+    "format": "json",
+    "dryRun": true,
+    "processed": 2,
+    "created": 0,
+    "updated": 0,
+    "errors": []
+  },
+  "errors": []
+}
+```
+
+## API Keys
+
+### GET /users/me/api-keys
+
+- **Purpose:** List API keys for the authenticated user.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/users/me/api-keys` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `includeRevoked` | boolean | No | Include revoked keys. |
+| `includeExpired` | boolean | No | Include expired keys. |
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.12",
+  "message": "API keys retrieved successfully.",
+  "data": {
+    "keys": [
+      {
+        "id": 2,
+        "name": "CLI Script",
+        "prefix": "ab12cd34",
+        "lastUsedAt": "2026-01-10T10:02:11.000Z",
+        "expiresAt": null,
+        "revokedAt": null,
+        "createdAt": "2026-01-09T09:00:00.000Z",
+        "updatedAt": "2026-01-09T09:00:00.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /users/me/api-keys
+
+- **Purpose:** Create a new API key (token returned once).
+- **Authentication:** Access token required.
+
+#### Example Request Body
+
+```json
+{
+  "name": "CLI Script",
+  "expiresInDays": 365
+}
+```
+
+#### Example Responses
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "2.44",
+  "message": "API key created successfully.",
+  "data": {
+    "id": 2,
+    "name": "CLI Script",
+    "prefix": "ab12cd34",
+    "expiresAt": "2027-01-10T10:02:11.000Z",
+    "token": "ab12cd34...."
+  },
+  "errors": []
+}
+```
+
+### DELETE /users/me/api-keys
+
+- **Purpose:** Revoke an API key by id, name, or prefix.
+- **Authentication:** Access token required.
+
+#### Example Request Body
+
+```json
+{
+  "id": 2
+}
+```
+
+## Stats
+
+### GET /users/me/stats
+
+- **Purpose:** Summary statistics for the authenticated user.
+- **Authentication:** Access token or API key required.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["books", "authors", "tags", "bookCopies"]
+}
+```
+
+### GET /author/stats
+
+- **Purpose:** Author statistics.
+- **Authentication:** Access token or API key required.
+
+### GET /publisher/stats
+
+- **Purpose:** Publisher statistics.
+- **Authentication:** Access token or API key required.
+
+### GET /bookseries/stats
+
+- **Purpose:** Series statistics.
+- **Authentication:** Access token or API key required.
+
+### GET /book/stats
+
+- **Purpose:** Book statistics.
+- **Authentication:** Access token or API key required.
+
+## Trash & Restore
+
+### GET /author/trash
+### POST /author/restore
+### GET /publisher/trash
+### POST /publisher/restore
+### GET /bookseries/trash
+### POST /bookseries/restore
+### GET /book/trash
+### POST /book/restore
+
+All trash endpoints list soft-deleted records. Restore endpoints accept the same identifiers as their delete endpoints and re-activate the record by clearing `deletedAt`.
+
+## Storage Locations
+
+### GET /storagelocation/:id/bookcopies
+
+- **Purpose:** List book copies stored in a location. If `recursive=true`, includes nested locations.
+- **Authentication:** Access token or API key required.
+
+#### Example Request Body
+
+```json
+{
+  "recursive": true
+}
+```
+
 ### POST /auth/resend-verification
 
 - **Purpose:** Re-send the verification email for an unverified account.

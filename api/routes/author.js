@@ -129,7 +129,7 @@ async function resolveAuthorId({ userId, id, displayName }) {
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, display_name FROM authors WHERE user_id = $1 AND id = $2`,
+			`SELECT id, display_name FROM authors WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].display_name !== displayName) {
@@ -144,7 +144,7 @@ async function resolveAuthorId({ userId, id, displayName }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM authors WHERE user_id = $1 AND display_name = $2`,
+			`SELECT id FROM authors WHERE user_id = $1 AND display_name = $2 AND deleted_at IS NULL`,
 			[userId, displayName]
 		);
 		if (result.rows.length === 0) {
@@ -172,6 +172,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.displayName ?? req.body?.displayName);
 
@@ -200,7 +201,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				 FROM authors a
 				 LEFT JOIN dates bd ON a.birth_date_id = bd.id
 				 LEFT JOIN dates dd ON a.death_date_id = dd.id
-				 WHERE a.user_id = $1 AND a.id = $2`,
+				 WHERE a.user_id = $1 AND a.id = $2 AND a.deleted_at IS NULL`,
 				[userId, resolved.id]
 			);
 
@@ -277,6 +278,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const filters = [];
 	const values = [userId];
 	let paramIndex = 2;
+
+	if (!includeDeleted) {
+		filters.push("a.deleted_at IS NULL");
+	}
 
 	const filterIdRaw = listParams.filterId;
 	if (filterIdRaw !== undefined) {
@@ -657,7 +662,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			 FROM authors a
 			 LEFT JOIN dates bd ON a.birth_date_id = bd.id
 			 LEFT JOIN dates dd ON a.death_date_id = dd.id
-			 WHERE a.user_id = $1 AND a.display_name = $2`,
+			 WHERE a.user_id = $1 AND a.display_name = $2 AND a.deleted_at IS NULL`,
 			[userId, displayName]
 		);
 
@@ -694,6 +699,99 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
+// GET /author/trash - List deleted authors
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, display_name, first_names, last_name, deceased, bio, deleted_at, created_at, updated_at
+			 FROM authors
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			displayName: row.display_name,
+			firstNames: row.first_names,
+			lastName: row.last_name,
+			deceased: row.deceased,
+			bio: row.bio,
+			deletedAt: row.deleted_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "Deleted authors retrieved successfully.", { authors: payload });
+	} catch (error) {
+		logToFile("AUTHOR_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted authors."]);
+	}
+});
+
+// GET /author/stats - Author statistics
+router.get("/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const fieldMap = {
+		total: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL) AS total",
+		deleted: "COUNT(*) FILTER (WHERE a.deleted_at IS NOT NULL) AS deleted",
+		deceased: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = true) AS deceased",
+		alive: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = false) AS alive",
+		withBirthDate: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.birth_date_id IS NOT NULL) AS with_birth_date",
+		withDeathDate: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.death_date_id IS NOT NULL) AS with_death_date",
+		withBio: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.bio IS NOT NULL AND a.bio <> '') AS with_bio",
+		earliestBirthYear: "MIN(bd.year) FILTER (WHERE a.deleted_at IS NULL) AS earliest_birth_year",
+		latestBirthYear: "MAX(bd.year) FILTER (WHERE a.deleted_at IS NULL) AS latest_birth_year",
+		earliestDeathYear: "MIN(dd.year) FILTER (WHERE a.deleted_at IS NULL) AS earliest_death_year",
+		latestDeathYear: "MAX(dd.year) FILTER (WHERE a.deleted_at IS NULL) AS latest_death_year"
+	};
+
+	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
+	const invalid = selected.filter((field) => !fieldMap[field]);
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	try {
+		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
+			FROM authors a
+			LEFT JOIN dates bd ON a.birth_date_id = bd.id
+			LEFT JOIN dates dd ON a.death_date_id = dd.id
+			WHERE a.user_id = $1`;
+
+		const result = await pool.query(query, [userId]);
+		const row = result.rows[0] || {};
+		const payload = {};
+		selected.forEach((field) => {
+			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			payload[field] = row[key] ?? null;
+		});
+
+		return successResponse(res, 200, "Author stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("AUTHOR_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve author stats at this time."]);
+	}
+});
+
 // GET /author/:id - Fetch an author by id
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -711,7 +809,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			 FROM authors a
 			 LEFT JOIN dates bd ON a.birth_date_id = bd.id
 			 LEFT JOIN dates dd ON a.death_date_id = dd.id
-			 WHERE a.user_id = $1 AND a.id = $2`,
+			 WHERE a.user_id = $1 AND a.id = $2 AND a.deleted_at IS NULL`,
 			[userId, id]
 		);
 
@@ -796,7 +894,7 @@ async function handleAuthorUpdate(req, res, authorId) {
 	try {
 		if (hasDeathDate && !hasDeceased) {
 			const current = await pool.query(
-				`SELECT deceased FROM authors WHERE user_id = $1 AND id = $2`,
+				`SELECT deceased FROM authors WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 				[userId, authorId]
 			);
 			if (current.rows.length === 0) {
@@ -809,7 +907,7 @@ async function handleAuthorUpdate(req, res, authorId) {
 
 		if (hasDisplayName) {
 			const existing = await pool.query(
-				`SELECT id FROM authors WHERE user_id = $1 AND LOWER(display_name) = LOWER($2) AND id <> $3`,
+				`SELECT id FROM authors WHERE user_id = $1 AND LOWER(display_name) = LOWER($2) AND id <> $3 AND deleted_at IS NULL`,
 				[userId, displayName, authorId]
 			);
 			if (existing.rows.length > 0) {
@@ -865,7 +963,7 @@ async function handleAuthorUpdate(req, res, authorId) {
 			const result = await client.query(
 				`UPDATE authors
 				 SET ${updateFields.join(", ")}, updated_at = NOW()
-				 WHERE user_id = $1 AND id = $2
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 				 RETURNING id, display_name, first_names, last_name, birth_date_id, deceased, death_date_id, bio, created_at, updated_at`,
 				params
 			);
@@ -957,7 +1055,10 @@ async function handleAuthorDelete(req, res, authorId) {
 	const userId = req.user.id;
 	try {
 		const result = await pool.query(
-			`DELETE FROM authors WHERE user_id = $1 AND id = $2`,
+			`UPDATE authors
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
 			[userId, authorId]
 		);
 
@@ -973,7 +1074,10 @@ async function handleAuthorDelete(req, res, authorId) {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Author deleted successfully.", { id: authorId });
+		return successResponse(res, 200, "Author moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at
+		});
 	} catch (error) {
 		logToFile("AUTHOR_DELETE", {
 			status: "FAILURE",
@@ -1019,6 +1123,67 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
 	}
 	return handleAuthorDelete(req, res, resolved.id);
+});
+
+// POST /author/restore - Restore a deleted author
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.displayName);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide an author id or display name to restore."]);
+	}
+	if (targetName) {
+		const nameErrors = validateDisplayName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const values = [userId];
+	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
+	let idx = 2;
+
+	if (Number.isInteger(targetId)) {
+		clauses.push(`id = $${idx++}`);
+		values.push(targetId);
+	}
+	if (targetName) {
+		clauses.push(`display_name = $${idx++}`);
+		values.push(targetName);
+	}
+
+	try {
+		const match = await pool.query(
+			`SELECT id FROM authors WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific author identifier."]);
+		}
+
+		const restored = await pool.query(
+			`UPDATE authors SET deleted_at = NULL WHERE id = $1 RETURNING id`,
+			[match.rows[0].id]
+		);
+
+		return successResponse(res, 200, "Author restored successfully.", {
+			id: restored.rows[0].id
+		});
+	} catch (error) {
+		logToFile("AUTHOR_RESTORE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the author."]);
+	}
 });
 
 module.exports = router;

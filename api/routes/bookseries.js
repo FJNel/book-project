@@ -148,7 +148,7 @@ async function resolveSeriesId({ userId, id, name }) {
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2`,
+			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].name !== name) {
@@ -163,7 +163,7 @@ async function resolveSeriesId({ userId, id, name }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2`,
+			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
@@ -206,7 +206,7 @@ async function fetchSeriesDateRange(userId, seriesId) {
 		 FROM book_series_books bsb
 		 JOIN books b ON bsb.book_id = b.id
 		 JOIN dates d ON b.publication_date_id = d.id
-		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
+		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL AND b.deleted_at IS NULL
 		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) ASC
 		 LIMIT 1`,
 		[userId, seriesId]
@@ -217,7 +217,7 @@ async function fetchSeriesDateRange(userId, seriesId) {
 		 FROM book_series_books bsb
 		 JOIN books b ON bsb.book_id = b.id
 		 JOIN dates d ON b.publication_date_id = d.id
-		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL
+		 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND d.year IS NOT NULL AND b.deleted_at IS NULL
 		 ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
 		 LIMIT 1`,
 		[userId, seriesId]
@@ -237,6 +237,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -260,7 +261,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const result = await pool.query(
 				`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 				 FROM book_series s
-				 WHERE s.user_id = $1 AND s.id = $2`,
+				 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
 				[userId, resolved.id]
 			);
 
@@ -340,6 +341,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const filters = [];
 	const values = [userId];
 	let paramIndex = 2;
+
+	if (!includeDeleted) {
+		filters.push("s.deleted_at IS NULL");
+	}
 
 	if (listParams.filterId !== undefined) {
 		const filterId = parseId(listParams.filterId);
@@ -681,7 +686,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const result = await pool.query(
 			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 			 FROM book_series s
-			 WHERE s.user_id = $1 AND s.name = $2`,
+			 WHERE s.user_id = $1 AND s.name = $2 AND s.deleted_at IS NULL`,
 			[userId, rawName]
 		);
 
@@ -715,6 +720,99 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
+// GET /bookseries/trash - List deleted series
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, name, description, website, deleted_at, created_at, updated_at
+			 FROM book_series
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			description: row.description,
+			website: row.website,
+			deletedAt: row.deleted_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "Deleted series retrieved successfully.", { series: payload });
+	} catch (error) {
+		logToFile("BOOK_SERIES_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted series."]);
+	}
+});
+
+// GET /bookseries/stats - Series statistics
+router.get("/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const fieldMap = {
+		total: "COUNT(*) FILTER (WHERE deleted_at IS NULL) AS total",
+		deleted: "COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted",
+		withDescription: "COUNT(*) FILTER (WHERE deleted_at IS NULL AND description IS NOT NULL AND description <> '') AS with_description",
+		withWebsite: "COUNT(*) FILTER (WHERE deleted_at IS NULL AND website IS NOT NULL AND website <> '') AS with_website",
+		withBooks: "COUNT(*) FILTER (WHERE deleted_at IS NULL AND book_count > 0) AS with_books",
+		avgBooksPerSeries: "AVG(book_count) FILTER (WHERE deleted_at IS NULL) AS avg_books_per_series",
+		minBooksPerSeries: "MIN(book_count) FILTER (WHERE deleted_at IS NULL) AS min_books_per_series",
+		maxBooksPerSeries: "MAX(book_count) FILTER (WHERE deleted_at IS NULL) AS max_books_per_series"
+	};
+
+	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
+	const invalid = selected.filter((field) => !fieldMap[field]);
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	try {
+		const query = `WITH series_counts AS (
+				SELECT bs.id, bs.deleted_at, bs.description, bs.website, COUNT(bsb.id) AS book_count
+				FROM book_series bs
+				LEFT JOIN book_series_books bsb ON bsb.series_id = bs.id AND bsb.user_id = $1
+				LEFT JOIN books b ON bsb.book_id = b.id AND b.deleted_at IS NULL
+				WHERE bs.user_id = $1
+				GROUP BY bs.id, bs.deleted_at, bs.description, bs.website
+			)
+			SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
+			FROM series_counts`;
+
+		const result = await pool.query(query, [userId]);
+		const row = result.rows[0] || {};
+		const payload = {};
+		selected.forEach((field) => {
+			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			payload[field] = row[key] ?? null;
+		});
+
+		return successResponse(res, 200, "Series stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("BOOK_SERIES_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve series stats at this time."]);
+	}
+});
+
 // GET /bookseries/:id - Fetch a specific series by ID
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -727,7 +825,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const result = await pool.query(
 			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 			 FROM book_series s
-			 WHERE s.user_id = $1 AND s.id = $2`,
+			 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
 			[userId, id]
 		);
 
@@ -818,7 +916,7 @@ async function handleSeriesUpdate(req, res, seriesId) {
 			const result = await client.query(
 				`UPDATE book_series
 				 SET ${updateFields.join(", ")}, updated_at = NOW()
-				 WHERE user_id = $1 AND id = $2
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 				 RETURNING id, name, description, website, created_at, updated_at`,
 				params
 			);
@@ -904,7 +1002,10 @@ async function handleSeriesDelete(req, res, seriesId) {
 	const userId = req.user.id;
 	try {
 		const result = await pool.query(
-			`DELETE FROM book_series WHERE user_id = $1 AND id = $2`,
+			`UPDATE book_series
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
 			[userId, seriesId]
 		);
 
@@ -920,7 +1021,10 @@ async function handleSeriesDelete(req, res, seriesId) {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Series deleted successfully.", { id: seriesId });
+		return successResponse(res, 200, "Series moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at
+		});
 	} catch (error) {
 		logToFile("BOOK_SERIES_DELETE", {
 			status: "FAILURE",
@@ -966,6 +1070,65 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 	}
 	return handleSeriesDelete(req, res, resolved.id);
+});
+
+// POST /bookseries/restore - Restore a deleted series
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to restore."]);
+	}
+	if (targetName) {
+		const nameErrors = validateSeriesName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const values = [userId];
+	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
+	let idx = 2;
+
+	if (Number.isInteger(targetId)) {
+		clauses.push(`id = $${idx++}`);
+		values.push(targetId);
+	}
+	if (targetName) {
+		clauses.push(`name = $${idx++}`);
+		values.push(targetName);
+	}
+
+	try {
+		const match = await pool.query(
+			`SELECT id FROM book_series WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific series identifier."]);
+		}
+
+		const restored = await pool.query(
+			`UPDATE book_series SET deleted_at = NULL WHERE id = $1 RETURNING id`,
+			[match.rows[0].id]
+		);
+
+		return successResponse(res, 200, "Series restored successfully.", { id: restored.rows[0].id });
+	} catch (error) {
+		logToFile("BOOK_SERIES_RESTORE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the series."]);
+	}
 });
 
 // POST /bookseries/link - Link a book to a series

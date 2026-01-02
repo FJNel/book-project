@@ -137,7 +137,7 @@ async function resolvePublisherId({ userId, id, name }) {
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2`,
+			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].name !== name) {
@@ -152,7 +152,7 @@ async function resolvePublisherId({ userId, id, name }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2`,
+			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
@@ -180,6 +180,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -205,7 +206,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
 				 FROM publishers p
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-				 WHERE p.user_id = $1 AND p.id = $2`,
+				 WHERE p.user_id = $1 AND p.id = $2 AND p.deleted_at IS NULL`,
 				[userId, resolved.id]
 			);
 
@@ -275,6 +276,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const filters = [];
 	const values = [userId];
 	let paramIndex = 2;
+
+	if (!includeDeleted) {
+		filters.push("p.deleted_at IS NULL");
+	}
 
 	if (listParams.filterId !== undefined) {
 		const filterId = parseId(listParams.filterId);
@@ -550,7 +555,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
 			 FROM publishers p
 			 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-			 WHERE p.user_id = $1 AND p.name = $2`,
+			 WHERE p.user_id = $1 AND p.name = $2 AND p.deleted_at IS NULL`,
 			[userId, rawName]
 		);
 
@@ -582,6 +587,92 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
+// GET /publisher/trash - List deleted publishers
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, name, website, notes, deleted_at, created_at, updated_at
+			 FROM publishers
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			website: row.website,
+			notes: row.notes,
+			deletedAt: row.deleted_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "Deleted publishers retrieved successfully.", { publishers: payload });
+	} catch (error) {
+		logToFile("PUBLISHER_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted publishers."]);
+	}
+});
+
+// GET /publisher/stats - Publisher statistics
+router.get("/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const fieldMap = {
+		total: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL) AS total",
+		deleted: "COUNT(*) FILTER (WHERE p.deleted_at IS NOT NULL) AS deleted",
+		withFoundedDate: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL AND p.founded_date_id IS NOT NULL) AS with_founded_date",
+		withWebsite: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL AND p.website IS NOT NULL AND p.website <> '') AS with_website",
+		withNotes: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL AND p.notes IS NOT NULL AND p.notes <> '') AS with_notes",
+		earliestFoundedYear: "MIN(fd.year) FILTER (WHERE p.deleted_at IS NULL) AS earliest_founded_year",
+		latestFoundedYear: "MAX(fd.year) FILTER (WHERE p.deleted_at IS NULL) AS latest_founded_year"
+	};
+
+	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
+	const invalid = selected.filter((field) => !fieldMap[field]);
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	try {
+		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
+			FROM publishers p
+			LEFT JOIN dates fd ON p.founded_date_id = fd.id
+			WHERE p.user_id = $1`;
+
+		const result = await pool.query(query, [userId]);
+		const row = result.rows[0] || {};
+		const payload = {};
+		selected.forEach((field) => {
+			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			payload[field] = row[key] ?? null;
+		});
+
+		return successResponse(res, 200, "Publisher stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("PUBLISHER_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve publisher stats at this time."]);
+	}
+});
+
 // GET /publisher/:id - Fetch a specific publisher by ID
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -596,7 +687,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
 			 FROM publishers p
 			 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-			 WHERE p.user_id = $1 AND p.id = $2`,
+			 WHERE p.user_id = $1 AND p.id = $2 AND p.deleted_at IS NULL`,
 			[userId, id]
 		);
 
@@ -695,7 +786,7 @@ async function handlePublisherUpdate(req, res, publisherId) {
 			const result = await client.query(
 				`UPDATE publishers
 				 SET ${updateFields.join(", ")}, updated_at = NOW()
-				 WHERE user_id = $1 AND id = $2
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 				 RETURNING id, name, founded_date_id, website, notes, created_at, updated_at`,
 				params
 			);
@@ -782,7 +873,10 @@ async function handlePublisherDelete(req, res, publisherId) {
 	const userId = req.user.id;
 	try {
 		const result = await pool.query(
-			`DELETE FROM publishers WHERE user_id = $1 AND id = $2`,
+			`UPDATE publishers
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
 			[userId, publisherId]
 		);
 
@@ -798,7 +892,10 @@ async function handlePublisherDelete(req, res, publisherId) {
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Publisher deleted successfully.", { id: publisherId });
+		return successResponse(res, 200, "Publisher moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at
+		});
 	} catch (error) {
 		logToFile("PUBLISHER_DELETE", {
 			status: "FAILURE",
@@ -844,6 +941,67 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
 	}
 	return handlePublisherDelete(req, res, resolved.id);
+});
+
+// POST /publisher/restore - Restore a deleted publisher
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a publisher id or name to restore."]);
+	}
+	if (targetName) {
+		const nameErrors = validatePublisherName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const values = [userId];
+	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
+	let idx = 2;
+
+	if (Number.isInteger(targetId)) {
+		clauses.push(`id = $${idx++}`);
+		values.push(targetId);
+	}
+	if (targetName) {
+		clauses.push(`name = $${idx++}`);
+		values.push(targetName);
+	}
+
+	try {
+		const match = await pool.query(
+			`SELECT id FROM publishers WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific publisher identifier."]);
+		}
+
+		const restored = await pool.query(
+			`UPDATE publishers SET deleted_at = NULL WHERE id = $1 RETURNING id`,
+			[match.rows[0].id]
+		);
+
+		return successResponse(res, 200, "Publisher restored successfully.", {
+			id: restored.rows[0].id
+		});
+	} catch (error) {
+		logToFile("PUBLISHER_RESTORE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the publisher."]);
+	}
 });
 
 module.exports = router;

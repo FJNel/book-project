@@ -317,6 +317,107 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
+// GET /storagelocation/:id/bookcopies - List book copies stored in a location (recursive optional)
+router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const locationId = parseId(req.params.id);
+	const recursive = parseBooleanFlag(req.query.recursive ?? req.body?.recursive) ?? true;
+
+	if (!Number.isInteger(locationId)) {
+		return errorResponse(res, 400, "Validation Error", ["Storage location id must be a valid integer."]);
+	}
+
+	try {
+		const locationCheck = await pool.query(
+			`SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`,
+			[userId, locationId]
+		);
+		if (locationCheck.rows.length === 0) {
+			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
+		}
+
+		const locationIdsQuery = recursive
+			? `WITH RECURSIVE location_tree AS (
+					SELECT id, parent_id FROM storage_locations WHERE user_id = $1 AND id = $2
+					UNION ALL
+					SELECT sl.id, sl.parent_id
+					FROM storage_locations sl
+					JOIN location_tree lt ON sl.parent_id = lt.id
+					WHERE sl.user_id = $1
+				)
+				SELECT id FROM location_tree`
+			: `SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`;
+
+		const idsResult = await pool.query(locationIdsQuery, [userId, locationId]);
+		const ids = idsResult.rows.map((row) => row.id);
+
+		const result = await pool.query(
+			`WITH RECURSIVE location_paths AS (
+				SELECT id, parent_id, name, name::text AS path
+				FROM storage_locations
+				WHERE user_id = $1 AND parent_id IS NULL
+				UNION ALL
+				SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+				FROM storage_locations sl
+				JOIN location_paths lp ON sl.parent_id = lp.id
+				WHERE sl.user_id = $1
+			)
+			SELECT bc.id, bc.book_id, bc.storage_location_id, bc.acquisition_story, bc.acquisition_date_id,
+			       bc.acquired_from, bc.acquisition_type, bc.acquisition_location, bc.notes,
+			       bc.created_at, bc.updated_at,
+			       b.title, b.subtitle, b.isbn,
+			       d.day AS acq_day, d.month AS acq_month, d.year AS acq_year, d.text AS acq_text,
+			       lp.path AS storage_location_path
+			FROM book_copies bc
+			JOIN books b ON bc.book_id = b.id
+			LEFT JOIN dates d ON bc.acquisition_date_id = d.id
+			LEFT JOIN location_paths lp ON bc.storage_location_id = lp.id
+			WHERE bc.user_id = $1
+			  AND bc.storage_location_id = ANY($2::int[])
+			  AND b.deleted_at IS NULL
+			ORDER BY lp.path ASC NULLS LAST, bc.id ASC`,
+			[userId, ids]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			book: {
+				id: row.book_id,
+				title: row.title,
+				subtitle: row.subtitle,
+				isbn: row.isbn
+			},
+			storageLocationId: row.storage_location_id,
+			storageLocationPath: row.storage_location_path,
+			acquisitionStory: row.acquisition_story,
+			acquisitionDate: row.acquisition_date_id
+				? { id: row.acquisition_date_id, day: row.acq_day, month: row.acq_month, year: row.acq_year, text: row.acq_text }
+				: null,
+			acquiredFrom: row.acquired_from,
+			acquisitionType: row.acquisition_type,
+			acquisitionLocation: row.acquisition_location,
+			notes: row.notes,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "Book copies retrieved successfully.", {
+			locationId,
+			recursive,
+			bookCopies: payload
+		});
+	} catch (error) {
+		logToFile("STORAGE_LOCATION_BOOKCOPIES", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book copies for this location."]);
+	}
+});
+
 // POST /storagelocation - Create a storage location
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;

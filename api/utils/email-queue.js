@@ -205,4 +205,11 @@ async function runJob(job) {
 	}
 }
 
-module.exports = { enqueueEmail };
+function getQueueStats() {
+	return {
+		queueLength: queue.length,
+		isProcessing
+	};
+}
+
+module.exports = { enqueueEmail, getQueueStats };

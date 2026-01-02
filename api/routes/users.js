@@ -15,6 +15,7 @@ const fetch = global.fetch
 	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
 const config = require("../config");
 const SALT_ROUNDS = config.saltRounds;
+const { generateApiKey } = require("../utils/api-keys");
 
 const RECAPTCHA_SECRET = config.recaptchaSecret;
 
@@ -118,6 +119,27 @@ function summarizeUserAgent(userAgent) {
 
 function generateActionToken() {
 	return crypto.randomBytes(32).toString("hex");
+}
+
+function parseBooleanFlag(value) {
+	if (value === undefined || value === null || value === "") return null;
+	if (typeof value === "boolean") return value;
+	const normalized = String(value).trim().toLowerCase();
+	if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
+	if (normalized === "false" || normalized === "0" || normalized === "no") return false;
+	return null;
+}
+
+function parseId(value) {
+	if (value === undefined || value === null || value === "") return null;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) return null;
+	return parsed;
+}
+
+function normalizeText(value) {
+	if (typeof value !== "string") return "";
+	return value.trim();
 }
 
 function addMinutesToNow(minutes) {
@@ -772,6 +794,259 @@ router.delete("/me/sessions", requiresAuth, authenticatedLimiter, async (req, re
 	}
 
 	return handleSessionRevoke(req, res, fingerprint);
+});
+
+// GET /users/me/api-keys - List API keys
+router.get("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const includeRevoked = parseBooleanFlag(listParams.includeRevoked) ?? false;
+	const includeExpired = parseBooleanFlag(listParams.includeExpired) ?? false;
+
+	try {
+		const clauses = ["user_id = $1"];
+		const values = [userId];
+		let idx = 2;
+
+		if (!includeRevoked) {
+			clauses.push("revoked_at IS NULL");
+		}
+		if (!includeExpired) {
+			clauses.push("(expires_at IS NULL OR expires_at > NOW())");
+		}
+
+		const result = await pool.query(
+			`SELECT id, name, key_prefix, last_used_at, expires_at, revoked_at, created_at, updated_at
+			 FROM user_api_keys
+			 WHERE ${clauses.join(" AND ")}
+			 ORDER BY created_at DESC`,
+			values
+		);
+
+		const keys = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			prefix: row.key_prefix,
+			lastUsedAt: row.last_used_at,
+			expiresAt: row.expires_at,
+			revokedAt: row.revoked_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		}));
+
+		return successResponse(res, 200, "API keys retrieved successfully.", { keys });
+	} catch (error) {
+		logToFile("API_KEYS_LIST", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve API keys at this time."]);
+	}
+});
+
+// POST /users/me/api-keys - Create an API key
+router.post("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const name = normalizeText(req.body?.name);
+	const expiresAtInput = normalizeText(req.body?.expiresAt);
+	const expiresInDays = parseId(req.body?.expiresInDays);
+
+	const errors = [];
+	if (!name) {
+		errors.push("API key name must be provided.");
+	} else if (name.length < 2 || name.length > 120) {
+		errors.push("API key name must be between 2 and 120 characters.");
+	}
+
+	let expiresAt = null;
+	if (expiresAtInput) {
+		const parsed = Date.parse(expiresAtInput);
+		if (Number.isNaN(parsed)) {
+			errors.push("expiresAt must be a valid ISO 8601 date.");
+		} else {
+			expiresAt = new Date(parsed).toISOString();
+		}
+	}
+	if (!expiresAt && Number.isInteger(expiresInDays)) {
+		if (expiresInDays < 1 || expiresInDays > 3650) {
+			errors.push("expiresInDays must be between 1 and 3650.");
+		} else {
+			const expiry = new Date();
+			expiry.setDate(expiry.getDate() + expiresInDays);
+			expiresAt = expiry.toISOString();
+		}
+	}
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const { token, prefix, hash } = generateApiKey();
+
+	try {
+		const result = await pool.query(
+			`INSERT INTO user_api_keys (user_id, name, key_prefix, key_hash, expires_at, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+			 RETURNING id, name, key_prefix, expires_at, created_at, updated_at`,
+			[userId, name, prefix, hash, expiresAt]
+		);
+
+		const row = result.rows[0];
+		logToFile("API_KEY_CREATE", {
+			status: "SUCCESS",
+			user_id: userId,
+			key_id: row.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 201, "API key created successfully.", {
+			id: row.id,
+			name: row.name,
+			prefix: row.key_prefix,
+			expiresAt: row.expires_at,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at,
+			token
+		});
+	} catch (error) {
+		logToFile("API_KEY_CREATE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		if (error.code === "23505") {
+			return errorResponse(res, 409, "API key already exists.", ["An API key with this name already exists."]);
+		}
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to create API key at this time."]);
+	}
+});
+
+// DELETE /users/me/api-keys - Revoke an API key by id or name
+router.delete("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+	const targetPrefix = normalizeText(req.body?.prefix);
+
+	if (!Number.isInteger(targetId) && !targetName && !targetPrefix) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide an API key id, name, or prefix to revoke."]);
+	}
+
+	try {
+		const clauses = ["user_id = $1"];
+		const values = [userId];
+		let idx = 2;
+
+		if (Number.isInteger(targetId)) {
+			clauses.push(`id = $${idx++}`);
+			values.push(targetId);
+		}
+		if (targetName) {
+			clauses.push(`name = $${idx++}`);
+			values.push(targetName);
+		}
+		if (targetPrefix) {
+			clauses.push(`key_prefix = $${idx++}`);
+			values.push(targetPrefix);
+		}
+
+		const match = await pool.query(
+			`SELECT id FROM user_api_keys WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "API key not found.", ["The requested API key could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific API key identifier."]);
+		}
+
+		const keyId = match.rows[0].id;
+		await pool.query(
+			`UPDATE user_api_keys SET revoked_at = NOW() WHERE id = $1`,
+			[keyId]
+		);
+
+		logToFile("API_KEY_REVOKE", {
+			status: "SUCCESS",
+			user_id: userId,
+			key_id: keyId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "API key revoked successfully.", { id: keyId });
+	} catch (error) {
+		logToFile("API_KEY_REVOKE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to revoke API key at this time."]);
+	}
+});
+
+// GET /users/me/stats - Summary statistics for the user's library
+router.get("/me/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(listParams.fields)
+		? listParams.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const fieldMap = {
+		books: "(SELECT COUNT(*) FROM books WHERE user_id = $1 AND deleted_at IS NULL) AS books",
+		deletedBooks: "(SELECT COUNT(*) FROM books WHERE user_id = $1 AND deleted_at IS NOT NULL) AS deleted_books",
+		authors: "(SELECT COUNT(*) FROM authors WHERE user_id = $1 AND deleted_at IS NULL) AS authors",
+		deletedAuthors: "(SELECT COUNT(*) FROM authors WHERE user_id = $1 AND deleted_at IS NOT NULL) AS deleted_authors",
+		publishers: "(SELECT COUNT(*) FROM publishers WHERE user_id = $1 AND deleted_at IS NULL) AS publishers",
+		deletedPublishers: "(SELECT COUNT(*) FROM publishers WHERE user_id = $1 AND deleted_at IS NOT NULL) AS deleted_publishers",
+		series: "(SELECT COUNT(*) FROM book_series WHERE user_id = $1 AND deleted_at IS NULL) AS series",
+		deletedSeries: "(SELECT COUNT(*) FROM book_series WHERE user_id = $1 AND deleted_at IS NOT NULL) AS deleted_series",
+		bookTypes: "(SELECT COUNT(*) FROM book_types WHERE user_id = $1) AS book_types",
+		tags: "(SELECT COUNT(*) FROM tags WHERE user_id = $1) AS tags",
+		languages: "(SELECT COUNT(*) FROM languages) AS languages",
+		storageLocations: "(SELECT COUNT(*) FROM storage_locations WHERE user_id = $1) AS storage_locations",
+		bookCopies: "(SELECT COUNT(*) FROM book_copies WHERE user_id = $1) AS book_copies",
+		apiKeys: "(SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NULL) AS api_keys"
+	};
+
+	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
+	const errors = selected.filter((field) => !fieldMap[field]);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${errors.join(", ")}.`]);
+	}
+
+	try {
+		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}`;
+		const result = await pool.query(query, [userId]);
+		const row = result.rows[0] || {};
+		const payload = {};
+		selected.forEach((field) => {
+			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+			payload[field] = row[key] ?? 0;
+		});
+
+		return successResponse(res, 200, "User stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("USER_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve stats at this time."]);
+	}
 });
 
 async function changePassword(req, res) {
