@@ -10,8 +10,15 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [Envelope Fields](#envelope-fields)
   - [Rate Limiting](#rate-limiting)
   - [Shared Behaviours](#shared-behaviours)
+    - [Common Authentication Response (401)](#common-authentication-response-401)
+    - [Common Forbidden Response (403)](#common-forbidden-response-403)
+    - [Common Server Error Response (500)](#common-server-error-response-500)
+    - [Common Rate Limit Response (429)](#common-rate-limit-response-429)
+    - [Partial Date Object](#partial-date-object)
   - [Endpoints](#endpoints)
     - [GET /](#get-)
+    - [GET /health](#get-health)
+    - [GET /rate-limits](#get-rate-limits)
   - [Authentication](#authentication)
     - [POST /auth/register](#post-authregister)
     - [POST /auth/resend-verification](#post-authresend-verification)
@@ -35,6 +42,10 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [DELETE /users/me/sessions/:fingerprint](#delete-usersmesessionsfingerprint)
     - [DELETE /users/me/sessions](#delete-usersmesessions)
     - [POST /users/me/change-password](#post-usersmechange-password)
+    - [GET /users/me/api-keys](#get-usersmeapi-keys)
+    - [POST /users/me/api-keys](#post-usersmeapi-keys)
+    - [DELETE /users/me/api-keys](#delete-usersmeapi-keys)
+    - [GET /users/me/stats](#get-usersmestats)
   - [Book Types](#book-types)
     - [GET /booktype](#get-booktype)
     - [GET /booktype/:id](#get-booktypeid)
@@ -53,6 +64,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /author/:id](#put-authorid)
     - [DELETE /author](#delete-author)
     - [DELETE /author/:id](#delete-authorid)
+    - [GET /author/trash](#get-authortrash)
+    - [POST /author/restore](#post-authorrestore)
+    - [GET /author/stats](#get-authorstats)
   - [Publishers](#publishers)
     - [GET /publisher](#get-publisher)
     - [GET /publisher/:id](#get-publisherid)
@@ -62,6 +76,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /publisher/:id](#put-publisherid)
     - [DELETE /publisher](#delete-publisher)
     - [DELETE /publisher/:id](#delete-publisherid)
+    - [GET /publisher/trash](#get-publishertrash)
+    - [POST /publisher/restore](#post-publisherrestore)
+    - [GET /publisher/stats](#get-publisherstats)
   - [Book Series](#book-series)
     - [GET /bookseries](#get-bookseries)
     - [GET /bookseries/:id](#get-bookseriesid)
@@ -74,6 +91,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /bookseries/link](#post-bookserieslink)
     - [PUT /bookseries/link](#put-bookserieslink)
     - [DELETE /bookseries/link](#delete-bookserieslink)
+    - [GET /bookseries/trash](#get-bookseriestrash)
+    - [POST /bookseries/restore](#post-bookseriesrestore)
+    - [GET /bookseries/stats](#get-bookseriesstats)
   - [Languages](#languages)
     - [GET /languages](#get-languages)
   - [Books](#books)
@@ -83,6 +103,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /book/:id](#put-bookid)
     - [DELETE /book](#delete-book)
     - [DELETE /book/:id](#delete-bookid)
+    - [GET /book/trash](#get-booktrash)
+    - [POST /book/restore](#post-bookrestore)
+    - [GET /book/stats](#get-bookstats)
   - [Storage Locations](#storage-locations)
     - [GET /storagelocation](#get-storagelocation)
     - [POST /storagelocation](#post-storagelocation)
@@ -90,6 +113,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /storagelocation/:id](#put-storagelocationid)
     - [DELETE /storagelocation](#delete-storagelocation)
     - [DELETE /storagelocation/:id](#delete-storagelocationid)
+    - [GET /storagelocation/:id/bookcopies](#get-storagelocationidbookcopies)
+    - [GET /storagelocation/bookcopies](#get-storagelocationbookcopies)
   - [Book Copies](#book-copies)
     - [GET /bookcopy](#get-bookcopy)
     - [POST /bookcopy](#post-bookcopy)
@@ -99,6 +124,11 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [DELETE /bookcopy/:id](#delete-bookcopyid)
   - [Tags](#tags)
     - [GET /tags](#get-tags)
+  - [Search](#search)
+    - [GET /search](#get-search)
+  - [Import/Export](#importexport)
+    - [GET /export](#get-export)
+    - [POST /import](#post-import)
   - [Admin](#admin)
     - [GET /admin/users](#get-adminusers)
     - [GET /admin/users/:id](#get-adminusersid)
@@ -123,11 +153,16 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /admin/users/:id/force-logout](#post-adminusersidforce-logout)
     - [POST /admin/users/handle-account-deletion](#post-adminusershandle-account-deletion)
     - [POST /admin/users/:id/handle-account-deletion](#post-adminusersidhandle-account-deletion)
+    - [POST /admin/users/disable](#post-adminusersdisable)
+    - [POST /admin/users/:id/disable](#post-adminusersiddisable)
+    - [GET /admin/logs](#get-adminlogs)
     - [POST /admin/languages](#post-adminlanguages)
     - [PUT /admin/languages](#put-adminlanguages)
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
     - [DELETE /admin/languages](#delete-adminlanguages)
     - [DELETE /admin/languages/:id](#delete-adminlanguagesid)
+    - [GET /status](#get-status)
+
 
 **Base URL:** `https://api.fjnel.co.za`
 
@@ -308,13 +343,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | Method | `GET` |
 | Path | `/` |
 | Authentication | None |
-| Content-Type | `application/json` (optional body) |
-
-#### Example Request Body
-
-```json
-{}
-```
+| Content-Type | None |
 
 #### Required Headers
 
@@ -323,11 +352,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | `Accept` | No | `application/json` | Responses are JSON by default. |
 | `Authorization` | No | — | Not used. |
 
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| *(none)* | — | — | This endpoint does not accept a request body. |
+#### Example Responses
 
 - **Successful Response (200):**
 
@@ -340,6 +365,91 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
   "data": {
     "timestamp": "14/01/2025, 17:23:51",
     "api_documentation_url": "https://api.fjnel.co.za/api-docs.html"
+  },
+  "errors": []
+}
+```
+
+---
+
+### GET /health
+
+- **Purpose:** Simple health check for uptime monitoring.
+- **Authentication:** Not required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/health` |
+| Authentication | None |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Accept` | No | `application/json` | Responses are JSON. |
+| `Authorization` | No | — | Not used. |
+
+#### Example Responses
+
+- **Healthy (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "1.12",
+  "message": "OK",
+  "data": {
+    "status": "ok",
+    "timestamp": "2026-01-02T15:59:12.921Z"
+  },
+  "errors": []
+}
+```
+
+---
+
+### GET /rate-limits
+
+- **Purpose:** Return the current rate-limit window for the authenticated user.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/rate-limits` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Rate Limit Status (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "1.74",
+  "message": "Rate limit status retrieved successfully.",
+  "data": {
+    "limit": 60,
+    "remaining": 54,
+    "resetTime": "2026-01-02T16:05:00.000Z"
   },
   "errors": []
 }
@@ -488,475 +598,6 @@ This link will expire in <expiresIn> minutes.
 ```
 
 </details>
-
-## Utilities
-
-### GET /health
-
-- **Purpose:** Basic health check endpoint.
-- **Authentication:** None.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/health` |
-| Authentication | None |
-| Rate Limit | None |
-| Content-Type | N/A |
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "1.20",
-  "message": "OK",
-  "data": {
-    "status": "ok",
-    "timestamp": "2026-01-12T08:30:00.000Z"
-  },
-  "errors": []
-}
-```
-
-### GET /status
-
-- **Purpose:** Admin-only service status (database connectivity + email queue).
-- **Authentication:** Admin access token required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/status` |
-| Authentication | `Authorization: Bearer <accessToken>` (admin) |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A |
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.42",
-  "message": "Status retrieved successfully.",
-  "data": {
-    "status": "ok",
-    "db": {
-      "healthy": true,
-      "latencyMs": 4
-    },
-    "emailQueue": {
-      "queueLength": 0,
-      "isProcessing": false
-    }
-  },
-  "errors": []
-}
-```
-
-### GET /rate-limits
-
-- **Purpose:** Return remaining rate limit information for the authenticated user.
-- **Authentication:** Access token or API key required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/rate-limits` |
-| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A |
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "1.44",
-  "message": "Rate limit status retrieved successfully.",
-  "data": {
-    "limit": 60,
-    "remaining": 52,
-    "resetTime": "2026-01-12T08:31:00.000Z"
-  },
-  "errors": []
-}
-```
-
-### GET /search
-
-- **Purpose:** Global search across books, authors, publishers, series, and tags.
-- **Authentication:** Access token or API key required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/search` |
-| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (optional body) |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `q` | string | Yes | Search query. |
-| `types` | array/string | No | Filter types (`books`, `authors`, `publishers`, `series`, `tags`). |
-| `limit` | integer | No | Per-type limit (1–50). |
-| `offset` | integer | No | Offset for pagination (0+). |
-
-#### Example Request Body
-
-```json
-{
-  "q": "ring",
-  "types": ["books", "series"],
-  "limit": 10
-}
-```
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "3.18",
-  "message": "Search results retrieved successfully.",
-  "data": {
-    "query": "ring",
-    "limit": 10,
-    "offset": 0,
-    "results": {
-      "books": [
-        {
-          "id": 12,
-          "title": "The Lord of the Rings",
-          "subtitle": "The Fellowship of the Ring"
-        }
-      ],
-      "series": [
-        {
-          "id": 8,
-          "name": "The Lord of the Rings"
-        }
-      ]
-    }
-  },
-  "errors": []
-}
-```
-
-## Import/Export
-
-### GET /export
-
-- **Purpose:** Export the user’s library data as JSON or CSV.
-- **Authentication:** Access token or API key required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/export` |
-| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (optional body) |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `format` | string | No | `json` (default) or `csv`. |
-| `entity` | string | No | `all` (default) or a specific entity (`books`, `authors`, `publishers`, `bookSeries`, `tags`, `bookTypes`, `languages`, `storageLocations`). |
-| `includeDeleted` | boolean | No | Include soft-deleted records. |
-
-#### Example Request Body
-
-```json
-{
-  "format": "json",
-  "entity": "all",
-  "includeDeleted": false
-}
-```
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "7.44",
-  "message": "Export generated successfully.",
-  "data": {
-    "format": "json",
-    "entity": "all",
-    "exportedAt": "2026-01-12T08:40:00.000Z",
-    "data": {
-      "books": [],
-      "authors": [],
-      "publishers": []
-    }
-  },
-  "errors": []
-}
-```
-
-### POST /import
-
-- **Purpose:** Import library data in JSON or CSV with optional dry-run validation.
-- **Authentication:** Access token or API key required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `POST` |
-| Path | `/import` |
-| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `format` | string | No | `json` (default) or `csv`. |
-| `entity` | string | No | `all` (default) or a specific entity. |
-| `dryRun` | boolean | No | When true, validates without writing to the database. |
-| `data` | object/array | Conditional | JSON payload when `format=json`. |
-| `csv` | string | Conditional | CSV text when `format=csv`. |
-
-#### Example Request Body
-
-```json
-{
-  "format": "json",
-  "entity": "all",
-  "dryRun": true,
-  "data": {
-    "authors": [
-      {
-        "displayName": "J.R.R. Tolkien",
-        "deceased": true
-      }
-    ],
-    "books": [
-      {
-        "title": "The Hobbit",
-        "authorDisplayNames": ["J.R.R. Tolkien"]
-      }
-    ]
-  }
-}
-```
-
-#### Example Responses
-
-- **Dry Run (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "5.88",
-  "message": "Dry run completed.",
-  "data": {
-    "entity": "all",
-    "format": "json",
-    "dryRun": true,
-    "processed": 2,
-    "created": 0,
-    "updated": 0,
-    "errors": []
-  },
-  "errors": []
-}
-```
-
-## API Keys
-
-### GET /users/me/api-keys
-
-- **Purpose:** List API keys for the authenticated user.
-- **Authentication:** Access token or API key required.
-
-#### Request Overview
-
-| Property | Value |
-| --- | --- |
-| Method | `GET` |
-| Path | `/users/me/api-keys` |
-| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key` |
-| Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (optional body) |
-
-#### Body Parameters
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `includeRevoked` | boolean | No | Include revoked keys. |
-| `includeExpired` | boolean | No | Include expired keys. |
-
-#### Example Responses
-
-- **Response (200):**
-
-```json
-{
-  "status": "success",
-  "httpCode": 200,
-  "responseTime": "2.12",
-  "message": "API keys retrieved successfully.",
-  "data": {
-    "keys": [
-      {
-        "id": 2,
-        "name": "CLI Script",
-        "prefix": "ab12cd34",
-        "lastUsedAt": "2026-01-10T10:02:11.000Z",
-        "expiresAt": null,
-        "revokedAt": null,
-        "createdAt": "2026-01-09T09:00:00.000Z",
-        "updatedAt": "2026-01-09T09:00:00.000Z"
-      }
-    ]
-  },
-  "errors": []
-}
-```
-
-### POST /users/me/api-keys
-
-- **Purpose:** Create a new API key (token returned once).
-- **Authentication:** Access token required.
-
-#### Example Request Body
-
-```json
-{
-  "name": "CLI Script",
-  "expiresInDays": 365
-}
-```
-
-#### Example Responses
-
-```json
-{
-  "status": "success",
-  "httpCode": 201,
-  "responseTime": "2.44",
-  "message": "API key created successfully.",
-  "data": {
-    "id": 2,
-    "name": "CLI Script",
-    "prefix": "ab12cd34",
-    "expiresAt": "2027-01-10T10:02:11.000Z",
-    "token": "ab12cd34...."
-  },
-  "errors": []
-}
-```
-
-### DELETE /users/me/api-keys
-
-- **Purpose:** Revoke an API key by id, name, or prefix.
-- **Authentication:** Access token required.
-
-#### Example Request Body
-
-```json
-{
-  "id": 2
-}
-```
-
-## Stats
-
-### GET /users/me/stats
-
-- **Purpose:** Summary statistics for the authenticated user.
-- **Authentication:** Access token or API key required.
-
-#### Example Request Body
-
-```json
-{
-  "fields": ["books", "authors", "tags", "bookCopies"]
-}
-```
-
-### GET /author/stats
-
-- **Purpose:** Author statistics.
-- **Authentication:** Access token or API key required.
-
-### GET /publisher/stats
-
-- **Purpose:** Publisher statistics.
-- **Authentication:** Access token or API key required.
-
-### GET /bookseries/stats
-
-- **Purpose:** Series statistics.
-- **Authentication:** Access token or API key required.
-
-### GET /book/stats
-
-- **Purpose:** Book statistics.
-- **Authentication:** Access token or API key required.
-
-## Trash & Restore
-
-### GET /author/trash
-### POST /author/restore
-### GET /publisher/trash
-### POST /publisher/restore
-### GET /bookseries/trash
-### POST /bookseries/restore
-### GET /book/trash
-### POST /book/restore
-
-All trash endpoints list soft-deleted records. Restore endpoints accept the same identifiers as their delete endpoints and re-activate the record by clearing `deletedAt`.
-
-## Storage Locations
-
-### GET /storagelocation/:id/bookcopies
-
-- **Purpose:** List book copies stored in a location. If `recursive=true`, includes nested locations.
-- **Authentication:** Access token or API key required.
-
-#### Example Request Body
-
-```json
-{
-  "recursive": true
-}
-```
 
 ### POST /auth/resend-verification
 
@@ -2047,6 +1688,8 @@ If you did not reset your password, please contact the system administrator at <
 
 </details>
 
+## User Management
+
 ### GET /users/me
 
 - **Purpose:** Retrieve the authenticated user's profile and connected OAuth providers.
@@ -3114,6 +2757,382 @@ Please reach out to the user before fully deleting this account and all associat
 
 </details>
 
+### GET /users/me/api-keys
+
+- **Purpose:** Retrieve API keys for the authenticated user.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/users/me/api-keys` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `includeRevoked` | boolean | No | Include revoked keys in the list (default: `false`). |
+| `includeExpired` | boolean | No | Include expired keys in the list (default: `false`). |
+
+#### Validation & Edge Cases
+
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Revoked or expired keys are excluded by default.
+
+#### Example Request Body
+
+```json
+{
+  "includeRevoked": true,
+  "includeExpired": true
+}
+```
+
+#### Example Responses
+
+- **Successful Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.27",
+  "message": "API keys retrieved successfully.",
+  "data": {
+    "keys": [
+      {
+        "id": 12,
+        "name": "Gondor CLI Key",
+        "prefix": "bk_4f8a",
+        "lastUsedAt": "2026-01-02T14:32:19.000Z",
+        "expiresAt": null,
+        "revokedAt": null,
+        "createdAt": "2026-01-01T10:12:41.000Z",
+        "updatedAt": "2026-01-01T10:12:41.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /users/me/api-keys
+
+- **Purpose:** Create a personal API key for script access.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/users/me/api-keys` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–120 characters; display name for the key. |
+| `expiresAt` | string | No | ISO 8601 timestamp when the key should expire. |
+| `expiresInDays` | integer | No | Convenience expiry in days (1–3650). Ignored if `expiresAt` is supplied. |
+
+#### Validation & Edge Cases
+
+- `expiresAt` must be a valid ISO 8601 date when provided.
+- If both `expiresAt` and `expiresInDays` are provided, `expiresAt` takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "name": "Hogwarts Scripts",
+  "expiresInDays": 90
+}
+```
+
+#### Example Responses
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "2.61",
+  "message": "API key created successfully.",
+  "data": {
+    "id": 18,
+    "name": "Hogwarts Scripts",
+    "prefix": "bk_a8d2",
+    "expiresAt": "2026-04-02T16:42:10.000Z",
+    "createdAt": "2026-01-02T16:42:10.000Z",
+    "updatedAt": "2026-01-02T16:42:10.000Z",
+    "token": "bk_a8d2...."
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "1.92",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "API key name must be between 2 and 120 characters."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.02",
+  "message": "API key already exists.",
+  "data": {},
+  "errors": [
+    "An API key with this name already exists."
+  ]
+}
+```
+
+</details>
+
+### DELETE /users/me/api-keys
+
+- **Purpose:** Revoke an API key by id, name, or prefix.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/users/me/api-keys` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | API key id to revoke. |
+| `name` | string | Conditional | API key name to revoke. |
+| `prefix` | string | Conditional | API key prefix (first 6 chars). |
+
+#### Validation & Edge Cases
+
+- At least one identifier must be provided.
+- If multiple identifiers are provided, they must refer to the same key.
+- If the provided identifiers match multiple records, the API returns `400` and requests a more specific identifier.
+
+#### Example Request Body
+
+```json
+{
+  "prefix": "bk_4f8a"
+}
+```
+
+#### Example Responses
+
+- **Revoked (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.08",
+  "message": "API key revoked successfully.",
+  "data": {
+    "id": 12
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "1.76",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide an API key id, name, or prefix to revoke."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.41",
+  "message": "API key not found.",
+  "data": {},
+  "errors": [
+    "The requested API key could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /users/me/stats
+
+- **Purpose:** Retrieve user-level library statistics for dashboard views.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/users/me/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `books`: Count of active (non-deleted) books.
+- `deletedBooks`: Count of soft-deleted books in the trash.
+- `authors`: Count of active authors.
+- `deletedAuthors`: Count of soft-deleted authors.
+- `publishers`: Count of active publishers.
+- `deletedPublishers`: Count of soft-deleted publishers.
+- `series`: Count of active book series.
+- `deletedSeries`: Count of soft-deleted book series.
+- `bookTypes`: Count of book types for the user.
+- `tags`: Count of tags for the user.
+- `languages`: Count of available languages.
+- `storageLocations`: Count of storage locations for the user.
+- `bookCopies`: Count of book copies for the user.
+- `apiKeys`: Count of active (non-revoked) API keys.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["books", "authors", "publishers", "tags"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.95",
+  "message": "User stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "books": 120,
+      "authors": 48,
+      "publishers": 16,
+      "tags": 33
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.19",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: wizards."
+  ]
+}
+```
+
+</details>
+
+## Book Types
+
 ### GET /booktype
 
 - **Purpose:** Retrieve all book types for the authenticated user.
@@ -3144,6 +3163,20 @@ Please reach out to the user before fully deleting this account and all associat
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book type id to fetch. |
+| `name` | string | No | Book type name to fetch. |
+
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -3179,20 +3212,6 @@ You can provide these list controls via query string or JSON body. If both are p
   "limit": 10
 }
 ```
-
-#### Optional Lookup (query or body)
-
-When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
-If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
-
-Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Book type id to fetch. |
-| `name` | string | No | Book type name to fetch. |
-
-If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -4110,6 +4129,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 </details>
 
+## Authors
+
 ### GET /author
 
 - **Purpose:** Retrieve all authors for the authenticated user.
@@ -4140,6 +4161,20 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | `nameOnly` | boolean | No | When true, returns only `id` and `displayName`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+#### Optional Lookup (query or body)
+
+When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
+If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Author id to fetch. |
+| `displayName` | string | No | Author display name to fetch. |
+
+If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -4205,20 +4240,6 @@ Authors without a birth/death date will not match the born/died filters.
   "order": "asc"
 }
 ```
-
-#### Optional Lookup (query or body)
-
-When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
-If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
-
-Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Author id to fetch. |
-| `displayName` | string | No | Author display name to fetch. |
-
-If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -5100,6 +5121,256 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 
 </details>
 
+### GET /author/trash
+
+- **Purpose:** Retrieve authors that have been soft-deleted (moved to trash).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/author/trash` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Deleted Authors Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.44",
+  "message": "Deleted authors retrieved successfully.",
+  "data": {
+    "authors": [
+      {
+        "id": 22,
+        "displayName": "Sauron",
+        "firstNames": null,
+        "lastName": null,
+        "birthDate": null,
+        "deceased": true,
+        "deathDate": null,
+        "bio": null,
+        "deletedAt": "2026-01-01T12:41:10.000Z",
+        "createdAt": "2025-11-12T10:04:22.000Z",
+        "updatedAt": "2025-12-22T08:15:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /author/restore
+
+- **Purpose:** Restore a soft-deleted author from the trash.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/author/restore` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | Author id to restore. |
+| `displayName` | string | Conditional | Author display name to restore. |
+
+#### Validation & Edge Cases
+
+- At least one identifier must be provided.
+- If both `id` and `displayName` are provided, they must refer to the same record.
+- If multiple deleted authors match the identifiers, the API returns `400` and requests a more specific identifier.
+
+#### Example Request Body
+
+```json
+{
+  "displayName": "Sauron"
+}
+```
+
+#### Example Responses
+
+- **Restored (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.06",
+  "message": "Author restored successfully.",
+  "data": {
+    "id": 22
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.31",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide an author id or display name to restore."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.88",
+  "message": "Author not found.",
+  "data": {},
+  "errors": [
+    "The requested author could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /author/stats
+
+- **Purpose:** Retrieve aggregate statistics about the user's authors.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/author/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `total`: Count of active (non-deleted) authors.
+- `deleted`: Count of soft-deleted authors.
+- `deceased`: Count of active authors marked as deceased.
+- `alive`: Count of active authors marked as not deceased.
+- `withBirthDate`: Count of active authors with a birth date.
+- `withDeathDate`: Count of active authors with a death date.
+- `withBio`: Count of active authors with a non-empty bio.
+- `earliestBirthYear`: Earliest birth year across active authors (null if none).
+- `latestBirthYear`: Latest birth year across active authors (null if none).
+- `earliestDeathYear`: Earliest death year across active authors (null if none).
+- `latestDeathYear`: Latest death year across active authors (null if none).
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["total", "deceased", "earliestBirthYear", "latestDeathYear"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.83",
+  "message": "Author stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "total": 42,
+      "deceased": 18,
+      "earliestBirthYear": 1890,
+      "latestDeathYear": 2020
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.14",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: wyrm."
+  ]
+}
+```
+
+</details>
+
+## Publishers
+
 ### GET /publisher
 
 - **Purpose:** Retrieve all publishers for the authenticated user.
@@ -5130,6 +5401,19 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single publisher instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Publisher id to fetch. |
+| `name` | string | No | Publisher name to fetch. |
+
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -5162,19 +5446,6 @@ You can provide these list controls via query string or JSON body. If both are p
 </details>
 
 For founded filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Publishers without a founded date will not match the founded filters.
-
-#### Optional Lookup (query or body)
-
-When `id` or `name` is provided (query string or JSON body), the endpoint returns a single publisher instead of a list.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Publisher id to fetch. |
-| `name` | string | No | Publisher name to fetch. |
-
-If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
-
-Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 #### Validation & Edge Cases
 
@@ -5983,6 +6254,248 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 </details>
 
+### GET /publisher/trash
+
+- **Purpose:** Retrieve publishers that have been soft-deleted (moved to trash).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/publisher/trash` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Deleted Publishers Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.41",
+  "message": "Deleted publishers retrieved successfully.",
+  "data": {
+    "publishers": [
+      {
+        "id": 9,
+        "name": "Shire Press",
+        "foundedDate": null,
+        "website": "https://shire-press.example",
+        "notes": null,
+        "deletedAt": "2026-01-01T12:41:10.000Z",
+        "createdAt": "2025-12-20T08:11:10.000Z",
+        "updatedAt": "2025-12-20T08:11:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /publisher/restore
+
+- **Purpose:** Restore a soft-deleted publisher from the trash.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/publisher/restore` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | Publisher id to restore. |
+| `name` | string | Conditional | Publisher name to restore. |
+
+#### Validation & Edge Cases
+
+- At least one identifier must be provided.
+- If both `id` and `name` are provided, they must refer to the same record.
+- If multiple deleted publishers match the identifiers, the API returns `400` and requests a more specific identifier.
+
+#### Example Request Body
+
+```json
+{
+  "name": "Shire Press"
+}
+```
+
+#### Example Responses
+
+- **Restored (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.08",
+  "message": "Publisher restored successfully.",
+  "data": {
+    "id": 9
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.25",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a publisher id or name to restore."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.74",
+  "message": "Publisher not found.",
+  "data": {},
+  "errors": [
+    "The requested publisher could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /publisher/stats
+
+- **Purpose:** Retrieve aggregate statistics about the user's publishers.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/publisher/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `total`: Count of active (non-deleted) publishers.
+- `deleted`: Count of soft-deleted publishers.
+- `withFoundedDate`: Count of active publishers with a founded date.
+- `withWebsite`: Count of active publishers with a website.
+- `withNotes`: Count of active publishers with notes.
+- `earliestFoundedYear`: Earliest founded year across active publishers (null if none).
+- `latestFoundedYear`: Latest founded year across active publishers (null if none).
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["total", "withWebsite", "earliestFoundedYear"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.63",
+  "message": "Publisher stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "total": 16,
+      "withWebsite": 9,
+      "earliestFoundedYear": 1937
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.18",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: wizardry."
+  ]
+}
+```
+
+</details>
+
+## Book Series
+
 ### GET /bookseries
 
 - **Purpose:** Retrieve all book series for the authenticated user.
@@ -6013,6 +6526,19 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+#### Optional Lookup (query or body)
+
+When `id` or `name` is provided (query string or JSON body), the endpoint returns a single series instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Series id to fetch. |
+| `name` | string | No | Series name to fetch. |
+
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -6052,19 +6578,6 @@ You can provide these list controls via query string or JSON body. If both are p
 </details>
 
 For started/ended filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without start/end dates will not match the corresponding filters.
-
-#### Optional Lookup (query or body)
-
-When `id` or `name` is provided (query string or JSON body), the endpoint returns a single series instead of a list.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Series id to fetch. |
-| `name` | string | No | Series name to fetch. |
-
-If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
-
-Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
 #### Validation & Edge Cases
 
@@ -7172,6 +7685,248 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 
 </details>
 
+### GET /bookseries/trash
+
+- **Purpose:** Retrieve book series that have been soft-deleted (moved to trash).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseries/trash` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Deleted Series Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.36",
+  "message": "Deleted series retrieved successfully.",
+  "data": {
+    "series": [
+      {
+        "id": 6,
+        "name": "Middle-earth Chronicles",
+        "description": null,
+        "website": "https://middle-earth.example",
+        "deletedAt": "2026-01-01T12:41:10.000Z",
+        "createdAt": "2025-12-10T08:11:10.000Z",
+        "updatedAt": "2025-12-10T08:11:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /bookseries/restore
+
+- **Purpose:** Restore a soft-deleted book series from the trash.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/bookseries/restore` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | Series id to restore. |
+| `name` | string | Conditional | Series name to restore. |
+
+#### Validation & Edge Cases
+
+- At least one identifier must be provided.
+- If both `id` and `name` are provided, they must refer to the same record.
+- If multiple deleted series match the identifiers, the API returns `400` and requests a more specific identifier.
+
+#### Example Request Body
+
+```json
+{
+  "name": "Middle-earth Chronicles"
+}
+```
+
+#### Example Responses
+
+- **Restored (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.06",
+  "message": "Series restored successfully.",
+  "data": {
+    "id": 6
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a series id or name to restore."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.78",
+  "message": "Series not found.",
+  "data": {},
+  "errors": [
+    "The requested series could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /bookseries/stats
+
+- **Purpose:** Retrieve aggregate statistics about the user's book series.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseries/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `total`: Count of active (non-deleted) series.
+- `deleted`: Count of soft-deleted series.
+- `withDescription`: Count of active series with a description.
+- `withWebsite`: Count of active series with a website.
+- `withBooks`: Count of active series linked to at least one book.
+- `avgBooksPerSeries`: Average number of books per active series.
+- `minBooksPerSeries`: Minimum number of books in any active series.
+- `maxBooksPerSeries`: Maximum number of books in any active series.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["total", "withBooks", "avgBooksPerSeries"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.71",
+  "message": "Series stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "total": 7,
+      "withBooks": 5,
+      "avgBooksPerSeries": 3.2
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.11",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: hobbits."
+  ]
+}
+```
+
+</details>
+
+## Languages
+
 ### GET /languages
 
 - **Purpose:** Retrieve all available languages (alphabetical).
@@ -7226,6 +7981,8 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 }
 ```
 
+## Books
+
 ### GET /book
 
 - **Purpose:** Retrieve all books for the authenticated user, or fetch a specific book by id, ISBN, or title.
@@ -7257,6 +8014,23 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 | `nameOnly` | boolean | No | When true, returns only `id` and `title` (overrides `view`). |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+#### Optional Lookup (query or body)
+
+When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpoint returns a single book instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book id to fetch. |
+| `isbn` | string | No | Book ISBN to fetch. |
+| `title` | string | No | Book title to fetch. |
+
+If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+Notes:
+- `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -7295,23 +8069,6 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
 </details>
-
-#### Optional Lookup (query or body)
-
-When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpoint returns a single book instead of a list.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Book id to fetch. |
-| `isbn` | string | No | Book ISBN to fetch. |
-| `title` | string | No | Book title to fetch. |
-
-If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
-
-Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
-
-Notes:
-- `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
 
 #### Validation & Edge Cases
 
@@ -8058,6 +8815,270 @@ At least one identifier is required. If multiple identifiers are provided, they 
 
 </details>
 
+### GET /book/trash
+
+- **Purpose:** Retrieve books that have been soft-deleted (moved to trash).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/book/trash` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Deleted Books Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.53",
+  "message": "Deleted books retrieved successfully.",
+  "data": {
+    "books": [
+      {
+        "id": 44,
+        "title": "The Hobbit",
+        "subtitle": null,
+        "isbn": "9780261103344",
+        "publicationDate": {
+          "id": 101,
+          "day": null,
+          "month": null,
+          "year": 1937,
+          "text": "1937"
+        },
+        "pageCount": 310,
+        "coverImageUrl": null,
+        "description": null,
+        "bookTypeId": 2,
+        "publisherId": 5,
+        "deletedAt": "2026-01-01T12:41:10.000Z",
+        "createdAt": "2025-11-12T10:04:22.000Z",
+        "updatedAt": "2025-12-22T08:15:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+### POST /book/restore
+
+- **Purpose:** Restore a soft-deleted book from the trash.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/book/restore` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | Book id to restore. |
+| `title` | string | Conditional | Book title to restore. |
+| `isbn` | string | Conditional | Book ISBN to restore. |
+
+#### Validation & Edge Cases
+
+- At least one identifier must be provided.
+- If multiple identifiers are provided, they must refer to the same record.
+- If multiple deleted books match the identifiers, the API returns `400` and requests a more specific identifier.
+
+#### Example Request Body
+
+```json
+{
+  "isbn": "9780261103344"
+}
+```
+
+#### Example Responses
+
+- **Restored (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.04",
+  "message": "Book restored successfully.",
+  "data": {
+    "id": 44
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.19",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a book id, title, or ISBN to restore."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.74",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /book/stats
+
+- **Purpose:** Retrieve aggregate statistics about the user's books.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/book/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `total`: Count of active (non-deleted) books.
+- `deleted`: Count of soft-deleted books.
+- `withIsbn`: Count of active books with an ISBN.
+- `withoutIsbn`: Count of active books without an ISBN.
+- `withPublicationDate`: Count of active books with a publication date.
+- `withCoverImage`: Count of active books with a cover image URL.
+- `withDescription`: Count of active books with a description.
+- `withBookType`: Count of active books with a book type.
+- `withPublisher`: Count of active books with a publisher.
+- `avgPageCount`: Average page count across active books (null if none).
+- `minPageCount`: Minimum page count across active books (null if none).
+- `maxPageCount`: Maximum page count across active books (null if none).
+- `withTags`: Count of active books linked to at least one tag.
+- `withLanguages`: Count of active books linked to at least one language.
+- `withAuthors`: Count of active books linked to at least one author.
+- `withSeries`: Count of active books linked to at least one series.
+- `totalCopies`: Total number of book copies across active books.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["total", "withIsbn", "totalCopies"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.66",
+  "message": "Book stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "total": 120,
+      "withIsbn": 80,
+      "totalCopies": 145
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.21",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: dragoncount."
+  ]
+}
+```
+
+</details>
+
+## Storage Locations
+
 ### GET /storagelocation
 
 - **Purpose:** Retrieve all storage locations or fetch a single location by id/path.
@@ -8652,6 +9673,249 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 </details>
 
+### GET /storagelocation/:id/bookcopies
+
+- **Purpose:** Retrieve book copies stored in a location (optionally recursive).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/storagelocation/:id/bookcopies` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `recursive` | boolean | No | Include book copies from nested child locations (default: `true`). |
+| `path` | string | No | Storage location path to validate against the `:id` path param. |
+
+#### Validation & Edge Cases
+
+- `:id` must be a valid integer.
+- If `path` is provided, it must resolve to the same location as `:id`.
+- If the location cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "recursive": true,
+  "path": "Home -> Living Room"
+}
+```
+
+#### Example Responses
+
+- **Book Copies Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.12",
+  "message": "Book copies retrieved successfully.",
+  "data": {
+    "locationId": 4,
+    "locationPath": "Home -> Living Room",
+    "recursive": true,
+    "bookCopies": [
+      {
+        "id": 21,
+        "book": {
+          "id": 44,
+          "title": "The Hobbit",
+          "subtitle": null,
+          "isbn": "9780261103344"
+        },
+        "storageLocationId": 4,
+        "storageLocationPath": "Home -> Living Room",
+        "acquisitionStory": null,
+        "acquisitionDate": null,
+        "acquiredFrom": null,
+        "acquisitionType": null,
+        "acquisitionLocation": null,
+        "notes": null,
+        "createdAt": "2025-12-12T08:11:10.000Z",
+        "updatedAt": "2025-12-12T08:11:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.09",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Storage location id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.74",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /storagelocation/bookcopies
+
+- **Purpose:** Retrieve book copies by storage location id or path (optionally recursive).
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/storagelocation/bookcopies` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Conditional | Storage location id to lookup. |
+| `path` | string | Conditional | Storage location path to lookup (e.g. `Home -> Living Room`). |
+| `recursive` | boolean | No | Include book copies from nested child locations (default: `true`). |
+
+#### Validation & Edge Cases
+
+- Provide at least one identifier (`id` or `path`).
+- If both `id` and `path` are provided, they must refer to the same record.
+- If the location cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "path": "Home -> Living Room",
+  "recursive": false
+}
+```
+
+#### Example Responses
+
+- **Book Copies Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.87",
+  "message": "Book copies retrieved successfully.",
+  "data": {
+    "locationId": 4,
+    "locationPath": "Home -> Living Room",
+    "recursive": false,
+    "bookCopies": [
+      {
+        "id": 21,
+        "book": {
+          "id": 44,
+          "title": "The Hobbit",
+          "subtitle": null,
+          "isbn": "9780261103344"
+        },
+        "storageLocationId": 4,
+        "storageLocationPath": "Home -> Living Room",
+        "acquisitionStory": null,
+        "acquisitionDate": null,
+        "acquiredFrom": null,
+        "acquisitionType": null,
+        "acquisitionLocation": null,
+        "notes": null,
+        "createdAt": "2025-12-12T08:11:10.000Z",
+        "updatedAt": "2025-12-12T08:11:10.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.03",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a storage location id or path."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.64",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
+
+</details>
+
+## Book Copies
+
 ### GET /bookcopy
 
 - **Purpose:** Retrieve all book copies, or fetch a specific copy by id.
@@ -8683,6 +9947,14 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 | `limit` | integer | No | Limit list results (1–200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
 | `includeNested` | boolean | No | When filtering by location, include nested locations (default true). |
+
+#### Optional Lookup (query or body)
+
+When `id` is provided (query string or JSON body), the endpoint returns a single book copy instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book copy id to fetch. |
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -8716,14 +9988,6 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 Notes:
 - Use `filterStorageLocationId` or `filterStorageLocationPath` with `includeNested=true` to list all copies under a location tree.
-
-#### Optional Lookup (query or body)
-
-When `id` is provided (query string or JSON body), the endpoint returns a single book copy instead of a list.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | Book copy id to fetch. |
 
 #### Validation & Edge Cases
 
@@ -9301,6 +10565,8 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 
 </details>
 
+## Tags
+
 ### GET /tags
 
 - **Purpose:** Retrieve all tags for the authenticated user (alphabetical order).
@@ -9364,6 +10630,336 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 }
 ```
 
+## Search
+
+### GET /search
+
+- **Purpose:** Global lookup across books, authors, publishers, series, and tags.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/search` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `q` | string | Yes | Search query string. |
+| `types` | array or string | No | Filter by entity types (`books`, `authors`, `publishers`, `series`, `tags`). |
+| `limit` | integer | No | Results per type (1–50, default 10). |
+| `offset` | integer | No | Offset for pagination (0–10000). |
+
+#### Validation & Edge Cases
+
+- `q` is required.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "q": "Hogwarts",
+  "types": ["books", "series"],
+  "limit": 10,
+  "offset": 0
+}
+```
+
+#### Example Responses
+
+- **Search Results (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.44",
+  "message": "Search results retrieved successfully.",
+  "data": {
+    "query": "Hogwarts",
+    "limit": 10,
+    "offset": 0,
+    "results": {
+      "books": [
+        {
+          "id": 101,
+          "title": "Harry Potter and the Philosopher's Stone",
+          "subtitle": null
+        }
+      ],
+      "series": [
+        {
+          "id": 12,
+          "name": "Harry Potter"
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Search query (q) must be provided."
+  ]
+}
+```
+
+</details>
+
+## Import/Export
+
+### GET /export
+
+- **Purpose:** Export the user's library as JSON or CSV.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/export` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `format` | string | No | `json` or `csv` (default: `json`). |
+| `entity` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
+| `includeDeleted` | boolean | No | Include soft-deleted records (default: `false`). |
+
+#### Validation & Edge Cases
+
+- `format` must be `json` or `csv`.
+- `entity` must match a supported export entity.
+- CSV exports require a specific `entity` (not `all`).
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "format": "json",
+  "entity": "all",
+  "includeDeleted": false
+}
+```
+
+#### Example Responses
+
+- **Export Generated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.31",
+  "message": "Export generated successfully.",
+  "data": {
+    "format": "json",
+    "entity": "all",
+    "exportedAt": "2026-01-02T16:03:10.000Z",
+    "data": {
+      "bookTypes": [
+        {
+          "name": "Hardcover",
+          "description": null,
+          "createdAt": "2025-12-01T10:12:41.000Z",
+          "updatedAt": "2025-12-01T10:12:41.000Z"
+        }
+      ],
+      "authors": [],
+      "publishers": [],
+      "bookSeries": [],
+      "tags": [],
+      "languages": [],
+      "storageLocations": [],
+      "books": []
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.05",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "CSV export requires a specific entity."
+  ]
+}
+```
+
+</details>
+
+### POST /import
+
+- **Purpose:** Import library data from JSON or CSV, with optional dry-run validation.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/import` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `format` | string | No | `json` or `csv` (default: `json`). |
+| `entity` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
+| `dryRun` | boolean | No | When `true`, validates without inserting data. |
+| `data` | object or array | Conditional | JSON payload (required when `format` is `json`). |
+| `csv` | string | Conditional | CSV payload (required when `format` is `csv`). |
+
+#### Validation & Edge Cases
+
+- `format` must be `json` or `csv`.
+- `entity` must match a supported import entity.
+- For CSV imports, provide a single entity and include a header row.
+- For JSON imports, `data` may be an object with keys such as `authors`, `publishers`, `bookSeries`, `tags`, `bookTypes`, `languages`, `storageLocations`, and `books`.
+- For partial dates, use the shared [Partial Date Object](#partial-date-object) shape.
+
+#### Example Request Body
+
+```json
+{
+  "format": "json",
+  "entity": "authors",
+  "dryRun": true,
+  "data": [
+    {
+      "displayName": "J.R.R. Tolkien",
+      "firstNames": "John Ronald Reuel",
+      "lastName": "Tolkien",
+      "birthDate": {
+        "day": 3,
+        "month": 1,
+        "year": 1892,
+        "text": "3 January 1892"
+      },
+      "deceased": true,
+      "deathDate": {
+        "day": 2,
+        "month": 9,
+        "year": 1973,
+        "text": "2 September 1973"
+      },
+      "bio": "Author of The Hobbit and The Lord of the Rings."
+    }
+  ]
+}
+```
+
+#### Example Responses
+
+- **Import Summary (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.58",
+  "message": "Import completed.",
+  "data": {
+    "summary": {
+      "entity": "authors",
+      "format": "json",
+      "dryRun": true,
+      "processed": 1,
+      "created": 0,
+      "updated": 0,
+      "errors": []
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.02",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "CSV content must be provided."
+  ]
+}
+```
+
+</details>
+
+## Admin
+
 ### GET /admin/users
 
 - **Purpose:** Retrieve all users, or fetch a single user when `id` or `email` is provided.
@@ -9398,6 +10994,17 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 | `limit` | integer | No | Maximum results to return (max 200). |
 | `offset` | integer | No | Results offset (for pagination). |
 
+#### Optional Lookup (query or body)
+
+When `id` or `email` is provided, the endpoint returns a single user instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | User id to fetch. |
+| `email` | string | No | User email address to fetch. |
+
+If both `id` and `email` are provided, they must refer to the same user. A mismatch returns `400 Validation Error`.
+
 <details>
 <summary>Filtering and Sorting Options</summary>
 
@@ -9427,17 +11034,6 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
 </details>
-
-#### Optional Lookup (query or body)
-
-When `id` or `email` is provided, the endpoint returns a single user instead of a list.
-
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | No | User id to fetch. |
-| `email` | string | No | User email address to fetch. |
-
-If both `id` and `email` are provided, they must refer to the same user. A mismatch returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -12696,3 +14292,52 @@ If no fingerprint is supplied, all active sessions are revoked.
 ```
 
 </details>
+
+### GET /status
+
+- **Purpose:** Admin status check for database and email queue health.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/status` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Status Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.12",
+  "message": "Status retrieved successfully.",
+  "data": {
+    "status": "ok",
+    "db": {
+      "healthy": true,
+      "latencyMs": 7
+    },
+    "emailQueue": {
+      "pending": 0,
+      "processing": 0,
+      "failed": 0,
+      "lastRunAt": "2026-01-02T16:00:10.000Z"
+    }
+  },
+  "errors": []
+}
+```

@@ -114,6 +114,12 @@ CREATE TABLE IF NOT EXISTS authors (
   UNIQUE (user_id, display_name)
 );
 
+-- Partial unique indexes to allow re-creating names after soft deletes.
+-- These should replace the existing UNIQUE constraints where applicable.
+CREATE UNIQUE INDEX IF NOT EXISTS authors_unique_active_display_name
+  ON authors (user_id, display_name)
+  WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS publishers (
   id              SERIAL PRIMARY KEY,
   user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -126,6 +132,10 @@ CREATE TABLE IF NOT EXISTS publishers (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS publishers_unique_active_name
+  ON publishers (user_id, name)
+  WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS book_authors (
   id         SERIAL PRIMARY KEY,
@@ -149,6 +159,10 @@ CREATE TABLE IF NOT EXISTS book_series (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, name)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS book_series_unique_active_name
+  ON book_series (user_id, name)
+  WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS book_series_books (
   id         SERIAL PRIMARY KEY,
@@ -203,6 +217,10 @@ CREATE TABLE IF NOT EXISTS books (
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, isbn)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS books_unique_active_isbn
+  ON books (user_id, isbn)
+  WHERE deleted_at IS NULL AND isbn IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS book_copies (
   id                    SERIAL PRIMARY KEY,

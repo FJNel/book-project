@@ -318,21 +318,28 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 });
 
 // GET /storagelocation/:id/bookcopies - List book copies stored in a location (recursive optional)
-router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function handleBookCopiesByLocation(req, res, { locationId, locationPath }) {
 	const userId = req.user.id;
-	const locationId = parseId(req.params.id);
 	const recursive = parseBooleanFlag(req.query.recursive ?? req.body?.recursive) ?? true;
 
-	if (!Number.isInteger(locationId)) {
-		return errorResponse(res, 400, "Validation Error", ["Storage location id must be a valid integer."]);
+	if (!Number.isInteger(locationId) && !locationPath) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a storage location id or path."]);
 	}
 
 	try {
-		const locationCheck = await pool.query(
-			`SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`,
-			[userId, locationId]
-		);
-		if (locationCheck.rows.length === 0) {
+		let resolvedId = locationId;
+		if (locationPath) {
+			const pathId = await resolveLocationPath(userId, locationPath);
+			if (!Number.isInteger(pathId)) {
+				return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
+			}
+			if (Number.isInteger(resolvedId) && resolvedId !== pathId) {
+				return errorResponse(res, 400, "Validation Error", ["Storage location id and path must refer to the same record."]);
+			}
+			resolvedId = pathId;
+		}
+
+		if (!Number.isInteger(resolvedId)) {
 			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
 		}
 
@@ -348,7 +355,7 @@ router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, re
 				SELECT id FROM location_tree`
 			: `SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`;
 
-		const idsResult = await pool.query(locationIdsQuery, [userId, locationId]);
+		const idsResult = await pool.query(locationIdsQuery, [userId, resolvedId]);
 		const ids = idsResult.rows.map((row) => row.id);
 
 		const result = await pool.query(
@@ -402,7 +409,8 @@ router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, re
 		}));
 
 		return successResponse(res, 200, "Book copies retrieved successfully.", {
-			locationId,
+			locationId: resolvedId,
+			locationPath: locationPath || null,
 			recursive,
 			bookCopies: payload
 		});
@@ -416,6 +424,25 @@ router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, re
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book copies for this location."]);
 	}
+}
+
+router.get("/:id/bookcopies", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const locationId = parseId(req.params.id);
+	const locationPath = normalizeText(req.query.path ?? req.body?.path);
+
+	if (!Number.isInteger(locationId)) {
+		return errorResponse(res, 400, "Validation Error", ["Storage location id must be a valid integer."]);
+	}
+
+	return handleBookCopiesByLocation(req, res, { locationId, locationPath });
+});
+
+// GET /storagelocation/bookcopies - List book copies by location id or path (JSON body preferred)
+router.get("/bookcopies", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const locationId = parseId(req.body?.id ?? req.query.id);
+	const locationPath = normalizeText(req.body?.path ?? req.query.path);
+
+	return handleBookCopiesByLocation(req, res, { locationId, locationPath });
 });
 
 // POST /storagelocation - Create a storage location
