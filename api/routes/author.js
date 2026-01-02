@@ -124,20 +124,35 @@ function parseDateFilter(value, fieldLabel) {
 }
 
 async function resolveAuthorId({ userId, id, displayName }) {
-	if (Number.isInteger(id)) {
-		return id;
+	const hasId = Number.isInteger(id);
+	const hasName = Boolean(displayName);
+
+	if (hasId && hasName) {
+		const result = await pool.query(
+			`SELECT id, display_name FROM authors WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (result.rows.length === 0 || result.rows[0].display_name !== displayName) {
+			return { id: null, mismatch: true };
+		}
+		return { id };
 	}
-	if (displayName) {
+
+	if (hasId) {
+		return { id };
+	}
+
+	if (hasName) {
 		const result = await pool.query(
 			`SELECT id FROM authors WHERE user_id = $1 AND display_name = $2`,
 			[userId, displayName]
 		);
 		if (result.rows.length === 0) {
-			return null;
+			return { id: null };
 		}
-		return result.rows[0].id;
+		return { id: result.rows[0].id };
 	}
-	return null;
+	return { id: null };
 }
 
 async function insertPartialDate(client, dateValue) {
@@ -169,8 +184,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		try {
-			const resolvedId = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
-			if (!Number.isInteger(resolvedId)) {
+			const resolved = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Author id and display name must refer to the same record."]);
+			}
+			if (!Number.isInteger(resolved.id)) {
 				return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
 			}
 
@@ -183,7 +201,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				 LEFT JOIN dates bd ON a.birth_date_id = bd.id
 				 LEFT JOIN dates dd ON a.death_date_id = dd.id
 				 WHERE a.user_id = $1 AND a.id = $2`,
-				[userId, resolvedId]
+				[userId, resolved.id]
 			);
 
 			const row = result.rows[0];
@@ -616,6 +634,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const displayName = normalizeText(req.query.displayName ?? req.query.name ?? req.body?.displayName ?? req.body?.name);
+	const targetId = parseId(req.query.id ?? req.body?.id);
 
 	const errors = validateDisplayName(displayName);
 	if (errors.length > 0) {
@@ -623,6 +642,13 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
+		if (Number.isInteger(targetId)) {
+			const resolved = await resolveAuthorId({ userId, id: targetId, displayName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Author id and display name must refer to the same record."]);
+			}
+		}
+
 		const result = await pool.query(
 			`SELECT a.id, a.display_name, a.first_names, a.last_name, a.deceased, a.bio,
 			        a.created_at, a.updated_at,
@@ -917,11 +943,14 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Author id and display name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
 	}
-	return handleAuthorUpdate(req, res, resolvedId);
+	return handleAuthorUpdate(req, res, resolved.id);
 });
 
 async function handleAuthorDelete(req, res, authorId) {
@@ -982,11 +1011,14 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveAuthorId({ userId, id: targetId, displayName: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Author id and display name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
 	}
-	return handleAuthorDelete(req, res, resolvedId);
+	return handleAuthorDelete(req, res, resolved.id);
 });
 
 module.exports = router;

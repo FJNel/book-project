@@ -346,33 +346,64 @@ async function fetchBookCopies(userId, bookId) {
 }
 
 async function resolveBookId({ userId, id, isbn, title }) {
-	if (Number.isInteger(id)) {
-		return { id };
+	const hasId = Number.isInteger(id);
+	const hasIsbn = Boolean(isbn);
+	const hasTitle = Boolean(title);
+	const hasMultiple = Number(hasId) + Number(hasIsbn) + Number(hasTitle) > 1;
+	let resolvedId = null;
+
+	if (hasId) {
+		const result = await pool.query(
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (result.rows.length === 0) {
+			return { id: null, mismatch: hasMultiple };
+		}
+		resolvedId = id;
 	}
-	if (isbn) {
+
+	if (hasIsbn) {
 		const result = await pool.query(
 			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2`,
 			[userId, isbn]
 		);
 		if (result.rows.length === 0) {
-			return { id: null };
+			return { id: null, mismatch: hasMultiple };
 		}
-		return { id: result.rows[0].id };
+		const foundId = result.rows[0].id;
+		if (resolvedId && resolvedId !== foundId) {
+			return { id: resolvedId, mismatch: true };
+		}
+		resolvedId = foundId;
 	}
-	if (title) {
+
+	if (hasTitle) {
 		const result = await pool.query(
 			`SELECT id FROM books WHERE user_id = $1 AND title = $2`,
 			[userId, title]
 		);
 		if (result.rows.length === 0) {
-			return { id: null };
+			return { id: null, mismatch: hasMultiple };
 		}
 		if (result.rows.length > 1) {
-			return { id: null, conflict: true };
+			if (!resolvedId) {
+				return { id: null, conflict: true };
+			}
+			const ids = result.rows.map((row) => row.id);
+			if (!ids.includes(resolvedId)) {
+				return { id: resolvedId, mismatch: true };
+			}
+			return { id: resolvedId };
 		}
-		return { id: result.rows[0].id };
+		const foundId = result.rows[0].id;
+		if (resolvedId && resolvedId !== foundId) {
+			return { id: resolvedId, mismatch: true };
+		}
+		resolvedId = foundId;
 	}
-	return { id: null };
+
+	return { id: resolvedId };
 }
 
 async function resolveLanguageIds({ ids, names }) {
@@ -558,6 +589,9 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 		try {
 			const resolved = await resolveBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
+			}
 			if (resolved.conflict) {
 				return errorResponse(res, 409, "Multiple books matched.", ["Multiple books share this title. Please use id or ISBN."]);
 			}
@@ -1490,6 +1524,9 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	const resolved = await resolveBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
+	}
 	if (resolved.conflict) {
 		return errorResponse(res, 409, "Multiple books matched.", ["Multiple books share this title. Please use id or ISBN."]);
 	}
@@ -1499,18 +1536,13 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	return handleBookUpdate(req, res, resolved.id);
 });
 
-// DELETE /book/:id - Remove a book by id
-router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function handleBookDelete(req, res, bookId) {
 	const userId = req.user.id;
-	const id = parseId(req.params.id);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Book id must be a valid integer."]);
-	}
 
 	try {
 		const result = await pool.query(
 			`DELETE FROM books WHERE user_id = $1 AND id = $2`,
-			[userId, id]
+			[userId, bookId]
 		);
 		if (result.rowCount === 0) {
 			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
@@ -1519,12 +1551,12 @@ router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		logToFile("BOOK_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
-			book_id: id,
+			book_id: bookId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Book deleted successfully.", { id });
+		return successResponse(res, 200, "Book deleted successfully.", { id: bookId });
 	} catch (error) {
 		logToFile("BOOK_DELETE", {
 			status: "FAILURE",
@@ -1535,6 +1567,51 @@ router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the book."]);
 	}
+}
+
+// DELETE /book/:id - Remove a book by id
+router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const id = parseId(req.params.id);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Book id must be a valid integer."]);
+	}
+	return handleBookDelete(req, res, id);
+});
+
+// DELETE /book - Remove a book by id, ISBN, or title
+router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetIsbn = normalizeIsbn(req.body?.isbn);
+	const targetTitle = normalizeText(req.body?.title);
+
+	if (!Number.isInteger(targetId) && !targetIsbn && !targetTitle) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book id, ISBN, or title to delete."]);
+	}
+
+	if (req.body?.isbn && !targetIsbn) {
+		return errorResponse(res, 400, "Validation Error", ["ISBN must be 10–17 characters and contain only digits, hyphens, or X."]);
+	}
+
+	if (targetTitle) {
+		const titleErrors = validateTitle(targetTitle);
+		if (titleErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", titleErrors);
+		}
+	}
+
+	const resolved = await resolveBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
+	}
+	if (resolved.conflict) {
+		return errorResponse(res, 409, "Multiple books matched.", ["Multiple books share this title. Please use id or ISBN."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
+		return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+	}
+
+	return handleBookDelete(req, res, resolved.id);
 });
 
 module.exports = router;

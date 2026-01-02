@@ -143,20 +143,35 @@ function parseBookOrder(value, fieldLabel) {
 }
 
 async function resolveSeriesId({ userId, id, name }) {
-	if (Number.isInteger(id)) {
-		return id;
+	const hasId = Number.isInteger(id);
+	const hasName = Boolean(name);
+
+	if (hasId && hasName) {
+		const result = await pool.query(
+			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (result.rows.length === 0 || result.rows[0].name !== name) {
+			return { id: null, mismatch: true };
+		}
+		return { id };
 	}
-	if (name) {
+
+	if (hasId) {
+		return { id };
+	}
+
+	if (hasName) {
 		const result = await pool.query(
 			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
-			return null;
+			return { id: null };
 		}
-		return result.rows[0].id;
+		return { id: result.rows[0].id };
 	}
-	return null;
+	return { id: null };
 }
 
 async function insertPartialDate(client, dateValue) {
@@ -234,8 +249,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		try {
-			const resolvedId = await resolveSeriesId({ userId, id: targetId, name: targetName });
-			if (!Number.isInteger(resolvedId)) {
+			const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+			}
+			if (!Number.isInteger(resolved.id)) {
 				return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 			}
 
@@ -243,12 +261,12 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 				 FROM book_series s
 				 WHERE s.user_id = $1 AND s.id = $2`,
-				[userId, resolvedId]
+				[userId, resolved.id]
 			);
 
 			const row = result.rows[0];
-			const books = await fetchSeriesBooks(userId, resolvedId);
-			const { startDate, endDate } = await fetchSeriesDateRange(userId, resolvedId);
+			const books = await fetchSeriesBooks(userId, resolved.id);
+			const { startDate, endDate } = await fetchSeriesDateRange(userId, resolved.id);
 			const payload = nameOnly
 				? { id: row.id, name: row.name }
 				: {
@@ -645,6 +663,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
+	const targetId = parseId(req.query.id ?? req.body?.id);
 
 	const errors = validateSeriesName(rawName);
 	if (errors.length > 0) {
@@ -652,6 +671,13 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
+		if (Number.isInteger(targetId)) {
+			const resolved = await resolveSeriesId({ userId, id: targetId, name: rawName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+			}
+		}
+
 		const result = await pool.query(
 			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
 			 FROM book_series s
@@ -864,11 +890,14 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveSeriesId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 	}
-	return handleSeriesUpdate(req, res, resolvedId);
+	return handleSeriesUpdate(req, res, resolved.id);
 });
 
 async function handleSeriesDelete(req, res, seriesId) {
@@ -929,11 +958,14 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveSeriesId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 	}
-	return handleSeriesDelete(req, res, resolvedId);
+	return handleSeriesDelete(req, res, resolved.id);
 });
 
 // POST /bookseries/link - Link a book to a series
@@ -967,8 +999,11 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
-		const resolvedId = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
-		if (!Number.isInteger(resolvedId)) {
+		const resolved = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+		}
+		if (!Number.isInteger(resolved.id)) {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
 		const bookCheck = await pool.query(
@@ -981,7 +1016,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 		const existing = await pool.query(
 			`SELECT id FROM book_series_books WHERE user_id = $1 AND series_id = $2 AND book_id = $3`,
-			[userId, resolvedId, bookId]
+			[userId, resolved.id, bookId]
 		);
 
 		const client = await pool.connect();
@@ -1000,7 +1035,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 				if (updateFields.length > 0) {
 					updateFields.push(`updated_at = NOW()`);
-					params.push(userId, resolvedId, bookId);
+					params.push(userId, resolved.id, bookId);
 
 					const result = await client.query(
 						`UPDATE book_series_books
@@ -1036,7 +1071,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 					        bsb.created_at, bsb.updated_at
 					 FROM book_series_books bsb
 					 WHERE bsb.user_id = $1 AND bsb.series_id = $2 AND bsb.book_id = $3`,
-					[userId, resolvedId, bookId]
+					[userId, resolved.id, bookId]
 				);
 				await client.query("COMMIT");
 
@@ -1064,7 +1099,7 @@ router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 				`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
 				 VALUES ($1, $2, $3, $4, NOW(), NOW())
 				 RETURNING id, series_id, book_id, book_order, created_at, updated_at`,
-				[userId, resolvedId, bookId, bookOrder]
+				[userId, resolved.id, bookId, bookOrder]
 			);
 			await client.query("COMMIT");
 
@@ -1139,8 +1174,11 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
-		const resolvedId = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
-		if (!Number.isInteger(resolvedId)) {
+		const resolved = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+		}
+		if (!Number.isInteger(resolved.id)) {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
 		const bookCheck = await pool.query(
@@ -1164,7 +1202,7 @@ router.put("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 
 			updateFields.push(`updated_at = NOW()`);
-			params.push(userId, resolvedId, bookId);
+			params.push(userId, resolved.id, bookId);
 
 			const result = await client.query(
 				`UPDATE book_series_books
@@ -1239,15 +1277,18 @@ router.delete("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
-		const resolvedId = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
-		if (!Number.isInteger(resolvedId)) {
+		const resolved = await resolveSeriesId({ userId, id: seriesId, name: seriesName });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+		}
+		if (!Number.isInteger(resolved.id)) {
 			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
 		}
 
 		const result = await pool.query(
 			`DELETE FROM book_series_books
 			 WHERE user_id = $1 AND series_id = $2 AND book_id = $3`,
-			[userId, resolvedId, bookId]
+			[userId, resolved.id, bookId]
 		);
 
 		if (result.rowCount === 0) {
@@ -1257,14 +1298,14 @@ router.delete("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 		logToFile("BOOK_SERIES_LINK_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
-			series_id: resolvedId,
+			series_id: resolved.id,
 			book_id: bookId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "Book unlinked from series successfully.", {
-			seriesId: resolvedId,
+			seriesId: resolved.id,
 			bookId
 		});
 	} catch (error) {

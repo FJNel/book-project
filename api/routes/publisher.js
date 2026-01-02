@@ -132,20 +132,35 @@ function parseDateFilter(value, fieldLabel) {
 }
 
 async function resolvePublisherId({ userId, id, name }) {
-	if (Number.isInteger(id)) {
-		return id;
+	const hasId = Number.isInteger(id);
+	const hasName = Boolean(name);
+
+	if (hasId && hasName) {
+		const result = await pool.query(
+			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (result.rows.length === 0 || result.rows[0].name !== name) {
+			return { id: null, mismatch: true };
+		}
+		return { id };
 	}
-	if (name) {
+
+	if (hasId) {
+		return { id };
+	}
+
+	if (hasName) {
 		const result = await pool.query(
 			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
-			return null;
+			return { id: null };
 		}
-		return result.rows[0].id;
+		return { id: result.rows[0].id };
 	}
-	return null;
+	return { id: null };
 }
 
 async function insertPartialDate(client, dateValue) {
@@ -177,8 +192,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		try {
-			const resolvedId = await resolvePublisherId({ userId, id: targetId, name: targetName });
-			if (!Number.isInteger(resolvedId)) {
+			const resolved = await resolvePublisherId({ userId, id: targetId, name: targetName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Publisher id and name must refer to the same record."]);
+			}
+			if (!Number.isInteger(resolved.id)) {
 				return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
 			}
 
@@ -188,7 +206,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				 FROM publishers p
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE p.user_id = $1 AND p.id = $2`,
-				[userId, resolvedId]
+				[userId, resolved.id]
 			);
 
 			const row = result.rows[0];
@@ -512,6 +530,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
+	const targetId = parseId(req.query.id ?? req.body?.id);
 
 	const errors = validatePublisherName(rawName);
 	if (errors.length > 0) {
@@ -519,6 +538,13 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
+		if (Number.isInteger(targetId)) {
+			const resolved = await resolvePublisherId({ userId, id: targetId, name: rawName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Publisher id and name must refer to the same record."]);
+			}
+		}
+
 		const result = await pool.query(
 			`SELECT p.id, p.name, p.website, p.notes, p.created_at, p.updated_at,
 			        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
@@ -742,11 +768,14 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolvePublisherId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolvePublisherId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Publisher id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
 	}
-	return handlePublisherUpdate(req, res, resolvedId);
+	return handlePublisherUpdate(req, res, resolved.id);
 });
 
 async function handlePublisherDelete(req, res, publisherId) {
@@ -807,11 +836,14 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolvePublisherId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolvePublisherId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Publisher id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
 	}
-	return handlePublisherDelete(req, res, resolvedId);
+	return handlePublisherDelete(req, res, resolved.id);
 });
 
 module.exports = router;

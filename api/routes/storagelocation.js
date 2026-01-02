@@ -138,6 +138,13 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	if (targetId !== null || targetPath) {
 		try {
+			if (targetId !== null && targetPath) {
+				const resolvedPathId = await resolveLocationPath(userId, targetPath);
+				if (!Number.isInteger(resolvedPathId) || resolvedPathId !== targetId) {
+					return errorResponse(res, 400, "Validation Error", ["Storage location id and path must refer to the same record."]);
+				}
+			}
+
 			const result = await pool.query(
 				`WITH RECURSIVE location_paths AS (
 					SELECT id, user_id, parent_id, name, notes, created_at, updated_at, name::text AS path
@@ -549,8 +556,15 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	let resolvedId = targetId;
-	if (!Number.isInteger(resolvedId) && targetPath) {
-		resolvedId = await resolveLocationPath(userId, targetPath);
+	if (targetPath) {
+		const pathId = await resolveLocationPath(userId, targetPath);
+		if (!Number.isInteger(pathId)) {
+			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
+		}
+		if (Number.isInteger(resolvedId) && resolvedId !== pathId) {
+			return errorResponse(res, 400, "Validation Error", ["Storage location id and path must refer to the same record."]);
+		}
+		resolvedId = pathId;
 	}
 
 	if (!Number.isInteger(resolvedId)) {
@@ -615,8 +629,15 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	let resolvedId = targetId;
-	if (!Number.isInteger(resolvedId) && targetPath) {
-		resolvedId = await resolveLocationPath(userId, targetPath);
+	if (targetPath) {
+		const pathId = await resolveLocationPath(userId, targetPath);
+		if (!Number.isInteger(pathId)) {
+			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
+		}
+		if (Number.isInteger(resolvedId) && resolvedId !== pathId) {
+			return errorResponse(res, 400, "Validation Error", ["Storage location id and path must refer to the same record."]);
+		}
+		resolvedId = pathId;
 	}
 
 	if (!Number.isInteger(resolvedId)) {

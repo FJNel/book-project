@@ -710,14 +710,8 @@ router.get("/me/sessions", requiresAuth, authenticatedLimiter, async (req, res) 
 	}
 });
 
-router.delete("/me/sessions/:fingerprint", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function handleSessionRevoke(req, res, fingerprint) {
 	const userId = req.user.id;
-	const fingerprint = typeof req.params?.fingerprint === "string" ? req.params.fingerprint.trim() : "";
-
-	if (!fingerprint) {
-		return errorResponse(res, 400, "Invalid session identifier", ["A session fingerprint must be provided in the URL path."]);
-	}
-
 	try {
 		const { rowCount } = await pool.query(
 			`UPDATE refresh_tokens
@@ -754,6 +748,30 @@ router.delete("/me/sessions/:fingerprint", requiresAuth, authenticatedLimiter, a
 		}, "error");
 		return errorResponse(res, 500, "Internal Server Error", ["Unable to revoke the requested session."]);
 	}
+}
+
+router.delete("/me/sessions/:fingerprint", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const fingerprint = typeof req.params?.fingerprint === "string" ? req.params.fingerprint.trim() : "";
+	const bodyFingerprint = typeof req.body?.fingerprint === "string" ? req.body.fingerprint.trim() : "";
+
+	if (!fingerprint) {
+		return errorResponse(res, 400, "Invalid session identifier", ["A session fingerprint must be provided in the URL path."]);
+	}
+	if (bodyFingerprint && bodyFingerprint !== fingerprint) {
+		return errorResponse(res, 400, "Validation Error", ["Session fingerprint in the body must match the URL path."]);
+	}
+
+	return handleSessionRevoke(req, res, fingerprint);
+});
+
+router.delete("/me/sessions", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const fingerprint = typeof req.body?.fingerprint === "string" ? req.body.fingerprint.trim() : "";
+
+	if (!fingerprint) {
+		return errorResponse(res, 400, "Invalid session identifier", ["A session fingerprint must be provided in the request body."]);
+	}
+
+	return handleSessionRevoke(req, res, fingerprint);
 });
 
 async function changePassword(req, res) {

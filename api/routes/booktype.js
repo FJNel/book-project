@@ -90,20 +90,35 @@ function parseDateFilter(value, fieldLabel) {
 }
 
 async function resolveBookTypeId({ userId, id, name }) {
-	if (Number.isInteger(id)) {
-		return id;
+	const hasId = Number.isInteger(id);
+	const hasName = Boolean(name);
+
+	if (hasId && hasName) {
+		const result = await pool.query(
+			`SELECT id, name FROM book_types WHERE user_id = $1 AND id = $2`,
+			[userId, id]
+		);
+		if (result.rows.length === 0 || result.rows[0].name !== name) {
+			return { id: null, mismatch: true };
+		}
+		return { id };
 	}
-	if (name) {
+
+	if (hasId) {
+		return { id };
+	}
+
+	if (hasName) {
 		const result = await pool.query(
 			`SELECT id FROM book_types WHERE user_id = $1 AND name = $2`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
-			return null;
+			return { id: null };
 		}
-		return result.rows[0].id;
+		return { id: result.rows[0].id };
 	}
-	return null;
+	return { id: null };
 }
 
 // GET /booktype - List all book types for the authenticated user
@@ -123,8 +138,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		try {
-		const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
-		if (!Number.isInteger(resolvedId)) {
+		const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+		}
+		if (!Number.isInteger(resolved.id)) {
 			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
 		}
 
@@ -132,7 +150,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			`SELECT id, name, description, created_at, updated_at
 			 FROM book_types
 			 WHERE user_id = $1 AND id = $2`,
-			[userId, resolvedId]
+			[userId, resolved.id]
 		);
 
 		const row = result.rows[0];
@@ -301,6 +319,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
+	const targetId = parseId(req.query.id ?? req.body?.id);
 
 	const errors = validateBookTypeName(rawName);
 	if (errors.length > 0) {
@@ -308,6 +327,13 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
+		if (Number.isInteger(targetId)) {
+			const resolved = await resolveBookTypeId({ userId, id: targetId, name: rawName });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+			}
+		}
+
 		const result = await pool.query(
 			`SELECT id, name, description, created_at, updated_at
 			 FROM book_types
@@ -547,11 +573,14 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
 	}
-	return handleBookTypeUpdate(req, res, resolvedId);
+	return handleBookTypeUpdate(req, res, resolved.id);
 });
 
 async function handleBookTypeDelete(req, res, targetId) {
@@ -613,11 +642,14 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 	}
 
-	const resolvedId = await resolveBookTypeId({ userId, id: targetId, name: targetName });
-	if (!Number.isInteger(resolvedId)) {
+	const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
 		return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
 	}
-	return handleBookTypeDelete(req, res, resolvedId);
+	return handleBookTypeDelete(req, res, resolved.id);
 });
 
 module.exports = router;

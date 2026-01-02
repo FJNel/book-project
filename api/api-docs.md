@@ -33,6 +33,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /users/me/verify-account-deletion](#post-usersmeverify-account-deletion)
     - [GET /users/me/sessions](#get-usersmesessions)
     - [DELETE /users/me/sessions/:fingerprint](#delete-usersmesessionsfingerprint)
+    - [DELETE /users/me/sessions](#delete-usersmesessions)
     - [POST /users/me/change-password](#post-usersmechange-password)
   - [Book Types](#book-types)
     - [GET /booktype](#get-booktype)
@@ -80,6 +81,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /book](#post-book)
     - [PUT /book](#put-book)
     - [PUT /book/:id](#put-bookid)
+    - [DELETE /book](#delete-book)
     - [DELETE /book/:id](#delete-bookid)
   - [Storage Locations](#storage-locations)
     - [GET /storagelocation](#get-storagelocation)
@@ -2416,7 +2418,7 @@ Please reach out to the user before fully deleting this account and all associat
 | Path | `/users/me/sessions/:fingerprint` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -2435,11 +2437,12 @@ Please reach out to the user before fully deleting this account and all associat
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| *(none)* | — | — | Provide the fingerprint via the path parameter. |
+| `fingerprint` | string | No | Optional confirmation of the path parameter. If provided, it must match `:fingerprint`. |
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
+- If `fingerprint` is also provided in the JSON body, it must match the path parameter.
 - If the fingerprint does not match any active session, the API returns `200` with `wasRevoked=false`.
 
 #### Example Responses
@@ -2471,6 +2474,66 @@ Please reach out to the user before fully deleting this account and all associat
   "data": {
     "fingerprint": "6b9d3caa-1d7e-4f91-9d39-6a74073ca21c",
     "wasRevoked": false
+  },
+  "errors": []
+}
+```
+
+### DELETE /users/me/sessions
+
+- **Purpose:** Revoke a single refresh-token session using a JSON request body (preferred for clients that avoid URL parameters).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/users/me/sessions` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the requesting user. |
+| `Content-Type` | Yes | `application/json` | Body is required. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `fingerprint` | string | Yes | Token fingerprint returned by the session listing endpoint. |
+
+#### Example Request Body
+
+```json
+{
+  "fingerprint": "f17bb6df-d94b-4d85-88de-3c8280dcfd9e"
+}
+```
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the fingerprint does not match any active session, the API returns `200` with `wasRevoked=false`.
+
+#### Example Responses
+
+- **Session Revoked (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "4.78",
+  "message": "Session revoked.",
+  "data": {
+    "fingerprint": "f17bb6df-d94b-4d85-88de-3c8280dcfd9e",
+    "wasRevoked": true
   },
   "errors": []
 }
@@ -2651,6 +2714,7 @@ You can provide these list controls via query string or JSON body. If both are p
 #### Optional Lookup (query or body)
 
 When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -2659,7 +2723,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `id` | integer | No | Book type id to fetch. |
 | `name` | string | No | Book type name to fetch. |
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -2829,6 +2893,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `id` | integer | No | Book type id to confirm (query string or JSON body). |
 | `name` | string | Yes | Book type name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
@@ -2837,6 +2902,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -3262,7 +3328,7 @@ At least one field must be provided.
 
 At least one of `id` or `targetName` must be provided to identify the record, and at least one updatable field must be included.
 
-If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+If both `id` and `targetName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -3399,7 +3465,7 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 
 At least one of `id` or `name` must be provided.
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -3674,6 +3740,7 @@ Authors without a birth/death date will not match the born/died filters.
 #### Optional Lookup (query or body)
 
 When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
+If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -3682,7 +3749,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `id` | integer | No | Author id to fetch. |
 | `displayName` | string | No | Author display name to fetch. |
 
-If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -3869,6 +3936,7 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `id` | integer | No | Author id to confirm (query string or JSON body). |
 | `displayName` | string | Yes | Display name to look up (query string or JSON body). |
 
 If `displayName` is provided in both the query string and JSON body, the JSON body takes precedence.
@@ -3880,6 +3948,7 @@ Edge cases:
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -4144,7 +4213,7 @@ Edge cases:
 
 At least one of `id` or `targetDisplayName` must be provided to identify the record, and at least one updatable field must be included.
 
-If both `id` and `targetDisplayName` are provided, the API uses `id` and ignores `targetDisplayName`.
+If both `id` and `targetDisplayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
@@ -4416,7 +4485,7 @@ Edge cases:
 
 At least one of `id` or `displayName` must be provided.
 
-If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -4634,7 +4703,7 @@ When `id` or `name` is provided (query string or JSON body), the endpoint return
 | `id` | integer | No | Publisher id to fetch. |
 | `name` | string | No | Publisher name to fetch. |
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -4747,6 +4816,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `id` | integer | No | Publisher id to confirm (query string or JSON body). |
 | `name` | string | Yes | Publisher name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
@@ -4755,6 +4825,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -5071,7 +5142,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `website` | string | No | New website. Use `null` to clear. |
 | `notes` | string | No | New notes. Use `null` to clear. |
 
-If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+If both `id` and `targetName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -5297,7 +5368,7 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `id` | integer | No | Publisher id to delete. |
 | `name` | string | No | Publisher name to delete (used if `id` is not provided). |
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -5522,7 +5593,7 @@ When `id` or `name` is provided (query string or JSON body), the endpoint return
 | `id` | integer | No | Series id to fetch. |
 | `name` | string | No | Series name to fetch. |
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -5635,6 +5706,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
+| `id` | integer | No | Series id to confirm (query string or JSON body). |
 | `name` | string | Yes | Series name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
@@ -5643,6 +5715,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -5970,7 +6043,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `description` | string | No | New description. Use `null` to clear. |
 | `website` | string | No | New website. Use `null` to clear. |
 
-If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+If both `id` and `targetName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -6182,7 +6255,7 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `id` | integer | No | Series id to delete. |
 | `name` | string | No | Series name to delete (used if `id` is not provided). |
 
-If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -6360,7 +6433,7 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `bookId` | integer | Yes | Book id to link. |
 | `bookOrder` | integer | No | Order of the book in the series (1-10000). |
 
-If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+If both `seriesId` and `seriesName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Notes:
 - `bookId` must reference an existing book owned by the authenticated user.
@@ -6471,7 +6544,7 @@ Notes:
 | `bookId` | integer | Yes | Book id for the link. |
 | `bookOrder` | integer | No | New order of the book in the series (1-10000). Use `null` to clear. |
 
-If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+If both `seriesId` and `seriesName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -6576,7 +6649,7 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 | `seriesName` | string | No | Series name to unlink (used if `seriesId` is not provided). |
 | `bookId` | integer | Yes | Book id to unlink. |
 
-If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+If both `seriesId` and `seriesName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -6764,7 +6837,7 @@ When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpo
 | `isbn` | string | No | Book ISBN to fetch. |
 | `title` | string | No | Book title to fetch. |
 
-If multiple identifiers are provided, the API uses `id`, then `isbn`, then `title`.
+If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -6778,6 +6851,7 @@ Notes:
 - Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
 - If the requested record cannot be found, the API returns `404`.
 - Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- If multiple identifiers are provided and they do not match the same record, the API returns `400 Validation Error`.
 - If a title lookup matches multiple books, the API returns `409` and requires an id or ISBN to disambiguate.
 
 #### Example Request Body
@@ -6908,8 +6982,6 @@ Book copy fields:
 | `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
 | `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
 | `notes` | string | No | Additional notes (<= 2000 chars). |
-
-If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
 If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
@@ -7112,6 +7184,8 @@ Identification (one of):
 | `id` | integer | No | Book id to update. |
 | `isbn` | string | No | Book ISBN to update. |
 | `title` | string | No | Book title to update (returns 409 if multiple matches). |
+
+If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 Updatable fields (all optional):
 
@@ -7337,6 +7411,105 @@ Notes:
 
 </details>
 
+### DELETE /book
+
+- **Purpose:** Delete a book by id, ISBN, or title using a JSON request body.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/book` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book id to delete. |
+| `isbn` | string | No | Book ISBN to delete. |
+| `title` | string | No | Book title to delete (returns 409 if multiple matches). |
+
+At least one identifier is required. If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 22
+}
+```
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous title matches) return `409`.
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Book deleted successfully.",
+  "data": {
+    "id": 22
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.10",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Please provide a book id, ISBN, or title to delete."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book not found.",
+  "data": {},
+  "errors": [
+    "The requested book could not be located."
+  ]
+}
+```
+
+</details>
+
 ### DELETE /book/:id
 
 - **Purpose:** Delete a book by id.
@@ -7465,7 +7638,7 @@ Notes:
 
 </details>
 
-If both `id` and `path` are provided, `id` takes precedence.
+If both `id` and `path` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -7659,6 +7832,8 @@ If both `id` and `path` are provided, `id` takes precedence.
 | `name` | string | No | New name. |
 | `parentId` | integer | No | New parent id (use `null` to move to root). |
 | `notes` | string | No | New notes (use `null` to clear). |
+
+If both `id` and `path` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
@@ -7867,6 +8042,8 @@ If both `id` and `path` are provided, `id` takes precedence.
 | --- | --- | --- | --- |
 | `id` | integer | No | Location id to delete. |
 | `path` | string | No | Location path to delete. |
+
+If both `id` and `path` are provided, they must refer to the same record or the API returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
