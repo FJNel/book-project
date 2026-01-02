@@ -102,7 +102,6 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
     - [DELETE /admin/languages/:id](#delete-adminlanguagesid)
 
-
 **Base URL:** `https://api.fjnel.co.za`
 
 ## Logging
@@ -170,6 +169,8 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 
 All other endpoints currently have no dedicated custom limit.
 
+The email cost limiter is shared across all endpoints that trigger outbound email. Requests across those endpoints count toward the same IP-based bucket.
+
 ### Common Rate Limit Response (429)
 
 ```json
@@ -195,6 +196,53 @@ All other endpoints currently have no dedicated custom limit.
 - **Account action quotas:** Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).
 - **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`, an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
 - **Login metadata:** User profiles include `lastLogin`, an ISO timestamp of the most recent successful login (regardless of login method).
+- **Shared per-user limiter:** Endpoints covered by the `authenticatedLimiter` share a single 60 requests/minute bucket per user. Calls across those endpoints count toward the same limit.
+- **JSON body preference:** For endpoints that accept filtering/sorting inputs in both query strings and JSON bodies, the JSON body is preferred. If both are supplied, JSON values take precedence.
+
+### Common Authentication Response (401)
+
+```json
+{
+  "status": "error",
+  "httpCode": 401,
+  "responseTime": "2.18",
+  "message": "Authentication required for this action.",
+  "data": {},
+  "errors": [
+    "Missing or invalid Authorization header."
+  ]
+}
+```
+
+### Common Forbidden Response (403)
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.41",
+  "message": "Forbidden: Insufficient permissions.",
+  "data": {},
+  "errors": [
+    "You do not have permission to perform this action."
+  ]
+}
+```
+
+### Common Server Error Response (500)
+
+```json
+{
+  "status": "error",
+  "httpCode": 500,
+  "responseTime": "6.02",
+  "message": "Internal Server Error",
+  "data": {},
+  "errors": [
+    "An unexpected error occurred while processing the request."
+  ]
+}
+```
 
 ### Partial Date Object
 
@@ -292,18 +340,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `register` (reCAPTCHA v3) |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "captchaToken": "<captcha-token>",
-  "fullName": "Jane Doe",
-  "preferredName": "Jane",
-  "email": "jane@example.com",
-  "password": "P@ssw0rd123!"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -321,6 +357,31 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `preferredName` | string | No | 2–100 alphabetic characters; optional friendly name. |
 | `email` | string | Yes | 5–255 characters; must be unique and in valid email format. |
 | `password` | string | Yes | 10–100 characters; must include upper, lower, digit, and special character. |
+
+#### Email Content
+
+- **Subject:** `Verify your email address for the Book Project`
+- **Body (text):**
+
+```
+Welcome, <preferredName>.
+Thank you for registering for the Book Project. Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register, contact support at <supportEmail>.
+This link expires in <expiresIn> minutes.
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "fullName": "Jane Doe",
+  "preferredName": "Jane",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!"
+}
+```
 
 - **Generic Success (200):** Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.
 
@@ -418,15 +479,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `resend_verification` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "captchaToken": "<captcha-token>",
-  "email": "jane@example.com"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -441,6 +493,28 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | --- | --- | --- | --- |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `resend_verification` action. |
 | `email` | string | Yes | Email address to resend verification for; must be 5–255 chars and valid format. |
+
+#### Email Content
+
+- **Subject:** `Verify your email address for the Book Project`
+- **Body (text):**
+
+```
+Hello, <preferredName>.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not request this email, contact support at <supportEmail>.
+This link expires in <expiresIn> minutes.
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com"
+}
+```
 
 - **Generic Success (200):**
 
@@ -506,15 +580,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `verify_email` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "email": "jane@example.com",
-  "token": "<verification-token>"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -530,6 +595,27 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `verify_email` action. |
 | `email` | string | Yes | Email address to verify (5–255 characters, valid format). |
 | `token` | string | Yes | Email verification token (32-byte hex string). |
+
+#### Email Content
+
+- **Subject:** `Welcome to The Book Project`
+- **Body (text):**
+
+```
+Welcome, <preferredName>!
+Your email has been verified successfully. You can now log in and start using the Book Project.
+Log In: <frontend_login_url>
+If you did not verify this email address, contact support at <supportEmail>.
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "email": "jane@example.com",
+  "token": "<verification-token>"
+}
+```
 
 - **Verified (200):**
 
@@ -659,16 +745,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | CAPTCHA Action | `login` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "captchaToken": "<captcha-token>",
-  "email": "jane@example.com",
-  "password": "P@ssw0rd123!"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -684,6 +760,16 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `login` action. |
 | `email` | string | Yes | Email address of the user (case-insensitive). |
 | `password` | string | Yes | Plain-text password to verify; not stored. |
+
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!"
+}
+```
 
 - **Authenticated (200):**
 
@@ -757,21 +843,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "10.44",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred during login. Please try again."
-  ]
-}
-```
-
 ### POST /auth/refresh-token
 
 - **Purpose:** Exchange a valid refresh token for a new access token.
@@ -786,14 +857,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Authentication | Not required |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "refreshToken": "<refresh-token>"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -807,6 +870,14 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `refreshToken` | string (JWT) | Yes | Refresh token previously issued by `/auth/login` or `/auth/google`. |
+
+#### Example Request (JSON)
+
+```json
+{
+  "refreshToken": "<refresh-token>"
+}
+```
 
 - **Refreshed (200):**
 
@@ -883,21 +954,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "8.58",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred while refreshing the access token."
-  ]
-}
-```
-
 ### POST /auth/logout
 
 - **Purpose:** Revoke one or all active refresh tokens for the authenticated user.
@@ -913,15 +969,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | `application/json` |
-
-#### Example Request (JSON)
-
-```json
-{
-  "refreshToken": "<refresh-token>",
-  "allDevices": false
-}
-```
 
 #### Required Headers
 
@@ -939,6 +986,15 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `allDevices` | boolean \| string | No | Set to `true`, `1`, `"true"`, `"1"`, or `"all"` to revoke every active session without supplying `refreshToken`. |
 
 Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke every active session without supplying a refresh token.
+
+#### Example Request (JSON)
+
+```json
+{
+  "refreshToken": "<refresh-token>",
+  "allDevices": false
+}
+```
 
 - **Single Session Logout (200):**
 
@@ -1018,21 +1074,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "7.95",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred while logging out. Please try again."
-  ]
-}
-```
-
 ### POST /auth/request-password-reset
 
 - **Purpose:** Send a password reset email if the account exists.
@@ -1051,15 +1092,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | CAPTCHA Action | `request_password_reset` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "captchaToken": "<captcha-token>",
-  "email": "jane@example.com"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1074,6 +1106,28 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | --- | --- | --- | --- |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `request_password_reset` action. |
 | `email` | string | Yes | Email address to send the password reset link to. |
+
+#### Email Content
+
+- **Subject:** `Reset your password for the Book Project`
+- **Body (text):**
+
+```
+Hello, <preferredName>.
+We received a request to set or reset your Book Project password.
+Reset Password: <frontend_reset_url>?token=<token>
+If you did not request a password reset, contact support at <supportEmail>.
+This link expires in <expiresIn> minutes.
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "captchaToken": "<captcha-token>",
+  "email": "jane@example.com"
+}
+```
 
 - **Generic Success (200):**
 
@@ -1141,16 +1195,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | CAPTCHA Action | `reset_password` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "email": "jane@example.com",
-  "token": "<reset-token>",
-  "newPassword": "NewP@ssw0rd123!"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1167,6 +1211,28 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | `email` | string | Yes | Email address associated with the password reset request. |
 | `token` | string | Yes | Password-reset token sent via email (32-byte hex). |
 | `newPassword` | string | Yes | 10–100 characters, including upper, lower, digit, and special character. |
+
+#### Email Content
+
+- **Subject:** `Your password has been reset`
+- **Body (text):**
+
+```
+Password reset successful, <preferredName>.
+Your password has been updated. You can now log in using your new password.
+Log In: <frontend_login_url>
+If you did not reset your password, contact support at <supportEmail>.
+```
+
+#### Example Request (JSON)
+
+```json
+{
+  "email": "jane@example.com",
+  "token": "<reset-token>",
+  "newPassword": "NewP@ssw0rd123!"
+}
+```
 
 - **Password Reset (200):**
 
@@ -1248,21 +1314,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "8.97",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred while resetting your password. Please try again."
-  ]
-}
-```
-
 ### POST /auth/google
 
 - **Purpose:** Sign up or sign in a user using a verified Google ID token.
@@ -1278,14 +1329,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | Authentication | None |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "idToken": "<google-id-token>"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1299,6 +1342,14 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `idToken` | string | Yes | ID token returned by Google OAuth (must be for the configured client ID). |
+
+#### Example Request (JSON)
+
+```json
+{
+  "idToken": "<google-id-token>"
+}
+```
 
 - **Authenticated (200):**
 
@@ -1403,21 +1454,6 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "9.11",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred during Google login. Please try again."
-  ]
-}
-```
-
 ---
 
 ## User Management
@@ -1437,12 +1473,6 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
-
-#### Example Request (JSON)
-
-```json
-{}
-```
 
 #### Required Headers
 
@@ -1499,21 +1529,6 @@ All user management endpoints require a valid access token (`Authorization: Bear
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "8.13",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the user profile."
-  ]
-}
-```
-
 ### PUT /users/me
 
 - **Purpose:** Update `fullName` and/or `preferredName`. To change the email or password, use the dedicated endpoints.
@@ -1528,15 +1543,6 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
-
-#### Example Request (JSON)
-
-```json
-{
-  "fullName": "Jane Q. Doe",
-  "preferredName": "Jan"
-}
-```
 
 #### Required Headers
 
@@ -1554,6 +1560,15 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | `preferredName` | string | Conditionally | 2–100 alphabetic characters (letters only). |
 
 At least one of `fullName` or `preferredName` must be provided.
+
+#### Example Request (JSON)
+
+```json
+{
+  "fullName": "Jane Q. Doe",
+  "preferredName": "Jan"
+}
+```
 
 - **Updated (200):**
 
@@ -1624,21 +1639,6 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "8.26",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the user profile."
-  ]
-}
-```
-
 ### DELETE /users/me
 
 - **Purpose:** Initiate a soft-delete. Sends a confirmation link to the account email; the account is disabled only after the link is confirmed.
@@ -1651,14 +1651,8 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `DELETE` |
 | Path | `/users/me` |
 | Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | N/A (no body) |
-
-#### Example Request (JSON)
-
-```json
-{}
-```
 
 #### Required Headers
 
@@ -1672,6 +1666,21 @@ At least one of `fullName` or `preferredName` must be provided.
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | *(none)* | — | — | This endpoint does not accept a request body. |
+
+#### Email Content
+
+- **Subject:** `Confirm your Book Project account disable request`
+- **Body (text):**
+
+```
+Hi <preferredName>.
+We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in.
+Confirm Disable: <api_base_url>/users/me/verify-delete?token=<token>
+If you did not make this request, contact support at <supportEmail>.
+This link expires in <expiresIn> minutes.
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
 
 - **Requested (200):**
 
@@ -1703,21 +1712,6 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "8.44",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred while requesting the account disable action."
-  ]
-}
-```
-
 ### POST /users/me/verify-delete
 
 - **Purpose:** Confirms the disable request using the emailed token, validates the user’s email, and revokes all active sessions.
@@ -1730,19 +1724,9 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `POST` |
 | Path | `/users/me/verify-delete` |
 | Authentication | None |
-| Rate Limit | 3 requests / 5 minutes / IP |
+| Rate Limit | 3 requests / 5 minutes / IP + 1 request / 5 minutes / IP (email cost) |
 | CAPTCHA Action | `verify_delete` |
 | Content-Type | `application/json` |
-
-#### Example Request (JSON)
-
-```json
-{
-  "token": "<verification-token>",
-  "email": "jane@example.com",
-  "captchaToken": "<captcha-token>"
-}
-```
 
 #### Required Headers
 
@@ -1760,6 +1744,29 @@ At least one of `fullName` or `preferredName` must be provided.
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_delete`. |
 
 *Security note: If the supplied email or CAPTCHA token does not match the pending request, the API returns the same error as an invalid or expired token.*
+
+#### Email Content
+
+- **Subject:** `Your Book Project account has been disabled`
+- **Body (text):**
+
+```
+Hello <preferredName>.
+Your Book Project account has been disabled. You can no longer log in or use any features.
+If you want to reactivate your account, contact support at <supportEmail>.
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "email": "jane@example.com",
+  "captchaToken": "<captcha-token>"
+}
+```
 
 - **Confirmed (200):**
 
@@ -1807,14 +1814,6 @@ At least one of `fullName` or `preferredName` must be provided.
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 1 request / day / account |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "newEmail": "jane.new@example.com"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1828,6 +1827,29 @@ At least one of `fullName` or `preferredName` must be provided.
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `newEmail` | string | Yes | Desired email address; must pass the same validation as registration. |
+
+#### Email Content
+
+- **Subject:** `Verify your new Book Project email address`
+- **Body (text):**
+
+```
+Confirm your new email address, <preferredName>.
+We received a request to update your Book Project email address.
+Verify New Email: <api_base_url>/users/me/verify-email-change?token=<token>
+If you did not request the change, contact support at <supportEmail>.
+This link expires in <expiresIn> minutes. After verification you will be signed out of all sessions.
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+
+#### Example Request (JSON)
+
+```json
+{
+  "newEmail": "jane.new@example.com"
+}
+```
 
 - **Generic Success (200):**
 
@@ -1871,21 +1893,16 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `POST` |
 | Path | `/users/me/verify-email-change` |
 | Authentication | None |
-| Rate Limit | 3 requests / 5 minutes / IP |
+| Rate Limit | 3 requests / 5 minutes / IP + 1 request / 5 minutes / IP (email cost) |
 | CAPTCHA Action | `verify_email_change` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "token": "<verification-token>",
-  "oldEmail": "jane@example.com",
-  "newEmail": "jane.new@example.com",
-  "password": "P@ssw0rd123!",
-  "captchaToken": "<captcha-token>"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -1898,6 +1915,32 @@ At least one of `fullName` or `preferredName` must be provided.
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_email_change`. |
 
 *Security note: Incorrect email, password, or CAPTCHA data yields the same error as an invalid token to prevent email enumeration.*
+
+#### Email Content
+
+- **Subject:** `Your Book Project email address has changed`
+- **Body (text):**
+
+```
+Email updated, <preferredName>.
+This confirms your account email has been updated to <newEmail>.
+This confirmation is sent to the previous email address on file.
+If you did not authorise this change, contact support at <supportEmail> immediately.
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "oldEmail": "jane@example.com",
+  "newEmail": "jane.new@example.com",
+  "password": "P@ssw0rd123!",
+  "captchaToken": "<captcha-token>"
+}
+```
 
 - **Confirmed (200):**
 
@@ -1945,12 +1988,6 @@ At least one of `fullName` or `preferredName` must be provided.
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
-
-```json
-{}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -1963,6 +2000,21 @@ At least one of `fullName` or `preferredName` must be provided.
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | *(none)* | — | — | No request body is accepted. |
+
+#### Email Content
+
+- **Subject:** `Confirm your Book Project account deletion request`
+- **Body (text):**
+
+```
+Final confirmation required.
+You asked us to permanently delete your Book Project account and all associated data.
+Confirm Deletion Request: <api_base_url>/users/me/verify-account-deletion?token=<token>
+If this wasn’t you, contact support at <supportEmail> immediately.
+This link expires in <expiresIn> minutes. After confirmation, our team will contact you to complete the deletion.
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
 
 - **Requested (200):**
 
@@ -1979,21 +2031,6 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "7.65",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "An error occurred while requesting account deletion."
-  ]
-}
-```
-
 ### POST /users/me/verify-account-deletion
 
 - **Purpose:** Confirms the deletion request using the emailed token, validates the user’s credentials, and notifies support so the deletion can be processed manually.
@@ -2006,21 +2043,16 @@ At least one of `fullName` or `preferredName` must be provided.
 | Method | `POST` |
 | Path | `/users/me/verify-account-deletion` |
 | Authentication | None |
-| Rate Limit | 3 requests / 5 minutes / IP |
+| Rate Limit | 3 requests / 5 minutes / IP + 1 request / 5 minutes / IP (email cost) |
 | CAPTCHA Action | `verify_account_deletion` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "token": "<verification-token>",
-  "email": "jane@example.com",
-  "password": "P@ssw0rd123!",
-  "confirm": true,
-  "captchaToken": "<captcha-token>"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -2033,6 +2065,36 @@ At least one of `fullName` or `preferredName` must be provided.
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for action `verify_account_deletion`. |
 
 *Security note: Invalid email, password, or confirmation values produce the same response as an expired token.*
+
+#### Email Content
+
+- **Subject:** `Account deletion confirmation received for <userEmail>`
+- **Body (text):**
+
+```
+Account deletion request confirmed.
+A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
+User ID: <userId>
+Email: <userEmail>
+Full Name: <userFullName>
+Preferred Name: <userPreferredName>
+Confirmed At: <requestedAt>
+Requester IP: <requestIp>
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+
+#### Example Request (JSON)
+
+```json
+{
+  "token": "<verification-token>",
+  "email": "jane@example.com",
+  "password": "P@ssw0rd123!",
+  "confirm": true,
+  "captchaToken": "<captcha-token>"
+}
+```
 
 - **Confirmed (200):**
 
@@ -2078,12 +2140,6 @@ At least one of `fullName` or `preferredName` must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
-
-#### Example Request (JSON)
-
-```json
-{}
-```
 
 #### Required Headers
 
@@ -2138,21 +2194,6 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "7.44",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "Unable to retrieve sessions at this time."
-  ]
-}
-```
-
 ### DELETE /users/me/sessions/:fingerprint
 
 - **Purpose:** Revoke a single refresh-token session (for example, to sign out a lost or unattended device). Fingerprints are returned by `GET /users/me/sessions`.
@@ -2167,12 +2208,6 @@ At least one of `fullName` or `preferredName` must be provided.
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
-
-#### Example Request (JSON)
-
-```json
-{}
-```
 
 #### Required Headers
 
@@ -2240,21 +2275,6 @@ At least one of `fullName` or `preferredName` must be provided.
 }
 ```
 
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "6.01",
-  "message": "Internal Server Error",
-  "data": {},
-  "errors": [
-    "Unable to revoke the requested session."
-  ]
-}
-```
-
 ### POST /users/me/change-password
 
 - **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.
@@ -2272,16 +2292,6 @@ At least one of `fullName` or `preferredName` must be provided.
 | CAPTCHA Action | `change_password` |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
-
-```json
-{
-  "currentPassword": "P@ssw0rd123!",
-  "newPassword": "N3wP@ssw0rd123!",
-  "captchaToken": "<captcha-token>"
-}
-```
-
 #### Required Headers
 
 | Header | Required | Value | Notes |
@@ -2296,6 +2306,34 @@ At least one of `fullName` or `preferredName` must be provided.
 | `currentPassword` | string | Yes | Must match the user’s existing password. |
 | `newPassword` | string | Yes | 10–100 characters with upper, lower, digit, special character. |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for action `change_password`. |
+
+#### Email Content
+
+- **Subject:** `Account deletion confirmation received for <userEmail>`
+- **Body (text):**
+
+```
+Account deletion request confirmed.
+A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
+User ID: <userId>
+Email: <userEmail>
+Full Name: <userFullName>
+Preferred Name: <userPreferredName>
+Confirmed At: <requestedAt>
+Requester IP: <requestIp>
+```
+
+- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+
+#### Example Request (JSON)
+
+```json
+{
+  "currentPassword": "P@ssw0rd123!",
+  "newPassword": "N3wP@ssw0rd123!",
+  "captchaToken": "<captcha-token>"
+}
+```
 
 - **Successful Change (200):**
 
@@ -2349,19 +2387,13 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Hard",
-  "filterCreatedAfter": "2024-01-01"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -2397,12 +2429,6 @@ You can provide these list controls via query string or JSON body. If both are p
   "order": "desc",
   "limit": 10
 }
-```
-
-Query string equivalent:
-
-```
-GET /booktype?filterName=cover&sortBy=updatedAt&order=desc&limit=10
 ```
 
 #### Optional Lookup (query or body)
@@ -2480,6 +2506,20 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Hard",
+  "filterCreatedAfter": "2024-01-01"
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -2510,186 +2550,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "6.24",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving book types."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.31",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
 ### GET /booktype/:id
 
 - **Purpose:** Retrieve a specific book type by id.
@@ -2705,11 +2565,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Response (200):**
 
@@ -2760,36 +2621,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the book type."
-  ]
-}
-```
-
 ### GET /booktype/by-name
 
 - **Purpose:** Retrieve a specific book type by name.
@@ -2805,14 +2636,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "name": "Hardcover",
-  "nameOnly": false
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -2821,6 +2651,15 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `name` | string | Yes | Book type name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Hardcover",
+  "nameOnly": false
+}
+```
 
 - **Response (200):**
 
@@ -2871,36 +2710,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the book type."
-  ]
-}
-```
-
 ### POST /booktype
 
 - **Purpose:** Create a new book type for the authenticated user.
@@ -2916,6 +2725,21 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–100 characters; letters, numbers, spaces, and basic punctuation. |
+| `description` | string | No | Optional description (<= 1000 characters). |
+
 #### Example Request (JSON)
 
 ```json
@@ -2924,13 +2748,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "description": "Standard hardcover binding."
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | string | Yes | 2–100 characters; letters, numbers, spaces, and basic punctuation. |
-| `description` | string | No | Optional description (<= 1000 characters). |
 
 - **Created (201):**
 
@@ -2981,21 +2798,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
 - **Forbidden (403):**
 
 ```json
@@ -3007,21 +2809,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "data": {},
   "errors": [
     "Admin privileges are required for this action."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the language."
   ]
 }
 ```
@@ -3056,36 +2843,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the book type."
-  ]
-}
-```
-
 ### PUT /booktype/:id
 
 - **Purpose:** Update a book type.
@@ -3101,14 +2858,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "name": "Hardcover",
-  "description": "Updated description."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -3118,6 +2874,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `description` | string | No | Updated description (<= 1000 characters). |
 
 At least one field must be provided.
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Hardcover",
+  "description": "Updated description."
+}
+```
 
 - **Updated (200):**
 
@@ -3183,21 +2948,6 @@ At least one field must be provided.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
 - **Forbidden (403):**
 
 ```json
@@ -3209,21 +2959,6 @@ At least one field must be provided.
   "data": {},
   "errors": [
     "Admin privileges are required for this action."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the language."
   ]
 }
 ```
@@ -3273,36 +3008,6 @@ At least one field must be provided.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the book type."
-  ]
-}
-```
-
 ### PUT /booktype
 
 - **Purpose:** Update a book type by `id` or `name`.
@@ -3318,15 +3023,13 @@ At least one field must be provided.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 1,
-  "name": "Hardcover",
-  "description": "Updated description."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -3340,6 +3043,16 @@ At least one field must be provided.
 At least one of `id` or `targetName` must be provided to identify the record, and at least one updatable field must be included.
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1,
+  "name": "Hardcover",
+  "description": "Updated description."
+}
+```
 
 - **Updated (200):**
 
@@ -3420,36 +3133,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the book type."
-  ]
-}
-```
-
 ### DELETE /booktype
 
 - **Purpose:** Delete a book type by `id` or `name`.
@@ -3465,13 +3148,13 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 1
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -3483,6 +3166,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 At least one of `id` or `name` must be provided.
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1
+}
+```
 
 - **Deleted (200):**
 
@@ -3529,21 +3220,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
 - **Forbidden (403):**
 
 ```json
@@ -3555,21 +3231,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
   "data": {},
   "errors": [
     "Admin privileges are required for this action."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the language."
   ]
 }
 ```
@@ -3604,36 +3265,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the book type."
-  ]
-}
-```
-
 ### DELETE /booktype/:id
 
 - **Purpose:** Delete a book type owned by the authenticated user.
@@ -3649,11 +3280,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -3685,36 +3317,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the book type."
-  ]
-}
-```
-
 ## Authors
 
 Authors are scoped per user and can be linked to books later via a linking table. Dates use the partial date object described below.
@@ -3734,19 +3336,13 @@ Authors are scoped per user and can be linked to books later via a linking table
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "nameOnly": false,
-  "sortBy": "displayName",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterDeceased": true,
-  "filterBirthYear": 1950
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -3804,12 +3400,6 @@ You can provide these list controls via query string or JSON body. If both are p
 }
 ```
 
-Query string equivalent:
-
-```
-GET /author?filterDeceased=true&sortBy=deathYear&order=desc&limit=20
-```
-
 - **Authors born before 1900, sorted by display name (asc):**
 
 ```json
@@ -3818,12 +3408,6 @@ GET /author?filterDeceased=true&sortBy=deathYear&order=desc&limit=20
   "sortBy": "displayName",
   "order": "asc"
 }
-```
-
-Query string equivalent:
-
-```
-GET /author?filterBornBefore=1900-01-01&sortBy=displayName&order=asc
 ```
 
 #### Optional Lookup (query or body)
@@ -3935,6 +3519,20 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "displayName",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterDeceased": true,
+  "filterBirthYear": 1950
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -3965,36 +3563,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving authors."
-  ]
-}
-```
-
 ### GET /author/:id
 
 - **Purpose:** Retrieve a specific author by id.
@@ -4010,11 +3578,12 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Response (200):**
 
@@ -4082,36 +3651,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the author."
-  ]
-}
-```
-
 ### GET /author/by-name
 
 - **Purpose:** Retrieve a specific author by display name.
@@ -4127,14 +3666,13 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "displayName": "J.R.R. Tolkien",
-  "nameOnly": false
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -4146,6 +3684,15 @@ If `displayName` is provided in both the query string and JSON body, the JSON bo
 
 Edge cases:
 - Display names are user-scoped; a name that exists for another user will still return `404`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "displayName": "J.R.R. Tolkien",
+  "nameOnly": false
+}
+```
 
 - **Response (200):**
 
@@ -4228,6 +3775,30 @@ Edge cases:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `displayName` | string | Yes | 2–150 characters. |
+| `firstNames` | string | No | Optional first names (2–150 characters). |
+| `lastName` | string | No | Optional last name (2–100 characters). |
+| `birthDate` | object | No | Partial date object. |
+| `deceased` | boolean | No | Whether the author is deceased. Defaults to `false` unless a `deathDate` is provided. |
+| `deathDate` | object | No | Partial date object (optional even when `deceased=true`). |
+| `bio` | string | No | Optional bio (<= 1000 characters). |
+
+Edge cases:
+- If `deceased=false` and `deathDate` is provided, the request fails validation.
+- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
 #### Example Request (JSON)
 
 ```json
@@ -4251,22 +3822,6 @@ Edge cases:
   "bio": "English writer and philologist."
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `displayName` | string | Yes | 2–150 characters. |
-| `firstNames` | string | No | Optional first names (2–150 characters). |
-| `lastName` | string | No | Optional last name (2–100 characters). |
-| `birthDate` | object | No | Partial date object. |
-| `deceased` | boolean | No | Whether the author is deceased. Defaults to `false` unless a `deathDate` is provided. |
-| `deathDate` | object | No | Partial date object (optional even when `deceased=true`). |
-| `bio` | string | No | Optional bio (<= 1000 characters). |
-
-Edge cases:
-- If `deceased=false` and `deathDate` is provided, the request fails validation.
-- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
 
 - **Created (201):**
 
@@ -4334,36 +3889,6 @@ Edge cases:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the author."
-  ]
-}
-```
-
 ### PUT /author
 
 - **Purpose:** Update an author by `id` or `displayName`.
@@ -4379,15 +3904,13 @@ Edge cases:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 1,
-  "displayName": "J.R.R. Tolkien",
-  "bio": "Updated biography."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -4410,6 +3933,16 @@ If both `id` and `targetDisplayName` are provided, the API uses `id` and ignores
 Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
 - If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1,
+  "displayName": "J.R.R. Tolkien",
+  "bio": "Updated biography."
+}
+```
 
 - **Updated (200):**
 
@@ -4507,36 +4040,6 @@ Edge cases:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the author."
-  ]
-}
-```
-
 ### PUT /author/:id
 
 - **Purpose:** Update an author by id.
@@ -4552,6 +4055,18 @@ Edge cases:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+Edge cases:
+- If `deceased=false` and `deathDate` is provided, the request fails validation.
+- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
+
 #### Example Request (JSON)
 
 ```json
@@ -4560,10 +4075,6 @@ Edge cases:
   "bio": "Updated biography."
 }
 ```
-
-Edge cases:
-- If `deceased=false` and `deathDate` is provided, the request fails validation.
-- If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
 
 - **Updated (200):**
 
@@ -4631,66 +4142,6 @@ Edge cases:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the author."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the author."
-  ]
-}
-```
-
 ### DELETE /author
 
 - **Purpose:** Delete an author by `id` or `displayName`.
@@ -4706,13 +4157,13 @@ Edge cases:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 1
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -4724,6 +4175,14 @@ Edge cases:
 At least one of `id` or `displayName` must be provided.
 
 If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 1
+}
+```
 
 - **Deleted (200):**
 
@@ -4770,36 +4229,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the author."
-  ]
-}
-```
-
 ### DELETE /author/:id
 
 - **Purpose:** Delete an author by id.
@@ -4815,11 +4244,12 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -4866,36 +4296,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the author."
-  ]
-}
-```
-
 ## Publishers
 
 Publishers are scoped per user. Founded dates use the same Partial Date Object described in **Shared Behaviours**.
@@ -4915,18 +4315,13 @@ Publishers are scoped per user. Founded dates use the same Partial Date Object d
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Bloomsbury"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -5052,6 +4447,19 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Bloomsbury"
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -5082,36 +4490,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving publishers."
-  ]
-}
-```
-
 #### Common Examples
 
 - **All publishers founded before 1950, sorted by founded year (desc), limit 20:**
@@ -5125,12 +4503,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-Query string equivalent:
-
-```
-GET /publisher?filterFoundedBefore=1950-01-01&sortBy=foundedYear&order=desc&limit=20
-```
-
 - **Publishers with "blooms" in the name, sorted by name (asc), offset 10, limit 10:**
 
 ```json
@@ -5141,12 +4513,6 @@ GET /publisher?filterFoundedBefore=1950-01-01&sortBy=foundedYear&order=desc&limi
   "offset": 10,
   "limit": 10
 }
-```
-
-Query string equivalent:
-
-```
-GET /publisher?filterName=blooms&sortBy=name&order=asc&offset=10&limit=10
 ```
 
 ### GET /publisher/by-name
@@ -5164,14 +4530,13 @@ GET /publisher?filterName=blooms&sortBy=name&order=asc&offset=10&limit=10
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "name": "Bloomsbury",
-  "nameOnly": false
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -5180,6 +4545,15 @@ GET /publisher?filterName=blooms&sortBy=name&order=asc&offset=10&limit=10
 | `name` | string | Yes | Publisher name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Bloomsbury",
+  "nameOnly": false
+}
+```
 
 - **Response (200):**
 
@@ -5238,36 +4612,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the publisher."
-  ]
-}
-```
-
 ### GET /publisher/:id
 
 - **Purpose:** Retrieve a specific publisher by id.
@@ -5283,11 +4627,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Response (200):**
 
@@ -5346,36 +4691,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the publisher."
-  ]
-}
-```
-
 ### POST /publisher
 
 - **Purpose:** Create a new publisher.
@@ -5391,6 +4706,23 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
+| `foundedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
+| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
+| `notes` | string | No | Optional notes (<= 1000 characters). |
+
 #### Example Request (JSON)
 
 ```json
@@ -5405,15 +4737,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "notes": "UK publisher."
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
-| `foundedDate` | object | No | Partial Date Object (`day`, `month`, `year`, `text`). |
-| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
-| `notes` | string | No | Optional notes (<= 1000 characters). |
 
 - **Created (201):**
 
@@ -5472,36 +4795,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the publisher."
-  ]
-}
-```
-
 ### PUT /publisher
 
 - **Purpose:** Update a publisher by id or name.
@@ -5517,14 +4810,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 5,
-  "notes": "Updated notes."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -5538,6 +4830,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `notes` | string | No | New notes. Use `null` to clear. |
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 5,
+  "notes": "Updated notes."
+}
+```
 
 - **Updated (200):**
 
@@ -5611,36 +4912,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the publisher."
-  ]
-}
-```
-
 ### PUT /publisher/:id
 
 - **Purpose:** Update a publisher by id.
@@ -5655,6 +4926,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Example Request (JSON)
 
@@ -5721,36 +5000,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the publisher."
-  ]
-}
-```
-
 ### DELETE /publisher
 
 - **Purpose:** Delete a publisher by id or name.
@@ -5766,13 +5015,13 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 5
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -5782,6 +5031,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `name` | string | No | Publisher name to delete (used if `id` is not provided). |
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 5
+}
+```
 
 - **Deleted (200):**
 
@@ -5828,36 +5085,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the publisher."
-  ]
-}
-```
-
 ### DELETE /publisher/:id
 
 - **Purpose:** Delete a publisher by id.
@@ -5873,11 +5100,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -5924,36 +5152,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the publisher."
-  ]
-}
-```
-
 ## Book Series
 
 Book series are scoped per user. Series start/end dates are derived from linked books (earliest/latest publication dates). Books without a `publicationDate` are ignored for start/end calculations. Books can be linked to multiple series; the link can optionally store the book order within the series.
@@ -5975,18 +5173,13 @@ If a series has no linked books with published dates, `startDate` and `endDate` 
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Rings"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -6147,6 +5340,19 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Rings"
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -6192,36 +5398,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving series."
-  ]
-}
-```
-
 #### Common Examples
 
 - **All series started before 1990, sorted by start year (desc), limit 10:**
@@ -6235,12 +5411,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-Query string equivalent:
-
-```
-GET /bookseries?filterStartedBefore=1990-01-01&sortBy=startYear&order=desc&limit=10
-```
-
 - **Series with "harry" in the name, sorted by name (asc), offset 20, limit 10:**
 
 ```json
@@ -6251,12 +5421,6 @@ GET /bookseries?filterStartedBefore=1990-01-01&sortBy=startYear&order=desc&limit
   "offset": 20,
   "limit": 10
 }
-```
-
-Query string equivalent:
-
-```
-GET /bookseries?filterName=harry&sortBy=name&order=asc&offset=20&limit=10
 ```
 
 ### GET /bookseries/by-name
@@ -6274,13 +5438,13 @@ GET /bookseries?filterName=harry&sortBy=name&order=asc&offset=20&limit=10
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "name": "The Lord of the Rings"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -6289,6 +5453,14 @@ GET /bookseries?filterName=harry&sortBy=name&order=asc&offset=20&limit=10
 | `name` | string | Yes | Series name to look up (query string or JSON body). |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
+
+#### Example Request (JSON)
+
+```json
+{
+  "name": "The Lord of the Rings"
+}
+```
 
 - **Response (200):**
 
@@ -6360,36 +5532,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the series."
-  ]
-}
-```
-
 ### GET /bookseries/:id
 
 - **Purpose:** Retrieve a specific series by id.
@@ -6405,11 +5547,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Response (200):**
 
@@ -6481,36 +5624,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the series."
-  ]
-}
-```
-
 ### POST /bookseries
 
 - **Purpose:** Create a new book series.
@@ -6526,6 +5639,22 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
+| `description` | string | No | Optional description (<= 1000 characters). |
+| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
+
 #### Example Request (JSON)
 
 ```json
@@ -6535,14 +5664,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "website": "https://www.tolkien.co.uk"
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | string | Yes | 2–150 characters; letters, numbers, spaces, and basic punctuation. |
-| `description` | string | No | Optional description (<= 1000 characters). |
-| `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
 
 - **Created (201):**
 
@@ -6594,36 +5715,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the series."
-  ]
-}
-```
-
 ### PUT /bookseries
 
 - **Purpose:** Update a series by id or name.
@@ -6639,14 +5730,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 8,
-  "description": "Updated series description."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -6659,6 +5749,15 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `website` | string | No | New website. Use `null` to clear. |
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 8,
+  "description": "Updated series description."
+}
+```
 
 - **Updated (200):**
 
@@ -6725,36 +5824,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the series."
-  ]
-}
-```
-
 ### PUT /bookseries/:id
 
 - **Purpose:** Update a series by id.
@@ -6769,6 +5838,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Example Request (JSON)
 
@@ -6828,36 +5905,6 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the series."
-  ]
-}
-```
-
 ### DELETE /bookseries
 
 - **Purpose:** Delete a series by id or name.
@@ -6873,13 +5920,13 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 8
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -6889,6 +5936,14 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `name` | string | No | Series name to delete (used if `id` is not provided). |
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 8
+}
+```
 
 - **Deleted (200):**
 
@@ -6935,36 +5990,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the series."
-  ]
-}
-```
-
 ### DELETE /bookseries/:id
 
 - **Purpose:** Delete a series by id.
@@ -6980,11 +6005,12 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -7031,36 +6057,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the series."
-  ]
-}
-```
-
 ### POST /bookseries/link
 
 - **Purpose:** Link a book to a series with an optional order.
@@ -7076,15 +6072,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "seriesId": 8,
-  "bookId": 22,
-  "bookOrder": 1
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -7101,6 +6095,16 @@ Notes:
 - `bookId` must reference an existing book owned by the authenticated user.
 - Series `startDate` and `endDate` are derived from the linked books' `publicationDate`. Books without a publication date are ignored for date ranges.
 - If a link already exists for the same series and book, the API updates that link instead of returning a conflict. Only provided fields are updated; omitted fields remain unchanged.
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22,
+  "bookOrder": 1
+}
+```
 
 - **Created (201):**
 
@@ -7172,36 +6176,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while linking the book to the series."
-  ]
-}
-```
-
 ### PUT /bookseries/link
 
 - **Purpose:** Update a book-series link (book order).
@@ -7217,15 +6191,13 @@ Notes:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "seriesId": 8,
-  "bookId": 22,
-  "bookOrder": 2
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -7237,6 +6209,16 @@ Notes:
 | `bookOrder` | integer | No | New order of the book in the series (1-10000). Use `null` to clear. |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22,
+  "bookOrder": 2
+}
+```
 
 - **Updated (200):**
 
@@ -7318,36 +6300,6 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the link."
-  ]
-}
-```
-
 ### DELETE /bookseries/link
 
 - **Purpose:** Remove a book-series link.
@@ -7363,14 +6315,13 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "seriesId": 8,
-  "bookId": 22
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -7381,6 +6332,15 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 | `bookId` | integer | Yes | Book id to unlink. |
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
+
+#### Example Request (JSON)
+
+```json
+{
+  "seriesId": 8,
+  "bookId": 22
+}
+```
 
 - **Deleted (200):**
 
@@ -7432,6 +6392,14 @@ Languages are global and shared across users. They are used to tag books with on
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Example Request (JSON)
 
 ```json
@@ -7457,36 +6425,6 @@ Languages are global and shared across users. They are used to tag books with on
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving languages."
-  ]
-}
-```
-
 ## Books
 
 Books are scoped per user. Titles are not unique, so multiple books can share the same title (e.g., different formats). ISBNs are unique per user when provided. When identifying a book by title, the API returns `409` if multiple books share that title.
@@ -7509,19 +6447,13 @@ If a book's `publicationDate` is `null`, date-based filters will not match it, a
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "view": "card",
-  "sortBy": "title",
-  "order": "asc",
-  "limit": 20,
-  "offset": 0,
-  "filterTag": "fantasy",
-  "filterPublishedAfter": "1950-01-01"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -7693,6 +6625,20 @@ Notes:
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "view": "card",
+  "sortBy": "title",
+  "order": "asc",
+  "limit": 20,
+  "offset": 0,
+  "filterTag": "fantasy",
+  "filterPublishedAfter": "1950-01-01"
+}
+```
+
 - **Multiple Matches (409):**
 
 ```json
@@ -7738,81 +6684,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the book."
-  ]
-}
-```
-
-- **Not Found (404):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Book not found.",
-  "data": {},
-  "errors": [
-    "The requested book could not be located."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving the book."
-  ]
-}
-```
-
 ### POST /book
 
 - **Purpose:** Create a new book and link it to related entities.
@@ -7827,6 +6698,58 @@ Notes:
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `title` | string | Yes | 2–255 characters. |
+| `subtitle` | string | No | Optional subtitle (<= 255 characters). |
+| `isbn` | string | No | ISBN (10–17 chars, digits/hyphen/X). Unique per user when provided. |
+| `publicationDate` | object | No | Partial Date Object. |
+| `pageCount` | integer | No | Number of pages (1–10000). |
+| `coverImageUrl` | string | No | Valid URL for a cover image. |
+| `description` | string | No | Optional description (<= 2000 characters). |
+| `bookTypeId` | integer or array | No | Book type id (single number or array with one number). |
+| `publisherId` | integer or array | No | Publisher id (single number or array with one number). |
+| `authorIds` | array | No | Array of author ids. |
+| `languageIds` | array | No | Array of language ids. |
+| `languageNames` | array | No | Array of language names (case-insensitive). |
+| `tags` | array | No | Array of tag strings (<= 50 chars). |
+| `series` | array | No | Array of series ids or objects with `seriesId` and optional `bookOrder`. |
+| `bookCopy` | object | No | First book copy to create (see fields below). |
+| `bookCopies` | array | No | Array of book copy objects; only the first entry is used. |
+
+Notes:
+- Tags are normalised and de-duplicated per user.
+- Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
+- If no `bookCopy` is provided, the API creates a blank copy so every book has at least one copy.
+- The response includes `series[].bookPublishedDate` derived from the book's `publicationDate`.
+
+Book copy fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `storageLocationId` | integer | No | Storage location id for this copy. |
+| `storageLocationPath` | string | No | Storage location path (e.g., `Home -> Living Room`). |
+| `acquisitionStory` | string | No | Free-text acquisition story (<= 2000 chars). |
+| `acquisitionDate` | object | No | Partial Date Object. |
+| `acquiredFrom` | string | No | Who the copy was acquired from (<= 255 chars). |
+| `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
+| `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
+| `notes` | string | No | Additional notes (<= 2000 chars). |
+
+If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
+
+If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
 #### Example Request (JSON)
 
@@ -7878,50 +6801,6 @@ Notes:
   }
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `title` | string | Yes | 2–255 characters. |
-| `subtitle` | string | No | Optional subtitle (<= 255 characters). |
-| `isbn` | string | No | ISBN (10–17 chars, digits/hyphen/X). Unique per user when provided. |
-| `publicationDate` | object | No | Partial Date Object. |
-| `pageCount` | integer | No | Number of pages (1–10000). |
-| `coverImageUrl` | string | No | Valid URL for a cover image. |
-| `description` | string | No | Optional description (<= 2000 characters). |
-| `bookTypeId` | integer or array | No | Book type id (single number or array with one number). |
-| `publisherId` | integer or array | No | Publisher id (single number or array with one number). |
-| `authorIds` | array | No | Array of author ids. |
-| `languageIds` | array | No | Array of language ids. |
-| `languageNames` | array | No | Array of language names (case-insensitive). |
-| `tags` | array | No | Array of tag strings (<= 50 chars). |
-| `series` | array | No | Array of series ids or objects with `seriesId` and optional `bookOrder`. |
-| `bookCopy` | object | No | First book copy to create (see fields below). |
-| `bookCopies` | array | No | Array of book copy objects; only the first entry is used. |
-
-Notes:
-- Tags are normalised and de-duplicated per user.
-- Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
-- If no `bookCopy` is provided, the API creates a blank copy so every book has at least one copy.
-- The response includes `series[].bookPublishedDate` derived from the book's `publicationDate`.
-
-Book copy fields:
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `storageLocationId` | integer | No | Storage location id for this copy. |
-| `storageLocationPath` | string | No | Storage location path (e.g., `Home -> Living Room`). |
-| `acquisitionStory` | string | No | Free-text acquisition story (<= 2000 chars). |
-| `acquisitionDate` | object | No | Partial Date Object. |
-| `acquiredFrom` | string | No | Who the copy was acquired from (<= 255 chars). |
-| `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
-| `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
-| `notes` | string | No | Additional notes (<= 2000 chars). |
-
-If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
-
-If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
 - **Created (201):**
 
@@ -8027,36 +6906,6 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the book."
-  ]
-}
-```
-
 ### PUT /book
 
 - **Purpose:** Update a book by id, ISBN, or title.
@@ -8072,23 +6921,13 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "id": 22,
-  "pageCount": 430,
-  "tags": [
-    "Fantasy"
-  ],
-  "series": [
-    {
-      "seriesId": 8,
-      "bookOrder": 1
-    }
-  ]
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -8122,6 +6961,24 @@ Updatable fields (all optional):
 Notes:
 - If a relation array is provided, the API replaces existing links with the supplied list.
 - Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
+
+#### Example Request (JSON)
+
+```json
+{
+  "id": 22,
+  "pageCount": 430,
+  "tags": [
+    "Fantasy"
+  ],
+  "series": [
+    {
+      "seriesId": 8,
+      "bookOrder": 1
+    }
+  ]
+}
+```
 
 - **Updated (200):**
 
@@ -8226,6 +7083,14 @@ Notes:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Example Request (JSON)
 
 ```json
@@ -8273,36 +7138,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the book."
-  ]
-}
-```
-
 ### DELETE /book/:id
 
 - **Purpose:** Delete a book by id.
@@ -8318,11 +7153,12 @@ Notes:
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -8369,36 +7205,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the book."
-  ]
-}
-```
-
 ## Storage Locations
 
 Storage locations are hierarchical and scoped per user. The API returns a human-readable `path` for each location, e.g. `Home -> Living Room -> Shelf A`.
@@ -8418,18 +7224,13 @@ Storage locations are hierarchical and scoped per user. The API returns a human-
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "nameOnly": false,
-  "sortBy": "path",
-  "order": "asc",
-  "limit": 100,
-  "offset": 0,
-  "filterPathContains": "Home"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Query Parameters
 
@@ -8506,6 +7307,19 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "path",
+  "order": "asc",
+  "limit": 100,
+  "offset": 0,
+  "filterPathContains": "Home"
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -8532,36 +7346,6 @@ If both `id` and `path` are provided, `id` takes precedence.
   "data": {},
   "errors": [
     "The requested storage location could not be located."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving storage locations."
   ]
 }
 ```
@@ -8626,36 +7410,6 @@ If both `id` and `path` are provided, `id` takes precedence.
   "data": {},
   "errors": [
     "A storage location with this name already exists at the same level."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the storage location."
   ]
 }
 ```
@@ -8726,36 +7480,6 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the storage location."
-  ]
-}
-```
-
 ### PUT /storagelocation/:id
 
 Same payload and responses as `PUT /storagelocation`, with the target id supplied in the URL path.
@@ -8803,36 +7527,6 @@ Same payload and responses as `PUT /storagelocation`, with the target id supplie
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the storage location."
-  ]
-}
-```
-
 ### DELETE /storagelocation/:id
 
 Same payload and responses as `DELETE /storagelocation`, with the target id supplied in the URL path.
@@ -8856,15 +7550,13 @@ Book copies represent the physical copies you own. Every book must have at least
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "name": "Shelf A",
-  "parentId": 2,
-  "notes": "Top row"
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Example Request (JSON)
 
@@ -9017,6 +7709,16 @@ Notes:
 }
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "name": "Shelf A",
+  "parentId": 2,
+  "notes": "Top row"
+}
+```
+
 - **Validation Error (400):**
 
 ```json
@@ -9043,36 +7745,6 @@ Notes:
   "data": {},
   "errors": [
     "The requested book copy could not be located."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving book copies."
   ]
 }
 ```
@@ -9141,36 +7813,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while creating the book copy."
-  ]
-}
-```
-
 ### PUT /bookcopy
 
 - **Purpose:** Update a book copy by id.
@@ -9235,36 +7877,6 @@ Notes:
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while updating the book copy."
-  ]
-}
-```
-
 ### PUT /bookcopy/:id
 
 Same payload and responses as `PUT /bookcopy`, with the target id supplied in the URL path.
@@ -9325,36 +7937,6 @@ Same payload and responses as `PUT /bookcopy`, with the target id supplied in th
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while deleting the book copy."
-  ]
-}
-```
-
 ### DELETE /bookcopy/:id
 
 Same payload and responses as `DELETE /bookcopy`, with the target id supplied in the URL path.
@@ -9378,25 +7960,13 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{
-  "bookId": 22,
-  "storageLocationPath": "Home -> Living Room -> Shelf A",
-  "acquisitionStory": "Gifted for a birthday.",
-  "acquisitionDate": {
-    "day": 21,
-    "month": 12,
-    "year": 2010,
-    "text": "21 December 2010"
-  },
-  "acquiredFrom": "Family",
-  "acquisitionType": "Gift",
-  "acquisitionLocation": "Cape Town",
-  "notes": "Hardcover edition."
-}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Example Request (JSON)
 
@@ -9435,6 +8005,26 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 {}
 ```
 
+#### Example Request (JSON)
+
+```json
+{
+  "bookId": 22,
+  "storageLocationPath": "Home -> Living Room -> Shelf A",
+  "acquisitionStory": "Gifted for a birthday.",
+  "acquisitionDate": {
+    "day": 21,
+    "month": 12,
+    "year": 2010,
+    "text": "21 December 2010"
+  },
+  "acquiredFrom": "Family",
+  "acquisitionType": "Gift",
+  "acquisitionLocation": "Cape Town",
+  "notes": "Hardcover edition."
+}
+```
+
 - **Response (200):**
 
 ```json
@@ -9463,36 +8053,6 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 }
 ```
 
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while retrieving tags."
-  ]
-}
-```
-
 ## Admin
 
 All `/admin/*` routes require an authenticated admin user.
@@ -9512,6 +8072,20 @@ All `/admin/*` routes require an authenticated admin user.
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Language name (2–100 characters). |
+
 #### Example Request (JSON)
 
 ```json
@@ -9519,12 +8093,6 @@ All `/admin/*` routes require an authenticated admin user.
   "name": "Zulu"
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | string | Yes | Language name (2–100 characters). |
 
 - **Created (201):**
 
@@ -9559,6 +8127,20 @@ All `/admin/*` routes require an authenticated admin user.
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Language name (2–100 characters). |
+
 #### Example Request (JSON)
 
 ```json
@@ -9566,12 +8148,6 @@ All `/admin/*` routes require an authenticated admin user.
   "name": "isiZulu"
 }
 ```
-
-#### Body Parameters
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | string | Yes | Language name (2–100 characters). |
 
 - **Updated (200):**
 
@@ -9606,11 +8182,12 @@ All `/admin/*` routes require an authenticated admin user.
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | N/A (no body) |
 
-#### Example Request (JSON)
+#### Required Headers
 
-```json
-{}
-```
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 - **Deleted (200):**
 
@@ -9638,36 +8215,6 @@ All `/admin/*` routes require an authenticated admin user.
   "data": {},
   "errors": [
     "The requested book-series link could not be located."
-  ]
-}
-```
-
-- **Authentication Required (401):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 401,
-  "responseTime": "2.18",
-  "message": "Authentication required for this action.",
-  "data": {},
-  "errors": [
-    "Missing or invalid Authorization header."
-  ]
-}
-```
-
-- **Server Error (500):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 500,
-  "responseTime": "5.42",
-  "message": "Database Error",
-  "data": {},
-  "errors": [
-    "An error occurred while removing the link."
   ]
 }
 ```

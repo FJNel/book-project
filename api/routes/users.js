@@ -203,10 +203,11 @@ async function verifyCaptchaToken(token, ip, expectedAction = null, minScore = 0
 }
 
 function extractTokenFromRequest(req) {
-	if (req.method === "GET") {
-		return typeof req.query.token === "string" ? req.query.token.trim() : undefined;
+	const bodyToken = typeof req.body?.token === "string" ? req.body.token.trim() : undefined;
+	if (bodyToken) {
+		return bodyToken;
 	}
-	return typeof req.body?.token === "string" ? req.body.token.trim() : undefined;
+	return typeof req.query.token === "string" ? req.query.token.trim() : undefined;
 }
 
 
