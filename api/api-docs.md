@@ -171,21 +171,6 @@ All other endpoints currently have no dedicated custom limit.
 
 The email cost limiter is shared across all endpoints that trigger outbound email. Requests across those endpoints count toward the same IP-based bucket.
 
-### Common Rate Limit Response (429)
-
-```json
-{
-  "status": "error",
-  "httpCode": 429,
-  "responseTime": "2.12",
-  "message": "Too many requests",
-  "data": {},
-  "errors": [
-    "You have exceeded the maximum number of requests. Please try again later."
-  ]
-}
-```
-
 ## Shared Behaviours
 
 - **Authentication:** Routes guarded by `requiresAuth` return HTTP `401` with `message` `"Authentication required for this action."` when the Authorization header is missing or invalid. Disabled accounts receive HTTP `403` with `message` `"Your account has been disabled."`.
@@ -244,6 +229,21 @@ The email cost limiter is shared across all endpoints that trigger outbound emai
 }
 ```
 
+### Common Rate Limit Response (429)
+
+```json
+{
+  "status": "error",
+  "httpCode": 429,
+  "responseTime": "2.12",
+  "message": "Too many requests",
+  "data": {},
+  "errors": [
+    "You have exceeded the maximum number of requests. Please try again later."
+  ]
+}
+```
+
 ### Partial Date Object
 
 Some endpoints accept partial dates for fields like author birth/death dates, publisher founded dates, book publication dates, and acquisition dates. The API expects a partial date object in the following format:
@@ -281,7 +281,7 @@ Sample identifiers, tokens, timestamps, and IDs shown below are illustrative.
 | Authentication | None |
 | Content-Type | `application/json` (optional body) |
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {}
@@ -358,20 +358,26 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 | `email` | string | Yes | 5–255 characters; must be unique and in valid email format. |
 | `password` | string | Yes | 10–100 characters; must include upper, lower, digit, and special character. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Verify your email address for the Book Project`
 - **Body (text):**
 
 ```
-Welcome, <preferredName>.
-Thank you for registering for the Book Project. Please verify your email address to activate your account.
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
 Verify Email: <frontend_verify_url>?token=<token>
-If you did not register, contact support at <supportEmail>.
-This link expires in <expiresIn> minutes.
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
 ```
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -382,6 +388,8 @@ This link expires in <expiresIn> minutes.
   "password": "P@ssw0rd123!"
 }
 ```
+
+#### Example Responses
 
 - **Generic Success (200):** Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.
 
@@ -494,20 +502,26 @@ This link expires in <expiresIn> minutes.
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `resend_verification` action. |
 | `email` | string | Yes | Email address to resend verification for; must be 5–255 chars and valid format. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Verify your email address for the Book Project`
 - **Body (text):**
 
 ```
-Hello, <preferredName>.
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
 Please verify your email address to activate your account.
 Verify Email: <frontend_verify_url>?token=<token>
-If you did not request this email, contact support at <supportEmail>.
-This link expires in <expiresIn> minutes.
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
 ```
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -515,6 +529,8 @@ This link expires in <expiresIn> minutes.
   "email": "jane@example.com"
 }
 ```
+
+#### Example Responses
 
 - **Generic Success (200):**
 
@@ -596,6 +612,11 @@ This link expires in <expiresIn> minutes.
 | `email` | string | Yes | Email address to verify (5–255 characters, valid format). |
 | `token` | string | Yes | Email verification token (32-byte hex string). |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Welcome to The Book Project`
@@ -603,12 +624,12 @@ This link expires in <expiresIn> minutes.
 
 ```
 Welcome, <preferredName>!
-Your email has been verified successfully. You can now log in and start using the Book Project.
+Your email has been verified successfully. You can now log in to start using The Book Project.
 Log In: <frontend_login_url>
-If you did not verify this email address, contact support at <supportEmail>.
+If you did not verify this email address, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
 ```
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -616,6 +637,8 @@ If you did not verify this email address, contact support at <supportEmail>.
   "token": "<verification-token>"
 }
 ```
+
+#### Example Responses
 
 - **Verified (200):**
 
@@ -761,7 +784,12 @@ If you did not verify this email address, contact support at <supportEmail>.
 | `email` | string | Yes | Email address of the user (case-insensitive). |
 | `password` | string | Yes | Plain-text password to verify; not stored. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
+#### Example Request Body
 
 ```json
 {
@@ -770,6 +798,8 @@ If you did not verify this email address, contact support at <supportEmail>.
   "password": "P@ssw0rd123!"
 }
 ```
+
+#### Example Responses
 
 - **Authenticated (200):**
 
@@ -871,13 +901,20 @@ If you did not verify this email address, contact support at <supportEmail>.
 | --- | --- | --- | --- |
 | `refreshToken` | string (JWT) | Yes | Refresh token previously issued by `/auth/login` or `/auth/google`. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Invalid or revoked refresh tokens return `401`.
+
+#### Example Request Body
 
 ```json
 {
   "refreshToken": "<refresh-token>"
 }
 ```
+
+#### Example Responses
 
 - **Refreshed (200):**
 
@@ -987,7 +1024,12 @@ If you did not verify this email address, contact support at <supportEmail>.
 
 Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke every active session without supplying a refresh token.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Missing or invalid refresh tokens return `400` or `401` depending on the failure mode.
+
+#### Example Request Body
 
 ```json
 {
@@ -995,6 +1037,8 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
   "allDevices": false
 }
 ```
+
+#### Example Responses
 
 - **Single Session Logout (200):**
 
@@ -1107,20 +1151,26 @@ Set `allDevices` truthy (`true`, `"true"`, `1`, `"1"`, or `"all"`) to revoke eve
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for the `request_password_reset` action. |
 | `email` | string | Yes | Email address to send the password reset link to. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Reset your password for the Book Project`
 - **Body (text):**
 
 ```
-Hello, <preferredName>.
-We received a request to set or reset your Book Project password.
+Hello, <preferredName>!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
 Reset Password: <frontend_reset_url>?token=<token>
-If you did not request a password reset, contact support at <supportEmail>.
-This link expires in <expiresIn> minutes.
+If you did not request a password reset, please contact the system administrator at <supportEmail> to ensure the safety of your account.
+This link will expire in <expiresIn> minutes.
 ```
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -1128,6 +1178,8 @@ This link expires in <expiresIn> minutes.
   "email": "jane@example.com"
 }
 ```
+
+#### Example Responses
 
 - **Generic Success (200):**
 
@@ -1212,19 +1264,24 @@ This link expires in <expiresIn> minutes.
 | `token` | string | Yes | Password-reset token sent via email (32-byte hex). |
 | `newPassword` | string | Yes | 10–100 characters, including upper, lower, digit, and special character. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Your password has been reset`
 - **Body (text):**
 
 ```
-Password reset successful, <preferredName>.
-Your password has been updated. You can now log in using your new password.
+Password Reset Successful, <preferredName>
+Your password has been updated successfully. You can now log in using your new password.
 Log In: <frontend_login_url>
-If you did not reset your password, contact support at <supportEmail>.
+If you did not reset your password, please contact the system administrator at <supportEmail> to secure your account.
 ```
 
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -1233,6 +1290,8 @@ If you did not reset your password, contact support at <supportEmail>.
   "newPassword": "NewP@ssw0rd123!"
 }
 ```
+
+#### Example Responses
 
 - **Password Reset (200):**
 
@@ -1343,13 +1402,20 @@ If you did not reset your password, contact support at <supportEmail>.
 | --- | --- | --- | --- |
 | `idToken` | string | Yes | ID token returned by Google OAuth (must be for the configured client ID). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Invalid Google ID tokens return `401`, and unverified Google emails return `400`.
+
+#### Example Request Body
 
 ```json
 {
   "idToken": "<google-id-token>"
 }
 ```
+
+#### Example Responses
 
 - **Authenticated (200):**
 
@@ -1487,6 +1553,13 @@ All user management endpoints require a valid access token (`Authorization: Bear
 | --- | --- | --- | --- |
 | *(none)* | — | — | This endpoint does not accept a request body. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
+
 - **Response (200):**
 
 ```json
@@ -1561,7 +1634,13 @@ All user management endpoints require a valid access token (`Authorization: Bear
 
 At least one of `fullName` or `preferredName` must be provided.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Update endpoints require at least one updatable field; empty payloads return `400`.
+
+#### Example Request Body
 
 ```json
 {
@@ -1569,6 +1648,8 @@ At least one of `fullName` or `preferredName` must be provided.
   "preferredName": "Jan"
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -1667,6 +1748,12 @@ At least one of `fullName` or `preferredName` must be provided.
 | --- | --- | --- | --- |
 | *(none)* | — | — | This endpoint does not accept a request body. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Daily quota limits return `429` with a daily limit message.
+- If the requested record cannot be found, the API returns `404`.
+
 #### Email Content
 
 - **Subject:** `Confirm your Book Project account disable request`
@@ -1674,13 +1761,13 @@ At least one of `fullName` or `preferredName` must be provided.
 
 ```
 Hi <preferredName>.
-We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in.
+We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in or use any features.
+To confirm, click the button below. If you change your mind later, or if you did not make this request, please reach out to our system administrator at <supportEmail> so we can assist or reactivate your account.
 Confirm Disable: <api_base_url>/users/me/verify-delete?token=<token>
-If you did not make this request, contact support at <supportEmail>.
-This link expires in <expiresIn> minutes.
+This link will expire in <expiresIn> minutes. If it expires, simply sign in and submit another request.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+#### Example Responses
 
 - **Requested (200):**
 
@@ -1745,6 +1832,11 @@ This link expires in <expiresIn> minutes.
 
 *Security note: If the supplied email or CAPTCHA token does not match the pending request, the API returns the same error as an invalid or expired token.*
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Your Book Project account has been disabled`
@@ -1752,13 +1844,15 @@ This link expires in <expiresIn> minutes.
 
 ```
 Hello <preferredName>.
-Your Book Project account has been disabled. You can no longer log in or use any features.
-If you want to reactivate your account, contact support at <supportEmail>.
+This is a confirmation that your Book Project account has been disabled.
+From now on:
+- You will no longer be able to log in.
+- You cannot use any of the Book Project features.
+- Your data will remain in our database, but is marked as disabled.
+If you would like to reactivate your account, please contact the System Administrator at <supportEmail>. Provide them with your email address and request account reactivation.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
-
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -1767,6 +1861,8 @@ If you want to reactivate your account, contact support at <supportEmail>.
   "captchaToken": "<captcha-token>"
 }
 ```
+
+#### Example Responses
 
 - **Confirmed (200):**
 
@@ -1828,28 +1924,33 @@ If you want to reactivate your account, contact support at <supportEmail>.
 | --- | --- | --- | --- |
 | `newEmail` | string | Yes | Desired email address; must pass the same validation as registration. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Daily quota limits return `429` with a daily limit message.
+
 #### Email Content
 
 - **Subject:** `Verify your new Book Project email address`
 - **Body (text):**
 
 ```
-Confirm your new email address, <preferredName>.
-We received a request to update your Book Project email address.
+Confirm your new email, <preferredName>
+We received a request to update the email address linked to your Book Project account.
+Click the button below to finish verifying this new email. If you did not request the change, contact <supportEmail> so we can secure your account. Once your new email is verified, you will be logged out of all sessions and will need to log in again using the new email address.
 Verify New Email: <api_base_url>/users/me/verify-email-change?token=<token>
-If you did not request the change, contact support at <supportEmail>.
-This link expires in <expiresIn> minutes. After verification you will be signed out of all sessions.
+This link expires in <expiresIn> minutes. If you did not request this change, you can ignore this email.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
-
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
   "newEmail": "jane.new@example.com"
 }
 ```
+
+#### Example Responses
 
 - **Generic Success (200):**
 
@@ -1916,21 +2017,23 @@ This link expires in <expiresIn> minutes. After verification you will be signed 
 
 *Security note: Incorrect email, password, or CAPTCHA data yields the same error as an invalid token to prevent email enumeration.*
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Your Book Project email address has changed`
 - **Body (text):**
 
 ```
-Email updated, <preferredName>.
-This confirms your account email has been updated to <newEmail>.
-This confirmation is sent to the previous email address on file.
-If you did not authorise this change, contact support at <supportEmail> immediately.
+Email updated, <preferredName>
+This is a confirmation that your Book Project account email has been updated to <newEmail>.
+If you did not authorise this change, please contact our support team immediately at <supportEmail> so that we can help secure your account.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
-
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -1941,6 +2044,8 @@ If you did not authorise this change, contact support at <supportEmail> immediat
   "captchaToken": "<captcha-token>"
 }
 ```
+
+#### Example Responses
 
 - **Confirmed (200):**
 
@@ -2001,20 +2106,26 @@ If you did not authorise this change, contact support at <supportEmail> immediat
 | --- | --- | --- | --- |
 | *(none)* | — | — | No request body is accepted. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Daily quota limits return `429` with a daily limit message.
+
 #### Email Content
 
 - **Subject:** `Confirm your Book Project account deletion request`
 - **Body (text):**
 
 ```
-Final confirmation required.
+Final confirmation required
 You asked us to permanently delete your Book Project account and all associated data.
+Our administrators will only proceed once you confirm this request. If this wasn’t you, email <supportEmail> immediately to ensure that your account remains secure and intact.
 Confirm Deletion Request: <api_base_url>/users/me/verify-account-deletion?token=<token>
-If this wasn’t you, contact support at <supportEmail> immediately.
-This link expires in <expiresIn> minutes. After confirmation, our team will contact you to complete the deletion.
+Once confirmed, our support team will contact you to complete the deletion process.
+This link expires in <expiresIn> minutes.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
+#### Example Responses
 
 - **Requested (200):**
 
@@ -2066,25 +2177,30 @@ This link expires in <expiresIn> minutes. After confirmation, our team will cont
 
 *Security note: Invalid email, password, or confirmation values produce the same response as an expired token.*
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+
 #### Email Content
 
 - **Subject:** `Account deletion confirmation received for <userEmail>`
 - **Body (text):**
 
 ```
-Account deletion request confirmed.
-A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
+Account deletion request confirmed
+A user confirmed that they would like their Book Project account to be deleted permanently.
+Please reach out to verify their request before completing the deletion process.
 User ID: <userId>
 Email: <userEmail>
 Full Name: <userFullName>
 Preferred Name: <userPreferredName>
 Confirmed At: <requestedAt>
 Requester IP: <requestIp>
+Please reach out to the user before fully deleting this account and all associated data. Use the appropriate admin endpoint to complete the deletion.
 ```
 
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
-
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -2095,6 +2211,8 @@ Requester IP: <requestIp>
   "captchaToken": "<captcha-token>"
 }
 ```
+
+#### Example Responses
 
 - **Confirmed (200):**
 
@@ -2153,6 +2271,13 @@ Requester IP: <requestIp>
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | *(none)* | — | — | This endpoint does not accept a request body. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If there are no active sessions, the API returns an empty array.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -2228,6 +2353,13 @@ Requester IP: <requestIp>
 | --- | --- | --- | --- |
 | *(none)* | — | — | Provide the fingerprint via the path parameter. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the fingerprint does not match any active session, the API returns `200` with `wasRevoked=false`.
+
+#### Example Responses
+
 - **Session Revoked (200):**
 
 ```json
@@ -2277,7 +2409,7 @@ Requester IP: <requestIp>
 
 ### POST /users/me/change-password
 
-- **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.
+- **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked.
 - **Daily Quota:** A user can change their password via this endpoint up to twice per day.
 - **Authentication:** Access token required.
 
@@ -2307,25 +2439,13 @@ Requester IP: <requestIp>
 | `newPassword` | string | Yes | 10–100 characters with upper, lower, digit, special character. |
 | `captchaToken` | string | Yes | reCAPTCHA v3 token for action `change_password`. |
 
-#### Email Content
+#### Validation & Edge Cases
 
-- **Subject:** `Account deletion confirmation received for <userEmail>`
-- **Body (text):**
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- CAPTCHA failures return `400` with a descriptive error message.
+- Daily quota limits return `429` with a daily limit message.
 
-```
-Account deletion request confirmed.
-A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
-User ID: <userId>
-Email: <userEmail>
-Full Name: <userFullName>
-Preferred Name: <userPreferredName>
-Confirmed At: <requestedAt>
-Requester IP: <requestIp>
-```
-
-- **Email cost limit:** 1 request per 5 minutes per IP (shared across email-sending endpoints).
-
-#### Example Request (JSON)
+#### Example Request Body
 
 ```json
 {
@@ -2334,6 +2454,8 @@ Requester IP: <requestIp>
   "captchaToken": "<captcha-token>"
 }
 ```
+
+#### Example Responses
 
 - **Successful Change (200):**
 
@@ -2400,10 +2522,16 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
-| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
-| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `filterId` | integer | No | Filter list by exact id. |
 | `filterName` | string | No | Case-insensitive partial match on name. |
 | `filterDescription` | string | No | Case-insensitive partial match on description. |
@@ -2415,8 +2543,9 @@ Book types are scoped per user. Each account starts with two defaults: `Hardcove
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 
 `sortBy` accepts: `id`, `name`, `description`, `createdAt`, `updatedAt`.
-
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
 
 #### Common Examples
 
@@ -2443,6 +2572,29 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `name` | string | No | Book type name to fetch. |
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Hard",
+  "filterCreatedAfter": "2024-01-01"
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -2506,20 +2658,6 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 }
 ```
 
-#### Example Request (JSON)
-
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Hard",
-  "filterCreatedAfter": "2024-01-01"
-}
-```
-
 - **Validation Error (400):**
 
 ```json
@@ -2571,6 +2709,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -2652,7 +2797,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -2660,6 +2811,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "nameOnly": false
 }
 ```
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -2740,7 +2893,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `name` | string | Yes | 2–100 characters; letters, numbers, spaces, and basic punctuation. |
 | `description` | string | No | Optional description (<= 1000 characters). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -2748,6 +2906,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "description": "Standard hardcover binding."
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -2875,7 +3035,14 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 At least one field must be provided.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- Update endpoints require at least one updatable field; empty payloads return `400`.
+
+#### Example Request Body
 
 ```json
 {
@@ -2883,6 +3050,8 @@ At least one field must be provided.
   "description": "Updated description."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -3044,7 +3213,14 @@ At least one of `id` or `targetName` must be provided to identify the record, an
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- Update endpoints require at least one updatable field; empty payloads return `400`.
+
+#### Example Request Body
 
 ```json
 {
@@ -3053,6 +3229,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "description": "Updated description."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -3167,13 +3345,20 @@ At least one of `id` or `name` must be provided.
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "id": 1
 }
 ```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -3287,6 +3472,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
+
 - **Deleted (200):**
 
 ```json
@@ -3349,10 +3541,16 @@ Authors are scoped per user and can be linked to books later via a linking table
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `displayName`. Defaults to `false`. |
-| `sortBy` | string | No | Sort field for lists. Defaults to `displayName`. |
-| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | Sort field for lists. Defaults to `displayName`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `filterId` | integer | No | Filter list by exact id. |
 | `filterDisplayName` | string | No | Case-insensitive partial match on display name. |
 | `filterFirstNames` | string | No | Case-insensitive partial match on first names. |
@@ -3381,11 +3579,12 @@ Authors are scoped per user and can be linked to books later via a linking table
 | `filterDiedAfter` | string | No | ISO date/time lower bound for death date. |
 
 `sortBy` accepts: `id`, `displayName`, `firstNames`, `lastName`, `deceased`, `bio`, `createdAt`, `updatedAt`, `birthDateId`, `deathDateId`, `birthDay`, `birthMonth`, `birthYear`, `birthText`, `deathDay`, `deathMonth`, `deathYear`, `deathText`.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
 
 For born/died filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1).
 Authors without a birth/death date will not match the born/died filters.
-
-You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
 #### Common Examples
 
@@ -3422,6 +3621,29 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 | `displayName` | string | No | Author display name to fetch. |
 
 If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "displayName",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterDeceased": true,
+  "filterBirthYear": 1950
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -3519,20 +3741,6 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 }
 ```
 
-#### Example Request (JSON)
-
-```json
-{
-  "nameOnly": false,
-  "sortBy": "displayName",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterDeceased": true,
-  "filterBirthYear": 1950
-}
-```
-
 - **Validation Error (400):**
 
 ```json
@@ -3584,6 +3792,13 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -3685,7 +3900,13 @@ If `displayName` is provided in both the query string and JSON body, the JSON bo
 Edge cases:
 - Display names are user-scoped; a name that exists for another user will still return `404`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -3693,6 +3914,8 @@ Edge cases:
   "nameOnly": false
 }
 ```
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -3799,7 +4022,12 @@ Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
 - If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -3822,6 +4050,8 @@ Edge cases:
   "bio": "English writer and philologist."
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -3934,7 +4164,14 @@ Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
 - If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- Update endpoints require at least one updatable field; empty payloads return `400`.
+
+#### Example Request Body
 
 ```json
 {
@@ -3943,6 +4180,8 @@ Edge cases:
   "bio": "Updated biography."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -4067,7 +4306,12 @@ Edge cases:
 - If `deceased=false` and `deathDate` is provided, the request fails validation.
 - If `deceased` is omitted but `deathDate` is provided, the API assumes `deceased=true`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -4075,6 +4319,8 @@ Edge cases:
   "bio": "Updated biography."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -4176,13 +4422,20 @@ At least one of `id` or `displayName` must be provided.
 
 If both `id` and `displayName` are provided, the API uses `id` and ignores `displayName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "id": 1
 }
 ```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -4250,6 +4503,13 @@ If both `id` and `displayName` are provided, the API uses `id` and ignores `disp
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -4328,10 +4588,16 @@ Publishers are scoped per user. Founded dates use the same Partial Date Object d
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
-| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
-| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `filterId` | integer | No | Filter list by exact id. |
 | `filterName` | string | No | Case-insensitive partial match on name. |
 | `filterWebsite` | string | No | Case-insensitive partial match on website. |
@@ -4351,10 +4617,11 @@ Publishers are scoped per user. Founded dates use the same Partial Date Object d
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 
 `sortBy` accepts: `id`, `name`, `website`, `notes`, `createdAt`, `updatedAt`, `foundedDateId`, `foundedDay`, `foundedMonth`, `foundedYear`, `foundedText`.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
 
 For founded filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Publishers without a founded date will not match the founded filters.
-
-You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
 #### Optional Lookup (query or body)
 
@@ -4368,6 +4635,28 @@ When `id` or `name` is provided (query string or JSON body), the endpoint return
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Bloomsbury"
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -4444,19 +4733,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
     "updatedAt": "2025-01-14T16:58:41.000Z"
   },
   "errors": []
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Bloomsbury"
 }
 ```
 
@@ -4546,7 +4822,13 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -4554,6 +4836,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "nameOnly": false
 }
 ```
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -4633,6 +4917,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -4723,7 +5014,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
 | `notes` | string | No | Optional notes (<= 1000 characters). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -4737,6 +5033,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "notes": "UK publisher."
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -4831,7 +5129,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -4839,6 +5143,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "notes": "Updated notes."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -4935,13 +5241,20 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "notes": "Updated notes."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -5032,13 +5345,20 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "id": 5
 }
 ```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -5106,6 +5426,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -5186,10 +5513,16 @@ If a series has no linked books with published dates, `startDate` and `endDate` 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
-| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
-| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | Sort field for lists. Defaults to `name`. |
+| `order` | string | No | Sort direction (`asc` or `desc`). Defaults to `asc`. |
 | `filterId` | integer | No | Filter list by exact id. |
 | `filterName` | string | No | Case-insensitive partial match on name. |
 | `filterDescription` | string | No | Case-insensitive partial match on description. |
@@ -5216,10 +5549,11 @@ If a series has no linked books with published dates, `startDate` and `endDate` 
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 
 `sortBy` accepts: `id`, `name`, `description`, `website`, `createdAt`, `updatedAt`, `startDate`, `startDateId`, `startDay`, `startMonth`, `startYear`, `startText`, `endDate`, `endDateId`, `endDay`, `endMonth`, `endYear`, `endText`.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
 
 For started/ended filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without start/end dates will not match the corresponding filters.
-
-You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
 
 #### Optional Lookup (query or body)
 
@@ -5233,6 +5567,28 @@ When `id` or `name` is provided (query string or JSON body), the endpoint return
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "name",
+  "order": "asc",
+  "limit": 50,
+  "offset": 0,
+  "filterName": "Rings"
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -5340,19 +5696,6 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 }
 ```
 
-#### Example Request (JSON)
-
-```json
-{
-  "nameOnly": false,
-  "sortBy": "name",
-  "order": "asc",
-  "limit": 50,
-  "offset": 0,
-  "filterName": "Rings"
-}
-```
-
 - **Validation Error (400):**
 
 ```json
@@ -5454,13 +5797,21 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "name": "The Lord of the Rings"
 }
 ```
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -5553,6 +5904,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -5655,7 +6013,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | `description` | string | No | Optional description (<= 1000 characters). |
 | `website` | string | No | Must be a valid URL starting with `http://` or `https://` (<= 300 chars). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -5664,6 +6027,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "website": "https://www.tolkien.co.uk"
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -5750,7 +6115,13 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 If both `id` and `targetName` are provided, the API uses `id` and ignores `targetName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -5758,6 +6129,8 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
   "description": "Updated series description."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -5847,13 +6220,20 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "description": "Updated series description."
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -5937,13 +6317,20 @@ If both `id` and `targetName` are provided, the API uses `id` and ignores `targe
 
 If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
   "id": 8
 }
 ```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -6011,6 +6398,13 @@ If both `id` and `name` are provided, the API uses `id` and ignores `name`.
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -6096,7 +6490,12 @@ Notes:
 - Series `startDate` and `endDate` are derived from the linked books' `publicationDate`. Books without a publication date are ignored for date ranges.
 - If a link already exists for the same series and book, the API updates that link instead of returning a conflict. Only provided fields are updated; omitted fields remain unchanged.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -6105,6 +6504,8 @@ Notes:
   "bookOrder": 1
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -6210,7 +6611,12 @@ Notes:
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -6219,6 +6625,8 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
   "bookOrder": 2
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -6333,7 +6741,12 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
 
 If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ignores `seriesName`.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested link does not exist, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -6341,6 +6754,8 @@ If both `seriesId` and `seriesName` are provided, the API uses `seriesId` and ig
   "bookId": 22
 }
 ```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -6390,21 +6805,27 @@ Languages are global and shared across users. They are used to tag books with on
 | Path | `/languages` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (optional body) |
+| Content-Type | N/A (no body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
-| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
+#### Body Parameters
 
-```json
-{}
-```
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | This endpoint does not accept a request body. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If no languages exist, the API returns an empty list.
+
+#### Example Responses
 
 - **Response (200):**
 
@@ -6461,11 +6882,17 @@ If a book's `publicationDate` is `null`, date-based filters will not match it, a
 | --- | --- | --- | --- |
 | `view` | string | No | `all` (default), `card`, or `nameOnly`. |
 | `nameOnly` | boolean | No | When true, returns only `id` and `title` (overrides `view`). |
+| `limit` | integer | No | Limits list results (1-200). |
+| `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
 | `sort` | array | No | Array of `{ field, order }` objects (JSON body only). |
 | `sortBy` | string | No | Comma-separated sort fields (query or body). |
 | `order` | string | No | Comma-separated sort orders (`asc`/`desc`). |
-| `limit` | integer | No | Limits list results (1-200). |
-| `offset` | integer | No | Offset for list pagination (0+). |
 | `filterId` | integer | No | Filter by exact id. |
 | `filterTitle` | string | No | Case-insensitive partial match on title. |
 | `filterSubtitle` | string | No | Case-insensitive partial match on subtitle. |
@@ -6492,8 +6919,9 @@ If a book's `publicationDate` is `null`, date-based filters will not match it, a
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 
 `sortBy` accepts: `id`, `title`, `subtitle`, `isbn`, `pageCount`, `createdAt`, `updatedAt`, `publicationDate`.
-
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
 
 #### Optional Lookup (query or body)
 
@@ -6511,6 +6939,31 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 Notes:
 - `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- If a title lookup matches multiple books, the API returns `409` and requires an id or ISBN to disambiguate.
+
+#### Example Request Body
+
+```json
+{
+  "view": "card",
+  "sortBy": "title",
+  "order": "asc",
+  "limit": 20,
+  "offset": 0,
+  "filterTag": "fantasy",
+  "filterPublishedAfter": "1950-01-01"
+}
+```
+
+#### Example Responses
 
 - **Response (200, list, view=card):**
 
@@ -6622,20 +7075,6 @@ Notes:
     "updatedAt": "2025-01-14T16:58:41.000Z"
   },
   "errors": []
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "view": "card",
-  "sortBy": "title",
-  "order": "asc",
-  "limit": 20,
-  "offset": 0,
-  "filterTag": "fantasy",
-  "filterPublishedAfter": "1950-01-01"
 }
 ```
 
@@ -6751,7 +7190,12 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 
 If both `storageLocationId` and `storageLocationPath` are provided, they must refer to the same location.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
 
 ```json
 {
@@ -6801,6 +7245,8 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
   }
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -6962,7 +7408,13 @@ Notes:
 - If a relation array is provided, the API replaces existing links with the supplied list.
 - Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- If a title lookup matches multiple books, the API returns `409` and requires an id or ISBN to disambiguate.
+
+#### Example Request Body
 
 ```json
 {
@@ -6979,6 +7431,8 @@ Notes:
   ]
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -7091,7 +7545,12 @@ Notes:
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
 
 ```json
 {
@@ -7107,6 +7566,8 @@ Notes:
   ]
 }
 ```
+
+#### Example Responses
 
 - **Invalid ID (400):**
 
@@ -7159,6 +7620,13 @@ Notes:
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -7239,10 +7707,16 @@ Storage locations are hierarchical and scoped per user. The API returns a human-
 | `id` | integer | No | Location id to fetch (query or body). |
 | `path` | string | No | Location path to fetch (query or body). |
 | `nameOnly` | boolean | No | When true, returns only `id`, `name`, and `path`. |
-| `sortBy` | string | No | `id`, `name`, `path`, `parentId`, `notes`, `createdAt`, `updatedAt`. |
-| `order` | string | No | `asc` or `desc`. |
 | `limit` | integer | No | Limit list results (1–200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | `id`, `name`, `path`, `parentId`, `notes`, `createdAt`, `updatedAt`. |
+| `order` | string | No | `asc` or `desc`. |
 | `filterId` | integer | No | Filter by exact id. |
 | `filterName` | string | No | Case-insensitive partial match on name. |
 | `filterParentId` | integer | No | Filter by parent id. |
@@ -7250,7 +7724,30 @@ Storage locations are hierarchical and scoped per user. The API returns a human-
 | `filterPath` | string | No | Exact path match. |
 | `filterPathContains` | string | No | Case-insensitive path match. |
 
+</details>
+
 If both `id` and `path` are provided, `id` takes precedence.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "path",
+  "order": "asc",
+  "limit": 100,
+  "offset": 0,
+  "filterPathContains": "Home"
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -7307,19 +7804,6 @@ If both `id` and `path` are provided, `id` takes precedence.
 }
 ```
 
-#### Example Request (JSON)
-
-```json
-{
-  "nameOnly": false,
-  "sortBy": "path",
-  "order": "asc",
-  "limit": 100,
-  "offset": 0,
-  "filterPathContains": "Home"
-}
-```
-
 - **Validation Error (400):**
 
 ```json
@@ -7355,6 +7839,24 @@ If both `id` and `path` are provided, `id` takes precedence.
 - **Purpose:** Create a new storage location (base or nested).
 - **Authentication:** Access token required.
 
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/storagelocation` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
@@ -7362,6 +7864,23 @@ If both `id` and `path` are provided, `id` takes precedence.
 | `name` | string | Yes | 2–150 characters. |
 | `parentId` | integer | No | Parent location id (omit or `null` for base). |
 | `notes` | string | No | Optional notes (<= 2000 chars). |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
+
+```json
+{
+  "name": "Shelf A",
+  "parentId": 2,
+  "notes": "Top row"
+}
+```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -7419,6 +7938,24 @@ If both `id` and `path` are provided, `id` takes precedence.
 - **Purpose:** Update a storage location by id or path.
 - **Authentication:** Access token required.
 
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/storagelocation` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
@@ -7428,6 +7965,24 @@ If both `id` and `path` are provided, `id` takes precedence.
 | `name` | string | No | New name. |
 | `parentId` | integer | No | New parent id (use `null` to move to root). |
 | `notes` | string | No | New notes (use `null` to clear). |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 3,
+  "name": "Shelf A",
+  "parentId": 2,
+  "notes": "Updated notes"
+}
+```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -7482,12 +8037,125 @@ If both `id` and `path` are provided, `id` takes precedence.
 
 ### PUT /storagelocation/:id
 
-Same payload and responses as `PUT /storagelocation`, with the target id supplied in the URL path.
+- **Purpose:** Update a storage location by id (path parameter).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/storagelocation/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | No | New name. |
+| `parentId` | integer | No | New parent id (use `null` to move to root). |
+| `notes` | string | No | New notes (use `null` to clear). |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- The id in the URL path must be a valid integer.
+
+#### Example Request Body
+
+```json
+{
+  "name": "Shelf A",
+  "notes": "Updated notes"
+}
+```
+
+#### Example Responses
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.02",
+  "message": "Storage location updated successfully.",
+  "data": {
+    "id": 3,
+    "name": "Shelf A",
+    "parentId": 2,
+    "notes": "Updated notes",
+    "path": "Home -> Living Room -> Shelf A",
+    "createdAt": "2025-01-10T10:12:11.000Z",
+    "updatedAt": "2025-01-12T09:31:00.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Parent location cannot be a child of this location."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.18",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
 
 ### DELETE /storagelocation
 
 - **Purpose:** Delete a storage location by id or path.
 - **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/storagelocation` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
 
@@ -7495,6 +8163,21 @@ Same payload and responses as `PUT /storagelocation`, with the target id supplie
 | --- | --- | --- | --- |
 | `id` | integer | No | Location id to delete. |
 | `path` | string | No | Location path to delete. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 3
+}
+```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -7529,7 +8212,85 @@ Same payload and responses as `PUT /storagelocation`, with the target id supplie
 
 ### DELETE /storagelocation/:id
 
-Same payload and responses as `DELETE /storagelocation`, with the target id supplied in the URL path.
+- **Purpose:** Delete a storage location by id (path parameter).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/storagelocation/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | This endpoint does not accept a request body. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- The id in the URL path must be a valid integer.
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Storage location deleted successfully.",
+  "data": {
+    "id": 3,
+    "name": "Shelf A"
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.01",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Storage location id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.18",
+  "message": "Storage location not found.",
+  "data": {},
+  "errors": [
+    "The requested storage location could not be located."
+  ]
+}
+```
 
 ## Book Copies
 
@@ -7558,65 +8319,26 @@ Book copies represent the physical copies you own. Every book must have at least
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
-
-```json
-{
-  "id": 3,
-  "notes": "Updated notes"
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "name": "Shelf A",
-  "notes": "Updated notes"
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "id": 3
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "sortBy": "createdAt",
-  "order": "desc",
-  "limit": 50,
-  "offset": 0,
-  "filterStorageLocationPath": "Home",
-  "includeNested": true
-}
-```
-
 #### Query Parameters
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `id` | integer | No | Book copy id to fetch. |
-| `sortBy` | string | No | `id`, `bookId`, `storageLocationId`, `acquisitionStory`, `acquisitionDateId`, `acquiredFrom`, `acquisitionType`, `acquisitionLocation`, `notes`, `createdAt`, `updatedAt`, `acquisitionDay`, `acquisitionMonth`, `acquisitionYear`, `acquisitionText`, `acquisitionDate`. |
-| `order` | string | No | `asc` or `desc`. |
 | `limit` | integer | No | Limit list results (1–200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `includeNested` | boolean | No | When filtering by location, include nested locations (default true). |
+
+<details>
+<summary>Filtering & Sorting Options</summary>
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sortBy` | string | No | `id`, `bookId`, `storageLocationId`, `acquisitionStory`, `acquisitionDateId`, `acquiredFrom`, `acquisitionType`, `acquisitionLocation`, `notes`, `createdAt`, `updatedAt`, `acquisitionDay`, `acquisitionMonth`, `acquisitionYear`, `acquisitionText`, `acquisitionDate`. |
+| `order` | string | No | `asc` or `desc`. |
 | `filterId` | integer | No | Filter by exact copy id. |
 | `filterBookId` | integer | No | Filter by book id. |
 | `filterStorageLocationId` | integer | No | Filter by storage location id. |
 | `filterStorageLocationPath` | string | No | Filter by storage location path (e.g., `Home -> Living Room`). |
-| `includeNested` | boolean | No | When filtering by location, include nested locations (default true). |
 | `filterAcquisitionStory` | string | No | Case-insensitive partial match. |
 | `filterAcquiredFrom` | string | No | Case-insensitive partial match. |
 | `filterAcquisitionType` | string | No | Case-insensitive partial match. |
@@ -7634,8 +8356,39 @@ Book copies represent the physical copies you own. Every book must have at least
 | `filterUpdatedBefore` | string | No | ISO date/time upper bound for `updatedAt`. |
 | `filterUpdatedAfter` | string | No | ISO date/time lower bound for `updatedAt`. |
 
+</details>
+
 Notes:
 - Use `filterStorageLocationId` or `filterStorageLocationPath` with `includeNested=true` to list all copies under a location tree.
+
+#### Optional Lookup (query or body)
+
+When `id` is provided (query string or JSON body), the endpoint returns a single book copy instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Book copy id to fetch. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters only for list queries. Precedence rules are defined in the Optional Lookup section.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "filterStorageLocationPath": "Home -> Living Room",
+  "includeNested": true,
+  "sortBy": "createdAt",
+  "order": "desc",
+  "limit": 50
+}
+```
+
+#### Example Responses
 
 - **Response (200, list):**
 
@@ -7709,16 +8462,6 @@ Notes:
 }
 ```
 
-#### Example Request (JSON)
-
-```json
-{
-  "name": "Shelf A",
-  "parentId": 2,
-  "notes": "Top row"
-}
-```
-
 - **Validation Error (400):**
 
 ```json
@@ -7754,6 +8497,24 @@ Notes:
 - **Purpose:** Add a new book copy to a book.
 - **Authentication:** Access token required.
 
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/bookcopy` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
@@ -7767,6 +8528,33 @@ Notes:
 | `acquisitionType` | string | No | Acquisition type (<= 100 chars). |
 | `acquisitionLocation` | string | No | Acquisition location (<= 255 chars). |
 | `notes` | string | No | Additional notes (<= 2000 chars). |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "bookId": 22,
+  "storageLocationPath": "Home -> Living Room -> Shelf A",
+  "acquisitionStory": "Found at a local book fair.",
+  "acquisitionDate": {
+    "day": 12,
+    "month": 6,
+    "year": 2022,
+    "text": "12 June 2022"
+  },
+  "acquiredFrom": "Second-hand fair",
+  "acquisitionType": "Second-hand",
+  "acquisitionLocation": "Cape Town",
+  "notes": "Signed by the author."
+}
+```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -7818,6 +8606,24 @@ Notes:
 - **Purpose:** Update a book copy by id.
 - **Authentication:** Access token required.
 
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/bookcopy` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
@@ -7831,6 +8637,24 @@ Notes:
 | `acquisitionType` | string | No | New acquisition type. |
 | `acquisitionLocation` | string | No | New acquisition location. |
 | `notes` | string | No | New notes. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 503,
+  "storageLocationId": 3,
+  "acquisitionStory": "Gift from a friend.",
+  "notes": "Dust jacket included."
+}
+```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -7879,18 +8703,147 @@ Notes:
 
 ### PUT /bookcopy/:id
 
-Same payload and responses as `PUT /bookcopy`, with the target id supplied in the URL path.
+- **Purpose:** Update a book copy by id (path parameter).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/bookcopy/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `storageLocationId` | integer | No | New storage location id. |
+| `storageLocationPath` | string | No | New storage location path. |
+| `acquisitionStory` | string | No | New acquisition story. |
+| `acquisitionDate` | object | No | Partial Date Object (use `null` to clear). |
+| `acquiredFrom` | string | No | New acquired-from value. |
+| `acquisitionType` | string | No | New acquisition type. |
+| `acquisitionLocation` | string | No | New acquisition location. |
+| `notes` | string | No | New notes. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- The id in the URL path must be a valid integer.
+
+#### Example Request Body
+
+```json
+{
+  "storageLocationId": 3,
+  "acquisitionStory": "Gift from a friend.",
+  "notes": "Dust jacket included."
+}
+```
+
+#### Example Responses
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.90",
+  "message": "Book copy updated successfully.",
+  "data": {
+    "id": 503
+  },
+  "errors": []
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Storage location id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book copy not found.",
+  "data": {},
+  "errors": [
+    "The requested book copy could not be located."
+  ]
+}
+```
 
 ### DELETE /bookcopy
 
 - **Purpose:** Delete a book copy by id.
 - **Authentication:** Access token required.
 
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/bookcopy` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
 #### Body Parameters
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | integer | Yes | Book copy id to delete. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 503
+}
+```
+
+#### Example Responses
 
 - **Deleted (200):**
 
@@ -7939,15 +8892,108 @@ Same payload and responses as `PUT /bookcopy`, with the target id supplied in th
 
 ### DELETE /bookcopy/:id
 
-Same payload and responses as `DELETE /bookcopy`, with the target id supplied in the URL path.
+- **Purpose:** Delete a book copy by id (path parameter).
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/bookcopy/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | This endpoint does not accept a request body. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+- Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- The id in the URL path must be a valid integer.
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Book copy deleted successfully.",
+  "data": {
+    "id": 503
+  },
+  "errors": []
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.12",
+  "message": "Book copy required.",
+  "data": {},
+  "errors": [
+    "A book must have at least one copy."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "Book copy not found.",
+  "data": {},
+  "errors": [
+    "The requested book copy could not be located."
+  ]
+}
+```
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Book copy id must be a valid integer."
+  ]
+}
+```
 
 ## Tags
 
-Tags are user-defined labels attached to books. The endpoint returns all tags owned by the authenticated user, sorted alphabetically.
+Tags are user-defined labels that help describe and filter books (for example: genre, theme, setting).
 
 ### GET /tags
 
-- **Purpose:** Retrieve all tags for the authenticated user.
+- **Purpose:** Retrieve all tags for the authenticated user (alphabetical order).
 - **Authentication:** Access token required.
 
 #### Request Overview
@@ -7958,72 +9004,27 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
 | Path | `/tags` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | `application/json` (optional body) |
+| Content-Type | N/A (no body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
-| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
-#### Example Request (JSON)
+#### Body Parameters
 
-```json
-{
-  "id": 503,
-  "notes": "Updated notes"
-}
-```
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| *(none)* | — | — | This endpoint does not accept a request body. |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
 
-```json
-{
-  "notes": "Updated notes"
-}
-```
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If no tags exist, the API returns an empty list.
 
-#### Example Request (JSON)
-
-```json
-{
-  "id": 503
-}
-```
-
-#### Example Request (JSON)
-
-```json
-{}
-```
-
-#### Example Request (JSON)
-
-```json
-{}
-```
-
-#### Example Request (JSON)
-
-```json
-{
-  "bookId": 22,
-  "storageLocationPath": "Home -> Living Room -> Shelf A",
-  "acquisitionStory": "Gifted for a birthday.",
-  "acquisitionDate": {
-    "day": 21,
-    "month": 12,
-    "year": 2010,
-    "text": "21 December 2010"
-  },
-  "acquiredFrom": "Family",
-  "acquisitionType": "Gift",
-  "acquisitionLocation": "Cape Town",
-  "notes": "Hardcover edition."
-}
-```
+#### Example Responses
 
 - **Response (200):**
 
@@ -8036,16 +9037,16 @@ Tags are user-defined labels attached to books. The endpoint returns all tags ow
   "data": {
     "tags": [
       {
-        "id": 7,
+        "id": 1,
         "name": "Fantasy",
-        "createdAt": "2025-01-17T10:02:11.000Z",
-        "updatedAt": "2025-01-17T10:02:11.000Z"
+        "createdAt": "2025-01-05T08:15:23.000Z",
+        "updatedAt": "2025-01-05T08:15:23.000Z"
       },
       {
-        "id": 8,
+        "id": 2,
         "name": "Adventure",
-        "createdAt": "2025-01-17T10:02:11.000Z",
-        "updatedAt": "2025-01-17T10:02:11.000Z"
+        "createdAt": "2025-01-07T10:02:11.000Z",
+        "updatedAt": "2025-01-07T10:02:11.000Z"
       }
     ]
   },
@@ -8086,13 +9087,20 @@ All `/admin/*` routes require an authenticated admin user.
 | --- | --- | --- | --- |
 | `name` | string | Yes | Language name (2–100 characters). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Duplicate language names return `409`.
+
+#### Example Request Body
 
 ```json
 {
   "name": "Zulu"
 }
 ```
+
+#### Example Responses
 
 - **Created (201):**
 
@@ -8141,13 +9149,20 @@ All `/admin/*` routes require an authenticated admin user.
 | --- | --- | --- | --- |
 | `name` | string | Yes | Language name (2–100 characters). |
 
-#### Example Request (JSON)
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the language does not exist, the API returns `404`. Duplicate names return `409`.
+
+#### Example Request Body
 
 ```json
 {
   "name": "isiZulu"
 }
 ```
+
+#### Example Responses
 
 - **Updated (200):**
 
@@ -8188,6 +9203,13 @@ All `/admin/*` routes require an authenticated admin user.
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Responses
 
 - **Deleted (200):**
 

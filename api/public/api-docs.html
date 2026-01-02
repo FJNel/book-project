@@ -389,18 +389,6 @@
 </table>
 <p>All other endpoints currently have no dedicated custom limit.</p>
 <p>The email cost limiter is shared across all endpoints that trigger outbound email. Requests across those endpoints count toward the same IP-based bucket.</p>
-<h3 id="common-rate-limit-response-429">Common Rate Limit Response (429)</h3>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <h2 id="shared-behaviours">Shared Behaviours</h2>
 <ul>
 <li><strong>Authentication:</strong> Routes guarded by <code>requiresAuth</code> return HTTP <code>401</code> with <code>message</code> <code>&quot;Authentication required for this action.&quot;</code> when the Authorization header is missing or invalid. Disabled accounts receive HTTP <code>403</code> with <code>message</code> <code>&quot;Your account has been disabled.&quot;</code>.</li>
@@ -447,6 +435,18 @@
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;An unexpected error occurred while processing the request.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3 id="common-rate-limit-response-429">Common Rate Limit Response (429)</h3>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">429</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Too many requests&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;You have exceeded the maximum number of requests. Please try again later.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -500,7 +500,7 @@
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json">Example Request (JSON)</h4>
+<h4 id="example-request-body">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="required-headers">Required Headers</h4>
@@ -681,18 +681,24 @@
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Verify your email address for the Book Project</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Welcome, &lt;preferredName&gt;.
-Thank you for registering for the Book Project. Please verify your email address to activate your account.
+<pre><code>Welcome, &lt;preferredName&gt;!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
 Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
-If you did not register, contact support at &lt;supportEmail&gt;.
-This link expires in &lt;expiresIn&gt; minutes.
+If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
+This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-json-1">Example Request (JSON)</h4>
+<h4 id="example-request-body-1">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Doe&quot;</span><span class="hljs-punctuation">,</span>
@@ -701,6 +707,7 @@ This link expires in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses">Example Responses</h4>
 <ul>
 <li><strong>Generic Success (200):</strong> Returned both for new registrations and when an existing account needs verification so that email enumeration is prevented.</li>
 </ul>
@@ -872,23 +879,30 @@ This link expires in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-1">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-1">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Verify your email address for the Book Project</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Hello, &lt;preferredName&gt;.
+<pre><code>Welcome, &lt;preferredName&gt;!
+Thank you for registering for the Book Project.
 Please verify your email address to activate your account.
 Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
-If you did not request this email, contact support at &lt;supportEmail&gt;.
-This link expires in &lt;expiresIn&gt; minutes.
+If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
+This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-json-2">Example Request (JSON)</h4>
+<h4 id="example-request-body-2">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-1">Example Responses</h4>
 <ul>
 <li><strong>Generic Success (200):</strong></li>
 </ul>
@@ -1036,22 +1050,28 @@ This link expires in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-2">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-2">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Welcome to The Book Project</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
 <pre><code>Welcome, &lt;preferredName&gt;!
-Your email has been verified successfully. You can now log in and start using the Book Project.
+Your email has been verified successfully. You can now log in to start using The Book Project.
 Log In: &lt;frontend_login_url&gt;
-If you did not verify this email address, contact support at &lt;supportEmail&gt;.
+If you did not verify this email address, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
 </code></pre>
-<h4 id="example-request-json-3">Example Request (JSON)</h4>
+<h4 id="example-request-body-3">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-2">Example Responses</h4>
 <ul>
 <li><strong>Verified (200):</strong></li>
 </ul>
@@ -1259,13 +1279,19 @@ If you did not verify this email address, contact support at &lt;supportEmail&gt
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-4">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-3">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
+<h4 id="example-request-body-4">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;password&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-3">Example Responses</h4>
 <ul>
 <li><strong>Authenticated (200):</strong></li>
 </ul>
@@ -1416,11 +1442,17 @@ If you did not verify this email address, contact support at &lt;supportEmail&gt
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-5">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-4">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Invalid or revoked refresh tokens return <code>401</code>.</li>
+</ul>
+<h4 id="example-request-body-5">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-4">Example Responses</h4>
 <ul>
 <li><strong>Refreshed (200):</strong></li>
 </ul>
@@ -1585,12 +1617,18 @@ If you did not verify this email address, contact support at &lt;supportEmail&gt
 </tbody>
 </table>
 <p>Set <code>allDevices</code> truthy (<code>true</code>, <code>&quot;true&quot;</code>, <code>1</code>, <code>&quot;1&quot;</code>, or <code>&quot;all&quot;</code>) to revoke every active session without supplying a refresh token.</p>
-<h4 id="example-request-json-6">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-5">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Missing or invalid refresh tokens return <code>400</code> or <code>401</code> depending on the failure mode.</li>
+</ul>
+<h4 id="example-request-body-6">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;refreshToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;refresh-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;allDevices&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-5">Example Responses</h4>
 <ul>
 <li><strong>Single Session Logout (200):</strong></li>
 </ul>
@@ -1762,23 +1800,30 @@ If you did not verify this email address, contact support at &lt;supportEmail&gt
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-6">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-3">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Reset your password for the Book Project</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Hello, &lt;preferredName&gt;.
-We received a request to set or reset your Book Project password.
+<pre><code>Hello, &lt;preferredName&gt;!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
 Reset Password: &lt;frontend_reset_url&gt;?token=&lt;token&gt;
-If you did not request a password reset, contact support at &lt;supportEmail&gt;.
-This link expires in &lt;expiresIn&gt; minutes.
+If you did not request a password reset, please contact the system administrator at &lt;supportEmail&gt; to ensure the safety of your account.
+This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-json-7">Example Request (JSON)</h4>
+<h4 id="example-request-body-7">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-6">Example Responses</h4>
 <ul>
 <li><strong>Generic Success (200):</strong></li>
 </ul>
@@ -1935,23 +1980,29 @@ This link expires in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-7">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-4">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Your password has been reset</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Password reset successful, &lt;preferredName&gt;.
-Your password has been updated. You can now log in using your new password.
+<pre><code>Password Reset Successful, &lt;preferredName&gt;
+Your password has been updated successfully. You can now log in using your new password.
 Log In: &lt;frontend_login_url&gt;
-If you did not reset your password, contact support at &lt;supportEmail&gt;.
+If you did not reset your password, please contact the system administrator at &lt;supportEmail&gt; to secure your account.
 </code></pre>
-<h4 id="example-request-json-8">Example Request (JSON)</h4>
+<h4 id="example-request-body-8">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;reset-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;newPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;NewP@ssw0rd123!&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-7">Example Responses</h4>
 <ul>
 <li><strong>Password Reset (200):</strong></li>
 </ul>
@@ -2110,11 +2161,17 @@ If you did not reset your password, contact support at &lt;supportEmail&gt;.
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-9">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-8">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Invalid Google ID tokens return <code>401</code>, and unverified Google emails return <code>400</code>.</li>
+</ul>
+<h4 id="example-request-body-9">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;idToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;google-id-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-8">Example Responses</h4>
 <ul>
 <li><strong>Authenticated (200):</strong></li>
 </ul>
@@ -2294,6 +2351,12 @@ If you did not reset your password, contact support at &lt;supportEmail&gt;.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-9">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-9">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -2427,12 +2490,19 @@ If you did not reset your password, contact support at &lt;supportEmail&gt;.
 </tbody>
 </table>
 <p>At least one of <code>fullName</code> or <code>preferredName</code> must be provided.</p>
-<h4 id="example-request-json-10">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-10">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Update endpoints require at least one updatable field; empty payloads return <code>400</code>.</li>
+</ul>
+<h4 id="example-request-body-10">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jane Q. Doe&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Jan&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-10">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -2578,24 +2648,26 @@ If you did not reset your password, contact support at &lt;supportEmail&gt;.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-11">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Daily quota limits return <code>429</code> with a daily limit message.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
 <h4 id="email-content-5">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Confirm your Book Project account disable request</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
 <pre><code>Hi &lt;preferredName&gt;.
-We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in.
+We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in or use any features.
+To confirm, click the button below. If you change your mind later, or if you did not make this request, please reach out to our system administrator at &lt;supportEmail&gt; so we can assist or reactivate your account.
 Confirm Disable: &lt;api_base_url&gt;/users/me/verify-delete?token=&lt;token&gt;
-If you did not make this request, contact support at &lt;supportEmail&gt;.
-This link expires in &lt;expiresIn&gt; minutes.
+This link will expire in &lt;expiresIn&gt; minutes. If it expires, simply sign in and submit another request.
 </code></pre>
+<h4 id="example-responses-11">Example Responses</h4>
 <ul>
-<li>
-<p><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</p>
-</li>
-<li>
-<p><strong>Requested (200):</strong></p>
-</li>
+<li><strong>Requested (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -2719,25 +2791,32 @@ This link expires in &lt;expiresIn&gt; minutes.
 </tbody>
 </table>
 <p><em>Security note: If the supplied email or CAPTCHA token does not match the pending request, the API returns the same error as an invalid or expired token.</em></p>
+<h4 id="validation--edge-cases-12">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-6">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Your Book Project account has been disabled</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
 <pre><code>Hello &lt;preferredName&gt;.
-Your Book Project account has been disabled. You can no longer log in or use any features.
-If you want to reactivate your account, contact support at &lt;supportEmail&gt;.
+This is a confirmation that your Book Project account has been disabled.
+From now on:
+- You will no longer be able to log in.
+- You cannot use any of the Book Project features.
+- Your data will remain in our database, but is marked as disabled.
+If you would like to reactivate your account, please contact the System Administrator at &lt;supportEmail&gt;. Provide them with your email address and request account reactivation.
 </code></pre>
-<ul>
-<li><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</li>
-</ul>
-<h4 id="example-request-json-11">Example Request (JSON)</h4>
+<h4 id="example-request-body-11">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-12">Example Responses</h4>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -2853,25 +2932,28 @@ If you want to reactivate your account, contact support at &lt;supportEmail&gt;.
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-13">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Daily quota limits return <code>429</code> with a daily limit message.</li>
+</ul>
 <h4 id="email-content-7">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Verify your new Book Project email address</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Confirm your new email address, &lt;preferredName&gt;.
-We received a request to update your Book Project email address.
+<pre><code>Confirm your new email, &lt;preferredName&gt;
+We received a request to update the email address linked to your Book Project account.
+Click the button below to finish verifying this new email. If you did not request the change, contact &lt;supportEmail&gt; so we can secure your account. Once your new email is verified, you will be logged out of all sessions and will need to log in again using the new email address.
 Verify New Email: &lt;api_base_url&gt;/users/me/verify-email-change?token=&lt;token&gt;
-If you did not request the change, contact support at &lt;supportEmail&gt;.
-This link expires in &lt;expiresIn&gt; minutes. After verification you will be signed out of all sessions.
+This link expires in &lt;expiresIn&gt; minutes. If you did not request this change, you can ignore this email.
 </code></pre>
-<ul>
-<li><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</li>
-</ul>
-<h4 id="example-request-json-12">Example Request (JSON)</h4>
+<h4 id="example-request-body-12">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;newEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane.new@example.com&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-13">Example Responses</h4>
 <ul>
 <li><strong>Generic Success (200):</strong></li>
 </ul>
@@ -3009,20 +3091,21 @@ This link expires in &lt;expiresIn&gt; minutes. After verification you will be s
 </tbody>
 </table>
 <p><em>Security note: Incorrect email, password, or CAPTCHA data yields the same error as an invalid token to prevent email enumeration.</em></p>
+<h4 id="validation--edge-cases-14">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-8">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Your Book Project email address has changed</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Email updated, &lt;preferredName&gt;.
-This confirms your account email has been updated to &lt;newEmail&gt;.
-This confirmation is sent to the previous email address on file.
-If you did not authorise this change, contact support at &lt;supportEmail&gt; immediately.
+<pre><code>Email updated, &lt;preferredName&gt;
+This is a confirmation that your Book Project account email has been updated to &lt;newEmail&gt;.
+If you did not authorise this change, please contact our support team immediately at &lt;supportEmail&gt; so that we can help secure your account.
 </code></pre>
-<ul>
-<li><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</li>
-</ul>
-<h4 id="example-request-json-13">Example Request (JSON)</h4>
+<h4 id="example-request-body-13">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;oldEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
@@ -3031,6 +3114,7 @@ If you did not authorise this change, contact support at &lt;supportEmail&gt; im
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-14">Example Responses</h4>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -3140,24 +3224,26 @@ If you did not authorise this change, contact support at &lt;supportEmail&gt; im
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-15">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Daily quota limits return <code>429</code> with a daily limit message.</li>
+</ul>
 <h4 id="email-content-9">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Confirm your Book Project account deletion request</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Final confirmation required.
+<pre><code>Final confirmation required
 You asked us to permanently delete your Book Project account and all associated data.
+Our administrators will only proceed once you confirm this request. If this wasn’t you, email &lt;supportEmail&gt; immediately to ensure that your account remains secure and intact.
 Confirm Deletion Request: &lt;api_base_url&gt;/users/me/verify-account-deletion?token=&lt;token&gt;
-If this wasn’t you, contact support at &lt;supportEmail&gt; immediately.
-This link expires in &lt;expiresIn&gt; minutes. After confirmation, our team will contact you to complete the deletion.
+Once confirmed, our support team will contact you to complete the deletion process.
+This link expires in &lt;expiresIn&gt; minutes.
 </code></pre>
+<h4 id="example-responses-15">Example Responses</h4>
 <ul>
-<li>
-<p><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</p>
-</li>
-<li>
-<p><strong>Requested (200):</strong></p>
-</li>
+<li><strong>Requested (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -3279,24 +3365,28 @@ This link expires in &lt;expiresIn&gt; minutes. After confirmation, our team wil
 </tbody>
 </table>
 <p><em>Security note: Invalid email, password, or confirmation values produce the same response as an expired token.</em></p>
+<h4 id="validation--edge-cases-16">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+</ul>
 <h4 id="email-content-10">Email Content</h4>
 <ul>
 <li><strong>Subject:</strong> <code>Account deletion confirmation received for &lt;userEmail&gt;</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Account deletion request confirmed.
-A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
+<pre><code>Account deletion request confirmed
+A user confirmed that they would like their Book Project account to be deleted permanently.
+Please reach out to verify their request before completing the deletion process.
 User ID: &lt;userId&gt;
 Email: &lt;userEmail&gt;
 Full Name: &lt;userFullName&gt;
 Preferred Name: &lt;userPreferredName&gt;
 Confirmed At: &lt;requestedAt&gt;
 Requester IP: &lt;requestIp&gt;
+Please reach out to the user before fully deleting this account and all associated data. Use the appropriate admin endpoint to complete the deletion.
 </code></pre>
-<ul>
-<li><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</li>
-</ul>
-<h4 id="example-request-json-14">Example Request (JSON)</h4>
+<h4 id="example-request-body-14">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;token&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;verification-token&gt;&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;jane@example.com&quot;</span><span class="hljs-punctuation">,</span>
@@ -3305,6 +3395,7 @@ Requester IP: &lt;requestIp&gt;
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-16">Example Responses</h4>
 <ul>
 <li><strong>Confirmed (200):</strong></li>
 </ul>
@@ -3413,6 +3504,12 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-17">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If there are no active sessions, the API returns an empty array.</li>
+</ul>
+<h4 id="example-responses-17">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -3551,6 +3648,12 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-18">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the fingerprint does not match any active session, the API returns <code>200</code> with <code>wasRevoked=false</code>.</li>
+</ul>
+<h4 id="example-responses-18">Example Responses</h4>
 <ul>
 <li><strong>Session Revoked (200):</strong></li>
 </ul>
@@ -3597,7 +3700,7 @@ Requester IP: &lt;requestIp&gt;
 </code></pre>
 <h3 id="post-usersmechange-password">POST /users/me/change-password</h3>
 <ul>
-<li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked and the user receives a confirmation email.</li>
+<li><strong>Purpose:</strong> Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked.</li>
 <li><strong>Daily Quota:</strong> A user can change their password via this endpoint up to twice per day.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
@@ -3692,30 +3795,20 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
-<h4 id="email-content-11">Email Content</h4>
+<h4 id="validation--edge-cases-19">Validation &amp; Edge Cases</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Account deletion confirmation received for &lt;userEmail&gt;</code></li>
-<li><strong>Body (text):</strong></li>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>CAPTCHA failures return <code>400</code> with a descriptive error message.</li>
+<li>Daily quota limits return <code>429</code> with a daily limit message.</li>
 </ul>
-<pre><code>Account deletion request confirmed.
-A user confirmed they would like their Book Project account deleted permanently. Please reach out to verify the request before completing deletion.
-User ID: &lt;userId&gt;
-Email: &lt;userEmail&gt;
-Full Name: &lt;userFullName&gt;
-Preferred Name: &lt;userPreferredName&gt;
-Confirmed At: &lt;requestedAt&gt;
-Requester IP: &lt;requestIp&gt;
-</code></pre>
-<ul>
-<li><strong>Email cost limit:</strong> 1 request per 5 minutes per IP (shared across email-sending endpoints).</li>
-</ul>
-<h4 id="example-request-json-15">Example Request (JSON)</h4>
+<h4 id="example-request-body-15">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;currentPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;P@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;newPassword&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;N3wP@ssw0rd123!&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;captchaToken&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;&lt;captcha-token&gt;&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-19">Example Responses</h4>
 <ul>
 <li><strong>Successful Change (200):</strong></li>
 </ul>
@@ -3833,18 +3926,6 @@ Requester IP: &lt;requestIp&gt;
 <td>When true, returns only <code>id</code> and <code>name</code>. Defaults to <code>false</code>.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort field for lists. Defaults to <code>name</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -3855,6 +3936,32 @@ Requester IP: &lt;requestIp&gt;
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>name</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -3912,8 +4019,9 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
-<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>description</code>, <code>createdAt</code>, <code>updatedAt</code>.</p>
-<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>description</code>, <code>createdAt</code>, <code>updatedAt</code>.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+</details>
 <h4 id="common-examples">Common Examples</h4>
 <ul>
 <li><strong>All book types containing &quot;cover&quot;, sorted by updated date (desc), limit 10:</strong></li>
@@ -3953,6 +4061,25 @@ Requester IP: &lt;requestIp&gt;
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
+<h4 id="validation--edge-cases-20">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-16">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hard&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterCreatedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-01&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-20">Example Responses</h4>
 <ul>
 <li><strong>Response (200, list):</strong></li>
 </ul>
@@ -4010,17 +4137,6 @@ Requester IP: &lt;requestIp&gt;
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-16">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hard&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterCreatedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-01&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
@@ -4112,6 +4228,12 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-21">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-21">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -4245,12 +4367,19 @@ Requester IP: &lt;requestIp&gt;
 </tbody>
 </table>
 <p>If <code>name</code> is provided in both the query string and JSON body, the JSON body takes precedence.</p>
-<h4 id="example-request-json-17">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-22">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-17">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-22">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -4389,12 +4518,18 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-18">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-23">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-18">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Standard hardcover binding.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-23">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -4576,12 +4711,20 @@ Requester IP: &lt;requestIp&gt;
 </tbody>
 </table>
 <p>At least one field must be provided.</p>
-<h4 id="example-request-json-19">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-24">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>Update endpoints require at least one updatable field; empty payloads return <code>400</code>.</li>
+</ul>
+<h4 id="example-request-body-19">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated description.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-24">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -4804,13 +4947,21 @@ Requester IP: &lt;requestIp&gt;
 </table>
 <p>At least one of <code>id</code> or <code>targetName</code> must be provided to identify the record, and at least one updatable field must be included.</p>
 <p>If both <code>id</code> and <code>targetName</code> are provided, the API uses <code>id</code> and ignores <code>targetName</code>.</p>
-<h4 id="example-request-json-20">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-25">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>Update endpoints require at least one updatable field; empty payloads return <code>400</code>.</li>
+</ul>
+<h4 id="example-request-body-20">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated description.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-25">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -4979,11 +5130,17 @@ Requester IP: &lt;requestIp&gt;
 </table>
 <p>At least one of <code>id</code> or <code>name</code> must be provided.</p>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
-<h4 id="example-request-json-21">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-26">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-21">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-26">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -5129,6 +5286,12 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-27">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-27">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -5244,18 +5407,6 @@ Requester IP: &lt;requestIp&gt;
 <td>When true, returns only <code>id</code> and <code>displayName</code>. Defaults to <code>false</code>.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort field for lists. Defaults to <code>displayName</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -5266,6 +5417,32 @@ Requester IP: &lt;requestIp&gt;
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>displayName</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -5425,10 +5602,11 @@ Requester IP: &lt;requestIp&gt;
 </tr>
 </tbody>
 </table>
-<p><code>sortBy</code> accepts: <code>id</code>, <code>displayName</code>, <code>firstNames</code>, <code>lastName</code>, <code>deceased</code>, <code>bio</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>birthDateId</code>, <code>deathDateId</code>, <code>birthDay</code>, <code>birthMonth</code>, <code>birthYear</code>, <code>birthText</code>, <code>deathDay</code>, <code>deathMonth</code>, <code>deathYear</code>, <code>deathText</code>.</p>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>displayName</code>, <code>firstNames</code>, <code>lastName</code>, <code>deceased</code>, <code>bio</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>birthDateId</code>, <code>deathDateId</code>, <code>birthDay</code>, <code>birthMonth</code>, <code>birthYear</code>, <code>birthText</code>, <code>deathDay</code>, <code>deathMonth</code>, <code>deathYear</code>, <code>deathText</code>.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+</details>
 <p>For born/died filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1).
 Authors without a birth/death date will not match the born/died filters.</p>
-<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
 <h4 id="common-examples-1">Common Examples</h4>
 <ul>
 <li><strong>All deceased authors, sorted by death year (desc), limit 20:</strong></li>
@@ -5477,6 +5655,25 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>displayName</code> are provided, the API uses <code>id</code> and ignores <code>displayName</code>.</p>
+<h4 id="validation--edge-cases-28">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-22">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;displayName&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterDeceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterBirthYear&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1950</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-28">Example Responses</h4>
 <ul>
 <li><strong>Response (200, list):</strong></li>
 </ul>
@@ -5570,17 +5767,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-request-json-22">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;displayName&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterDeceased&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterBirthYear&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1950</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -5670,6 +5856,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-29">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-29">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -5824,12 +6016,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <ul>
 <li>Display names are user-scoped; a name that exists for another user will still return <code>404</code>.</li>
 </ul>
-<h4 id="example-request-json-23">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-30">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-23">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-30">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -6020,7 +6219,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <li>If <code>deceased=false</code> and <code>deathDate</code> is provided, the request fails validation.</li>
 <li>If <code>deceased</code> is omitted but <code>deathDate</code> is provided, the API assumes <code>deceased=true</code>.</li>
 </ul>
-<h4 id="example-request-json-24">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-31">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-24">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;firstNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;John Ronald Reuel&quot;</span><span class="hljs-punctuation">,</span>
@@ -6041,6 +6245,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English writer and philologist.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-31">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -6245,13 +6450,21 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <li>If <code>deceased=false</code> and <code>deathDate</code> is provided, the request fails validation.</li>
 <li>If <code>deceased</code> is omitted but <code>deathDate</code> is provided, the API assumes <code>deceased=true</code>.</li>
 </ul>
-<h4 id="example-request-json-25">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-32">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>Update endpoints require at least one updatable field; empty payloads return <code>400</code>.</li>
+</ul>
+<h4 id="example-request-body-25">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated biography.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-32">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -6415,12 +6628,18 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <li>If <code>deceased=false</code> and <code>deathDate</code> is provided, the request fails validation.</li>
 <li>If <code>deceased</code> is omitted but <code>deathDate</code> is provided, the API assumes <code>deceased=true</code>.</li>
 </ul>
-<h4 id="example-request-json-26">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-33">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-26">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;displayName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;J.R.R. Tolkien&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bio&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated biography.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-33">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -6578,11 +6797,17 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </table>
 <p>At least one of <code>id</code> or <code>displayName</code> must be provided.</p>
 <p>If both <code>id</code> and <code>displayName</code> are provided, the API uses <code>id</code> and ignores <code>displayName</code>.</p>
-<h4 id="example-request-json-27">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-34">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-27">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-34">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -6686,6 +6911,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-35">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-35">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -6815,18 +7046,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <td>When true, returns only <code>id</code> and <code>name</code>. Defaults to <code>false</code>.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort field for lists. Defaults to <code>name</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -6837,6 +7056,32 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>name</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -6942,9 +7187,10 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>website</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>foundedDateId</code>, <code>foundedDay</code>, <code>foundedMonth</code>, <code>foundedYear</code>, <code>foundedText</code>.</p>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>website</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>foundedDateId</code>, <code>foundedDay</code>, <code>foundedMonth</code>, <code>foundedYear</code>, <code>foundedText</code>.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+</details>
 <p>For founded filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Publishers without a founded date will not match the founded filters.</p>
-<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
 <h4 id="optional-lookup-query-or-body-2">Optional Lookup (query or body)</h4>
 <p>When <code>id</code> or <code>name</code> is provided (query string or JSON body), the endpoint returns a single publisher instead of a list.</p>
 <table>
@@ -6973,6 +7219,24 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </table>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
 <p>Use the <code>filter...</code> parameters for list filtering to avoid conflicts with the single-record lookup.</p>
+<h4 id="validation--edge-cases-36">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-28">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-36">Example Responses</h4>
 <ul>
 <li><strong>Response (200, list):</strong></li>
 </ul>
@@ -7046,16 +7310,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-28">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
@@ -7195,12 +7449,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If <code>name</code> is provided in both the query string and JSON body, the JSON body takes precedence.</p>
-<h4 id="example-request-json-29">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-37">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-29">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-37">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -7316,6 +7577,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-38">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-38">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -7474,7 +7741,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-30">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-39">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-30">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bloomsbury&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;foundedDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
@@ -7486,6 +7758,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;UK publisher.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-39">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -7657,12 +7930,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>targetName</code> are provided, the API uses <code>id</code> and ignores <code>targetName</code>.</p>
-<h4 id="example-request-json-31">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-40">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-31">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-40">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -7798,11 +8078,17 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-32">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-41">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-32">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-41">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -7950,11 +8236,17 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
-<h4 id="example-request-json-33">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-42">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-33">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-42">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -8058,6 +8350,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-43">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-43">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -8188,18 +8486,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <td>When true, returns only <code>id</code> and <code>name</code>. Defaults to <code>false</code>.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort field for lists. Defaults to <code>name</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -8210,6 +8496,32 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort field for lists. Defaults to <code>name</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td>Sort direction (<code>asc</code> or <code>desc</code>). Defaults to <code>asc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -8357,9 +8669,10 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>description</code>, <code>website</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>startDate</code>, <code>startDateId</code>, <code>startDay</code>, <code>startMonth</code>, <code>startYear</code>, <code>startText</code>, <code>endDate</code>, <code>endDateId</code>, <code>endDay</code>, <code>endMonth</code>, <code>endYear</code>, <code>endText</code>.</p>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>name</code>, <code>description</code>, <code>website</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>startDate</code>, <code>startDateId</code>, <code>startDay</code>, <code>startMonth</code>, <code>startYear</code>, <code>startText</code>, <code>endDate</code>, <code>endDateId</code>, <code>endDay</code>, <code>endMonth</code>, <code>endYear</code>, <code>endText</code>.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+</details>
 <p>For started/ended filters, the API compares using the earliest possible date from the partial date (missing month/day are treated as January/1). Series without start/end dates will not match the corresponding filters.</p>
-<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
 <h4 id="optional-lookup-query-or-body-3">Optional Lookup (query or body)</h4>
 <p>When <code>id</code> or <code>name</code> is provided (query string or JSON body), the endpoint returns a single series instead of a list.</p>
 <table>
@@ -8388,6 +8701,24 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </table>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
 <p>Use the <code>filter...</code> parameters for list filtering to avoid conflicts with the single-record lookup.</p>
+<h4 id="validation--edge-cases-44">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-34">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Rings&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-44">Example Responses</h4>
 <ul>
 <li><strong>Response (200, list):</strong></li>
 </ul>
@@ -8489,16 +8820,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-34">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;name&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Rings&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
@@ -8652,11 +8973,18 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If <code>name</code> is provided in both the query string and JSON body, the JSON body takes precedence.</p>
-<h4 id="example-request-json-35">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-45">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-35">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-45">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -8785,6 +9113,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-46">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-46">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -8950,13 +9284,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-36">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-47">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-36">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Epic fantasy series.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;website&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://www.tolkien.co.uk&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-47">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -9115,12 +9455,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>targetName</code> are provided, the API uses <code>id</code> and ignores <code>targetName</code>.</p>
-<h4 id="example-request-json-37">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-48">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-37">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated series description.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-48">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -9249,11 +9596,17 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-38">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-49">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-38">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated series description.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-49">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -9394,11 +9747,17 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>id</code> and <code>name</code> are provided, the API uses <code>id</code> and ignores <code>name</code>.</p>
-<h4 id="example-request-json-39">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-50">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-39">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-50">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -9502,6 +9861,12 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-51">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-51">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -9655,13 +10020,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <li>Series <code>startDate</code> and <code>endDate</code> are derived from the linked books' <code>publicationDate</code>. Books without a publication date are ignored for date ranges.</li>
 <li>If a link already exists for the same series and book, the API updates that link instead of returning a conflict. Only provided fields are updated; omitted fields remain unchanged.</li>
 </ul>
-<h4 id="example-request-json-40">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-52">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-40">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-52">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -9833,13 +10204,19 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>seriesId</code> and <code>seriesName</code> are provided, the API uses <code>seriesId</code> and ignores <code>seriesName</code>.</p>
-<h4 id="example-request-json-41">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-53">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-41">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookOrder&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-53">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -10014,12 +10391,18 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tbody>
 </table>
 <p>If both <code>seriesId</code> and <code>seriesName</code> are provided, the API uses <code>seriesId</code> and ignores <code>seriesName</code>.</p>
-<h4 id="example-request-json-42">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-54">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested link does not exist, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-42">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;seriesId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-54">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -10083,7 +10466,7 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code> (optional body)</td>
+<td>N/A (no body)</td>
 </tr>
 </tbody>
 </table>
@@ -10105,12 +10488,6 @@ Authors without a birth/death date will not match the born/died filters.</p>
 <td>Access token required for this endpoint.</td>
 </tr>
 <tr>
-<td><code>Content-Type</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Body is optional. If provided, it must be JSON encoded.</td>
-</tr>
-<tr>
 <td><code>Accept</code></td>
 <td>No</td>
 <td><code>application/json</code></td>
@@ -10118,9 +10495,31 @@ Authors without a birth/death date will not match the born/died filters.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-43">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
-</code></pre>
+<h4 id="body-parameters-37">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-55">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If no languages exist, the API returns an empty list.</li>
+</ul>
+<h4 id="example-responses-55">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -10234,6 +10633,32 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>When true, returns only <code>id</code> and <code>title</code> (overrides <code>view</code>).</td>
 </tr>
 <tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Limits list results (1-200).</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
 <td><code>sort</code></td>
 <td>array</td>
 <td>No</td>
@@ -10250,18 +10675,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>string</td>
 <td>No</td>
 <td>Comma-separated sort orders (<code>asc</code>/<code>desc</code>).</td>
-</tr>
-<tr>
-<td><code>limit</code></td>
-<td>integer</td>
-<td>No</td>
-<td>Limits list results (1-200).</td>
-</tr>
-<tr>
-<td><code>offset</code></td>
-<td>integer</td>
-<td>No</td>
-<td>Offset for list pagination (0+).</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -10409,8 +10822,9 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<p><code>sortBy</code> accepts: <code>id</code>, <code>title</code>, <code>subtitle</code>, <code>isbn</code>, <code>pageCount</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>publicationDate</code>.</p>
-<p>You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+<p><code>sortBy</code> accepts: <code>id</code>, <code>title</code>, <code>subtitle</code>, <code>isbn</code>, <code>pageCount</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>publicationDate</code>.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
+</details>
 <h4 id="optional-lookup-query-or-body-4">Optional Lookup (query or body)</h4>
 <p>When <code>id</code>, <code>isbn</code>, or <code>title</code> is provided (query string or JSON body), the endpoint returns a single book instead of a list.</p>
 <table>
@@ -10447,12 +10861,31 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <p>Use the <code>filter...</code> parameters for list filtering to avoid conflicts with the single-record lookup.</p>
 <p>Notes:</p>
 <ul>
-<li>
-<p><code>view=all</code> includes <code>bookCopies</code>, <code>series</code>, <code>tags</code>, <code>languages</code>, and <code>authors</code>.</p>
-</li>
-<li>
-<p><strong>Response (200, list, view=card):</strong></p>
-</li>
+<li><code>view=all</code> includes <code>bookCopies</code>, <code>series</code>, <code>tags</code>, <code>languages</code>, and <code>authors</code>.</li>
+</ul>
+<h4 id="validation--edge-cases-56">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>If a title lookup matches multiple books, the API returns <code>409</code> and requires an id or ISBN to disambiguate.</li>
+</ul>
+<h4 id="example-request-body-43">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;view&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;card&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;title&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterTag&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;fantasy&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterPublishedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-56">Example Responses</h4>
+<ul>
+<li><strong>Response (200, list, view=card):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -10560,17 +10993,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
     <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-14T16:58:41.000Z&quot;</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-44">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;view&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;card&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;title&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterTag&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;fantasy&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterPublishedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <ul>
@@ -10682,7 +11104,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-37">Body Parameters</h4>
+<h4 id="body-parameters-38">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -10861,7 +11283,12 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </table>
 <p>If both <code>storageLocationId</code> and <code>storageLocationPath</code> are provided, they must refer to the same location.</p>
 <p>If both <code>storageLocationId</code> and <code>storageLocationPath</code> are provided, they must refer to the same location.</p>
-<h4 id="example-request-json-45">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-57">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-44">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;title&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Lord of the Rings&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;subtitle&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The Fellowship of the Ring&quot;</span><span class="hljs-punctuation">,</span>
@@ -10909,6 +11336,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-punctuation">}</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-57">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -11077,7 +11505,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-38">Body Parameters</h4>
+<h4 id="body-parameters-39">Body Parameters</h4>
 <p>Identification (one of):</p>
 <table>
 <thead>
@@ -11196,7 +11624,13 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li>If a relation array is provided, the API replaces existing links with the supplied list.</li>
 <li>Series dates are derived from the linked books' <code>publicationDate</code>; <code>bookPublishedDate</code> is not accepted in requests.</li>
 </ul>
-<h4 id="example-request-json-46">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-58">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>If a title lookup matches multiple books, the API returns <code>409</code> and requires an id or ISBN to disambiguate.</li>
+</ul>
+<h4 id="example-request-body-45">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">430</span><span class="hljs-punctuation">,</span>
@@ -11211,6 +11645,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-58">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -11364,7 +11799,12 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-47">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-59">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-46">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;pageCount&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">430</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
@@ -11378,6 +11818,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-59">Example Responses</h4>
 <ul>
 <li><strong>Invalid ID (400):</strong></li>
 </ul>
@@ -11467,6 +11908,12 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-60">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-60">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -11608,18 +12055,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>When true, returns only <code>id</code>, <code>name</code>, and <code>path</code>.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td><code>id</code>, <code>name</code>, <code>path</code>, <code>parentId</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td><code>asc</code> or <code>desc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -11630,6 +12065,32 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td><code>id</code>, <code>name</code>, <code>path</code>, <code>parentId</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td><code>asc</code> or <code>desc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -11669,7 +12130,25 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+</details>
 <p>If both <code>id</code> and <code>path</code> are provided, <code>id</code> takes precedence.</p>
+<h4 id="validation--edge-cases-61">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-47">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;path&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;filterPathContains&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-61">Example Responses</h4>
 <ul>
 <li><strong>Response (200, list):</strong></li>
 </ul>
@@ -11723,16 +12202,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-request-json-48">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;path&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;asc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">100</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterPathContains&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -11766,7 +12235,69 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Create a new storage location (base or nested).</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-39">Body Parameters</h4>
+<h4 id="request-overview-63">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/storagelocation</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-63">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-40">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -11797,6 +12328,19 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-62">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-48">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Top row&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-62">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -11850,7 +12394,69 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Update a storage location by id or path.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-40">Body Parameters</h4>
+<h4 id="request-overview-64">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/storagelocation</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-64">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-41">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -11893,6 +12499,20 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-63">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-49">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-63">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -11942,13 +12562,232 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h3 id="put-storagelocationid">PUT /storagelocation/:id</h3>
-<p>Same payload and responses as <code>PUT /storagelocation</code>, with the target id supplied in the URL path.</p>
+<ul>
+<li><strong>Purpose:</strong> Update a storage location by id (path parameter).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-65">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/storagelocation/:id</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-65">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-42">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>No</td>
+<td>New name.</td>
+</tr>
+<tr>
+<td><code>parentId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>New parent id (use <code>null</code> to move to root).</td>
+</tr>
+<tr>
+<td><code>notes</code></td>
+<td>string</td>
+<td>No</td>
+<td>New notes (use <code>null</code> to clear).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-64">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>The id in the URL path must be a valid integer.</li>
+</ul>
+<h4 id="example-request-body-50">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-64">Example Responses</h4>
+<ul>
+<li><strong>Updated (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.02&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage location updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;path&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-10T10:12:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-12T09:31:00.000Z&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.01&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Parent location cannot be a child of this location.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.18&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage location not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested storage location could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="delete-storagelocation">DELETE /storagelocation</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a storage location by id or path.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-41">Body Parameters</h4>
+<h4 id="request-overview-66">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/storagelocation</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-66">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-43">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -11973,6 +12812,17 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-65">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-51">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-65">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -12003,7 +12853,135 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h3 id="delete-storagelocationid">DELETE /storagelocation/:id</h3>
-<p>Same payload and responses as <code>DELETE /storagelocation</code>, with the target id supplied in the URL path.</p>
+<ul>
+<li><strong>Purpose:</strong> Delete a storage location by id (path parameter).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-67">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/storagelocation/:id</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-67">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-44">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-66">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>The id in the URL path must be a valid integer.</li>
+</ul>
+<h4 id="example-responses-66">Example Responses</h4>
+<ul>
+<li><strong>Deleted (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.64&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage location deleted successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.01&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Storage location id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.18&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Storage location not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested storage location could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h2 id="book-copies">Book Copies</h2>
 <p>Book copies represent the physical copies you own. Every book must have at least one copy.</p>
 <h3 id="get-bookcopy">GET /bookcopy</h3>
@@ -12011,7 +12989,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Retrieve all book copies, or fetch a specific copy by id.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-63">Request Overview</h4>
+<h4 id="request-overview-68">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -12042,7 +13020,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-63">Required Headers</h4>
+<h4 id="required-headers-68">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -12073,36 +13051,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-49">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-50">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-51">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-52">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-53">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;createdAt&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;desc&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;filterStorageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;includeNested&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <h4 id="query-parameters-10">Query Parameters</h4>
 <table>
 <thead>
@@ -12121,18 +13069,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>Book copy id to fetch.</td>
 </tr>
 <tr>
-<td><code>sortBy</code></td>
-<td>string</td>
-<td>No</td>
-<td><code>id</code>, <code>bookId</code>, <code>storageLocationId</code>, <code>acquisitionStory</code>, <code>acquisitionDateId</code>, <code>acquiredFrom</code>, <code>acquisitionType</code>, <code>acquisitionLocation</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>acquisitionDay</code>, <code>acquisitionMonth</code>, <code>acquisitionYear</code>, <code>acquisitionText</code>, <code>acquisitionDate</code>.</td>
-</tr>
-<tr>
-<td><code>order</code></td>
-<td>string</td>
-<td>No</td>
-<td><code>asc</code> or <code>desc</code>.</td>
-</tr>
-<tr>
 <td><code>limit</code></td>
 <td>integer</td>
 <td>No</td>
@@ -12143,6 +13079,38 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>integer</td>
 <td>No</td>
 <td>Offset for list pagination (0+).</td>
+</tr>
+<tr>
+<td><code>includeNested</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>When filtering by location, include nested locations (default true).</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary>Filtering & Sorting Options</summary>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sortBy</code></td>
+<td>string</td>
+<td>No</td>
+<td><code>id</code>, <code>bookId</code>, <code>storageLocationId</code>, <code>acquisitionStory</code>, <code>acquisitionDateId</code>, <code>acquiredFrom</code>, <code>acquisitionType</code>, <code>acquisitionLocation</code>, <code>notes</code>, <code>createdAt</code>, <code>updatedAt</code>, <code>acquisitionDay</code>, <code>acquisitionMonth</code>, <code>acquisitionYear</code>, <code>acquisitionText</code>, <code>acquisitionDate</code>.</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>string</td>
+<td>No</td>
+<td><code>asc</code> or <code>desc</code>.</td>
 </tr>
 <tr>
 <td><code>filterId</code></td>
@@ -12167,12 +13135,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>string</td>
 <td>No</td>
 <td>Filter by storage location path (e.g., <code>Home -&gt; Living Room</code>).</td>
-</tr>
-<tr>
-<td><code>includeNested</code></td>
-<td>boolean</td>
-<td>No</td>
-<td>When filtering by location, include nested locations (default true).</td>
 </tr>
 <tr>
 <td><code>filterAcquisitionStory</code></td>
@@ -12272,14 +13234,50 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+</details>
 <p>Notes:</p>
 <ul>
-<li>
-<p>Use <code>filterStorageLocationId</code> or <code>filterStorageLocationPath</code> with <code>includeNested=true</code> to list all copies under a location tree.</p>
-</li>
-<li>
-<p><strong>Response (200, list):</strong></p>
-</li>
+<li>Use <code>filterStorageLocationId</code> or <code>filterStorageLocationPath</code> with <code>includeNested=true</code> to list all copies under a location tree.</li>
+</ul>
+<h4 id="optional-lookup-query-or-body-5">Optional Lookup (query or body)</h4>
+<p>When <code>id</code> is provided (query string or JSON body), the endpoint returns a single book copy instead of a list.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Book copy id to fetch.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-67">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
+<li>Providing optional lookup fields returns a single record; use the <code>filter...</code> parameters only for list queries. Precedence rules are defined in the Optional Lookup section.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-52">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;filterStorageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;includeNested&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;createdAt&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;order&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;desc&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-67">Example Responses</h4>
+<ul>
+<li><strong>Response (200, list):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -12348,13 +13346,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-request-json-54">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;parentId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Top row&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
 <ul>
 <li><strong>Validation Error (400):</strong></li>
 </ul>
@@ -12388,7 +13379,69 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Add a new book copy to a book.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-42">Body Parameters</h4>
+<h4 id="request-overview-69">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/bookcopy</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-69">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-45">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12455,6 +13508,29 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-68">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-53">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Found at a local book fair.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">6</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2022</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;12 June 2022&quot;</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Second-hand fair&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Second-hand&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Signed by the author.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-68">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -12502,7 +13578,69 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Update a book copy by id.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-43">Body Parameters</h4>
+<h4 id="request-overview-70">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/bookcopy</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-70">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-46">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12569,6 +13707,20 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-69">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-request-body-54">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;storageLocationId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift from a friend.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Dust jacket included.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-69">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -12612,13 +13764,257 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h3 id="put-bookcopyid">PUT /bookcopy/:id</h3>
-<p>Same payload and responses as <code>PUT /bookcopy</code>, with the target id supplied in the URL path.</p>
+<ul>
+<li><strong>Purpose:</strong> Update a book copy by id (path parameter).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-71">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>PUT</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/bookcopy/:id</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-71">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-47">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>storageLocationId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>New storage location id.</td>
+</tr>
+<tr>
+<td><code>storageLocationPath</code></td>
+<td>string</td>
+<td>No</td>
+<td>New storage location path.</td>
+</tr>
+<tr>
+<td><code>acquisitionStory</code></td>
+<td>string</td>
+<td>No</td>
+<td>New acquisition story.</td>
+</tr>
+<tr>
+<td><code>acquisitionDate</code></td>
+<td>object</td>
+<td>No</td>
+<td>Partial Date Object (use <code>null</code> to clear).</td>
+</tr>
+<tr>
+<td><code>acquiredFrom</code></td>
+<td>string</td>
+<td>No</td>
+<td>New acquired-from value.</td>
+</tr>
+<tr>
+<td><code>acquisitionType</code></td>
+<td>string</td>
+<td>No</td>
+<td>New acquisition type.</td>
+</tr>
+<tr>
+<td><code>acquisitionLocation</code></td>
+<td>string</td>
+<td>No</td>
+<td>New acquisition location.</td>
+</tr>
+<tr>
+<td><code>notes</code></td>
+<td>string</td>
+<td>No</td>
+<td>New notes.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-70">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>The id in the URL path must be a valid integer.</li>
+</ul>
+<h4 id="example-request-body-55">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;storageLocationId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift from a friend.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Dust jacket included.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-70">Example Responses</h4>
+<ul>
+<li><strong>Updated (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.90&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy updated successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Storage location id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested book copy could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h3 id="delete-bookcopy">DELETE /bookcopy</h3>
 <ul>
 <li><strong>Purpose:</strong> Delete a book copy by id.</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="body-parameters-44">Body Parameters</h4>
+<h4 id="request-overview-72">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/bookcopy</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-72">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-48">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12637,6 +14033,18 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-71">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-56">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-71">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -12680,15 +14088,157 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h3 id="delete-bookcopyid">DELETE /bookcopy/:id</h3>
-<p>Same payload and responses as <code>DELETE /bookcopy</code>, with the target id supplied in the URL path.</p>
-<h2 id="tags">Tags</h2>
-<p>Tags are user-defined labels attached to books. The endpoint returns all tags owned by the authenticated user, sorted alphabetically.</p>
-<h3 id="get-tags">GET /tags</h3>
 <ul>
-<li><strong>Purpose:</strong> Retrieve all tags for the authenticated user.</li>
+<li><strong>Purpose:</strong> Delete a book copy by id (path parameter).</li>
 <li><strong>Authentication:</strong> Access token required.</li>
 </ul>
-<h4 id="request-overview-64">Request Overview</h4>
+<h4 id="request-overview-73">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>DELETE</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/bookcopy/:id</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>N/A (no body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-73">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Yes</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Access token required for this endpoint.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-49">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-72">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>The id in the URL path must be a valid integer.</li>
+</ul>
+<h4 id="example-responses-72">Example Responses</h4>
+<ul>
+<li><strong>Deleted (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.64&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy deleted successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Conflict (409):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">409</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.12&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy required.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;A book must have at least one copy.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Book copy not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested book copy could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Book copy id must be a valid integer.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h2 id="tags">Tags</h2>
+<p>Tags are user-defined labels that help describe and filter books (for example: genre, theme, setting).</p>
+<h3 id="get-tags">GET /tags</h3>
+<ul>
+<li><strong>Purpose:</strong> Retrieve all tags for the authenticated user (alphabetical order).</li>
+<li><strong>Authentication:</strong> Access token required.</li>
+</ul>
+<h4 id="request-overview-74">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -12715,11 +14265,11 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code> (optional body)</td>
+<td>N/A (no body)</td>
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-64">Required Headers</h4>
+<h4 id="required-headers-74">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -12737,12 +14287,6 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <td>Access token required for this endpoint.</td>
 </tr>
 <tr>
-<td><code>Content-Type</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Body is optional. If provided, it must be JSON encoded.</td>
-</tr>
-<tr>
 <td><code>Accept</code></td>
 <td>No</td>
 <td><code>application/json</code></td>
@@ -12750,45 +14294,31 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-55">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-56">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated notes&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-57">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-58">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-59">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-request-json-60">Example Request (JSON)</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;bookId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">22</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;storageLocationPath&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Home -&gt; Living Room -&gt; Shelf A&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;acquisitionStory&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gifted for a birthday.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;acquisitionDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;day&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">21</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;month&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;year&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2010</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;text&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 December 2010&quot;</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;acquiredFrom&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Family&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;acquisitionType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Gift&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;acquisitionLocation&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Cape Town&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Hardcover edition.&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
+<h4 id="body-parameters-50">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>—</td>
+<td>—</td>
+<td>This endpoint does not accept a request body.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-73">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If no tags exist, the API returns an empty list.</li>
+</ul>
+<h4 id="example-responses-73">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -12800,16 +14330,16 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
       <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Fantasy&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
+        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-05T08:15:23.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-05T08:15:23.000Z&quot;</span>
       <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
       <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">8</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Adventure&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-17T10:02:11.000Z&quot;</span>
+        <span class="hljs-attr">&quot;createdAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-07T10:02:11.000Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;updatedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2025-01-07T10:02:11.000Z&quot;</span>
       <span class="hljs-punctuation">}</span>
     <span class="hljs-punctuation">]</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -12823,7 +14353,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Add a new language.</li>
 <li><strong>Authentication:</strong> Admin access token required.</li>
 </ul>
-<h4 id="request-overview-65">Request Overview</h4>
+<h4 id="request-overview-75">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -12854,7 +14384,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-65">Required Headers</h4>
+<h4 id="required-headers-75">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -12885,7 +14415,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-45">Body Parameters</h4>
+<h4 id="body-parameters-51">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -12904,11 +14434,17 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-61">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-74">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>Duplicate language names return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-57">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Zulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-74">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -12931,7 +14467,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Update a language.</li>
 <li><strong>Authentication:</strong> Admin access token required.</li>
 </ul>
-<h4 id="request-overview-66">Request Overview</h4>
+<h4 id="request-overview-76">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -12962,7 +14498,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-66">Required Headers</h4>
+<h4 id="required-headers-76">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -12993,7 +14529,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-46">Body Parameters</h4>
+<h4 id="body-parameters-52">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -13012,11 +14548,17 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="example-request-json-62">Example Request (JSON)</h4>
+<h4 id="validation--edge-cases-75">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the language does not exist, the API returns <code>404</code>. Duplicate names return <code>409</code>.</li>
+</ul>
+<h4 id="example-request-body-58">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
+<h4 id="example-responses-75">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -13039,7 +14581,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 <li><strong>Purpose:</strong> Delete a language.</li>
 <li><strong>Authentication:</strong> Admin access token required.</li>
 </ul>
-<h4 id="request-overview-67">Request Overview</h4>
+<h4 id="request-overview-77">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -13070,7 +14612,7 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-67">Required Headers</h4>
+<h4 id="required-headers-77">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -13095,6 +14637,12 @@ If a book's <code>publicationDate</code> is <code>null</code>, date-based filter
 </tr>
 </tbody>
 </table>
+<h4 id="validation--edge-cases-76">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
+<li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+</ul>
+<h4 id="example-responses-76">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
