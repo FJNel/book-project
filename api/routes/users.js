@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const crypto = require("crypto");
@@ -996,7 +996,7 @@ router.delete("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, re
 });
 
 // GET /users/me/stats - Summary statistics for the user's library
-router.get("/me/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+router.get("/me/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(listParams.fields)
@@ -1004,6 +1004,12 @@ router.get("/me/stats", requiresAuth, authenticatedLimiter, async (req, res) => 
 		: [];
 
 	const fieldMap = {
+		accountAgeDays: "FLOOR(EXTRACT(EPOCH FROM (NOW() - u.created_at)) / 86400)::int AS account_age_days",
+		activityRecencyDays: "CASE WHEN u.last_login IS NULL THEN NULL ELSE FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login)) / 86400)::int END AS activity_recency_days",
+		isVerified: "u.is_verified AS is_verified",
+		passwordSet: "(u.password_hash IS NOT NULL) AS password_set",
+		passwordFreshnessDays: "CASE WHEN u.password_updated IS NULL THEN NULL ELSE FLOOR(EXTRACT(EPOCH FROM (NOW() - u.password_updated)) / 86400)::int END AS password_freshness_days",
+		profileCompletenessScore: "ROUND(100.0 * ((CASE WHEN u.preferred_name IS NOT NULL AND u.preferred_name <> '' THEN 1 ELSE 0 END) + (CASE WHEN u.metadata IS NOT NULL THEN 1 ELSE 0 END) + (CASE WHEN u.password_hash IS NOT NULL THEN 1 ELSE 0 END) + (CASE WHEN u.is_verified THEN 1 ELSE 0 END) + (CASE WHEN u.last_login IS NOT NULL THEN 1 ELSE 0 END)) / 5.0, 0) AS profile_completeness_score",
 		books: "(SELECT COUNT(*) FROM books WHERE user_id = $1 AND deleted_at IS NULL) AS books",
 		deletedBooks: "(SELECT COUNT(*) FROM books WHERE user_id = $1 AND deleted_at IS NOT NULL) AS deleted_books",
 		authors: "(SELECT COUNT(*) FROM authors WHERE user_id = $1 AND deleted_at IS NULL) AS authors",
@@ -1027,13 +1033,15 @@ router.get("/me/stats", requiresAuth, authenticatedLimiter, async (req, res) => 
 	}
 
 	try {
-		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}`;
+		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
+			FROM users u
+			WHERE u.id = $1`;
 		const result = await pool.query(query, [userId]);
 		const row = result.rows[0] || {};
 		const payload = {};
 		selected.forEach((field) => {
 			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			payload[field] = row[key] ?? 0;
+			payload[field] = row[key] ?? null;
 		});
 
 		return successResponse(res, 200, "User stats retrieved successfully.", { stats: payload });

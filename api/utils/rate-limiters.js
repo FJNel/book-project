@@ -61,11 +61,21 @@ const adminDeletionLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
+const statsLimiter = rateLimit({
+	windowMs: 60 * 1000, // 1 minute window
+	max: 20, // Cap: 20 requests per 1 minute per user
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
+});
+
 module.exports = {
 	rateLimitHandler,
 	authenticatedLimiter,
 	emailCostLimiter,
 	sensitiveActionLimiter,
 	incorrectDateReportLimiter,
-	adminDeletionLimiter
+	adminDeletionLimiter,
+	statsLimiter
 };

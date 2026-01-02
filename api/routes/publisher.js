@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validatePartialDateObject } = require("../utils/partial-date");
 
@@ -623,7 +623,7 @@ router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
 });
 
 // GET /publisher/stats - Publisher statistics
-router.get("/stats", requiresAuth, authenticatedLimiter, async (req, res) => {
+router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)

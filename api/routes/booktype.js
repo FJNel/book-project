@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 
 const MAX_BOOK_TYPE_NAME_LENGTH = 100;
@@ -312,6 +312,124 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book types."]);
+	}
+});
+
+// GET /booktype/stats - Book type statistics
+router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const availableFields = new Set([
+		"bookTypeBreakdown",
+		"mostCollectedType",
+		"leastCollectedType",
+		"avgPageCountByType",
+		"booksMissingType"
+	]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	const needsTypeCounts = selected.some((field) => ["bookTypeBreakdown", "mostCollectedType", "leastCollectedType", "avgPageCountByType"].includes(field));
+	const needsMissing = selected.includes("booksMissingType");
+
+	try {
+		const payload = {};
+
+		const totalBooksResult = await pool.query(
+			`SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1 AND deleted_at IS NULL`,
+			[userId]
+		);
+		const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+
+		let typeCounts = [];
+		if (needsTypeCounts) {
+			const result = await pool.query(
+				`SELECT bt.id, bt.name,
+				        COUNT(b.id)::int AS book_count,
+				        AVG(b.page_count) AS avg_page_count
+				 FROM book_types bt
+				 LEFT JOIN books b
+				   ON b.book_type_id = bt.id
+				  AND b.user_id = bt.user_id
+				  AND b.deleted_at IS NULL
+				 WHERE bt.user_id = $1
+				 GROUP BY bt.id, bt.name
+				 ORDER BY bt.name ASC`,
+				[userId]
+			);
+			typeCounts = result.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count,
+				avgPageCount: row.avg_page_count === null ? null : Number.parseFloat(row.avg_page_count)
+			}));
+		}
+
+		if (selected.includes("bookTypeBreakdown")) {
+			payload.bookTypeBreakdown = typeCounts.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.bookCount,
+				percentage: totalBooks > 0 ? Number(((row.bookCount / totalBooks) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("mostCollectedType")) {
+			const most = typeCounts.reduce((acc, row) => (row.bookCount > (acc?.bookCount ?? 0) ? row : acc), null);
+			payload.mostCollectedType = most && most.bookCount > 0 ? {
+				id: most.id,
+				name: most.name,
+				bookCount: most.bookCount,
+				percentage: totalBooks > 0 ? Number(((most.bookCount / totalBooks) * 100).toFixed(1)) : 0
+			} : null;
+		}
+
+		if (selected.includes("leastCollectedType")) {
+			const nonZero = typeCounts.filter((row) => row.bookCount > 0);
+			const least = nonZero.reduce((acc, row) => (acc === null || row.bookCount < acc.bookCount ? row : acc), null);
+			payload.leastCollectedType = least ? {
+				id: least.id,
+				name: least.name,
+				bookCount: least.bookCount,
+				percentage: totalBooks > 0 ? Number(((least.bookCount / totalBooks) * 100).toFixed(1)) : 0
+			} : null;
+		}
+
+		if (selected.includes("avgPageCountByType")) {
+			payload.avgPageCountByType = typeCounts.map((row) => ({
+				id: row.id,
+				name: row.name,
+				avgPageCount: row.avgPageCount
+			}));
+		}
+
+		if (needsMissing) {
+			const missingResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL AND book_type_id IS NULL`,
+				[userId]
+			);
+			payload.booksMissingType = missingResult.rows[0]?.count ?? 0;
+		}
+
+		return successResponse(res, 200, "Book type stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("BOOK_TYPE_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book type stats at this time."]);
 	}
 });
 

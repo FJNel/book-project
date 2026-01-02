@@ -48,6 +48,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /users/me/stats](#get-usersmestats)
   - [Book Types](#book-types)
     - [GET /booktype](#get-booktype)
+    - [GET /booktype/stats](#get-booktypestats)
     - [GET /booktype/:id](#get-booktypeid)
     - [GET /booktype/by-name](#get-booktypeby-name)
     - [POST /booktype](#post-booktype)
@@ -96,6 +97,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /bookseries/stats](#get-bookseriesstats)
   - [Languages](#languages)
     - [GET /languages](#get-languages)
+    - [GET /languages/stats](#get-languagesstats)
   - [Books](#books)
     - [GET /book](#get-book)
     - [POST /book](#post-book)
@@ -229,6 +231,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Admin email actions (`POST /admin/users/send-verification`, `POST /admin/users/reset-password` and their `/:id` variants) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Admin account deletion (`POST /admin/users/handle-account-deletion` and `/:id` variant) | 2 requests | 10 minutes per admin user | Protected by `adminDeletionLimiter` and `sensitiveActionLimiter`. |
+| Stats endpoints (`/users/me/stats`, `/author/stats`, `/publisher/stats`, `/bookseries/stats`, `/book/stats`, `/booktype/stats`, `/languages/stats`) | 20 requests | 1 minute per authenticated user | Protected by `statsLimiter`; keyed by `user.id`. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/storagelocation/*`, `/bookcopy/*`, `/tags`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
@@ -3043,7 +3046,7 @@ Please reach out to the user before fully deleting this account and all associat
 | Method | `GET` |
 | Path | `/users/me/stats` |
 | Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
 #### Required Headers
@@ -3061,6 +3064,12 @@ Please reach out to the user before fully deleting this account and all associat
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
 
 Available fields:
+- `accountAgeDays`: Days since account creation.
+- `activityRecencyDays`: Days since last login (null if never logged in).
+- `isVerified`: Whether the account is verified.
+- `passwordSet`: Whether a password has been set (OAuth-only accounts return `false`).
+- `passwordFreshnessDays`: Days since last password change (null if never set).
+- `profileCompletenessScore`: Percentage based on preferred name, metadata, password set, verified, and last login.
 - `books`: Count of active (non-deleted) books.
 - `deletedBooks`: Count of soft-deleted books in the trash.
 - `authors`: Count of active authors.
@@ -3265,6 +3274,115 @@ You can provide these list controls via query string or JSON body. If both are p
   "data": {},
   "errors": [
     "The requested book type could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /booktype/stats
+
+- **Purpose:** Retrieve aggregate statistics about book types in the user's library.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/booktype/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `bookTypeBreakdown`: List of book types with book counts and percentages (based on active books).
+- `mostCollectedType`: Book type with the highest count (null if no books).
+- `leastCollectedType`: Book type with the lowest non-zero count (null if no books).
+- `avgPageCountByType`: Average page count per type (null when no page counts exist).
+- `booksMissingType`: Count of active books with `book_type_id` = `null`.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Percentages are calculated from active (non-deleted) books; if no books exist, percentages are `0` and most/least fields are `null`.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["bookTypeBreakdown", "mostCollectedType", "booksMissingType"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.64",
+  "message": "Book type stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "bookTypeBreakdown": [
+        {
+          "id": 1,
+          "name": "Hardcover",
+          "bookCount": 12,
+          "percentage": 60.0
+        },
+        {
+          "id": 2,
+          "name": "Softcover",
+          "bookCount": 8,
+          "percentage": 40.0
+        }
+      ],
+      "mostCollectedType": {
+        "id": 1,
+        "name": "Hardcover",
+        "bookCount": 12,
+        "percentage": 60.0
+      },
+      "booksMissingType": 3
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.06",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: formats."
   ]
 }
 ```
@@ -5284,7 +5402,7 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 | Method | `GET` |
 | Path | `/author/stats` |
 | Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
 #### Required Headers
@@ -6414,7 +6532,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | Method | `GET` |
 | Path | `/publisher/stats` |
 | Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
 #### Required Headers
@@ -7844,7 +7962,7 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 | Method | `GET` |
 | Path | `/bookseries/stats` |
 | Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
 #### Required Headers
@@ -7980,6 +8098,116 @@ Available fields:
   "errors": []
 }
 ```
+
+### GET /languages/stats
+
+- **Purpose:** Retrieve language usage statistics for the user's library.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/languages/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `languagesInLibrary`: Count of distinct languages used by active books.
+- `mostCommonLanguage`: Language with the highest book count.
+- `rarestLanguage`: Language with the lowest non-zero book count.
+- `languageDiversityScore`: Distinct languages divided by total active books (0–1).
+- `languageBreakdown`: List of languages with book counts and percentages.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If there are no books, diversity score is `0` and most/rarest languages are `null`.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["languagesInLibrary", "languageBreakdown", "mostCommonLanguage", "languageDiversityScore"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.47",
+  "message": "Language stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "languagesInLibrary": 3,
+      "languageBreakdown": [
+        {
+          "id": 2,
+          "name": "English",
+          "bookCount": 18,
+          "percentage": 72.0
+        },
+        {
+          "id": 1,
+          "name": "Afrikaans",
+          "bookCount": 5,
+          "percentage": 20.0
+        }
+      ],
+      "mostCommonLanguage": {
+        "id": 2,
+        "name": "English",
+        "bookCount": 18,
+        "percentage": 72.0
+      },
+      "languageDiversityScore": 0.12
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.14",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: dialects."
+  ]
+}
+```
+
+</details>
 
 ## Books
 
@@ -8987,7 +9215,7 @@ At least one identifier is required. If multiple identifiers are provided, they 
 | Method | `GET` |
 | Path | `/book/stats` |
 | Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
-| Rate Limit | 60 requests / minute / user |
+| Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
 #### Required Headers
