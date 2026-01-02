@@ -1,3 +1,5 @@
+// All endpoints should be logged thoroughly with user ID and admin ID, along with action etc.
+
 const express = require("express");
 const router = express.Router();
 
@@ -55,43 +57,82 @@ const notImplemented = (req, res) => {
 	return errorResponse(res, 300, message, [message]);
 }; // notImplemented
 
-// `GET /admin/users/` - List all users (admin only, with pagination and filtering) and their appropriate information
+// `GET /admin/users/` - List all users (admin only, with pagination and filtering) and their appropriate information (from JSON body if provided)
 router.get("/users", adminAuth, notImplemented); // router.get("/users")
 
 // `POST /admin/users/` - Create a new user (admin only)
 router.post("/users", adminAuth, notImplemented); // router.post("/users")
 
 // `GET /admin/users/:id` - Get a specific user profile by ID (admin only)
+// `GET /admin/users` with JSON body containing { id: userId } is also supported
 router.get("/users/:id", adminAuth, notImplemented); // router.get("/users/:id")
 
 // `PUT /admin/users/:id` - Update a specific user’s profile by ID (including role and email, admin only)
+// `PUT /admin/users` with JSON body containing { id: userId, ...updates } is also supported
+// If the email is changed, the user’s email_verified status should be set to false and a new verification email sent (with an extended validity of 24 hours)
+// Admins can then use the verify endpoint to manually verify the email if needed
+// The admin should not be able to change their own role to prevent accidental lockout
+// Users should be notified via email of any changes made to their profile by an admin
 router.put("/users/:id", adminAuth, notImplemented); // router.put("/users/:id")
 
-// `DELETE /admin/users/:id` - Permanently delete a user by ID (hard delete, admin only)
+// `DELETE /admin/users/:id` - Disable a user profile by ID (admin only)
+// `DELETE /admin/users` with JSON body containing { id: userId } is also supported
+// This means a soft delete - the user data remains in the database but the user cannot log in
+// All sessions for the user should be invalidated upon disabling
+// The user should receive an email notification that their account has been disabled by an admin
 router.delete("/users/:id", adminAuth, notImplemented); // router.delete("/users/:id")
 
-// `POST /admin/users/:id/disable` - Disable a user profile by ID (admin only)
-router.post("/users/:id/disable", adminAuth, notImplemented); // router.post("/users/:id/disable")
-
 // `POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)
+// `POST /admin/users/enable` with JSON body containing { id: userId } is also supported
+// This allows the user to log in again and access their data
+// The user should receive an email notification that their account has been re-enabled by an admin
 router.post("/users/:id/enable", adminAuth, notImplemented); // router.post("/users/:id/enable")
 
 // `POST /admin/users/:id/unverify` - Mark a user’s email as unverified by ID (admin only)
+// `POST /admin/users/unverify` with JSON body containing { id: userId } is also supported
+// This forces the user to re-verify their email address.
+// The user should be notified via email that their email has been marked as unverified by an admin
+// Accepts a required reason parameter in the JSON body for record-keeping
 router.post("/users/:id/unverify", adminAuth, notImplemented); // router.post("/users/:id/unverify")
 
 // `POST /admin/users/:id/verify` - Mark a user’s email as verified by ID (bypassing verification, admin only)
+// `POST /admin/users/verify` with JSON body containing { id: userId } is also supported
+// This allows the admin to manually verify a user’s email without requiring the user to click a link
+// This should only be used in exceptional circumstances and the user should be notified via email that their email has been verified by an admin
+// Accepts a required reason parameter in the JSON body for record-keeping
 router.post("/users/:id/verify", adminAuth, notImplemented); // router.post("/users/:id/verify")
 
-// `POST /admin/users/:id/send-verification` - Resend email verification for a user (admin only)
+// `POST /admin/users/:id/send-verification` - Resend email verification email for a user (admin only)
+// `POST /admin/users/send-verification` with JSON body containing { id: userId } is also supported
+// Also accepts a duration parameter in minutes to extend the token validity (default 30 mins, max 1440 mins)
 router.post("/users/:id/send-verification", adminAuth, notImplemented); // router.post("/users/:id/send-verification")
 
 // `POST /admin/users/:id/reset-password` - Trigger a password reset for a user by ID (admin only)
+// `POST /admin/users/reset-password` with JSON body containing { id: userId } is also supported
+// Also accepts a duration parameter in minutes to extend the token validity (default 30 mins, max 1440 mins)
+// Sends the user a password reset email with the generated token
 router.post("/users/:id/reset-password", adminAuth, notImplemented); // router.post("/users/:id/reset-password")
 
+
+// POST /admin/users/:id/sessions - List all active sessions for a user (admin only)
+// POST /admin/users/sessions with JSON body containing { id: userId } is also supported
+router.post("/users/:id/sessions", adminAuth, notImplemented); // router.post("/users/:id/sessions")
+
 // `POST /admin/users/:id/force-logout` - Force logout a user (invalidate all sessions, admin only)
+// `POST /admin/users/force-logout` with JSON body containing { id: userId } is also supported
+// Can also specify a session fingerprint (or an array of fingerprints) to only invalidate that specific session(s)
 router.post("/users/:id/force-logout", adminAuth, notImplemented); // router.post("/users/:id/force-logout")
 
 // `POST /admin/users/:id/handle-account-deletion` - Permanently delete a user and all associated data after review (admin only)
+// `POST /admin/users/handle-account-deletion` with JSON body containing { id: userId } is also supported
+// This is a permanent action and cannot be undone. The endpoint should fail if the user has not gone through the account deletion review process (i.e. the user should have done POST /users/me/verify-account-deletion first)
+// All associated data must be deleted from all tables, meaning that no artifacts of the user remain in the database
+// The endpoint must log all actions taken, including what data was deleted, for auditing purposes
+// The endpoint must accept a reason for deletion in the JSON body for record-keeping
+// The endpoint must ensure that the admin performing the deletion is not deleting their own account
+// This endpoint should have an increased rate limit to prevent abuse 
+// The endpoint should accept a confirmation flag in the JSON body to prevent accidental deletions
+// The endpoint should also accept userToBeDeletedEmail in the JSON body to confirm the email of the user being deleted matches
 router.post("/users/:id/handle-account-deletion", adminAuth, notImplemented); // router.post("/users/:id/handle-account-deletion")
 
 // `POST /admin/languages` - Add a new language (admin only)
