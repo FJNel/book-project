@@ -1588,7 +1588,7 @@ If you did not reset your password, please contact the system administrator at <
 | Path | `/users/me` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -1793,7 +1793,7 @@ At least one of `fullName` or `preferredName` must be provided.
 | Path | `/users/me` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -1820,7 +1820,7 @@ At least one of `fullName` or `preferredName` must be provided.
 - **Body (text):**
 
 ```
-Hi <preferredName>.
+Hi, <preferredName>.
 We received a request to disable your Book Project account. Your data will remain stored, but you will no longer be able to log in or use any features.
 To confirm, click the button below. If you change your mind later, or if you did not make this request, please reach out to our system administrator at <supportEmail> so we can assist or reactivate your account.
 Confirm Disable: <api_base_url>/users/me/verify-delete?token=<token>
@@ -1908,7 +1908,7 @@ This link will expire in <expiresIn> minutes. If it expires, simply sign in and 
 - **Body (text):**
 
 ```
-Hello <preferredName>.
+Hello, <preferredName>.
 This is a confirmation that your Book Project account has been disabled.
 From now on:
 - You will no longer be able to log in.
@@ -2008,7 +2008,7 @@ If you would like to reactivate your account, please contact the System Administ
 Confirm your new email, <preferredName>
 We received a request to update the email address linked to your Book Project account.
 Click the button below to finish verifying this new email. If you did not request the change, contact <supportEmail> so we can secure your account. Once your new email is verified, you will be logged out of all sessions and will need to log in again using the new email address.
-Verify New Email: <api_base_url>/users/me/verify-email-change?token=<token>
+Verify New Email: <frontend_verify_url>?token=<token>
 This link expires in <expiresIn> minutes. If you did not request this change, you can ignore this email.
 ```
 
@@ -2171,7 +2171,7 @@ If you did not authorise this change, please contact our support team immediatel
 | Path | `/users/me/request-account-deletion` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -2201,8 +2201,7 @@ Final confirmation required
 You asked us to permanently delete your Book Project account and all associated data.
 Our administrators will only proceed once you confirm this request. If this wasn’t you, email <supportEmail> immediately to ensure that your account remains secure and intact.
 Confirm Deletion Request: <api_base_url>/users/me/verify-account-deletion?token=<token>
-Once confirmed, our support team will contact you to complete the deletion process.
-This link expires in <expiresIn> minutes.
+Once confirmed, our support team will contact you to complete the deletion process. This link expires in <expiresIn> minutes.
 ```
 
 #### Example Responses
@@ -2342,7 +2341,7 @@ Please reach out to the user before fully deleting this account and all associat
 | Path | `/users/me/sessions` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -8747,6 +8746,7 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `nameOnly` | boolean | No | When `true`, returns only `id`, `email`, and `fullName`. |
+| `email` | string | No | Optional confirmation check; must match the user's email if provided. |
 | `sortBy` | string | No | Sort key for list responses; default `email`. |
 | `order` | string | No | Sort order: `asc` or `desc`; default `asc`. |
 | `limit` | integer | No | Maximum results to return (max 200). |
@@ -8791,13 +8791,14 @@ When `id` or `email` is provided, the endpoint returns a single user instead of 
 | `id` | integer | No | User id to fetch. |
 | `email` | string | No | User email address to fetch. |
 
-If both `id` and `email` are provided, the API uses `id` and ignores `email`.
+If both `id` and `email` are provided, they must refer to the same user. A mismatch returns `400 Validation Error`.
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
 - Providing optional lookup fields returns a single record; use the `filter...` parameters for list queries.
+- If both `id` and `email` are supplied and they do not match the same user, the API returns `400 Validation Error`.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -8927,6 +8928,7 @@ If both `id` and `email` are provided, the API uses `id` and ignores `email`.
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 - If the requested record cannot be found, the API returns `404`.
 
 #### Example Request Body
@@ -9032,7 +9034,9 @@ If both `id` and `email` are provided, the API uses `id` and ignores `email`.
 | `fullName` | string | Yes | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
 | `preferredName` | string | No | 2–100 alphabetic characters; optional friendly name. |
 | `email` | string | Yes | 5–255 characters; must be unique and in valid email format. |
-| `password` | string | Yes | 10–100 characters; must include upper, lower, digit, and special character. |
+| `password` | string | Conditional | 10–100 characters; must include upper, lower, digit, and special character. Required unless `noPassword` is `true`. |
+| `noPassword` | boolean | No | When `true`, omit `password`; the user receives a setup email with verify + password links. |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 60. Applies to verification token (and setup token when `noPassword` is `true`). |
 | `role` | string | No | `user` (default) or `admin`. |
 
 #### Validation & Edge Cases
@@ -9041,12 +9045,16 @@ If both `id` and `email` are provided, the API uses `id` and ignores `email`.
 - Duplicate emails return `409`.
 - New users are created with `isVerified = false` and `isDisabled = false` by default.
 - Default book types (Hardcover, Softcover) are created for the user.
-- A verification email is always sent on creation.
+- If `noPassword = true`, `password` must not be provided (otherwise validation fails) and `passwordUpdated` is stored as `null`.
+- When `noPassword = true`, the API sends an account setup email with both verification and password setup links.
+- Otherwise, a verification email is sent.
+- `duration` controls the verification token expiry (and the password setup token when `noPassword = true`).
 
 #### Email Content
 
-- **Subject:** `Verify your email address for the Book Project`
-- **Body (text):**
+- **Verification email (default):**
+  - **Subject:** `Verify your email address for the Book Project`
+  - **Body (text):**
 
 ```
 Welcome, <preferredName>!
@@ -9055,6 +9063,22 @@ Please verify your email address to activate your account.
 Verify Email: <frontend_verify_url>?token=<token>
 If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
 This link will expire in <expiresIn> minutes.
+```
+
+- **Account setup email (when `noPassword = true`):**
+  - **Subject:** `Finish setting up your Book Project account`
+  - **Body (text):**
+
+```
+Welcome, <preferredName>!
+Your Book Project account is almost ready. Please complete the two steps below in order.
+1. Verify your email address.
+2. Set your password.
+Verify Email: <frontend_verify_url>?token=<verificationToken>
+Set Password: <frontend_reset_url>?token=<resetToken>
+The verification link expires in <verificationExpiresIn> minutes.
+The password setup link expires in <resetExpiresIn> minutes.
+If you did not expect this email, please contact the system administrator at <supportEmail>.
 ```
 
 #### Example Request Body
@@ -9133,7 +9157,7 @@ This link will expire in <expiresIn> minutes.
 
 ### PUT /admin/users
 
-- **Purpose:** Update a user profile using a JSON body `id`.
+- **Purpose:** Update a user profile using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -9158,17 +9182,21 @@ This link will expire in <expiresIn> minutes.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to update. |
+| `id` | integer | Conditional | User id to update. Required if `email` is not provided as a lookup key. |
+| `email` | string | Conditional | If provided with `id`, updates email; if provided without `id`, it identifies the user (email must exist). Changing email resets verification. |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 1440. Used only when email changes. |
 | `fullName` | string | No | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
 | `preferredName` | string or null | No | 2–100 alphabetic characters; send `null` to clear. |
-| `email` | string | No | Must be unique and valid; changing email resets verification. |
 | `role` | string | No | `user` or `admin`. |
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - At least one update field must be provided.
-- If `email` changes, `isVerified` is set to `false` and a new verification email (24h expiry) is sent.
+- Either `id` or `email` must be provided to identify the user.
+- If both `id` and `email` are provided, they must refer to the same user.
+- If `email` is used as the lookup key, you cannot change the email in the same request; use `id` for email changes.
+- If `email` changes, `isVerified` is set to `false` and a new verification email is sent (duration defaults to 1440 minutes).
 - Admins cannot change their own role.
 - Duplicate email addresses return `409`.
 - If no changes are applied, the response message indicates the update was a no-op.
@@ -9332,13 +9360,14 @@ This link will expire in <expiresIn> minutes.
 | `fullName` | string | No | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
 | `preferredName` | string or null | No | 2–100 alphabetic characters; send `null` to clear. |
 | `email` | string | No | Must be unique and valid; changing email resets verification. |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 1440. Used only when email changes. |
 | `role` | string | No | `user` or `admin`. |
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If `id` is also provided in the body, it must match the URL path.
-- If `email` changes, `isVerified` is set to `false` and a new verification email (24h expiry) is sent.
+- If `email` changes, `isVerified` is set to `false` and a new verification email is sent (duration defaults to 1440 minutes).
 - Admins cannot change their own role.
 - Duplicate email addresses return `409`.
 
@@ -9470,7 +9499,7 @@ This link will expire in <expiresIn> minutes.
 
 ### DELETE /admin/users
 
-- **Purpose:** Disable a user account using a JSON body id (soft delete).
+- **Purpose:** Disable a user account using a JSON body `id` or `email` (soft delete).
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -9495,13 +9524,15 @@ This link will expire in <expiresIn> minutes.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to disable. |
+| `id` | integer | Conditional | User id to disable. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to disable. Required if `id` is not provided. |
 
 #### Validation & Edge Cases
 
 - Disabling a user is a soft delete. The user cannot log in but their data remains.
 - All active sessions for the user are revoked on disable.
 - If the user is already disabled, the API returns `200` with `wasDisabled: false`.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Email Content
 
@@ -9589,7 +9620,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 | Path | `/admin/users/:id` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / admin user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -9598,11 +9629,19 @@ If you believe this was a mistake, please contact the system administrator at <s
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
+
 #### Validation & Edge Cases
 
 - Disabling a user is a soft delete. The user cannot log in but their data remains.
 - All active sessions for the user are revoked on disable.
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 
 #### Email Content
 
@@ -9671,7 +9710,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 
 ### POST /admin/users/enable
 
-- **Purpose:** Re-enable a disabled user account using a JSON body id.
+- **Purpose:** Re-enable a disabled user account using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -9696,11 +9735,13 @@ If you believe this was a mistake, please contact the system administrator at <s
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to enable. |
+| `id` | integer | Conditional | User id to enable. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to enable. Required if `id` is not provided. |
 
 #### Validation & Edge Cases
 
 - If the user does not exist, the API returns `404`.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Email Content
 
@@ -9787,7 +9828,7 @@ If you did not request this change, please contact the system administrator at <
 | Path | `/admin/users/:id/enable` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / admin user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -9796,11 +9837,18 @@ If you did not request this change, please contact the system administrator at <
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
+
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
-- If no matching fingerprints are found, `revokedCount` may be `0`.
-- The API returns only active (non-revoked, non-expired) sessions.
+- If `email` is provided, it must match the user's email.
+- If the user does not exist, the API returns `404`.
 
 #### Email Content
 
@@ -9868,7 +9916,7 @@ If you did not request this change, please contact the system administrator at <
 
 ### POST /admin/users/unverify
 
-- **Purpose:** Mark a user's email as unverified using a JSON body id.
+- **Purpose:** Mark a user's email as unverified using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -9893,12 +9941,14 @@ If you did not request this change, please contact the system administrator at <
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to unverify. |
+| `id` | integer | Conditional | User id to unverify. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to unverify. Required if `id` is not provided. |
 | `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
 
 #### Validation & Edge Cases
 
 - The reason is required and limited to 500 characters.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Email Content
 
@@ -9909,7 +9959,8 @@ If you did not request this change, please contact the system administrator at <
 Email unverified, <preferredName>
 An administrator marked your Book Project email address as unverified.
 Reason: <reason>
-Please request a new verification email or contact the system administrator if you need assistance.
+Please request a new verification email using this link: <frontend_url>?action=request-verification-email
+If you did not expect this change, please contact the system administrator at <supportEmail>.
 ```
 
 #### Example Request Body
@@ -10001,10 +10052,13 @@ Please request a new verification email or contact the system administrator if y
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
 
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 
 #### Email Content
 
@@ -10015,7 +10069,8 @@ Please request a new verification email or contact the system administrator if y
 Email unverified, <preferredName>
 An administrator marked your Book Project email address as unverified.
 Reason: <reason>
-Please request a new verification email or contact the system administrator if you need assistance.
+Please request a new verification email using this link: <frontend_url>?action=request-verification-email
+If you did not expect this change, please contact the system administrator at <supportEmail>.
 ```
 
 #### Example Request Body
@@ -10080,7 +10135,7 @@ Please request a new verification email or contact the system administrator if y
 
 ### POST /admin/users/verify
 
-- **Purpose:** Mark a user's email as verified using a JSON body id.
+- **Purpose:** Mark a user's email as verified using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -10105,12 +10160,14 @@ Please request a new verification email or contact the system administrator if y
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to verify. |
+| `id` | integer | Conditional | User id to verify. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to verify. Required if `id` is not provided. |
 | `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
 
 #### Validation & Edge Cases
 
 - The reason is required and limited to 500 characters.
+- If both `id` and `email` are provided, they must refer to the same user.
 - All existing verification tokens for the user are invalidated when verified by an admin.
 
 #### Email Content
@@ -10218,6 +10275,7 @@ If you did not expect this change, please contact the system administrator at <s
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 - All existing verification tokens for the user are invalidated when verified by an admin.
 
 #### Email Content
@@ -10294,7 +10352,7 @@ If you did not expect this change, please contact the system administrator at <s
 
 ### POST /admin/users/send-verification
 
-- **Purpose:** Send a verification email using a JSON body id.
+- **Purpose:** Send a verification email using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -10319,13 +10377,15 @@ If you did not expect this change, please contact the system administrator at <s
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to verify. |
+| `id` | integer | Conditional | User id to verify. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to verify. Required if `id` is not provided. |
 | `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
 
 #### Validation & Edge Cases
 
 - If the user is already verified, the API returns `400`.
 - Duration must be between 1 and 1440 minutes.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Email Content
 
@@ -10446,11 +10506,17 @@ This link will expire in <expiresIn> minutes.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
 
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 - If the user is already verified, the API returns `400`.
+- If `email` is provided, it must match the user's email.
 
 #### Email Content
 
@@ -10544,7 +10610,7 @@ This link will expire in <expiresIn> minutes.
 
 ### POST /admin/users/reset-password
 
-- **Purpose:** Send a password reset email using a JSON body id.
+- **Purpose:** Send a password reset email using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -10569,12 +10635,14 @@ This link will expire in <expiresIn> minutes.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to reset. |
+| `id` | integer | Conditional | User id to reset. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to reset. Required if `id` is not provided. |
 | `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
 
 #### Validation & Edge Cases
 
 - Duration must be between 1 and 1440 minutes.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Email Content
 
@@ -10762,7 +10830,7 @@ This link will expire in <expiresIn> minutes.
 
 ### POST /admin/users/sessions
 
-- **Purpose:** List active sessions for a user using a JSON body id.
+- **Purpose:** List active sessions for a user using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -10787,12 +10855,14 @@ This link will expire in <expiresIn> minutes.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to inspect. |
+| `id` | integer | Conditional | User id to inspect. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to inspect. Required if `id` is not provided. |
 
 #### Validation & Edge Cases
 
 - The API returns only active (non-revoked, non-expired) sessions.
 - If the user does not exist, the API returns `404`.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Example Request Body
 
@@ -10880,7 +10950,7 @@ This link will expire in <expiresIn> minutes.
 | Path | `/admin/users/:id/sessions` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / admin user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
@@ -10889,9 +10959,17 @@ This link will expire in <expiresIn> minutes.
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
+
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 
 #### Example Responses
 
@@ -10960,7 +11038,7 @@ This link will expire in <expiresIn> minutes.
 
 ### POST /admin/users/force-logout
 
-- **Purpose:** Revoke one or more sessions using a JSON body id.
+- **Purpose:** Revoke one or more sessions using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -10985,9 +11063,9 @@ This link will expire in <expiresIn> minutes.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to revoke sessions for. |
-| `fingerprint` | string | No | Single session fingerprint to revoke. |
-| `fingerprints` | array | No | List of session fingerprints to revoke. |
+| `id` | integer | Conditional | User id to revoke sessions for. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to revoke sessions for. Required if `id` is not provided. |
+| `fingerprint` | string or array | No | Session fingerprint(s) to revoke. Provide a string for a single session or an array for multiple. |
 
 If no fingerprint is supplied, all active sessions are revoked.
 
@@ -10995,13 +11073,14 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 - If the user does not exist, the API returns `404`.
 - If no matching fingerprints are found, `revokedCount` may be `0`.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Example Request Body
 
 ```json
 {
   "id": 7,
-  "fingerprints": [
+  "fingerprint": [
     "session-abc123",
     "session-def456"
   ]
@@ -11092,14 +11171,16 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `fingerprint` | string | No | Single session fingerprint to revoke. |
-| `fingerprints` | array | No | List of session fingerprints to revoke. |
+| `fingerprint` | string or array | No | Session fingerprint(s) to revoke. Provide a string for a single session or an array for multiple. |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
 
 If no fingerprint is supplied, all active sessions are revoked.
 
 #### Validation & Edge Cases
 
 - If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 
 #### Example Request Body
 
@@ -11167,7 +11248,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 ### POST /admin/users/handle-account-deletion
 
-- **Purpose:** Permanently delete a user account after confirmation using a JSON body id.
+- **Purpose:** Permanently delete a user account after confirmation using a JSON body `id` or `email`.
 - **Authentication:** Admin access token required.
 
 #### Request Overview
@@ -11192,7 +11273,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | integer | Yes | User id to delete. |
+| `id` | integer | Conditional | User id to delete. Required if `email` is not provided. |
+| `email` | string | Conditional | User email to delete. Required if `id` is not provided. |
 | `confirm` | boolean | Yes | Must be `true` to confirm deletion. |
 | `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
 | `userToBeDeletedEmail` | string | Yes | Must match the user's email address. |
@@ -11203,6 +11285,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 - Admins cannot delete their own account.
 - Deletion is permanent and cannot be undone.
 - The API deletes all user data (via cascades) and cleans up orphaned partial dates.
+- If both `id` and `email` are provided, they must refer to the same user.
 
 #### Example Request Body
 
@@ -11345,6 +11428,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 | `confirm` | boolean | Yes | Must be `true` to confirm deletion. |
 | `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
 | `userToBeDeletedEmail` | string | Yes | Must match the user's email address. |
+| `id` | integer | No | Optional confirmation; must match the URL path if provided. |
+| `email` | string | No | Optional confirmation; must match the user's email if provided. |
 
 #### Validation & Edge Cases
 
@@ -11353,6 +11438,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 - Admins cannot delete their own account.
 - Deletion is permanent and cannot be undone.
 - The API deletes all user data (via cascades) and cleans up orphaned partial dates.
+- If `id` is also provided in the body, it must match the URL path.
+- If `email` is provided, it must match the user's email.
 
 #### Example Request Body
 

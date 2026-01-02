@@ -79,7 +79,7 @@ async function createDefaultBookTypes(client, userId) {
 	await client.query(
 		`INSERT INTO book_types (user_id, name, description, created_at, updated_at)
 		 VALUES ($1, 'Hardcover', 'A durable hardbound edition with rigid boards and a protective jacket or printed cover. Built to last, it resists wear and warping better than paperbacks and is ideal for collectors, frequent readers, and long-term shelving.', NOW(), NOW()),
-		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it\'s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
+		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it''s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
 		 ON CONFLICT (user_id, name) DO NOTHING`,
 		[userId]
 	);

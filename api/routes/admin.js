@@ -223,21 +223,106 @@ async function issuePasswordResetToken(client, userId, durationMinutes) {
 	return { token, expiresAt };
 }
 
-async function resolveUserId({ id, email }) {
-	if (Number.isInteger(id)) {
-		return id;
+async function resolveTargetUserId({ idValue, emailValue }) {
+	const id = parseId(idValue);
+	const email = normalizeEmail(emailValue);
+
+	if (!id && !email) {
+		return {
+			error: {
+				status: 400,
+				message: "Validation Error",
+				errors: ["User id or email must be provided."]
+			}
+		};
 	}
+
 	if (email) {
-		const result = await pool.query(
-			`SELECT id FROM users WHERE email = $1`,
-			[email]
-		);
-		if (result.rows.length === 0) {
-			return null;
+		const emailErrors = validateEmail(email);
+		if (emailErrors.length > 0) {
+			return {
+				error: {
+					status: 400,
+					message: "Validation Error",
+					errors: emailErrors
+				}
+			};
 		}
-		return result.rows[0].id;
+	}
+
+	if (id && email) {
+		const match = await pool.query(
+			`SELECT id FROM users WHERE id = $1 AND email = $2`,
+			[id, email]
+		);
+		if (match.rows.length === 0) {
+			return {
+				error: {
+					status: 400,
+					message: "Validation Error",
+					errors: ["User id and email do not match."]
+				}
+			};
+		}
+		return { id, email };
+	}
+
+	if (id) {
+		return { id, email: null };
+	}
+
+	const result = await pool.query(
+		`SELECT id FROM users WHERE email = $1`,
+		[email]
+	);
+	if (result.rows.length === 0) {
+		return {
+			error: {
+				status: 404,
+				message: "User not found.",
+				errors: ["The requested user could not be located."]
+			}
+		};
+	}
+
+	return { id: result.rows[0].id, email };
+}
+
+async function ensureEmailMatchesTargetId(targetId, emailValue) {
+	const email = normalizeEmail(emailValue);
+	if (!email) {
+		return null;
+	}
+	const emailErrors = validateEmail(email);
+	if (emailErrors.length > 0) {
+		return {
+			status: 400,
+			message: "Validation Error",
+			errors: emailErrors
+		};
+	}
+
+	const match = await pool.query(
+		`SELECT id FROM users WHERE id = $1 AND email = $2`,
+		[targetId, email]
+	);
+	if (match.rows.length === 0) {
+		return {
+			status: 400,
+			message: "Validation Error",
+			errors: ["User id and email do not match."]
+		};
 	}
 	return null;
+}
+
+async function enforceEmailMatch(res, targetId, emailValue) {
+	const matchError = await ensureEmailMatchesTargetId(targetId, emailValue);
+	if (matchError) {
+		errorResponse(res, matchError.status, matchError.message, matchError.errors);
+		return false;
+	}
+	return true;
 }
 
 function formatUserRow(row, { nameOnly = false, includeOauthProviders = false } = {}) {
@@ -274,7 +359,7 @@ async function createDefaultBookTypes(client, userId) {
 	await client.query(
 		`INSERT INTO book_types (user_id, name, description, created_at, updated_at)
 		 VALUES ($1, 'Hardcover', 'A durable hardbound edition with rigid boards and a protective jacket or printed cover. Built to last, it resists wear and warping better than paperbacks and is ideal for collectors, frequent readers, and long-term shelving.', NOW(), NOW()),
-		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it\'s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
+		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it''s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
 		 ON CONFLICT (user_id, name) DO NOTHING`,
 		[userId]
 	);
@@ -310,18 +395,12 @@ router.get("/users", adminAuth, async (req, res) => {
 	const lookupEmail = rawLookupEmail ? normalizeEmail(rawLookupEmail) : "";
 
 	if (targetId !== null || lookupEmail) {
-		if (lookupEmail) {
-			const emailErrors = validateEmail(lookupEmail);
-			if (emailErrors.length > 0) {
-				return errorResponse(res, 400, "Validation Error", emailErrors);
-			}
-		}
-
 		try {
-			const resolvedId = await resolveUserId({ id: targetId, email: lookupEmail });
-			if (!Number.isInteger(resolvedId)) {
-				return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+			const resolved = await resolveTargetUserId({ idValue: targetId, emailValue: lookupEmail });
+			if (resolved.error) {
+				return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 			}
+			const resolvedId = resolved.id;
 
 			const result = await pool.query(
 				`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
@@ -528,21 +607,34 @@ router.get("/users", adminAuth, async (req, res) => {
 // `POST /admin/users/` - Create a new user (admin only)
 router.post("/users", adminAuth, async (req, res) => {
 	const adminId = req.user.id;
-	let { fullName, preferredName, email, password, role } = req.body || {};
+	let { fullName, preferredName, email, password, role, noPassword, duration } = req.body || {};
 	fullName = typeof fullName === "string" ? fullName.trim() : "";
 	preferredName = typeof preferredName === "string" ? preferredName.trim() : null;
 	email = normalizeEmail(email);
 	password = typeof password === "string" ? password.trim() : "";
 	role = typeof role === "string" ? role.trim() : "user";
+	noPassword = parseBooleanFlag(noPassword) ?? false;
 
 	const errors = [];
 	errors.push(
 		...validateFullName(fullName),
 		...validatePreferredName(preferredName),
 		...validateEmail(email),
-		...validatePassword(password),
 		...validateRole(role)
 	);
+
+	const durationResult = normalizeDurationMinutes(duration, 60);
+	if (durationResult.error) {
+		errors.push(durationResult.error);
+	}
+
+	if (noPassword) {
+		if (password) {
+			errors.push("Password must not be provided when noPassword is true.");
+		}
+	} else {
+		errors.push(...validatePassword(password));
+	}
 
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
@@ -568,29 +660,55 @@ router.post("/users", adminAuth, async (req, res) => {
 	try {
 		await client.query("BEGIN");
 
-		const passwordHash = await bcrypt.hash(password, config.saltRounds);
+		const passwordHash = noPassword ? null : await bcrypt.hash(password, config.saltRounds);
+		const passwordUpdated = noPassword ? null : new Date();
 		const insertUser = await client.query(
 			`INSERT INTO users (full_name, preferred_name, email, password_hash, role, is_verified, is_disabled, password_updated)
-			 VALUES ($1, $2, $3, $4, $5, false, false, NOW())
+			 VALUES ($1, $2, $3, $4, $5, false, false, $6)
 			 RETURNING id, email, full_name, preferred_name, role, is_verified, is_disabled, password_updated, last_login, created_at, updated_at`,
-			[fullName, preferredName, email, passwordHash, role]
+			[fullName, preferredName, email, passwordHash, role, passwordUpdated]
 		);
 		const newUser = insertUser.rows[0];
 
 		await createDefaultBookTypes(client, newUser.id);
 
-		const { token, expiresAt } = await issueVerificationToken(client, newUser.id, 60);
+		const { token, expiresAt } = await issueVerificationToken(client, newUser.id, durationResult.value);
+		let passwordResetPayload = null;
+		if (noPassword) {
+			const resetToken = await issuePasswordResetToken(client, newUser.id, durationResult.value);
+			passwordResetPayload = {
+				token: resetToken.token,
+				expiresAt: resetToken.expiresAt
+			};
+		}
 
 		await client.query("COMMIT");
 		await maybeCleanupVerificationTokens();
 
 		const expiresIn = Math.max(1, Math.round((new Date(expiresAt) - Date.now()) / 60000));
-		enqueueEmail({
-			type: "verification",
-			params: { toEmail: email, token, preferredName: newUser.preferred_name, expiresIn },
-			context: "ADMIN_CREATE_USER",
-			userId: newUser.id
-		});
+		if (noPassword && passwordResetPayload) {
+			const resetExpiresIn = Math.max(1, Math.round((new Date(passwordResetPayload.expiresAt) - Date.now()) / 60000));
+			enqueueEmail({
+				type: "admin_account_setup",
+				params: {
+					toEmail: email,
+					preferredName: newUser.preferred_name,
+					verificationToken: token,
+					resetToken: passwordResetPayload.token,
+					verificationExpiresIn: expiresIn,
+					resetExpiresIn
+				},
+				context: "ADMIN_CREATE_USER_NO_PASSWORD",
+				userId: newUser.id
+			});
+		} else {
+			enqueueEmail({
+				type: "verification",
+				params: { toEmail: email, token, preferredName: newUser.preferred_name, expiresIn },
+				context: "ADMIN_CREATE_USER",
+				userId: newUser.id
+			});
+		}
 
 		logToFile("ADMIN_USER_CREATE", {
 			status: "SUCCESS",
@@ -627,6 +745,10 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 	const bodyId = parseId(req.body?.id);
 	if (Number.isInteger(bodyId) && bodyId !== pathId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
+	}
+	const emailMatchOk = await enforceEmailMatch(res, pathId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
 	}
 	const nameOnly = parseBooleanFlag(req.query.nameOnly ?? req.body?.nameOnly) ?? false;
 
@@ -679,6 +801,8 @@ async function handleUserUpdate(req, res, targetId) {
 	const hasPreferredName = preferredName !== undefined;
 	const hasEmail = email !== undefined;
 	const hasRole = role !== undefined;
+	const hasDuration = body.duration !== undefined;
+	let verificationDuration = 1440;
 
 	if (!hasFullName && !hasPreferredName && !hasEmail && !hasRole) {
 		return errorResponse(res, 400, "Validation Error", ["At least one field must be provided for update."]);
@@ -706,6 +830,15 @@ async function handleUserUpdate(req, res, targetId) {
 	if (hasRole) {
 		role = typeof role === "string" ? role.trim() : "";
 		errors.push(...validateRole(role));
+	}
+
+	if (hasDuration) {
+		const durationResult = normalizeDurationMinutes(body.duration, 1440);
+		if (durationResult.error) {
+			errors.push(durationResult.error);
+		} else {
+			verificationDuration = durationResult.value;
+		}
 	}
 
 	if (errors.length > 0) {
@@ -787,7 +920,7 @@ async function handleUserUpdate(req, res, targetId) {
 
 			let verificationPayload = null;
 			if (emailChanged) {
-				const { token, expiresAt } = await issueVerificationToken(client, targetId, 1440);
+				const { token, expiresAt } = await issueVerificationToken(client, targetId, verificationDuration);
 				verificationPayload = { token, expiresAt };
 			}
 
@@ -874,11 +1007,11 @@ router.put("/users/:id", adminAuth, async (req, res) => {
 
 // `PUT /admin/users` with JSON body containing { id: userId, ...updates } is also supported
 router.put("/users", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleUserUpdate(req, res, targetId);
+	return handleUserUpdate(req, res, resolved.id);
 });
 
 async function handleDisableUser(req, res, targetId) {
@@ -977,16 +1110,20 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleDisableUser(req, res, targetId);
 });
 
 // `DELETE /admin/users` with JSON body containing { id: userId } is also supported
 router.delete("/users", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleDisableUser(req, res, targetId);
+	return handleDisableUser(req, res, resolved.id);
 });
 
 async function handleEnableUser(req, res, targetId) {
@@ -1047,16 +1184,20 @@ router.post("/users/:id/enable", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleEnableUser(req, res, targetId);
 });
 
 // `POST /admin/users/enable` with JSON body containing { id: userId } is also supported
 router.post("/users/enable", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleEnableUser(req, res, targetId);
+	return handleEnableUser(req, res, resolved.id);
 });
 
 async function handleUnverifyUser(req, res, targetId) {
@@ -1125,16 +1266,20 @@ router.post("/users/:id/unverify", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleUnverifyUser(req, res, targetId);
 });
 
 // `POST /admin/users/unverify` with JSON body containing { id: userId } is also supported
 router.post("/users/unverify", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleUnverifyUser(req, res, targetId);
+	return handleUnverifyUser(req, res, resolved.id);
 });
 
 async function handleVerifyUser(req, res, targetId) {
@@ -1219,16 +1364,20 @@ router.post("/users/:id/verify", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleVerifyUser(req, res, targetId);
 });
 
 // `POST /admin/users/verify` with JSON body containing { id: userId } is also supported
 router.post("/users/verify", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleVerifyUser(req, res, targetId);
+	return handleVerifyUser(req, res, resolved.id);
 });
 
 async function handleSendVerification(req, res, targetId) {
@@ -1309,16 +1458,20 @@ router.post("/users/:id/send-verification", [...adminAuth, emailCostLimiter], as
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleSendVerification(req, res, targetId);
 });
 
 // `POST /admin/users/send-verification` with JSON body containing { id: userId } is also supported
 router.post("/users/send-verification", [...adminAuth, emailCostLimiter], async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleSendVerification(req, res, targetId);
+	return handleSendVerification(req, res, resolved.id);
 });
 
 async function handleResetPassword(req, res, targetId) {
@@ -1453,16 +1606,20 @@ router.post("/users/:id/reset-password", [...adminAuth, emailCostLimiter], async
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleResetPassword(req, res, targetId);
 });
 
 // `POST /admin/users/reset-password` with JSON body containing { id: userId } is also supported
 router.post("/users/reset-password", [...adminAuth, emailCostLimiter], async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleResetPassword(req, res, targetId);
+	return handleResetPassword(req, res, resolved.id);
 });
 
 // POST /admin/users/:id/sessions - List all active sessions for a user (admin only)
@@ -1475,25 +1632,30 @@ router.post("/users/:id/sessions", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleListSessions(req, res, targetId);
 });
 
 // POST /admin/users/sessions with JSON body containing { id: userId } is also supported
 router.post("/users/sessions", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleListSessions(req, res, targetId);
+	return handleListSessions(req, res, resolved.id);
 });
 
 async function handleForceLogout(req, res, targetId) {
 	const adminId = req.user.id;
 	let fingerprints = [];
-	if (Array.isArray(req.body?.fingerprints)) {
-		fingerprints = req.body.fingerprints.map((fp) => (typeof fp === "string" ? fp.trim() : "")).filter(Boolean);
-	} else if (typeof req.body?.fingerprint === "string") {
-		fingerprints = [req.body.fingerprint.trim()];
+	const fingerprintValue = req.body?.fingerprint;
+	if (Array.isArray(fingerprintValue)) {
+		fingerprints = fingerprintValue.map((fp) => (typeof fp === "string" ? fp.trim() : "")).filter(Boolean);
+	} else if (typeof fingerprintValue === "string") {
+		fingerprints = [fingerprintValue.trim()];
 	}
 
 	try {
@@ -1719,16 +1881,20 @@ router.post("/users/:id/force-logout", adminAuth, async (req, res) => {
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleForceLogout(req, res, targetId);
 });
 
 // `POST /admin/users/force-logout` with JSON body containing { id: userId } is also supported
 router.post("/users/force-logout", adminAuth, async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleForceLogout(req, res, targetId);
+	return handleForceLogout(req, res, resolved.id);
 });
 
 // `POST /admin/users/:id/handle-account-deletion` - Permanently delete a user and all associated data after review (admin only)
@@ -1741,16 +1907,20 @@ router.post("/users/:id/handle-account-deletion", [...adminAuth, sensitiveAction
 	if (Number.isInteger(bodyId) && bodyId !== targetId) {
 		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
 	}
+	const emailMatchOk = await enforceEmailMatch(res, targetId, req.body?.email);
+	if (!emailMatchOk) {
+		return;
+	}
 	return handleAccountDeletion(req, res, targetId);
 });
 
 // `POST /admin/users/handle-account-deletion` with JSON body containing { id: userId } is also supported
 router.post("/users/handle-account-deletion", [...adminAuth, sensitiveActionLimiter, adminDeletionLimiter], async (req, res) => {
-	const targetId = parseId(req.body?.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
-	return handleAccountDeletion(req, res, targetId);
+	return handleAccountDeletion(req, res, resolved.id);
 });
 
 // `POST /admin/languages` - Add a new language (admin only)

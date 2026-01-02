@@ -13,6 +13,16 @@ const MAILGUN_REGION = config.mail.mailgunRegion; // "EU" for EU domains
 const SUPPORT_EMAIL = config.mail.supportEmail;
 const API_BASE_URL = config.api.baseUrl;
 
+function normalizeFrontendUrl(url) {
+	if (!url || typeof url !== "string") return "";
+	return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+function buildActionUrl(action) {
+	const base = normalizeFrontendUrl(FRONTEND_URL);
+	return `${base}/?action=${encodeURIComponent(action)}`;
+}
+
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
   username: "api",
@@ -922,7 +932,9 @@ async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
 	        </p>
 	        <p style="font-size: 15px; color: #4a5568; line-height: 1.5;"><strong>Reason:</strong> ${reason}</p>
 	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
-	          Please request a new verification email or contact the system administrator if you need assistance.
+	          Please request a new verification email using this link:
+	          <a href="${buildActionUrl("request-verification-email")}" style="color: #3182ce;">${buildActionUrl("request-verification-email")}</a>,
+	          or contact the system administrator if you need assistance.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
@@ -1008,6 +1020,83 @@ async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
 	}
 } // sendAdminEmailVerifiedEmail
 
+async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationToken, resetToken, verificationExpiresIn = 60, resetExpiresIn = 60) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const verificationUrl = `${FRONTEND_URL}${config.frontend.verifyPath}?token=${verificationToken}`;
+	const resetUrl = `${FRONTEND_URL}${config.frontend.resetPath}?token=${resetToken}`;
+	const subject = "Finish setting up your Book Project account";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Welcome${preferredName ? `, ${preferredName}` : ""}!</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          Your Book Project account is almost ready. Please complete the two steps below in order.
+	        </p>
+	        <ol style="font-size: 15px; color: #4a5568; line-height: 1.5; padding-left: 20px;">
+	          <li>Verify your email address.</li>
+	          <li>Set your password.</li>
+	        </ol>
+	        <div style="text-align: center; margin: 24px 0;">
+	          <a href="${verificationUrl}" style="background-color: #3182ce; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+	            Verify Email
+	          </a>
+	        </div>
+	        <div style="text-align: center; margin: 16px 0;">
+	          <a href="${resetUrl}" style="background-color: #2f855a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+	            Set Password
+	          </a>
+	        </div>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          The verification link expires in <strong>${verificationExpiresIn} minutes</strong>.
+	          The password setup link expires in <strong>${resetExpiresIn} minutes</strong>.
+	        </p>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you did not expect this email, please contact the system administrator at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Setup%20Request" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_account_setup", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin account setup email:", error.message);
+		return false;
+	}
+} // sendAdminAccountSetupEmail
+
 module.exports = {
 	sendVerificationEmail,
 	sendPasswordResetEmail,
@@ -1023,5 +1112,6 @@ module.exports = {
 	sendAdminAccountDisabledEmail,
 	sendAdminAccountEnabledEmail,
 	sendAdminEmailUnverifiedEmail,
-	sendAdminEmailVerifiedEmail
+	sendAdminEmailVerifiedEmail,
+	sendAdminAccountSetupEmail
 };
