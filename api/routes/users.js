@@ -1030,7 +1030,14 @@ async function verifyAccountDeletion(req, res) {
 			return errorResponse(res, 400, "Token expired", ["The confirmation token has expired. Please submit a new request from your account settings."]);
 		}
 
-		const updatedMetadata = removeMetadataKey(metadata, "pendingAccountDeletion");
+		const updatedMetadata = {
+			...removeMetadataKey(metadata, "pendingAccountDeletion"),
+			accountDeletionConfirmed: {
+				confirmedAt: new Date().toISOString(),
+				confirmedIp: req.ip || null,
+				requestedAt: pending.requestedAt || null
+			}
+		};
 		await pool.query(
 			"UPDATE users SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1",
 			[user.id, serializeMetadata(updatedMetadata)]

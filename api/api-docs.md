@@ -98,6 +98,29 @@ This guide describes the publicly available REST endpoints exposed by the API, t
   - [Tags](#tags)
     - [GET /tags](#get-tags)
   - [Admin](#admin)
+    - [GET /admin/users](#get-adminusers)
+    - [GET /admin/users/:id](#get-adminusersid)
+    - [POST /admin/users](#post-adminusers)
+    - [PUT /admin/users](#put-adminusers)
+    - [PUT /admin/users/:id](#put-adminusersid)
+    - [DELETE /admin/users](#delete-adminusers)
+    - [DELETE /admin/users/:id](#delete-adminusersid)
+    - [POST /admin/users/enable](#post-adminusersenable)
+    - [POST /admin/users/:id/enable](#post-adminusersidenable)
+    - [POST /admin/users/unverify](#post-adminusersunverify)
+    - [POST /admin/users/:id/unverify](#post-adminusersidunverify)
+    - [POST /admin/users/verify](#post-adminusersverify)
+    - [POST /admin/users/:id/verify](#post-adminusersidverify)
+    - [POST /admin/users/send-verification](#post-adminuserssend-verification)
+    - [POST /admin/users/:id/send-verification](#post-adminusersidsend-verification)
+    - [POST /admin/users/reset-password](#post-adminusersreset-password)
+    - [POST /admin/users/:id/reset-password](#post-adminusersidreset-password)
+    - [POST /admin/users/sessions](#post-adminuserssessions)
+    - [POST /admin/users/:id/sessions](#post-adminusersidsessions)
+    - [POST /admin/users/force-logout](#post-adminusersforce-logout)
+    - [POST /admin/users/:id/force-logout](#post-adminusersidforce-logout)
+    - [POST /admin/users/handle-account-deletion](#post-adminusershandle-account-deletion)
+    - [POST /admin/users/:id/handle-account-deletion](#post-adminusersidhandle-account-deletion)
     - [POST /admin/languages](#post-adminlanguages)
     - [PUT /admin/languages](#put-adminlanguages)
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
@@ -167,11 +190,13 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | `POST /auth/reset-password` | 1 request | 5 minutes | CAPTCHA required (`captchaToken`, action `reset_password`). |
 | Sensitive user actions (`POST /users/me/verify-delete`, `/users/me/verify-account-deletion`, `/users/me/verify-email-change`, `/users/me/change-password`) | 3 requests | 5 minutes per IP | Protected by `sensitiveActionLimiter` + CAPTCHA. |
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
+| Admin email actions (`POST /admin/users/send-verification`, `POST /admin/users/reset-password` and their `/:id` variants) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
+| Admin account deletion (`POST /admin/users/handle-account-deletion` and `/:id` variant) | 2 requests | 10 minutes per admin user | Protected by `adminDeletionLimiter` and `sensitiveActionLimiter`. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/storagelocation/*`, `/bookcopy/*`, `/tags`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
 
-The email cost limiter is shared across all endpoints that trigger outbound email. Requests across those endpoints count toward the same IP-based bucket.
+The email cost limiter is shared across endpoints that explicitly apply it. Requests across those endpoints count toward the same IP-based bucket.
 
 ## Shared Behaviours
 
@@ -364,6 +389,7 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - CAPTCHA failures return `400` with a descriptive error message.
+- After successful confirmation, the API records an `accountDeletionConfirmed` marker in the user metadata. The admin-only deletion endpoint checks this marker before permanently removing the account.
 
 #### Email Content
 
@@ -8692,6 +8718,2751 @@ When `id` is provided (query string or JSON body), the endpoint returns a single
   "errors": []
 }
 ```
+
+### GET /admin/users
+
+- **Purpose:** Retrieve all users, or fetch a single user when `id` or `email` is provided.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/admin/users` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When `true`, returns only `id`, `email`, and `fullName`. |
+| `sortBy` | string | No | Sort key for list responses; default `email`. |
+| `order` | string | No | Sort order: `asc` or `desc`; default `asc`. |
+| `limit` | integer | No | Maximum results to return (max 200). |
+| `offset` | integer | No | Results offset (for pagination). |
+
+<details>
+<summary>Filtering and Sorting Options</summary>
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `filterId` | integer | Exact match on user id. |
+| `filterEmail` | string | Case-insensitive partial match on email. |
+| `filterFullName` | string | Case-insensitive partial match on full name. |
+| `filterPreferredName` | string | Case-insensitive partial match on preferred name. |
+| `filterRole` | string | Exact match: `user` or `admin`. |
+| `filterIsVerified` | boolean | Match verified users. |
+| `filterIsDisabled` | boolean | Match disabled users. |
+| `filterCreatedAt` | string | ISO date/time match for `createdAt`. |
+| `filterUpdatedAt` | string | ISO date/time match for `updatedAt`. |
+| `filterCreatedAfter` | string | ISO date/time lower bound for `createdAt`. |
+| `filterCreatedBefore` | string | ISO date/time upper bound for `createdAt`. |
+| `filterUpdatedAfter` | string | ISO date/time lower bound for `updatedAt`. |
+| `filterUpdatedBefore` | string | ISO date/time upper bound for `updatedAt`. |
+| `filterLastLogin` | string | ISO date/time match for `lastLogin`. |
+| `filterLastLoginAfter` | string | ISO date/time lower bound for `lastLogin`. |
+| `filterLastLoginBefore` | string | ISO date/time upper bound for `lastLogin`. |
+| `filterPasswordUpdated` | string | ISO date/time match for `passwordUpdated`. |
+| `filterPasswordUpdatedAfter` | string | ISO date/time lower bound for `passwordUpdated`. |
+| `filterPasswordUpdatedBefore` | string | ISO date/time upper bound for `passwordUpdated`. |
+
+`sortBy` accepts: `id`, `email`, `fullName`, `preferredName`, `role`, `isVerified`, `isDisabled`, `lastLogin`, `passwordUpdated`, `createdAt`, `updatedAt`.
+You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.
+
+</details>
+
+#### Optional Lookup (query or body)
+
+When `id` or `email` is provided, the endpoint returns a single user instead of a list.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | No | User id to fetch. |
+| `email` | string | No | User email address to fetch. |
+
+If both `id` and `email` are provided, the API uses `id` and ignores `email`.
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Providing optional lookup fields returns a single record; use the `filter...` parameters for list queries.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false,
+  "sortBy": "createdAt",
+  "order": "desc",
+  "limit": 25,
+  "offset": 0,
+  "filterRole": "user",
+  "filterIsVerified": true,
+  "filterCreatedAfter": "2024-01-01"
+}
+```
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.12",
+  "message": "Users retrieved successfully.",
+  "data": {
+    "users": [
+      {
+        "id": 3,
+        "email": "frodo@shire.me",
+        "fullName": "Frodo Baggins",
+        "preferredName": "Frodo",
+        "role": "user",
+        "isVerified": true,
+        "isDisabled": false,
+        "passwordUpdated": "2025-01-11T09:12:45.000Z",
+        "lastLogin": "2025-02-01T12:04:21.000Z",
+        "createdAt": "2025-01-10T08:00:00.000Z",
+        "updatedAt": "2025-02-01T12:04:21.000Z"
+      },
+      {
+        "id": 4,
+        "email": "hermione@hogwarts.edu",
+        "fullName": "Hermione Granger",
+        "preferredName": "Hermione",
+        "role": "user",
+        "isVerified": false,
+        "isDisabled": false,
+        "passwordUpdated": "2025-01-15T10:11:12.000Z",
+        "lastLogin": null,
+        "createdAt": "2025-01-15T10:00:00.000Z",
+        "updatedAt": "2025-01-15T10:00:00.000Z"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.26",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "sortBy must be one of: id, email, fullName, preferredName, role, isVerified, isDisabled, lastLogin, passwordUpdated, createdAt, updatedAt."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /admin/users/:id
+
+- **Purpose:** Retrieve a specific user profile by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/admin/users/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `nameOnly` | boolean | No | When `true`, returns only `id`, `email`, and `fullName`. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If `id` is also provided in the body, it must match the URL path.
+- If the requested record cannot be found, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "nameOnly": false
+}
+```
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.77",
+  "message": "User retrieved successfully.",
+  "data": {
+    "id": 7,
+    "email": "harry@hogwarts.edu",
+    "fullName": "Harry Potter",
+    "preferredName": "Harry",
+    "role": "user",
+    "isVerified": true,
+    "isDisabled": false,
+    "passwordUpdated": "2025-01-12T09:45:00.000Z",
+    "lastLogin": "2025-02-03T18:10:05.000Z",
+    "createdAt": "2025-01-12T09:30:00.000Z",
+    "updatedAt": "2025-02-03T18:10:05.000Z",
+    "oauthProviders": [
+      "google"
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users
+
+- **Purpose:** Create a new user account (admin only).
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fullName` | string | Yes | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
+| `preferredName` | string | No | 2–100 alphabetic characters; optional friendly name. |
+| `email` | string | Yes | 5–255 characters; must be unique and in valid email format. |
+| `password` | string | Yes | 10–100 characters; must include upper, lower, digit, and special character. |
+| `role` | string | No | `user` (default) or `admin`. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- Duplicate emails return `409`.
+- New users are created with `isVerified = false` and `isDisabled = false` by default.
+- Default book types (Hardcover, Softcover) are created for the user.
+- A verification email is always sent on creation.
+
+#### Email Content
+
+- **Subject:** `Verify your email address for the Book Project`
+- **Body (text):**
+
+```
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "fullName": "Samwise Gamgee",
+  "preferredName": "Sam",
+  "email": "sam@shire.me",
+  "password": "P@ssw0rd123!",
+  "role": "user"
+}
+```
+
+#### Example Responses
+
+- **Created (201):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 201,
+  "responseTime": "3.91",
+  "message": "User created successfully.",
+  "data": {
+    "id": 12,
+    "email": "sam@shire.me",
+    "fullName": "Samwise Gamgee",
+    "preferredName": "Sam",
+    "role": "user",
+    "isVerified": false,
+    "isDisabled": false,
+    "passwordUpdated": "2025-02-05T09:00:00.000Z",
+    "lastLogin": null,
+    "createdAt": "2025-02-05T09:00:00.000Z",
+    "updatedAt": "2025-02-05T09:00:00.000Z"
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.41",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Password must include at least one special character."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "User already exists.",
+  "data": {},
+  "errors": [
+    "A user with this email address already exists."
+  ]
+}
+```
+
+</details>
+
+### PUT /admin/users
+
+- **Purpose:** Update a user profile using a JSON body `id`.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/admin/users` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to update. |
+| `fullName` | string | No | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
+| `preferredName` | string or null | No | 2–100 alphabetic characters; send `null` to clear. |
+| `email` | string | No | Must be unique and valid; changing email resets verification. |
+| `role` | string | No | `user` or `admin`. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- At least one update field must be provided.
+- If `email` changes, `isVerified` is set to `false` and a new verification email (24h expiry) is sent.
+- Admins cannot change their own role.
+- Duplicate email addresses return `409`.
+- If no changes are applied, the response message indicates the update was a no-op.
+
+#### Email Content
+
+- **Profile update notice (sent when changes apply):**
+  - **Subject:** `Your Book Project profile was updated`
+  - **Body (text):**
+
+```
+Account update notice, <preferredName>
+An administrator updated details on your Book Project account.
+- <change>
+If you did not expect this change, please contact the system administrator at <supportEmail>.
+```
+
+- **Verification email (only when email changes):**
+  - **Subject:** `Verify your email address for the Book Project`
+  - **Body (text):**
+
+```
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "fullName": "Harry James Potter",
+  "preferredName": "Harry",
+  "role": "user"
+}
+```
+
+#### Example Responses
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.01",
+  "message": "User updated successfully.",
+  "data": {
+    "id": 7,
+    "email": "harry@hogwarts.edu",
+    "fullName": "Harry James Potter",
+    "preferredName": "Harry",
+    "role": "user",
+    "isVerified": true,
+    "isDisabled": false,
+    "passwordUpdated": "2025-01-12T09:45:00.000Z",
+    "lastLogin": "2025-02-03T18:10:05.000Z",
+    "createdAt": "2025-01-12T09:30:00.000Z",
+    "updatedAt": "2025-02-05T10:21:44.000Z"
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.18",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "At least one field must be provided for update."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.06",
+  "message": "Forbidden",
+  "data": {},
+  "errors": [
+    "Admins cannot change their own role."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "Email already in use.",
+  "data": {},
+  "errors": [
+    "Another user already uses this email address."
+  ]
+}
+```
+
+</details>
+
+### PUT /admin/users/:id
+
+- **Purpose:** Update a user profile by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `PUT` |
+| Path | `/admin/users/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fullName` | string | No | 2–255 characters; letters plus spaces, hyphens, periods, apostrophes. |
+| `preferredName` | string or null | No | 2–100 alphabetic characters; send `null` to clear. |
+| `email` | string | No | Must be unique and valid; changing email resets verification. |
+| `role` | string | No | `user` or `admin`. |
+
+#### Validation & Edge Cases
+
+- Validation errors return `400 Validation Error` with details in the `errors` array.
+- If `id` is also provided in the body, it must match the URL path.
+- If `email` changes, `isVerified` is set to `false` and a new verification email (24h expiry) is sent.
+- Admins cannot change their own role.
+- Duplicate email addresses return `409`.
+
+#### Email Content
+
+- **Profile update notice (sent when changes apply):**
+  - **Subject:** `Your Book Project profile was updated`
+  - **Body (text):**
+
+```
+Account update notice, <preferredName>
+An administrator updated details on your Book Project account.
+- <change>
+If you did not expect this change, please contact the system administrator at <supportEmail>.
+```
+
+- **Verification email (only when email changes):**
+  - **Subject:** `Verify your email address for the Book Project`
+  - **Body (text):**
+
+```
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "preferredName": "Harry"
+}
+```
+
+#### Example Responses
+
+- **Updated (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.87",
+  "message": "User updated successfully.",
+  "data": {
+    "id": 7,
+    "email": "harry@hogwarts.edu",
+    "fullName": "Harry James Potter",
+    "preferredName": "Harry",
+    "role": "user",
+    "isVerified": true,
+    "isDisabled": false,
+    "passwordUpdated": "2025-01-12T09:45:00.000Z",
+    "lastLogin": "2025-02-03T18:10:05.000Z",
+    "createdAt": "2025-01-12T09:30:00.000Z",
+    "updatedAt": "2025-02-05T10:21:44.000Z"
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.18",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id in body does not match the URL path."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.06",
+  "message": "Forbidden",
+  "data": {},
+  "errors": [
+    "Admins cannot change their own role."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.08",
+  "message": "Email already in use.",
+  "data": {},
+  "errors": [
+    "Another user already uses this email address."
+  ]
+}
+```
+
+</details>
+
+### DELETE /admin/users
+
+- **Purpose:** Disable a user account using a JSON body id (soft delete).
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/admin/users` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to disable. |
+
+#### Validation & Edge Cases
+
+- Disabling a user is a soft delete. The user cannot log in but their data remains.
+- All active sessions for the user are revoked on disable.
+- If the user is already disabled, the API returns `200` with `wasDisabled: false`.
+
+#### Email Content
+
+- **Subject:** `Your Book Project account has been disabled`
+- **Body (text):**
+
+```
+Account disabled, <preferredName>
+An administrator has disabled your Book Project account. You can no longer sign in or use the service.
+If you believe this was a mistake, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 12
+}
+```
+
+#### Example Responses
+
+- **Disabled (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.96",
+  "message": "User disabled successfully.",
+  "data": {
+    "id": 12,
+    "wasDisabled": true,
+    "revokedSessions": 2
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### DELETE /admin/users/:id
+
+- **Purpose:** Disable a user account by id (soft delete).
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `DELETE` |
+| Path | `/admin/users/:id` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- Disabling a user is a soft delete. The user cannot log in but their data remains.
+- All active sessions for the user are revoked on disable.
+- If `id` is also provided in the body, it must match the URL path.
+
+#### Email Content
+
+- **Subject:** `Your Book Project account has been disabled`
+- **Body (text):**
+
+```
+Account disabled, <preferredName>
+An administrator has disabled your Book Project account. You can no longer sign in or use the service.
+If you believe this was a mistake, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Responses
+
+- **Disabled (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.96",
+  "message": "User disabled successfully.",
+  "data": {
+    "id": 12,
+    "wasDisabled": true,
+    "revokedSessions": 2
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/enable
+
+- **Purpose:** Re-enable a disabled user account using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/enable` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to enable. |
+
+#### Validation & Edge Cases
+
+- If the user does not exist, the API returns `404`.
+
+#### Email Content
+
+- **Subject:** `Your Book Project account has been re-enabled`
+- **Body (text):**
+
+```
+Account re-enabled, <preferredName>
+An administrator has re-enabled your Book Project account. You can now sign in again.
+Log In: <frontend_login_url>
+If you did not request this change, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 12
+}
+```
+
+#### Example Responses
+
+- **Enabled (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.54",
+  "message": "User enabled successfully.",
+  "data": {
+    "id": 12
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/enable
+
+- **Purpose:** Re-enable a disabled user account by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/enable` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+- If no matching fingerprints are found, `revokedCount` may be `0`.
+- The API returns only active (non-revoked, non-expired) sessions.
+
+#### Email Content
+
+- **Subject:** `Your Book Project account has been re-enabled`
+- **Body (text):**
+
+```
+Account re-enabled, <preferredName>
+An administrator has re-enabled your Book Project account. You can now sign in again.
+Log In: <frontend_login_url>
+If you did not request this change, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Responses
+
+- **Enabled (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.54",
+  "message": "User enabled successfully.",
+  "data": {
+    "id": 12
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/unverify
+
+- **Purpose:** Mark a user's email as unverified using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/unverify` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to unverify. |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+
+#### Validation & Edge Cases
+
+- The reason is required and limited to 500 characters.
+
+#### Email Content
+
+- **Subject:** `Your Book Project email needs verification`
+- **Body (text):**
+
+```
+Email unverified, <preferredName>
+An administrator marked your Book Project email address as unverified.
+Reason: <reason>
+Please request a new verification email or contact the system administrator if you need assistance.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "reason": "Email bounced during delivery."
+}
+```
+
+#### Example Responses
+
+- **Unverified (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.49",
+  "message": "User marked as unverified.",
+  "data": {
+    "id": 7
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Reason must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/unverify
+
+- **Purpose:** Mark a user's email as unverified by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/unverify` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+
+#### Email Content
+
+- **Subject:** `Your Book Project email needs verification`
+- **Body (text):**
+
+```
+Email unverified, <preferredName>
+An administrator marked your Book Project email address as unverified.
+Reason: <reason>
+Please request a new verification email or contact the system administrator if you need assistance.
+```
+
+#### Example Request Body
+
+```json
+{
+  "reason": "Email bounced during delivery."
+}
+```
+
+#### Example Responses
+
+- **Unverified (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.49",
+  "message": "User marked as unverified.",
+  "data": {
+    "id": 7
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Reason must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/verify
+
+- **Purpose:** Mark a user's email as verified using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/verify` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to verify. |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+
+#### Validation & Edge Cases
+
+- The reason is required and limited to 500 characters.
+- All existing verification tokens for the user are invalidated when verified by an admin.
+
+#### Email Content
+
+- **Subject:** `Your Book Project email has been verified`
+- **Body (text):**
+
+```
+Email verified, <preferredName>
+An administrator verified your Book Project email address.
+Reason: <reason>
+If you did not expect this change, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "reason": "Customer support verified identity."
+}
+```
+
+#### Example Responses
+
+- **Verified (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.40",
+  "message": "User marked as verified.",
+  "data": {
+    "id": 7
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Reason must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/verify
+
+- **Purpose:** Mark a user's email as verified by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/verify` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+- All existing verification tokens for the user are invalidated when verified by an admin.
+
+#### Email Content
+
+- **Subject:** `Your Book Project email has been verified`
+- **Body (text):**
+
+```
+Email verified, <preferredName>
+An administrator verified your Book Project email address.
+Reason: <reason>
+If you did not expect this change, please contact the system administrator at <supportEmail>.
+```
+
+#### Example Request Body
+
+```json
+{
+  "reason": "Customer support verified identity."
+}
+```
+
+#### Example Responses
+
+- **Verified (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.40",
+  "message": "User marked as verified.",
+  "data": {
+    "id": 7
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Reason must be provided."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/send-verification
+
+- **Purpose:** Send a verification email using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/send-verification` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to verify. |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
+
+#### Validation & Edge Cases
+
+- If the user is already verified, the API returns `400`.
+- Duration must be between 1 and 1440 minutes.
+
+#### Email Content
+
+- **Subject:** `Verify your email address for the Book Project`
+- **Body (text):**
+
+```
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "duration": 120
+}
+```
+
+#### Example Responses
+
+- **Sent (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.54",
+  "message": "Verification email sent successfully.",
+  "data": {
+    "id": 7,
+    "expiresInMinutes": 120
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "duration must be between 1 and 1440 minutes."
+  ]
+}
+```
+
+- **Already Verified (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.11",
+  "message": "Already verified.",
+  "data": {},
+  "errors": [
+    "This user is already verified."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/send-verification
+
+- **Purpose:** Send a verification email by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/send-verification` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+- If the user is already verified, the API returns `400`.
+
+#### Email Content
+
+- **Subject:** `Verify your email address for the Book Project`
+- **Body (text):**
+
+```
+Welcome, <preferredName>!
+Thank you for registering for the Book Project.
+Please verify your email address to activate your account.
+Verify Email: <frontend_verify_url>?token=<token>
+If you did not register this account, please contact the system administrator at <supportEmail> to assist you in resolving this matter.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "duration": 120
+}
+```
+
+#### Example Responses
+
+- **Sent (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.54",
+  "message": "Verification email sent successfully.",
+  "data": {
+    "id": 7,
+    "expiresInMinutes": 120
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "duration must be between 1 and 1440 minutes."
+  ]
+}
+```
+
+- **Already Verified (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.11",
+  "message": "Already verified.",
+  "data": {},
+  "errors": [
+    "This user is already verified."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/reset-password
+
+- **Purpose:** Send a password reset email using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/reset-password` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to reset. |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
+
+#### Validation & Edge Cases
+
+- Duration must be between 1 and 1440 minutes.
+
+#### Email Content
+
+- **Subject:** `Reset your password for the Book Project`
+- **Body (text):**
+
+```
+Hello, <preferredName>!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
+Reset Password: <frontend_reset_url>?token=<token>
+If you did not request a password reset, please contact the system administrator at <supportEmail> to ensure the safety of your account.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "duration": 90
+}
+```
+
+#### Example Responses
+
+- **Sent (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.67",
+  "message": "Password reset email sent successfully.",
+  "data": {
+    "id": 7,
+    "expiresInMinutes": 90
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "duration must be between 1 and 1440 minutes."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/reset-password
+
+- **Purpose:** Send a password reset email by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/reset-password` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `duration` | integer | No | Token validity in minutes (1–1440); default 30. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+
+#### Email Content
+
+- **Subject:** `Reset your password for the Book Project`
+- **Body (text):**
+
+```
+Hello, <preferredName>!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
+Reset Password: <frontend_reset_url>?token=<token>
+If you did not request a password reset, please contact the system administrator at <supportEmail> to ensure the safety of your account.
+This link will expire in <expiresIn> minutes.
+```
+
+#### Example Request Body
+
+```json
+{
+  "duration": 90
+}
+```
+
+#### Example Responses
+
+- **Sent (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.67",
+  "message": "Password reset email sent successfully.",
+  "data": {
+    "id": 7,
+    "expiresInMinutes": 90
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "duration must be between 1 and 1440 minutes."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/sessions
+
+- **Purpose:** List active sessions for a user using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/sessions` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to inspect. |
+
+#### Validation & Edge Cases
+
+- The API returns only active (non-revoked, non-expired) sessions.
+- If the user does not exist, the API returns `404`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 7
+}
+```
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.71",
+  "message": "Active sessions retrieved.",
+  "data": {
+    "sessions": [
+      {
+        "fingerprint": "session-abc123",
+        "issuedAt": "2025-02-03T18:10:05.000Z",
+        "expiresAt": "2025-03-03T18:10:05.000Z",
+        "expiresInSeconds": 2420000,
+        "ipAddress": "192.168.1.10",
+        "locationHint": "IP 192.168.1.10",
+        "browser": "Chrome",
+        "device": "Desktop",
+        "operatingSystem": "Windows",
+        "rawUserAgent": "Mozilla/5.0 ..."
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/sessions
+
+- **Purpose:** List active sessions for a user by id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/sessions` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | N/A (no body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+
+#### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.71",
+  "message": "Active sessions retrieved.",
+  "data": {
+    "sessions": [
+      {
+        "fingerprint": "session-abc123",
+        "issuedAt": "2025-02-03T18:10:05.000Z",
+        "expiresAt": "2025-03-03T18:10:05.000Z",
+        "expiresInSeconds": 2420000,
+        "ipAddress": "192.168.1.10",
+        "locationHint": "IP 192.168.1.10",
+        "browser": "Chrome",
+        "device": "Desktop",
+        "operatingSystem": "Windows",
+        "rawUserAgent": "Mozilla/5.0 ..."
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/force-logout
+
+- **Purpose:** Revoke one or more sessions using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/force-logout` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to revoke sessions for. |
+| `fingerprint` | string | No | Single session fingerprint to revoke. |
+| `fingerprints` | array | No | List of session fingerprints to revoke. |
+
+If no fingerprint is supplied, all active sessions are revoked.
+
+#### Validation & Edge Cases
+
+- If the user does not exist, the API returns `404`.
+- If no matching fingerprints are found, `revokedCount` may be `0`.
+
+#### Example Request Body
+
+```json
+{
+  "id": 7,
+  "fingerprints": [
+    "session-abc123",
+    "session-def456"
+  ]
+}
+```
+
+#### Example Responses
+
+- **Revoked (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.58",
+  "message": "Sessions revoked successfully.",
+  "data": {
+    "id": 7,
+    "revokedCount": 2,
+    "fingerprints": [
+      "session-abc123",
+      "session-def456"
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/force-logout
+
+- **Purpose:** Revoke one or more sessions by user id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/force-logout` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fingerprint` | string | No | Single session fingerprint to revoke. |
+| `fingerprints` | array | No | List of session fingerprints to revoke. |
+
+If no fingerprint is supplied, all active sessions are revoked.
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+
+#### Example Request Body
+
+```json
+{
+  "fingerprint": "session-abc123"
+}
+```
+
+#### Example Responses
+
+- **Revoked (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.58",
+  "message": "Sessions revoked successfully.",
+  "data": {
+    "id": 7,
+    "revokedCount": 1,
+    "fingerprints": [
+      "session-abc123"
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "User id must be a valid integer."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/handle-account-deletion
+
+- **Purpose:** Permanently delete a user account after confirmation using a JSON body id.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/handle-account-deletion` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + additional admin deletion limits |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | integer | Yes | User id to delete. |
+| `confirm` | boolean | Yes | Must be `true` to confirm deletion. |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+| `userToBeDeletedEmail` | string | Yes | Must match the user's email address. |
+
+#### Validation & Edge Cases
+
+- The user must have completed `/users/me/verify-account-deletion` first.
+- Admins cannot delete their own account.
+- Deletion is permanent and cannot be undone.
+- The API deletes all user data (via cascades) and cleans up orphaned partial dates.
+
+#### Example Request Body
+
+```json
+{
+  "id": 9,
+  "confirm": true,
+  "reason": "Account deletion confirmed by user.",
+  "userToBeDeletedEmail": "gollum@ring.me"
+}
+```
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.88",
+  "message": "User account deleted permanently.",
+  "data": {
+    "id": 9,
+    "deletedCounts": {
+      "verification_tokens": 1,
+      "refresh_tokens": 2,
+      "oauth_accounts": 0,
+      "book_types": 2,
+      "authors": 0,
+      "publishers": 0,
+      "book_authors": 0,
+      "book_series": 0,
+      "book_series_books": 0,
+      "storage_locations": 1,
+      "books": 0,
+      "book_copies": 0,
+      "book_languages": 0,
+      "tags": 0,
+      "book_tags": 0
+    },
+    "datesCleaned": 1
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "You must confirm this action before proceeding."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.06",
+  "message": "Forbidden",
+  "data": {},
+  "errors": [
+    "Admins cannot delete their own account."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.11",
+  "message": "Deletion not confirmed.",
+  "data": {},
+  "errors": [
+    "The user has not completed the account deletion confirmation flow."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
+
+### POST /admin/users/:id/handle-account-deletion
+
+- **Purpose:** Permanently delete a user account by id after confirmation.
+- **Authentication:** Admin access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/admin/users/:id/handle-account-deletion` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 60 requests / minute / admin user + additional admin deletion limits |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `confirm` | boolean | Yes | Must be `true` to confirm deletion. |
+| `reason` | string | Yes | Reason for record-keeping; max 500 characters. |
+| `userToBeDeletedEmail` | string | Yes | Must match the user's email address. |
+
+#### Validation & Edge Cases
+
+- If `id` is also provided in the body, it must match the URL path.
+- The user must have completed `/users/me/verify-account-deletion` first.
+- Admins cannot delete their own account.
+- Deletion is permanent and cannot be undone.
+- The API deletes all user data (via cascades) and cleans up orphaned partial dates.
+
+#### Example Request Body
+
+```json
+{
+  "confirm": true,
+  "reason": "Account deletion confirmed by user.",
+  "userToBeDeletedEmail": "gollum@ring.me"
+}
+```
+
+#### Example Responses
+
+- **Deleted (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.88",
+  "message": "User account deleted permanently.",
+  "data": {
+    "id": 9,
+    "deletedCounts": {
+      "verification_tokens": 1,
+      "refresh_tokens": 2,
+      "oauth_accounts": 0,
+      "book_types": 2,
+      "authors": 0,
+      "publishers": 0,
+      "book_authors": 0,
+      "book_series": 0,
+      "book_series_books": 0,
+      "storage_locations": 1,
+      "books": 0,
+      "book_copies": 0,
+      "book_languages": 0,
+      "tags": 0,
+      "book_tags": 0
+    },
+    "datesCleaned": 1
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.22",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "You must confirm this action before proceeding."
+  ]
+}
+```
+
+- **Forbidden (403):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 403,
+  "responseTime": "2.06",
+  "message": "Forbidden",
+  "data": {},
+  "errors": [
+    "Admins cannot delete their own account."
+  ]
+}
+```
+
+- **Conflict (409):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 409,
+  "responseTime": "2.11",
+  "message": "Deletion not confirmed.",
+  "data": {},
+  "errors": [
+    "The user has not completed the account deletion confirmation flow."
+  ]
+}
+```
+
+- **Not Found (404):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 404,
+  "responseTime": "2.84",
+  "message": "User not found.",
+  "data": {},
+  "errors": [
+    "The requested user could not be located."
+  ]
+}
+```
+
+</details>
 
 ### POST /admin/languages
 

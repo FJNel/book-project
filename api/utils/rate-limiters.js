@@ -52,10 +52,20 @@ const incorrectDateReportLimiter = rateLimit({
 	keyGenerator: (req) => ipKeyGenerator(req)
 });
 
+const adminDeletionLimiter = rateLimit({
+	windowMs: 10 * 60 * 1000, // 10 minutes
+	max: 2,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
+});
+
 module.exports = {
 	rateLimitHandler,
 	authenticatedLimiter,
 	emailCostLimiter,
 	sensitiveActionLimiter,
-	incorrectDateReportLimiter
+	incorrectDateReportLimiter,
+	adminDeletionLimiter
 };

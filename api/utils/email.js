@@ -708,6 +708,306 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
     }
 } // sendPasswordResetSuccessEmail
 
+async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = []) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = "Your Book Project profile was updated";
+	const year = new Date().getFullYear();
+	const changeItems = Array.isArray(changes) && changes.length > 0
+		? `<ul style="font-size: 15px; color: #4a5568; line-height: 1.5; padding-left: 20px;">
+			${changes.map((item) => `<li>${item}</li>`).join("")}
+		  </ul>`
+		: "<p style=\"font-size: 15px; color: #4a5568; line-height: 1.5;\">Your account details were updated.</p>";
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Account update notice${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          An administrator updated details on your Book Project account.
+	        </p>
+	        ${changeItems}
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you did not expect this change, please contact the system administrator at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Update%20Inquiry" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_profile_update", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin profile update email:", error.message);
+		return false;
+	}
+} // sendAdminProfileUpdateEmail
+
+async function sendAdminAccountDisabledEmail(toEmail, preferredName) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = "Your Book Project account has been disabled";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Account disabled${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          An administrator has disabled your Book Project account. You can no longer sign in or use the service.
+	        </p>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you believe this was a mistake, please contact the system administrator at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Disable%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_account_disabled", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin account disabled email:", error.message);
+		return false;
+	}
+} // sendAdminAccountDisabledEmail
+
+async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const loginUrl = config.frontend.loginUrl;
+	const subject = "Your Book Project account has been re-enabled";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Account re-enabled${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          An administrator has re-enabled your Book Project account. You can now sign in again.
+	        </p>
+	        <div style="text-align: center; margin: 32px 0;">
+	          <a href="${loginUrl}" style="background-color: #3182ce; color: #ffffff;
+	            text-decoration: none; padding: 14px 28px; border-radius: 6px;
+	            font-weight: bold; display: inline-block;">
+	            Log In
+	          </a>
+	        </div>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you did not request this change, please contact the system administrator at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Enable%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_account_enabled", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin account enabled email:", error.message);
+		return false;
+	}
+} // sendAdminAccountEnabledEmail
+
+async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = "Your Book Project email needs verification";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Email unverified${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          An administrator marked your Book Project email address as unverified.
+	        </p>
+	        <p style="font-size: 15px; color: #4a5568; line-height: 1.5;"><strong>Reason:</strong> ${reason}</p>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          Please request a new verification email or contact the system administrator if you need assistance.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_email_unverified", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin email unverified email:", error.message);
+		return false;
+	}
+} // sendAdminEmailUnverifiedEmail
+
+async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const subject = "Your Book Project email has been verified";
+	const year = new Date().getFullYear();
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%"
+	    style="max-width: 600px; background: #ffffff; border-radius: 8px;
+	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+	    <tr>
+	      <td align="center" style="padding: 24px;">
+	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	          style="display: block; height: 50px; margin-bottom: 16px;">
+	      </td>
+	    </tr>
+	    <tr>
+	      <td style="padding: 0 32px 32px 32px; color: #333;">
+	        <h2 style="color: #2d3748; margin-bottom: 16px;">Email verified${preferredName ? `, ${preferredName}` : ""}</h2>
+	        <p style="font-size: 16px; color: #4a5568; line-height: 1.5;">
+	          An administrator verified your Book Project email address.
+	        </p>
+	        <p style="font-size: 15px; color: #4a5568; line-height: 1.5;"><strong>Reason:</strong> ${reason}</p>
+	        <p style="font-size: 14px; color: #718096; line-height: 1.5;">
+	          If you did not expect this change, please contact the system administrator at
+	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Email%20Verification%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
+	        </p>
+	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
+	          &copy; ${year} Book Project. All rights reserved.
+	        </p>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "admin_email_verified", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending admin email verified email:", error.message);
+		return false;
+	}
+} // sendAdminEmailVerifiedEmail
+
 module.exports = {
 	sendVerificationEmail,
 	sendPasswordResetEmail,
@@ -718,5 +1018,10 @@ module.exports = {
 	sendAccountDeletionVerificationEmail,
 	sendAccountDeletionAdminEmail,
 	sendEmailChangeVerificationEmail,
-	sendEmailChangeConfirmationEmail
+	sendEmailChangeConfirmationEmail,
+	sendAdminProfileUpdateEmail,
+	sendAdminAccountDisabledEmail,
+	sendAdminAccountEnabledEmail,
+	sendAdminEmailUnverifiedEmail,
+	sendAdminEmailVerifiedEmail
 };
