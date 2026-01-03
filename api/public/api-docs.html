@@ -342,6 +342,15 @@
 <li><a href="#post-import">POST /import</a></li>
 </ul>
 </li>
+<li><a href="#logs">Logs</a>
+<ul>
+<li><a href="#get-logs">GET /logs</a></li>
+<li><a href="#post-logssearch">POST /logs/search</a></li>
+<li><a href="#get-logslog_types">GET /logs/log_types</a></li>
+<li><a href="#get-logslevels">GET /logs/levels</a></li>
+<li><a href="#get-logsstatuses">GET /logs/statuses</a></li>
+</ul>
+</li>
 <li><a href="#admin">Admin</a>
 <ul>
 <li><a href="#get-adminusers">GET /admin/users</a></li>
@@ -369,7 +378,6 @@
 <li><a href="#post-adminusersidhandle-account-deletion">POST /admin/users/:id/handle-account-deletion</a></li>
 <li><a href="#post-adminusersdisable">POST /admin/users/disable</a></li>
 <li><a href="#post-adminusersiddisable">POST /admin/users/:id/disable</a></li>
-<li><a href="#get-adminlogs">GET /admin/logs</a></li>
 <li><a href="#post-adminlanguages">POST /admin/languages</a></li>
 <li><a href="#put-adminlanguages">PUT /admin/languages</a></li>
 <li><a href="#put-adminlanguagesid">PUT /admin/languages/:id</a></li>
@@ -20253,13 +20261,725 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
+<h2 id="logs">Logs</h2>
+<h3 id="get-logs">GET /logs</h3>
+<ul>
+<li><strong>Purpose:</strong> Retrieve log entries with filtering, search, and pagination.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-109">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/logs</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code> (optional body)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-109">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>&lt;apiKey&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Optional JSON body for filters.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-93">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>events</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by event names (e.g., <code>LOGIN_ATTEMPT</code>).</td>
+</tr>
+<tr>
+<td><code>levels</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by log levels (<code>info</code>, <code>warn</code>, <code>error</code>).</td>
+</tr>
+<tr>
+<td><code>statuses</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by status (<code>SUCCESS</code>, <code>FAILURE</code>, <code>INFO</code>, <code>SKIPPED</code>).</td>
+</tr>
+<tr>
+<td><code>methods</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by HTTP method (<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>).</td>
+</tr>
+<tr>
+<td><code>paths</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Only include logs where <code>path</code> contains any provided value.</td>
+</tr>
+<tr>
+<td><code>userId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter logs for a specific user id.</td>
+</tr>
+<tr>
+<td><code>startDate</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO 8601 date/time to include logs from (inclusive).</td>
+</tr>
+<tr>
+<td><code>endDate</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO 8601 date/time to include logs until (inclusive).</td>
+</tr>
+<tr>
+<td><code>search</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive substring match across message/event/path/error/details.</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Max number of logs to return (default: <code>100</code>, max: <code>1000</code>).</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Offset for pagination (default: <code>0</code>).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-102">Validation &amp; Edge Cases</h4>
+<ul>
+<li>JSON body is preferred, but query parameters are also accepted for compatibility.</li>
+<li><code>limit</code> must be between <code>1</code> and <code>1000</code>.</li>
+<li><code>offset</code> must be <code>0</code> or greater.</li>
+<li><code>startDate</code>/<code>endDate</code> must be valid ISO 8601 values.</li>
+<li><code>userId</code> must be a valid integer when provided.</li>
+<li>Results are returned newest-first.</li>
+</ul>
+<h4 id="example-request-body-88">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;events&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;LOGIN_ATTEMPT&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;AUTH_CHECK&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;levels&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;warn&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;statuses&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;FAILURE&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;methods&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;POST&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;paths&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;/auth/login&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;search&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;invalid&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;startDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-01T00:00:00Z&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;endDate&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-31T23:59:59Z&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-109">Example Responses</h4>
+<ul>
+<li><strong>Logs Retrieved (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;6.41&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Logs retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;total&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;logs&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;AUTH_CHECK&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;event&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;AUTH_CHECK&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;level&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;warn&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;timestamp&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-05T10:12:44.142Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;FAILURE&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;error_reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;ACCESS_TOKEN_INVALID&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;ip&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;127.0.0.1&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;method&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;POST&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;path&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;/auth/login&quot;</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;LOGIN_ATTEMPT&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;event&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;LOGIN_ATTEMPT&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;level&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;warn&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;timestamp&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-05T10:12:41.002Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;FAILURE&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;details&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+          <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;INVALID_CREDENTIALS&quot;</span>
+        <span class="hljs-punctuation">}</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.42&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;limit must be between 1 and 1000.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<hr>
+<h3 id="post-logssearch">POST /logs/search</h3>
+<ul>
+<li><strong>Purpose:</strong> Body-only log search for admin dashboards (same filters as <code>GET /logs</code>).</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-110">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/logs/search</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-110">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>&lt;apiKey&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-94">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>events</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by event names.</td>
+</tr>
+<tr>
+<td><code>levels</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by log levels (<code>info</code>, <code>warn</code>, <code>error</code>).</td>
+</tr>
+<tr>
+<td><code>statuses</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by status (<code>SUCCESS</code>, <code>FAILURE</code>, <code>INFO</code>, <code>SKIPPED</code>).</td>
+</tr>
+<tr>
+<td><code>methods</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Filter by HTTP method.</td>
+</tr>
+<tr>
+<td><code>paths</code></td>
+<td>array<string></td>
+<td>No</td>
+<td>Only include logs where <code>path</code> contains any provided value.</td>
+</tr>
+<tr>
+<td><code>userId</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Filter logs for a specific user id.</td>
+</tr>
+<tr>
+<td><code>startDate</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO 8601 date/time to include logs from (inclusive).</td>
+</tr>
+<tr>
+<td><code>endDate</code></td>
+<td>string</td>
+<td>No</td>
+<td>ISO 8601 date/time to include logs until (inclusive).</td>
+</tr>
+<tr>
+<td><code>search</code></td>
+<td>string</td>
+<td>No</td>
+<td>Case-insensitive substring match across message/event/path/error/details.</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Max number of logs to return (default: <code>100</code>, max: <code>1000</code>).</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Offset for pagination (default: <code>0</code>).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-103">Validation &amp; Edge Cases</h4>
+<ul>
+<li><code>limit</code> must be between <code>1</code> and <code>1000</code>.</li>
+<li><code>offset</code> must be <code>0</code> or greater.</li>
+<li><code>startDate</code>/<code>endDate</code> must be valid ISO 8601 values.</li>
+<li><code>userId</code> must be a valid integer when provided.</li>
+</ul>
+<h4 id="example-request-body-89">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;search&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;password reset&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;levels&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;info&quot;</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-110">Example Responses</h4>
+<ul>
+<li><strong>Logs Retrieved (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;5.23&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Logs retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;total&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;logs&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PASSWORD_RESET&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;event&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;PASSWORD_RESET&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;level&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;info&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;timestamp&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-12T08:22:18.017Z&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;SUCCESS&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;user_id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.11&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;startDate must be a valid ISO 8601 date.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<hr>
+<h3 id="get-logslog_types">GET /logs/log_types</h3>
+<ul>
+<li><strong>Purpose:</strong> Return all distinct log event types.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-111">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/logs/log_types</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-111">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>&lt;apiKey&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="example-responses-111">Example Responses</h4>
+<ul>
+<li><strong>Log Types Retrieved (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;3.04&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Log types retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;logTypes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-string">&quot;AUTH_CHECK&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;LOGIN_ATTEMPT&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;PASSWORD_RESET&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;USER_REGISTERED&quot;</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<hr>
+<h3 id="get-logslevels">GET /logs/levels</h3>
+<ul>
+<li><strong>Purpose:</strong> Return all distinct log levels.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-112">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/logs/levels</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-112">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>&lt;apiKey&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="example-responses-112">Example Responses</h4>
+<ul>
+<li><strong>Log Levels Retrieved (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.72&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Log levels retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;levels&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;info&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;warn&quot;</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<hr>
+<h3 id="get-logsstatuses">GET /logs/statuses</h3>
+<ul>
+<li><strong>Purpose:</strong> Return all distinct log statuses.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-113">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/logs/statuses</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-113">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>&lt;apiKey&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="example-responses-113">Example Responses</h4>
+<ul>
+<li><strong>Log Statuses Retrieved (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.55&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Log statuses retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;statuses&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-string">&quot;FAILURE&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;INFO&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;SKIPPED&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-string">&quot;SUCCESS&quot;</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
 <h2 id="admin">Admin</h2>
 <h3 id="get-adminusers">GET /admin/users</h3>
 <ul>
 <li><strong>Purpose:</strong> Retrieve all users, or fetch a single user when <code>id</code> or <code>email</code> is provided.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-109">Request Overview</h4>
+<h4 id="request-overview-114">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -20290,7 +21010,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-109">Required Headers</h4>
+<h4 id="required-headers-114">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -20327,7 +21047,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-93">Body Parameters</h4>
+<h4 id="body-parameters-95">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -20514,7 +21234,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <p><code>sortBy</code> accepts: <code>id</code>, <code>email</code>, <code>fullName</code>, <code>preferredName</code>, <code>role</code>, <code>isVerified</code>, <code>isDisabled</code>, <code>lastLogin</code>, <code>passwordUpdated</code>, <code>createdAt</code>, <code>updatedAt</code>.
 You can provide these list controls via query string or JSON body. If both are provided, the JSON body takes precedence.</p>
 </details>
-<h4 id="validation--edge-cases-102">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-104">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
@@ -20522,7 +21242,7 @@ You can provide these list controls via query string or JSON body. If both are p
 <li>If both <code>id</code> and <code>email</code> are supplied and they do not match the same user, the API returns <code>400 Validation Error</code>.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
 </ul>
-<h4 id="example-request-body-88">Example Request Body</h4>
+<h4 id="example-request-body-90">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;sortBy&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;createdAt&quot;</span><span class="hljs-punctuation">,</span>
@@ -20534,7 +21254,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;filterCreatedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-01&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-109">Example Responses</h4>
+<h4 id="example-responses-114">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -20612,7 +21332,7 @@ You can provide these list controls via query string or JSON body. If both are p
 <li><strong>Purpose:</strong> Retrieve a specific user profile by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-110">Request Overview</h4>
+<h4 id="request-overview-115">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -20643,7 +21363,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-110">Required Headers</h4>
+<h4 id="required-headers-115">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -20680,7 +21400,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-94">Body Parameters</h4>
+<h4 id="body-parameters-96">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -20699,19 +21419,19 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-103">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-105">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
 </ul>
-<h4 id="example-request-body-89">Example Request Body</h4>
+<h4 id="example-request-body-91">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-110">Example Responses</h4>
+<h4 id="example-responses-115">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -20775,7 +21495,7 @@ You can provide these list controls via query string or JSON body. If both are p
 <li><strong>Purpose:</strong> Create a new user account (admin only).</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-111">Request Overview</h4>
+<h4 id="request-overview-116">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -20806,7 +21526,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-111">Required Headers</h4>
+<h4 id="required-headers-116">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -20843,7 +21563,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-95">Body Parameters</h4>
+<h4 id="body-parameters-97">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -20898,7 +21618,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-104">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-106">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>Duplicate emails return <code>409</code>.</li>
@@ -20943,7 +21663,7 @@ The verification link expires in &lt;verificationExpiresIn&gt; minutes.
 The password setup link expires in &lt;resetExpiresIn&gt; minutes.
 If you did not expect this email, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-request-body-90">Example Request Body</h4>
+<h4 id="example-request-body-92">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Samwise Gamgee&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Sam&quot;</span><span class="hljs-punctuation">,</span>
@@ -20952,7 +21672,7 @@ If you did not expect this email, please contact the system administrator at &lt
   <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-111">Example Responses</h4>
+<h4 id="example-responses-116">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -21013,7 +21733,7 @@ If you did not expect this email, please contact the system administrator at &lt
 <li><strong>Purpose:</strong> Update a user profile using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-112">Request Overview</h4>
+<h4 id="request-overview-117">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -21044,7 +21764,7 @@ If you did not expect this email, please contact the system administrator at &lt
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-112">Required Headers</h4>
+<h4 id="required-headers-117">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -21081,7 +21801,7 @@ If you did not expect this email, please contact the system administrator at &lt
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-96">Body Parameters</h4>
+<h4 id="body-parameters-98">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -21130,7 +21850,7 @@ If you did not expect this email, please contact the system administrator at &lt
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-105">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-107">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>At least one update field must be provided.</li>
@@ -21171,7 +21891,7 @@ Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
 If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
 This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-body-91">Example Request Body</h4>
+<h4 id="example-request-body-93">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;fullName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Harry James Potter&quot;</span><span class="hljs-punctuation">,</span>
@@ -21179,7 +21899,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-112">Example Responses</h4>
+<h4 id="example-responses-117">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -21268,7 +21988,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Update a user profile by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-113">Request Overview</h4>
+<h4 id="request-overview-118">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -21299,7 +22019,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-113">Required Headers</h4>
+<h4 id="required-headers-118">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -21336,7 +22056,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-97">Body Parameters</h4>
+<h4 id="body-parameters-99">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -21379,7 +22099,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-106">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-108">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
@@ -21416,12 +22136,12 @@ Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
 If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
 This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-body-92">Example Request Body</h4>
+<h4 id="example-request-body-94">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Harry&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-113">Example Responses</h4>
+<h4 id="example-responses-118">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -21510,7 +22230,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Disable a user account using a JSON body <code>id</code> or <code>email</code> (soft delete).</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-114">Request Overview</h4>
+<h4 id="request-overview-119">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -21541,7 +22261,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-114">Required Headers</h4>
+<h4 id="required-headers-119">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -21578,7 +22298,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-98">Body Parameters</h4>
+<h4 id="body-parameters-100">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -21603,7 +22323,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-107">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-109">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Disabling a user is a soft delete. The user cannot log in but their data remains.</li>
 <li>All active sessions for the user are revoked on disable.</li>
@@ -21619,12 +22339,12 @@ This link will expire in &lt;expiresIn&gt; minutes.
 An administrator has disabled your Book Project account. You can no longer sign in or use the service.
 If you believe this was a mistake, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-request-body-93">Example Request Body</h4>
+<h4 id="example-request-body-95">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-114">Example Responses</h4>
+<h4 id="example-responses-119">Example Responses</h4>
 <ul>
 <li><strong>Disabled (200):</strong></li>
 </ul>
@@ -21677,7 +22397,7 @@ If you believe this was a mistake, please contact the system administrator at &l
 <li><strong>Purpose:</strong> Disable a user account by id (soft delete).</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-115">Request Overview</h4>
+<h4 id="request-overview-120">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -21708,327 +22428,7 @@ If you believe this was a mistake, please contact the system administrator at &l
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-115">Required Headers</h4>
-<table>
-<thead>
-<tr>
-<th>Header</th>
-<th>Required</th>
-<th>Value</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Authorization</code></td>
-<td>Conditional</td>
-<td><code>Bearer &lt;accessToken&gt;</code></td>
-<td>Required if <code>X-API-Key</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>X-API-Key</code></td>
-<td>Conditional</td>
-<td><code>bk_&lt;token&gt;</code></td>
-<td>Required if <code>Authorization</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>Accept</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Responses are JSON.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="body-parameters-99">Body Parameters</h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>id</code></td>
-<td>integer</td>
-<td>No</td>
-<td>Optional confirmation; must match the URL path if provided.</td>
-</tr>
-<tr>
-<td><code>email</code></td>
-<td>string</td>
-<td>No</td>
-<td>Optional confirmation; must match the user's email if provided.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="validation--edge-cases-108">Validation &amp; Edge Cases</h4>
-<ul>
-<li>Disabling a user is a soft delete. The user cannot log in but their data remains.</li>
-<li>All active sessions for the user are revoked on disable.</li>
-<li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
-<li>If <code>email</code> is provided, it must match the user's email.</li>
-</ul>
-<h4 id="email-content-16">Email Content</h4>
-<ul>
-<li><strong>Subject:</strong> <code>Your Book Project account has been disabled</code></li>
-<li><strong>Body (text):</strong></li>
-</ul>
-<pre><code>Account disabled, &lt;preferredName&gt;
-An administrator has disabled your Book Project account. You can no longer sign in or use the service.
-If you believe this was a mistake, please contact the system administrator at &lt;supportEmail&gt;.
-</code></pre>
-<h4 id="example-responses-115">Example Responses</h4>
-<ul>
-<li><strong>Disabled (200):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.96&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User disabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;wasDisabled&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;revokedSessions&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<details>
-<summary>Error Responses</summary>
-<ul>
-<li><strong>Validation Error (400):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;User id must be a valid integer.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Not Found (404):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-</details>
-<h3 id="post-adminusersenable">POST /admin/users/enable</h3>
-<ul>
-<li><strong>Purpose:</strong> Re-enable a disabled user account using a JSON body <code>id</code> or <code>email</code>.</li>
-<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
-</ul>
-<h4 id="request-overview-116">Request Overview</h4>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Method</td>
-<td><code>POST</code></td>
-</tr>
-<tr>
-<td>Path</td>
-<td><code>/admin/users/enable</code></td>
-</tr>
-<tr>
-<td>Authentication</td>
-<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
-</tr>
-<tr>
-<td>Rate Limit</td>
-<td>60 requests / minute / admin user</td>
-</tr>
-<tr>
-<td>Content-Type</td>
-<td><code>application/json</code></td>
-</tr>
-</tbody>
-</table>
-<h4 id="required-headers-116">Required Headers</h4>
-<table>
-<thead>
-<tr>
-<th>Header</th>
-<th>Required</th>
-<th>Value</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Authorization</code></td>
-<td>Conditional</td>
-<td><code>Bearer &lt;accessToken&gt;</code></td>
-<td>Required if <code>X-API-Key</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>X-API-Key</code></td>
-<td>Conditional</td>
-<td><code>bk_&lt;token&gt;</code></td>
-<td>Required if <code>Authorization</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>Content-Type</code></td>
-<td>Yes</td>
-<td><code>application/json</code></td>
-<td>Body must be JSON encoded.</td>
-</tr>
-<tr>
-<td><code>Accept</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Responses are JSON.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="body-parameters-100">Body Parameters</h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>id</code></td>
-<td>integer</td>
-<td>Conditional</td>
-<td>User id to enable. Required if <code>email</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>email</code></td>
-<td>string</td>
-<td>Conditional</td>
-<td>User email to enable. Required if <code>id</code> is not provided.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="validation--edge-cases-109">Validation &amp; Edge Cases</h4>
-<ul>
-<li>If the user does not exist, the API returns <code>404</code>.</li>
-<li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
-</ul>
-<h4 id="email-content-17">Email Content</h4>
-<ul>
-<li><strong>Subject:</strong> <code>Your Book Project account has been re-enabled</code></li>
-<li><strong>Body (text):</strong></li>
-</ul>
-<pre><code>Account re-enabled, &lt;preferredName&gt;
-An administrator has re-enabled your Book Project account. You can now sign in again.
-Log In: &lt;frontend_login_url&gt;
-If you did not request this change, please contact the system administrator at &lt;supportEmail&gt;.
-</code></pre>
-<h4 id="example-request-body-94">Example Request Body</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-responses-116">Example Responses</h4>
-<ul>
-<li><strong>Enabled (200):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.54&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User enabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<details>
-<summary>Error Responses</summary>
-<ul>
-<li><strong>Validation Error (400):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;User id must be a valid integer.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Not Found (404):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-</details>
-<h3 id="post-adminusersidenable">POST /admin/users/:id/enable</h3>
-<ul>
-<li><strong>Purpose:</strong> Re-enable a disabled user account by id.</li>
-<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
-</ul>
-<h4 id="request-overview-117">Request Overview</h4>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Method</td>
-<td><code>POST</code></td>
-</tr>
-<tr>
-<td>Path</td>
-<td><code>/admin/users/:id/enable</code></td>
-</tr>
-<tr>
-<td>Authentication</td>
-<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
-</tr>
-<tr>
-<td>Rate Limit</td>
-<td>60 requests / minute / admin user</td>
-</tr>
-<tr>
-<td>Content-Type</td>
-<td><code>application/json</code> (optional body)</td>
-</tr>
-</tbody>
-</table>
-<h4 id="required-headers-117">Required Headers</h4>
+<h4 id="required-headers-120">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22086,31 +22486,33 @@ If you did not request this change, please contact the system administrator at &
 </table>
 <h4 id="validation--edge-cases-110">Validation &amp; Edge Cases</h4>
 <ul>
+<li>Disabling a user is a soft delete. The user cannot log in but their data remains.</li>
+<li>All active sessions for the user are revoked on disable.</li>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
-<li>If the user does not exist, the API returns <code>404</code>.</li>
 </ul>
-<h4 id="email-content-18">Email Content</h4>
+<h4 id="email-content-16">Email Content</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Your Book Project account has been re-enabled</code></li>
+<li><strong>Subject:</strong> <code>Your Book Project account has been disabled</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Account re-enabled, &lt;preferredName&gt;
-An administrator has re-enabled your Book Project account. You can now sign in again.
-Log In: &lt;frontend_login_url&gt;
-If you did not request this change, please contact the system administrator at &lt;supportEmail&gt;.
+<pre><code>Account disabled, &lt;preferredName&gt;
+An administrator has disabled your Book Project account. You can no longer sign in or use the service.
+If you believe this was a mistake, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-responses-117">Example Responses</h4>
+<h4 id="example-responses-120">Example Responses</h4>
 <ul>
-<li><strong>Enabled (200):</strong></li>
+<li><strong>Disabled (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.54&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User enabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.96&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User disabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;wasDisabled&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;revokedSessions&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
@@ -22146,12 +22548,12 @@ If you did not request this change, please contact the system administrator at &
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
-<h3 id="post-adminusersunverify">POST /admin/users/unverify</h3>
+<h3 id="post-adminusersenable">POST /admin/users/enable</h3>
 <ul>
-<li><strong>Purpose:</strong> Mark a user's email as unverified using a JSON body <code>id</code> or <code>email</code>.</li>
+<li><strong>Purpose:</strong> Re-enable a disabled user account using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-118">Request Overview</h4>
+<h4 id="request-overview-121">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -22166,7 +22568,7 @@ If you did not request this change, please contact the system administrator at &
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/users/unverify</code></td>
+<td><code>/admin/users/enable</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -22182,7 +22584,7 @@ If you did not request this change, please contact the system administrator at &
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-118">Required Headers</h4>
+<h4 id="required-headers-121">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22234,55 +22636,47 @@ If you did not request this change, please contact the system administrator at &
 <td><code>id</code></td>
 <td>integer</td>
 <td>Conditional</td>
-<td>User id to unverify. Required if <code>email</code> is not provided.</td>
+<td>User id to enable. Required if <code>email</code> is not provided.</td>
 </tr>
 <tr>
 <td><code>email</code></td>
 <td>string</td>
 <td>Conditional</td>
-<td>User email to unverify. Required if <code>id</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>reason</code></td>
-<td>string</td>
-<td>Yes</td>
-<td>Reason for record-keeping; max 500 characters.</td>
+<td>User email to enable. Required if <code>id</code> is not provided.</td>
 </tr>
 </tbody>
 </table>
 <h4 id="validation--edge-cases-111">Validation &amp; Edge Cases</h4>
 <ul>
-<li>The reason is required and limited to 500 characters.</li>
+<li>If the user does not exist, the API returns <code>404</code>.</li>
 <li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
 </ul>
-<h4 id="email-content-19">Email Content</h4>
+<h4 id="email-content-17">Email Content</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Your Book Project email needs verification</code></li>
+<li><strong>Subject:</strong> <code>Your Book Project account has been re-enabled</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Email unverified, &lt;preferredName&gt;
-An administrator marked your Book Project email address as unverified.
-Reason: &lt;reason&gt;
-Please request a new verification email using this link: &lt;frontend_url&gt;?action=request-verification-email
-If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
+<pre><code>Account re-enabled, &lt;preferredName&gt;
+An administrator has re-enabled your Book Project account. You can now sign in again.
+Log In: &lt;frontend_login_url&gt;
+If you did not request this change, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-request-body-95">Example Request Body</h4>
+<h4 id="example-request-body-96">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-118">Example Responses</h4>
+<h4 id="example-responses-121">Example Responses</h4>
 <ul>
-<li><strong>Unverified (200):</strong></li>
+<li><strong>Enabled (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.49&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as unverified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.54&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User enabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
@@ -22299,7 +22693,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;Reason must be provided.&quot;</span>
+    <span class="hljs-string">&quot;User id must be a valid integer.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -22318,12 +22712,12 @@ If you did not expect this change, please contact the system administrator at &l
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
-<h3 id="post-adminusersidunverify">POST /admin/users/:id/unverify</h3>
+<h3 id="post-adminusersidenable">POST /admin/users/:id/enable</h3>
 <ul>
-<li><strong>Purpose:</strong> Mark a user's email as unverified by id.</li>
+<li><strong>Purpose:</strong> Re-enable a disabled user account by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-119">Request Overview</h4>
+<h4 id="request-overview-122">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -22338,7 +22732,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/users/:id/unverify</code></td>
+<td><code>/admin/users/:id/enable</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -22350,11 +22744,11 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Content-Type</td>
-<td><code>application/json</code></td>
+<td><code>application/json</code> (optional body)</td>
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-119">Required Headers</h4>
+<h4 id="required-headers-122">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22378,12 +22772,6 @@ If you did not expect this change, please contact the system administrator at &l
 <td>Required if <code>Authorization</code> is not provided.</td>
 </tr>
 <tr>
-<td><code>Content-Type</code></td>
-<td>Yes</td>
-<td><code>application/json</code></td>
-<td>Body must be JSON encoded.</td>
-</tr>
-<tr>
 <td><code>Accept</code></td>
 <td>No</td>
 <td><code>application/json</code></td>
@@ -22398,16 +22786,10 @@ If you did not expect this change, please contact the system administrator at &l
 <th>Field</th>
 <th>Type</th>
 <th>Required</th>
-<th>Description</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>reason</code></td>
-<td>string</td>
-<td>Yes</td>
-<td>Reason for record-keeping; max 500 characters.</td>
-</tr>
 <tr>
 <td><code>id</code></td>
 <td>integer</td>
@@ -22426,34 +22808,29 @@ If you did not expect this change, please contact the system administrator at &l
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
+<li>If the user does not exist, the API returns <code>404</code>.</li>
 </ul>
-<h4 id="email-content-20">Email Content</h4>
+<h4 id="email-content-18">Email Content</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Your Book Project email needs verification</code></li>
+<li><strong>Subject:</strong> <code>Your Book Project account has been re-enabled</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Email unverified, &lt;preferredName&gt;
-An administrator marked your Book Project email address as unverified.
-Reason: &lt;reason&gt;
-Please request a new verification email using this link: &lt;frontend_url&gt;?action=request-verification-email
-If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
+<pre><code>Account re-enabled, &lt;preferredName&gt;
+An administrator has re-enabled your Book Project account. You can now sign in again.
+Log In: &lt;frontend_login_url&gt;
+If you did not request this change, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-request-body-96">Example Request Body</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-responses-119">Example Responses</h4>
+<h4 id="example-responses-122">Example Responses</h4>
 <ul>
-<li><strong>Unverified (200):</strong></li>
+<li><strong>Enabled (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.49&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as unverified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.54&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User enabled successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
@@ -22470,7 +22847,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;Reason must be provided.&quot;</span>
+    <span class="hljs-string">&quot;User id must be a valid integer.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -22489,12 +22866,12 @@ If you did not expect this change, please contact the system administrator at &l
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
-<h3 id="post-adminusersverify">POST /admin/users/verify</h3>
+<h3 id="post-adminusersunverify">POST /admin/users/unverify</h3>
 <ul>
-<li><strong>Purpose:</strong> Mark a user's email as verified using a JSON body <code>id</code> or <code>email</code>.</li>
+<li><strong>Purpose:</strong> Mark a user's email as unverified using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-120">Request Overview</h4>
+<h4 id="request-overview-123">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -22509,7 +22886,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/users/verify</code></td>
+<td><code>/admin/users/unverify</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -22525,7 +22902,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-120">Required Headers</h4>
+<h4 id="required-headers-123">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22577,13 +22954,13 @@ If you did not expect this change, please contact the system administrator at &l
 <td><code>id</code></td>
 <td>integer</td>
 <td>Conditional</td>
-<td>User id to verify. Required if <code>email</code> is not provided.</td>
+<td>User id to unverify. Required if <code>email</code> is not provided.</td>
 </tr>
 <tr>
 <td><code>email</code></td>
 <td>string</td>
 <td>Conditional</td>
-<td>User email to verify. Required if <code>id</code> is not provided.</td>
+<td>User email to unverify. Required if <code>id</code> is not provided.</td>
 </tr>
 <tr>
 <td><code>reason</code></td>
@@ -22597,33 +22974,33 @@ If you did not expect this change, please contact the system administrator at &l
 <ul>
 <li>The reason is required and limited to 500 characters.</li>
 <li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
-<li>All existing verification tokens for the user are invalidated when verified by an admin.</li>
 </ul>
-<h4 id="email-content-21">Email Content</h4>
+<h4 id="email-content-19">Email Content</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Your Book Project email has been verified</code></li>
+<li><strong>Subject:</strong> <code>Your Book Project email needs verification</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Email verified, &lt;preferredName&gt;
-An administrator verified your Book Project email address.
+<pre><code>Email unverified, &lt;preferredName&gt;
+An administrator marked your Book Project email address as unverified.
 Reason: &lt;reason&gt;
+Please request a new verification email using this link: &lt;frontend_url&gt;?action=request-verification-email
 If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
 <h4 id="example-request-body-97">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
+  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-120">Example Responses</h4>
+<h4 id="example-responses-123">Example Responses</h4>
 <ul>
-<li><strong>Verified (200):</strong></li>
+<li><strong>Unverified (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.40&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as verified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.49&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as unverified.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -22661,12 +23038,12 @@ If you did not expect this change, please contact the system administrator at &l
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
-<h3 id="post-adminusersidverify">POST /admin/users/:id/verify</h3>
+<h3 id="post-adminusersidunverify">POST /admin/users/:id/unverify</h3>
 <ul>
-<li><strong>Purpose:</strong> Mark a user's email as verified by id.</li>
+<li><strong>Purpose:</strong> Mark a user's email as unverified by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-121">Request Overview</h4>
+<h4 id="request-overview-124">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -22681,7 +23058,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/users/:id/verify</code></td>
+<td><code>/admin/users/:id/unverify</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -22697,7 +23074,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-121">Required Headers</h4>
+<h4 id="required-headers-124">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22751,38 +23128,50 @@ If you did not expect this change, please contact the system administrator at &l
 <td>Yes</td>
 <td>Reason for record-keeping; max 500 characters.</td>
 </tr>
+<tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Optional confirmation; must match the URL path if provided.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>No</td>
+<td>Optional confirmation; must match the user's email if provided.</td>
+</tr>
 </tbody>
 </table>
 <h4 id="validation--edge-cases-114">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
-<li>All existing verification tokens for the user are invalidated when verified by an admin.</li>
 </ul>
-<h4 id="email-content-22">Email Content</h4>
+<h4 id="email-content-20">Email Content</h4>
 <ul>
-<li><strong>Subject:</strong> <code>Your Book Project email has been verified</code></li>
+<li><strong>Subject:</strong> <code>Your Book Project email needs verification</code></li>
 <li><strong>Body (text):</strong></li>
 </ul>
-<pre><code>Email verified, &lt;preferredName&gt;
-An administrator verified your Book Project email address.
+<pre><code>Email unverified, &lt;preferredName&gt;
+An administrator marked your Book Project email address as unverified.
 Reason: &lt;reason&gt;
+Please request a new verification email using this link: &lt;frontend_url&gt;?action=request-verification-email
 If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
 <h4 id="example-request-body-98">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
+  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-121">Example Responses</h4>
+<h4 id="example-responses-124">Example Responses</h4>
 <ul>
-<li><strong>Verified (200):</strong></li>
+<li><strong>Unverified (200):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.40&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as verified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.49&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as unverified.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -22820,12 +23209,12 @@ If you did not expect this change, please contact the system administrator at &l
 <span class="hljs-punctuation">}</span>
 </code></pre>
 </details>
-<h3 id="post-adminuserssend-verification">POST /admin/users/send-verification</h3>
+<h3 id="post-adminusersverify">POST /admin/users/verify</h3>
 <ul>
-<li><strong>Purpose:</strong> Send a verification email using a JSON body <code>id</code> or <code>email</code>.</li>
+<li><strong>Purpose:</strong> Mark a user's email as verified using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-122">Request Overview</h4>
+<h4 id="request-overview-125">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -22840,7 +23229,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Path</td>
-<td><code>/admin/users/send-verification</code></td>
+<td><code>/admin/users/verify</code></td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -22848,7 +23237,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 <tr>
 <td>Rate Limit</td>
-<td>60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost)</td>
+<td>60 requests / minute / admin user</td>
 </tr>
 <tr>
 <td>Content-Type</td>
@@ -22856,7 +23245,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-122">Required Headers</h4>
+<h4 id="required-headers-125">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -22917,6 +23306,337 @@ If you did not expect this change, please contact the system administrator at &l
 <td>User email to verify. Required if <code>id</code> is not provided.</td>
 </tr>
 <tr>
+<td><code>reason</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Reason for record-keeping; max 500 characters.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-115">Validation &amp; Edge Cases</h4>
+<ul>
+<li>The reason is required and limited to 500 characters.</li>
+<li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
+<li>All existing verification tokens for the user are invalidated when verified by an admin.</li>
+</ul>
+<h4 id="email-content-21">Email Content</h4>
+<ul>
+<li><strong>Subject:</strong> <code>Your Book Project email has been verified</code></li>
+<li><strong>Body (text):</strong></li>
+</ul>
+<pre><code>Email verified, &lt;preferredName&gt;
+An administrator verified your Book Project email address.
+Reason: &lt;reason&gt;
+If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
+</code></pre>
+<h4 id="example-request-body-99">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-125">Example Responses</h4>
+<ul>
+<li><strong>Verified (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.40&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as verified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Reason must be provided.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="post-adminusersidverify">POST /admin/users/:id/verify</h3>
+<ul>
+<li><strong>Purpose:</strong> Mark a user's email as verified by id.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-126">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/users/:id/verify</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-126">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>bk_&lt;token&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-107">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reason</code></td>
+<td>string</td>
+<td>Yes</td>
+<td>Reason for record-keeping; max 500 characters.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-116">Validation &amp; Edge Cases</h4>
+<ul>
+<li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
+<li>If <code>email</code> is provided, it must match the user's email.</li>
+<li>All existing verification tokens for the user are invalidated when verified by an admin.</li>
+</ul>
+<h4 id="email-content-22">Email Content</h4>
+<ul>
+<li><strong>Subject:</strong> <code>Your Book Project email has been verified</code></li>
+<li><strong>Body (text):</strong></li>
+</ul>
+<pre><code>Email verified, &lt;preferredName&gt;
+An administrator verified your Book Project email address.
+Reason: &lt;reason&gt;
+If you did not expect this change, please contact the system administrator at &lt;supportEmail&gt;.
+</code></pre>
+<h4 id="example-request-body-100">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-126">Example Responses</h4>
+<ul>
+<li><strong>Verified (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.40&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User marked as verified.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;Reason must be provided.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="post-adminuserssend-verification">POST /admin/users/send-verification</h3>
+<ul>
+<li><strong>Purpose:</strong> Send a verification email using a JSON body <code>id</code> or <code>email</code>.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-127">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/users/send-verification</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost)</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-127">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>bk_&lt;token&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-108">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>Conditional</td>
+<td>User id to verify. Required if <code>email</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Conditional</td>
+<td>User email to verify. Required if <code>id</code> is not provided.</td>
+</tr>
+<tr>
 <td><code>duration</code></td>
 <td>integer</td>
 <td>No</td>
@@ -22924,7 +23644,7 @@ If you did not expect this change, please contact the system administrator at &l
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-115">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-117">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If the user is already verified, the API returns <code>400</code>.</li>
 <li>Duration must be between 1 and 1440 minutes.</li>
@@ -22942,13 +23662,13 @@ Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
 If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
 This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-body-99">Example Request Body</h4>
+<h4 id="example-request-body-101">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-122">Example Responses</h4>
+<h4 id="example-responses-127">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -23014,7 +23734,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Send a verification email by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-123">Request Overview</h4>
+<h4 id="request-overview-128">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -23045,7 +23765,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-123">Required Headers</h4>
+<h4 id="required-headers-128">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -23082,7 +23802,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-107">Body Parameters</h4>
+<h4 id="body-parameters-109">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -23125,7 +23845,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-116">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-118">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
@@ -23144,12 +23864,12 @@ Verify Email: &lt;frontend_verify_url&gt;?token=&lt;token&gt;
 If you did not register this account, please contact the system administrator at &lt;supportEmail&gt; to assist you in resolving this matter.
 This link will expire in &lt;expiresIn&gt; minutes.
 </code></pre>
-<h4 id="example-request-body-100">Example Request Body</h4>
+<h4 id="example-request-body-102">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-123">Example Responses</h4>
+<h4 id="example-responses-128">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -23215,7 +23935,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Send a password reset email using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-124">Request Overview</h4>
+<h4 id="request-overview-129">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -23246,341 +23966,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-124">Required Headers</h4>
-<table>
-<thead>
-<tr>
-<th>Header</th>
-<th>Required</th>
-<th>Value</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Authorization</code></td>
-<td>Conditional</td>
-<td><code>Bearer &lt;accessToken&gt;</code></td>
-<td>Required if <code>X-API-Key</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>X-API-Key</code></td>
-<td>Conditional</td>
-<td><code>bk_&lt;token&gt;</code></td>
-<td>Required if <code>Authorization</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>Content-Type</code></td>
-<td>Yes</td>
-<td><code>application/json</code></td>
-<td>Body must be JSON encoded.</td>
-</tr>
-<tr>
-<td><code>Accept</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Responses are JSON.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="body-parameters-108">Body Parameters</h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>id</code></td>
-<td>integer</td>
-<td>Conditional</td>
-<td>User id to reset. Required if <code>email</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>email</code></td>
-<td>string</td>
-<td>Conditional</td>
-<td>User email to reset. Required if <code>id</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>duration</code></td>
-<td>integer</td>
-<td>No</td>
-<td>Token validity in minutes (1–1440); default 30.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="validation--edge-cases-117">Validation &amp; Edge Cases</h4>
-<ul>
-<li>Duration must be between 1 and 1440 minutes.</li>
-<li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
-</ul>
-<h4 id="email-content-25">Email Content</h4>
-<ul>
-<li><strong>Subject:</strong> <code>Reset your password for the Book Project</code></li>
-<li><strong>Body (text):</strong></li>
-</ul>
-<pre><code>Hello, &lt;preferredName&gt;!
-We received a request to set or reset your password for the Book Project.
-If this was you, click the button below to set a new password.
-Reset Password: &lt;frontend_reset_url&gt;?token=&lt;token&gt;
-If you did not request a password reset, please contact the system administrator at &lt;supportEmail&gt; to ensure the safety of your account.
-This link will expire in &lt;expiresIn&gt; minutes.
-</code></pre>
-<h4 id="example-request-body-101">Example Request Body</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-responses-124">Example Responses</h4>
-<ul>
-<li><strong>Sent (200):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.67&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset email sent successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;expiresInMinutes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<details>
-<summary>Error Responses</summary>
-<ul>
-<li><strong>Validation Error (400):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;duration must be between 1 and 1440 minutes.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Not Found (404):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-</details>
-<h3 id="post-adminusersidreset-password">POST /admin/users/:id/reset-password</h3>
-<ul>
-<li><strong>Purpose:</strong> Send a password reset email by id.</li>
-<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
-</ul>
-<h4 id="request-overview-125">Request Overview</h4>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Method</td>
-<td><code>POST</code></td>
-</tr>
-<tr>
-<td>Path</td>
-<td><code>/admin/users/:id/reset-password</code></td>
-</tr>
-<tr>
-<td>Authentication</td>
-<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
-</tr>
-<tr>
-<td>Rate Limit</td>
-<td>60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost)</td>
-</tr>
-<tr>
-<td>Content-Type</td>
-<td><code>application/json</code></td>
-</tr>
-</tbody>
-</table>
-<h4 id="required-headers-125">Required Headers</h4>
-<table>
-<thead>
-<tr>
-<th>Header</th>
-<th>Required</th>
-<th>Value</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Authorization</code></td>
-<td>Conditional</td>
-<td><code>Bearer &lt;accessToken&gt;</code></td>
-<td>Required if <code>X-API-Key</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>X-API-Key</code></td>
-<td>Conditional</td>
-<td><code>bk_&lt;token&gt;</code></td>
-<td>Required if <code>Authorization</code> is not provided.</td>
-</tr>
-<tr>
-<td><code>Content-Type</code></td>
-<td>Yes</td>
-<td><code>application/json</code></td>
-<td>Body must be JSON encoded.</td>
-</tr>
-<tr>
-<td><code>Accept</code></td>
-<td>No</td>
-<td><code>application/json</code></td>
-<td>Responses are JSON.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="body-parameters-109">Body Parameters</h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>duration</code></td>
-<td>integer</td>
-<td>No</td>
-<td>Token validity in minutes (1–1440); default 30.</td>
-</tr>
-</tbody>
-</table>
-<h4 id="validation--edge-cases-118">Validation &amp; Edge Cases</h4>
-<ul>
-<li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
-</ul>
-<h4 id="email-content-26">Email Content</h4>
-<ul>
-<li><strong>Subject:</strong> <code>Reset your password for the Book Project</code></li>
-<li><strong>Body (text):</strong></li>
-</ul>
-<pre><code>Hello, &lt;preferredName&gt;!
-We received a request to set or reset your password for the Book Project.
-If this was you, click the button below to set a new password.
-Reset Password: &lt;frontend_reset_url&gt;?token=&lt;token&gt;
-If you did not request a password reset, please contact the system administrator at &lt;supportEmail&gt; to ensure the safety of your account.
-This link will expire in &lt;expiresIn&gt; minutes.
-</code></pre>
-<h4 id="example-request-body-102">Example Request Body</h4>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<h4 id="example-responses-125">Example Responses</h4>
-<ul>
-<li><strong>Sent (200):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.67&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset email sent successfully.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;expiresInMinutes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
-  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<details>
-<summary>Error Responses</summary>
-<ul>
-<li><strong>Validation Error (400):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;duration must be between 1 and 1440 minutes.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-<ul>
-<li><strong>Not Found (404):</strong></li>
-</ul>
-<pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
-  <span class="hljs-punctuation">]</span>
-<span class="hljs-punctuation">}</span>
-</code></pre>
-</details>
-<h3 id="post-adminuserssessions">POST /admin/users/sessions</h3>
-<ul>
-<li><strong>Purpose:</strong> List active sessions for a user using a JSON body <code>id</code> or <code>email</code>.</li>
-<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
-</ul>
-<h4 id="request-overview-126">Request Overview</h4>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Method</td>
-<td><code>POST</code></td>
-</tr>
-<tr>
-<td>Path</td>
-<td><code>/admin/users/sessions</code></td>
-</tr>
-<tr>
-<td>Authentication</td>
-<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
-</tr>
-<tr>
-<td>Rate Limit</td>
-<td>60 requests / minute / admin user</td>
-</tr>
-<tr>
-<td>Content-Type</td>
-<td><code>application/json</code></td>
-</tr>
-</tbody>
-</table>
-<h4 id="required-headers-126">Required Headers</h4>
+<h4 id="required-headers-129">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -23632,6 +24018,340 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <td><code>id</code></td>
 <td>integer</td>
 <td>Conditional</td>
+<td>User id to reset. Required if <code>email</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td>Conditional</td>
+<td>User email to reset. Required if <code>id</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Token validity in minutes (1–1440); default 30.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-119">Validation &amp; Edge Cases</h4>
+<ul>
+<li>Duration must be between 1 and 1440 minutes.</li>
+<li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
+</ul>
+<h4 id="email-content-25">Email Content</h4>
+<ul>
+<li><strong>Subject:</strong> <code>Reset your password for the Book Project</code></li>
+<li><strong>Body (text):</strong></li>
+</ul>
+<pre><code>Hello, &lt;preferredName&gt;!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
+Reset Password: &lt;frontend_reset_url&gt;?token=&lt;token&gt;
+If you did not request a password reset, please contact the system administrator at &lt;supportEmail&gt; to ensure the safety of your account.
+This link will expire in &lt;expiresIn&gt; minutes.
+</code></pre>
+<h4 id="example-request-body-103">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-129">Example Responses</h4>
+<ul>
+<li><strong>Sent (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset email sent successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;expiresInMinutes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;duration must be between 1 and 1440 minutes.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="post-adminusersidreset-password">POST /admin/users/:id/reset-password</h3>
+<ul>
+<li><strong>Purpose:</strong> Send a password reset email by id.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-130">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/users/:id/reset-password</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost)</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-130">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>bk_&lt;token&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-111">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>duration</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Token validity in minutes (1–1440); default 30.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation--edge-cases-120">Validation &amp; Edge Cases</h4>
+<ul>
+<li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
+</ul>
+<h4 id="email-content-26">Email Content</h4>
+<ul>
+<li><strong>Subject:</strong> <code>Reset your password for the Book Project</code></li>
+<li><strong>Body (text):</strong></li>
+</ul>
+<pre><code>Hello, &lt;preferredName&gt;!
+We received a request to set or reset your password for the Book Project.
+If this was you, click the button below to set a new password.
+Reset Password: &lt;frontend_reset_url&gt;?token=&lt;token&gt;
+If you did not request a password reset, please contact the system administrator at &lt;supportEmail&gt; to ensure the safety of your account.
+This link will expire in &lt;expiresIn&gt; minutes.
+</code></pre>
+<h4 id="example-request-body-104">Example Request Body</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-130">Example Responses</h4>
+<ul>
+<li><strong>Sent (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.67&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Password reset email sent successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;expiresInMinutes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<details>
+<summary>Error Responses</summary>
+<ul>
+<li><strong>Validation Error (400):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">400</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.22&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;duration must be between 1 and 1440 minutes.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>Not Found (404):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;error&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">404</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.84&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;User not found.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-string">&quot;The requested user could not be located.&quot;</span>
+  <span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+</details>
+<h3 id="post-adminuserssessions">POST /admin/users/sessions</h3>
+<ul>
+<li><strong>Purpose:</strong> List active sessions for a user using a JSON body <code>id</code> or <code>email</code>.</li>
+<li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
+</ul>
+<h4 id="request-overview-131">Request Overview</h4>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>Path</td>
+<td><code>/admin/users/sessions</code></td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td><code>Authorization: Bearer &lt;accessToken&gt;</code> or <code>X-API-Key: &lt;apiKey&gt;</code></td>
+</tr>
+<tr>
+<td>Rate Limit</td>
+<td>60 requests / minute / admin user</td>
+</tr>
+<tr>
+<td>Content-Type</td>
+<td><code>application/json</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="required-headers-131">Required Headers</h4>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Authorization</code></td>
+<td>Conditional</td>
+<td><code>Bearer &lt;accessToken&gt;</code></td>
+<td>Required if <code>X-API-Key</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>X-API-Key</code></td>
+<td>Conditional</td>
+<td><code>bk_&lt;token&gt;</code></td>
+<td>Required if <code>Authorization</code> is not provided.</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>Yes</td>
+<td><code>application/json</code></td>
+<td>Body must be JSON encoded.</td>
+</tr>
+<tr>
+<td><code>Accept</code></td>
+<td>No</td>
+<td><code>application/json</code></td>
+<td>Responses are JSON.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="body-parameters-112">Body Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer</td>
+<td>Conditional</td>
 <td>User id to inspect. Required if <code>email</code> is not provided.</td>
 </tr>
 <tr>
@@ -23642,18 +24362,18 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-119">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-121">Validation &amp; Edge Cases</h4>
 <ul>
 <li>The API returns only active (non-revoked, non-expired) sessions.</li>
 <li>If the user does not exist, the API returns <code>404</code>.</li>
 <li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
 </ul>
-<h4 id="example-request-body-103">Example Request Body</h4>
+<h4 id="example-request-body-105">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-126">Example Responses</h4>
+<h4 id="example-responses-131">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -23717,7 +24437,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> List active sessions for a user by id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-127">Request Overview</h4>
+<h4 id="request-overview-132">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -23748,7 +24468,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-127">Required Headers</h4>
+<h4 id="required-headers-132">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -23779,7 +24499,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-111">Body Parameters</h4>
+<h4 id="body-parameters-113">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -23804,12 +24524,12 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-120">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-122">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
 </ul>
-<h4 id="example-responses-127">Example Responses</h4>
+<h4 id="example-responses-132">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -23873,7 +24593,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Revoke one or more sessions using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-128">Request Overview</h4>
+<h4 id="request-overview-133">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -23904,7 +24624,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-128">Required Headers</h4>
+<h4 id="required-headers-133">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -23941,7 +24661,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-112">Body Parameters</h4>
+<h4 id="body-parameters-114">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -23973,13 +24693,13 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tbody>
 </table>
 <p>If no fingerprint is supplied, all active sessions are revoked.</p>
-<h4 id="validation--edge-cases-121">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-123">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If the user does not exist, the API returns <code>404</code>.</li>
 <li>If no matching fingerprints are found, <code>revokedCount</code> may be <code>0</code>.</li>
 <li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
 </ul>
-<h4 id="example-request-body-104">Example Request Body</h4>
+<h4 id="example-request-body-106">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
@@ -23988,7 +24708,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-128">Example Responses</h4>
+<h4 id="example-responses-133">Example Responses</h4>
 <ul>
 <li><strong>Revoked (200):</strong></li>
 </ul>
@@ -24044,7 +24764,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Revoke one or more sessions by user id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-129">Request Overview</h4>
+<h4 id="request-overview-134">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -24075,7 +24795,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-129">Required Headers</h4>
+<h4 id="required-headers-134">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -24112,7 +24832,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-113">Body Parameters</h4>
+<h4 id="body-parameters-115">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -24144,17 +24864,17 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tbody>
 </table>
 <p>If no fingerprint is supplied, all active sessions are revoked.</p>
-<h4 id="validation--edge-cases-122">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-124">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
 </ul>
-<h4 id="example-request-body-105">Example Request Body</h4>
+<h4 id="example-request-body-107">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;session-abc123&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-129">Example Responses</h4>
+<h4 id="example-responses-134">Example Responses</h4>
 <ul>
 <li><strong>Revoked (200):</strong></li>
 </ul>
@@ -24209,7 +24929,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Permanently delete a user account after confirmation using a JSON body <code>id</code> or <code>email</code>.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-130">Request Overview</h4>
+<h4 id="request-overview-135">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -24240,7 +24960,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-130">Required Headers</h4>
+<h4 id="required-headers-135">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -24277,7 +24997,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-114">Body Parameters</h4>
+<h4 id="body-parameters-116">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -24320,7 +25040,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-123">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-125">Validation &amp; Edge Cases</h4>
 <ul>
 <li>The user must have completed <code>/users/me/verify-account-deletion</code> first.</li>
 <li>Admins cannot delete their own account.</li>
@@ -24328,7 +25048,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li>The API deletes all user data (via cascades) and cleans up orphaned partial dates.</li>
 <li>If both <code>id</code> and <code>email</code> are provided, they must refer to the same user.</li>
 </ul>
-<h4 id="example-request-body-106">Example Request Body</h4>
+<h4 id="example-request-body-108">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">9</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;confirm&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
@@ -24336,7 +25056,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;userToBeDeletedEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;gollum@ring.me&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-130">Example Responses</h4>
+<h4 id="example-responses-135">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -24433,7 +25153,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Permanently delete a user account by id after confirmation.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-131">Request Overview</h4>
+<h4 id="request-overview-136">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -24464,7 +25184,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-131">Required Headers</h4>
+<h4 id="required-headers-136">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -24501,7 +25221,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-115">Body Parameters</h4>
+<h4 id="body-parameters-117">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -24544,7 +25264,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-124">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-126">Validation &amp; Edge Cases</h4>
 <ul>
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>The user must have completed <code>/users/me/verify-account-deletion</code> first.</li>
@@ -24554,14 +25274,14 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
 </ul>
-<h4 id="example-request-body-107">Example Request Body</h4>
+<h4 id="example-request-body-109">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;confirm&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Account deletion confirmed by user.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;userToBeDeletedEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;gollum@ring.me&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-131">Example Responses</h4>
+<h4 id="example-responses-136">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -24658,7 +25378,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Add a new language.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-132">Request Overview</h4>
+<h4 id="request-overview-137">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -24689,7 +25409,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-132">Required Headers</h4>
+<h4 id="required-headers-137">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -24726,7 +25446,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-116">Body Parameters</h4>
+<h4 id="body-parameters-118">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -24745,17 +25465,17 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-125">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-127">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>Duplicate language names (case-insensitive) return <code>409</code>.</li>
 </ul>
-<h4 id="example-request-body-108">Example Request Body</h4>
+<h4 id="example-request-body-110">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Zulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-132">Example Responses</h4>
+<h4 id="example-responses-137">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -24809,7 +25529,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Update a language using a JSON body id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-133">Request Overview</h4>
+<h4 id="request-overview-138">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -24840,7 +25560,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-133">Required Headers</h4>
+<h4 id="required-headers-138">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -24877,7 +25597,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-117">Body Parameters</h4>
+<h4 id="body-parameters-119">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -24902,19 +25622,19 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-126">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-128">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the language does not exist, the API returns <code>404</code>. Duplicate names (case-insensitive) return <code>409</code>.</li>
 <li>The <code>id</code> field must be a valid integer.</li>
 </ul>
-<h4 id="example-request-body-109">Example Request Body</h4>
+<h4 id="example-request-body-111">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-133">Example Responses</h4>
+<h4 id="example-responses-138">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -24982,7 +25702,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Delete a language using a JSON body id.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-134">Request Overview</h4>
+<h4 id="request-overview-139">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -25013,7 +25733,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-134">Required Headers</h4>
+<h4 id="required-headers-139">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -25050,7 +25770,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-118">Body Parameters</h4>
+<h4 id="body-parameters-120">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -25069,18 +25789,18 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-127">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-129">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
 <li>The <code>id</code> field must be a valid integer.</li>
 </ul>
-<h4 id="example-request-body-110">Example Request Body</h4>
+<h4 id="example-request-body-112">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-134">Example Responses</h4>
+<h4 id="example-responses-139">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -25131,7 +25851,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Update a language.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-135">Request Overview</h4>
+<h4 id="request-overview-140">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -25162,7 +25882,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-135">Required Headers</h4>
+<h4 id="required-headers-140">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -25199,7 +25919,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="body-parameters-119">Body Parameters</h4>
+<h4 id="body-parameters-121">Body Parameters</h4>
 <table>
 <thead>
 <tr>
@@ -25218,18 +25938,18 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-128">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-130">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the language does not exist, the API returns <code>404</code>. Duplicate names (case-insensitive) return <code>409</code>.</li>
 <li>The <code>:id</code> path parameter must be a valid integer.</li>
 </ul>
-<h4 id="example-request-body-111">Example Request Body</h4>
+<h4 id="example-request-body-113">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-135">Example Responses</h4>
+<h4 id="example-responses-140">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -25297,7 +26017,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Delete a language.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-136">Request Overview</h4>
+<h4 id="request-overview-141">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -25328,7 +26048,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-136">Required Headers</h4>
+<h4 id="required-headers-141">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -25359,13 +26079,13 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="validation--edge-cases-129">Validation &amp; Edge Cases</h4>
+<h4 id="validation--edge-cases-131">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
 <li>The <code>:id</code> path parameter must be a valid integer.</li>
 </ul>
-<h4 id="example-responses-136">Example Responses</h4>
+<h4 id="example-responses-141">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -25416,7 +26136,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li><strong>Purpose:</strong> Admin status check for database and email queue health.</li>
 <li><strong>Authentication:</strong> Admin access token or admin API key required.</li>
 </ul>
-<h4 id="request-overview-137">Request Overview</h4>
+<h4 id="request-overview-142">Request Overview</h4>
 <table>
 <thead>
 <tr>
@@ -25447,7 +26167,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="required-headers-137">Required Headers</h4>
+<h4 id="required-headers-142">Required Headers</h4>
 <table>
 <thead>
 <tr>
@@ -25478,7 +26198,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="example-responses-137">Example Responses</h4>
+<h4 id="example-responses-142">Example Responses</h4>
 <ul>
 <li><strong>Status Retrieved (200):</strong></li>
 </ul>

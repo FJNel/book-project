@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== "production") {
 	logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-const VALID_STATUSES = new Set(["SUCCESS", "FAILURE", "INFO"]);
+const VALID_STATUSES = new Set(["SUCCESS", "FAILURE", "INFO", "SKIPPED"]);
 
 // ----- Helpers: sanitize -----
 function isSecretKey(key = "") {
@@ -34,8 +34,16 @@ function isSecretKey(key = "") {
 	return (
 		k.includes("password") ||
 		k.includes("token") ||
+		k.includes("apikey") ||
+		k.includes("api_key") ||
+		k.includes("secretkey") ||
 		k.includes("secret") ||
 		k === "authorization" ||
+		k === "x-api-key" ||
+		k.includes("refresh") ||
+		k.includes("access") ||
+		k.includes("auth") ||
+		k.includes("cookie") ||
 		k === "adminpassword" ||
 		k === "currentpassword" ||
 		k === "newpassword"
@@ -45,13 +53,24 @@ function isSecretKey(key = "") {
 function redactIfSecretLike(str) {
 	if (typeof str !== "string") return str;
 	if (str.length > 2000) return "[REDACTED_LARGE_STRING]";
+	const lower = str.toLowerCase();
+	if (lower.startsWith("bearer ") || lower.startsWith("apikey ") || lower.startsWith("api-key ")) {
+		return "[REDACTED]";
+	}
+	// JWT-like token (header.payload.signature)
+	if (/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(str)) {
+		return "[REDACTED]";
+	}
+	// Long hex/base64url strings (likely tokens/keys)
+	if (str.length >= 32 && (/^[A-Fa-f0-9]+$/.test(str) || /^[A-Za-z0-9-_]+$/.test(str))) {
+		return "[REDACTED]";
+	}
 	return str;
 } // redactIfSecretLike
 
 /**
  * Recursively sanitizes an input value.
  * - Redacts object values if their key is a secret key.
- * - **Crucially, attempts to parse string values as JSON to sanitize nested sensitive data.**
  * - Redacts large strings.
  * - Maps over arrays to sanitize their elements.
  */
@@ -59,13 +78,13 @@ function sanitizeInput(value, keyHint = null) {
 	try {
 		if (value === null || value === undefined) return value;
 
-		if (typeof value === "string") {
-			// If this field is marked secret → redact
-			if (isSecretKey(keyHint)) return "[REDACTED]";
-			// If it's just a huge blob → avoid log spam
-			if (value.length > 2000) return "[REDACTED_LARGE_STRING]";
-			return value;
-		}
+	if (typeof value === "string") {
+		// If this field is marked secret → redact
+		if (isSecretKey(keyHint)) return "[REDACTED]";
+		// If it's just a huge blob → avoid log spam
+		if (value.length > 2000) return "[REDACTED_LARGE_STRING]";
+		return redactIfSecretLike(value);
+	}
 
 		if (Array.isArray(value)) {
 			return value.map((v) => sanitizeInput(v));

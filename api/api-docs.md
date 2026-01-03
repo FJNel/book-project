@@ -142,6 +142,12 @@ This guide describes the publicly available REST endpoints exposed by the API, t
   - [Import/Export](#importexport)
     - [GET /export](#get-export)
     - [POST /import](#post-import)
+  - [Logs](#logs)
+    - [GET /logs](#get-logs)
+    - [POST /logs/search](#post-logssearch)
+    - [GET /logs/log_types](#get-logslog_types)
+    - [GET /logs/levels](#get-logslevels)
+    - [GET /logs/statuses](#get-logsstatuses)
   - [Admin](#admin)
     - [GET /admin/users](#get-adminusers)
     - [GET /admin/users/:id](#get-adminusersid)
@@ -168,7 +174,6 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /admin/users/:id/handle-account-deletion](#post-adminusersidhandle-account-deletion)
     - [POST /admin/users/disable](#post-adminusersdisable)
     - [POST /admin/users/:id/disable](#post-adminusersiddisable)
-    - [GET /admin/logs](#get-adminlogs)
     - [POST /admin/languages](#post-adminlanguages)
     - [PUT /admin/languages](#put-adminlanguages)
     - [PUT /admin/languages/:id](#put-adminlanguagesid)
@@ -12666,6 +12671,389 @@ Available fields:
 ```
 
 </details>
+
+## Logs
+
+### GET /logs
+
+- **Purpose:** Retrieve log entries with filtering, search, and pagination.
+- **Authentication:** Admin access token or admin API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/logs` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `<apiKey>` | Required if `Authorization` is not provided. |
+| `Content-Type` | No | `application/json` | Optional JSON body for filters. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `events` | array<string> | No | Filter by event names (e.g., `LOGIN_ATTEMPT`). |
+| `levels` | array<string> | No | Filter by log levels (`info`, `warn`, `error`). |
+| `statuses` | array<string> | No | Filter by status (`SUCCESS`, `FAILURE`, `INFO`, `SKIPPED`). |
+| `methods` | array<string> | No | Filter by HTTP method (`GET`, `POST`, `PUT`, `DELETE`). |
+| `paths` | array<string> | No | Only include logs where `path` contains any provided value. |
+| `userId` | integer | No | Filter logs for a specific user id. |
+| `startDate` | string | No | ISO 8601 date/time to include logs from (inclusive). |
+| `endDate` | string | No | ISO 8601 date/time to include logs until (inclusive). |
+| `search` | string | No | Case-insensitive substring match across message/event/path/error/details. |
+| `limit` | integer | No | Max number of logs to return (default: `100`, max: `1000`). |
+| `offset` | integer | No | Offset for pagination (default: `0`). |
+
+#### Validation & Edge Cases
+
+- JSON body is preferred, but query parameters are also accepted for compatibility.
+- `limit` must be between `1` and `1000`.
+- `offset` must be `0` or greater.
+- `startDate`/`endDate` must be valid ISO 8601 values.
+- `userId` must be a valid integer when provided.
+- Results are returned newest-first.
+
+#### Example Request Body
+
+```json
+{
+  "events": ["LOGIN_ATTEMPT", "AUTH_CHECK"],
+  "levels": ["warn", "error"],
+  "statuses": ["FAILURE"],
+  "methods": ["POST"],
+  "paths": ["/auth/login"],
+  "search": "invalid",
+  "startDate": "2026-01-01T00:00:00Z",
+  "endDate": "2026-01-31T23:59:59Z",
+  "limit": 50,
+  "offset": 0
+}
+```
+
+#### Example Responses
+
+- **Logs Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "6.41",
+  "message": "Logs retrieved successfully.",
+  "data": {
+    "total": 2,
+    "count": 2,
+    "limit": 50,
+    "offset": 0,
+    "logs": [
+      {
+        "message": "AUTH_CHECK",
+        "event": "AUTH_CHECK",
+        "level": "warn",
+        "timestamp": "2026-01-05T10:12:44.142Z",
+        "status": "FAILURE",
+        "error_reason": "ACCESS_TOKEN_INVALID",
+        "ip": "127.0.0.1",
+        "method": "POST",
+        "path": "/auth/login"
+      },
+      {
+        "message": "LOGIN_ATTEMPT",
+        "event": "LOGIN_ATTEMPT",
+        "level": "warn",
+        "timestamp": "2026-01-05T10:12:41.002Z",
+        "status": "FAILURE",
+        "details": {
+          "reason": "INVALID_CREDENTIALS"
+        }
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.42",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "limit must be between 1 and 1000."
+  ]
+}
+```
+
+</details>
+
+---
+
+### POST /logs/search
+
+- **Purpose:** Body-only log search for admin dashboards (same filters as `GET /logs`).
+- **Authentication:** Admin access token or admin API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/logs/search` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `<apiKey>` | Required if `Authorization` is not provided. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `events` | array<string> | No | Filter by event names. |
+| `levels` | array<string> | No | Filter by log levels (`info`, `warn`, `error`). |
+| `statuses` | array<string> | No | Filter by status (`SUCCESS`, `FAILURE`, `INFO`, `SKIPPED`). |
+| `methods` | array<string> | No | Filter by HTTP method. |
+| `paths` | array<string> | No | Only include logs where `path` contains any provided value. |
+| `userId` | integer | No | Filter logs for a specific user id. |
+| `startDate` | string | No | ISO 8601 date/time to include logs from (inclusive). |
+| `endDate` | string | No | ISO 8601 date/time to include logs until (inclusive). |
+| `search` | string | No | Case-insensitive substring match across message/event/path/error/details. |
+| `limit` | integer | No | Max number of logs to return (default: `100`, max: `1000`). |
+| `offset` | integer | No | Offset for pagination (default: `0`). |
+
+#### Validation & Edge Cases
+
+- `limit` must be between `1` and `1000`.
+- `offset` must be `0` or greater.
+- `startDate`/`endDate` must be valid ISO 8601 values.
+- `userId` must be a valid integer when provided.
+
+#### Example Request Body
+
+```json
+{
+  "search": "password reset",
+  "levels": ["info"],
+  "limit": 20
+}
+```
+
+#### Example Responses
+
+- **Logs Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "5.23",
+  "message": "Logs retrieved successfully.",
+  "data": {
+    "total": 1,
+    "count": 1,
+    "limit": 20,
+    "offset": 0,
+    "logs": [
+      {
+        "message": "PASSWORD_RESET",
+        "event": "PASSWORD_RESET",
+        "level": "info",
+        "timestamp": "2026-01-12T08:22:18.017Z",
+        "status": "SUCCESS",
+        "user_id": 12
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.11",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "startDate must be a valid ISO 8601 date."
+  ]
+}
+```
+
+</details>
+
+---
+
+### GET /logs/log_types
+
+- **Purpose:** Return all distinct log event types.
+- **Authentication:** Admin access token or admin API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/logs/log_types` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `<apiKey>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Log Types Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.04",
+  "message": "Log types retrieved successfully.",
+  "data": {
+    "count": 4,
+    "logTypes": [
+      "AUTH_CHECK",
+      "LOGIN_ATTEMPT",
+      "PASSWORD_RESET",
+      "USER_REGISTERED"
+    ]
+  },
+  "errors": []
+}
+```
+
+---
+
+### GET /logs/levels
+
+- **Purpose:** Return all distinct log levels.
+- **Authentication:** Admin access token or admin API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/logs/levels` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `<apiKey>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Log Levels Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.72",
+  "message": "Log levels retrieved successfully.",
+  "data": {
+    "count": 3,
+    "levels": [
+      "error",
+      "info",
+      "warn"
+    ]
+  },
+  "errors": []
+}
+```
+
+---
+
+### GET /logs/statuses
+
+- **Purpose:** Return all distinct log statuses.
+- **Authentication:** Admin access token or admin API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/logs/statuses` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / admin user |
+| Content-Type | None |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `<apiKey>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Example Responses
+
+- **Log Statuses Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.55",
+  "message": "Log statuses retrieved successfully.",
+  "data": {
+    "count": 4,
+    "statuses": [
+      "FAILURE",
+      "INFO",
+      "SKIPPED",
+      "SUCCESS"
+    ]
+  },
+  "errors": []
+}
+```
 
 ## Admin
 

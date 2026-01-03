@@ -32,6 +32,7 @@ const timelineRoutes = require("./routes/timeline");
 const adminRoutes = require("./routes/admin");
 const searchRoutes = require("./routes/search");
 const importExportRoutes = require("./routes/import-export");
+const logRoutes = require("./routes/logs");
 
 //Log start time
 app.use((request, response, nextFunction) => {
@@ -102,6 +103,7 @@ app.use("/timeline", timelineRoutes);
 app.use("/admin", adminRoutes);
 app.use("/search", searchRoutes);
 app.use("/", importExportRoutes);
+app.use("/logs", logRoutes);
 app.use("/authors", authorRoutes);
 app.use("/publishers", publisherRoutes);
 app.use("/bookauthors", bookAuthorRoutes);
