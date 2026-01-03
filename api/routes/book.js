@@ -138,6 +138,33 @@ function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	return { value: parsed };
 }
 
+async function fetchSingleBookStats(userId, bookId, bookRow) {
+	const countResult = await pool.query(
+		`SELECT
+		   (SELECT COUNT(*)::int FROM book_copies bc WHERE bc.user_id = $1 AND bc.book_id = $2) AS copy_count,
+		   (SELECT COUNT(*)::int FROM book_authors ba WHERE ba.user_id = $1 AND ba.book_id = $2) AS author_count,
+		   (SELECT COUNT(*)::int FROM book_tags bt WHERE bt.user_id = $1 AND bt.book_id = $2) AS tag_count,
+		   (SELECT COUNT(*)::int FROM book_languages bl WHERE bl.user_id = $1 AND bl.book_id = $2) AS language_count,
+		   (SELECT COUNT(*)::int FROM book_series_books bsb WHERE bsb.user_id = $1 AND bsb.book_id = $2) AS series_count`,
+		[userId, bookId]
+	);
+	const counts = countResult.rows[0] || {};
+	return {
+		copyCount: counts.copy_count ?? 0,
+		authorCount: counts.author_count ?? 0,
+		tagCount: counts.tag_count ?? 0,
+		languageCount: counts.language_count ?? 0,
+		seriesCount: counts.series_count ?? 0,
+		hasIsbn: Boolean(bookRow?.isbn),
+		hasPublicationDate: Boolean(bookRow?.publication_date_id),
+		hasCoverImage: Boolean(bookRow?.cover_image_url),
+		hasDescription: Boolean(bookRow?.description),
+		hasPublisher: Boolean(bookRow?.publisher_id),
+		hasBookType: Boolean(bookRow?.book_type_id),
+		hasPageCount: Number.isInteger(bookRow?.page_count)
+	};
+}
+
 function parseDateFilter(value, fieldLabel) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Date.parse(value);
@@ -633,6 +660,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const view = parseView(listParams);
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetIsbn = normalizeIsbn(req.query.isbn ?? req.body?.isbn);
@@ -674,6 +702,9 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const row = result.rows[0];
 			const relations = view === "nameOnly" ? null : await fetchBookRelations(userId, resolved.id);
 			const payload = buildBookPayload(row, view, relations);
+			if (returnStats) {
+				payload.stats = await fetchSingleBookStats(userId, resolved.id, row);
+			}
 
 			return successResponse(res, 200, "Book retrieved successfully.", payload);
 		} catch (error) {
@@ -1729,43 +1760,277 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
 		: [];
 
-	const fieldMap = {
-		total: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL) AS total",
-		deleted: "COUNT(*) FILTER (WHERE b.deleted_at IS NOT NULL) AS deleted",
-		withIsbn: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.isbn IS NOT NULL AND b.isbn <> '') AS with_isbn",
-		withoutIsbn: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND (b.isbn IS NULL OR b.isbn = '')) AS without_isbn",
-		withPublicationDate: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publication_date_id IS NOT NULL) AS with_publication_date",
-		withCoverImage: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.cover_image_url IS NOT NULL AND b.cover_image_url <> '') AS with_cover_image",
-		withDescription: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.description IS NOT NULL AND b.description <> '') AS with_description",
-		withBookType: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.book_type_id IS NOT NULL) AS with_book_type",
-		withPublisher: "COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publisher_id IS NOT NULL) AS with_publisher",
-		avgPageCount: "AVG(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS avg_page_count",
-		minPageCount: "MIN(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS min_page_count",
-		maxPageCount: "MAX(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS max_page_count",
-		withTags: "(SELECT COUNT(DISTINCT bt.book_id) FROM book_tags bt JOIN books b2 ON bt.book_id = b2.id WHERE bt.user_id = $1 AND b2.deleted_at IS NULL) AS with_tags",
-		withLanguages: "(SELECT COUNT(DISTINCT bl.book_id) FROM book_languages bl JOIN books b2 ON bl.book_id = b2.id WHERE bl.user_id = $1 AND b2.deleted_at IS NULL) AS with_languages",
-		withAuthors: "(SELECT COUNT(DISTINCT ba.book_id) FROM book_authors ba JOIN books b2 ON ba.book_id = b2.id WHERE ba.user_id = $1 AND b2.deleted_at IS NULL) AS with_authors",
-		withSeries: "(SELECT COUNT(DISTINCT bsb.book_id) FROM book_series_books bsb JOIN books b2 ON bsb.book_id = b2.id WHERE bsb.user_id = $1 AND b2.deleted_at IS NULL) AS with_series",
-		totalCopies: "(SELECT COUNT(*) FROM book_copies bc JOIN books b2 ON bc.book_id = b2.id WHERE bc.user_id = $1 AND b2.deleted_at IS NULL) AS total_copies"
-	};
+	const availableFields = new Set([
+		"total",
+		"deleted",
+		"withIsbn",
+		"withoutIsbn",
+		"isbnBreakdown",
+		"withPublicationDate",
+		"withCoverImage",
+		"withDescription",
+		"withBookType",
+		"withPublisher",
+		"withPageCount",
+		"avgPageCount",
+		"medianPageCount",
+		"minPageCount",
+		"maxPageCount",
+		"longestBook",
+		"shortestBook",
+		"withTags",
+		"withLanguages",
+		"withAuthors",
+		"withSeries",
+		"totalCopies",
+		"publicationYearHistogram",
+		"oldestPublicationYear",
+		"newestPublicationYear",
+		"metadataCompleteness",
+		"recentlyAdded",
+		"recentlyEdited"
+	]);
 
-	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
-	const invalid = selected.filter((field) => !fieldMap[field]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
 	if (invalid.length > 0) {
 		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
 	}
 
+	const needsBaseCounts = selected.some((field) => [
+		"total",
+		"deleted",
+		"withIsbn",
+		"withoutIsbn",
+		"isbnBreakdown",
+		"withPublicationDate",
+		"withCoverImage",
+		"withDescription",
+		"withBookType",
+		"withPublisher",
+		"withPageCount",
+		"avgPageCount",
+		"medianPageCount",
+		"minPageCount",
+		"maxPageCount",
+		"metadataCompleteness",
+		"recentlyAdded",
+		"recentlyEdited",
+		"publicationYearHistogram",
+		"oldestPublicationYear",
+		"newestPublicationYear"
+	].includes(field));
+
 	try {
-		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
-			FROM books b
-			WHERE b.user_id = $1`;
-		const result = await pool.query(query, [userId]);
-		const row = result.rows[0] || {};
 		const payload = {};
-		selected.forEach((field) => {
-			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			payload[field] = row[key] ?? null;
-		});
+		let base = null;
+
+		if (needsBaseCounts) {
+			const baseResult = await pool.query(
+				`SELECT
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL)::int AS total_active,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NOT NULL)::int AS deleted,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.isbn IS NOT NULL AND b.isbn <> '')::int AS with_isbn,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND (b.isbn IS NULL OR b.isbn = ''))::int AS without_isbn,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publication_date_id IS NOT NULL)::int AS with_publication_date,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.cover_image_url IS NOT NULL AND b.cover_image_url <> '')::int AS with_cover_image,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.description IS NOT NULL AND b.description <> '')::int AS with_description,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.book_type_id IS NOT NULL)::int AS with_book_type,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publisher_id IS NOT NULL)::int AS with_publisher,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL)::int AS with_page_count,
+				 AVG(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS avg_page_count,
+				 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.page_count)
+				   FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS median_page_count,
+				 MIN(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS min_page_count,
+				 MAX(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS max_page_count,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.created_at >= NOW() - INTERVAL '7 days')::int AS added_7,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.created_at >= NOW() - INTERVAL '30 days')::int AS added_30,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.created_at >= NOW() - INTERVAL '365 days')::int AS added_365,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.updated_at >= NOW() - INTERVAL '7 days')::int AS edited_7,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.updated_at >= NOW() - INTERVAL '30 days')::int AS edited_30,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.updated_at >= NOW() - INTERVAL '365 days')::int AS edited_365
+				 FROM books b
+				 WHERE b.user_id = $1`,
+				[userId]
+			);
+			base = baseResult.rows[0] || {};
+		}
+
+		const totalActive = base?.total_active ?? 0;
+
+		if (selected.includes("total")) payload.total = totalActive;
+		if (selected.includes("deleted")) payload.deleted = base?.deleted ?? 0;
+		if (selected.includes("withIsbn")) payload.withIsbn = base?.with_isbn ?? 0;
+		if (selected.includes("withoutIsbn")) payload.withoutIsbn = base?.without_isbn ?? 0;
+		if (selected.includes("withPublicationDate")) payload.withPublicationDate = base?.with_publication_date ?? 0;
+		if (selected.includes("withCoverImage")) payload.withCoverImage = base?.with_cover_image ?? 0;
+		if (selected.includes("withDescription")) payload.withDescription = base?.with_description ?? 0;
+		if (selected.includes("withBookType")) payload.withBookType = base?.with_book_type ?? 0;
+		if (selected.includes("withPublisher")) payload.withPublisher = base?.with_publisher ?? 0;
+		if (selected.includes("withPageCount")) payload.withPageCount = base?.with_page_count ?? 0;
+
+		if (selected.includes("isbnBreakdown")) {
+			payload.isbnBreakdown = {
+				withIsbn: base?.with_isbn ?? 0,
+				withoutIsbn: base?.without_isbn ?? 0,
+				withIsbnPercentage: totalActive > 0 ? Number(((base?.with_isbn ?? 0) / totalActive * 100).toFixed(1)) : 0,
+				withoutIsbnPercentage: totalActive > 0 ? Number(((base?.without_isbn ?? 0) / totalActive * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("avgPageCount")) {
+			payload.avgPageCount = base?.avg_page_count === null || base?.avg_page_count === undefined
+				? null
+				: Number.parseFloat(base.avg_page_count);
+		}
+		if (selected.includes("medianPageCount")) {
+			payload.medianPageCount = base?.median_page_count === null || base?.median_page_count === undefined
+				? null
+				: Number.parseFloat(base.median_page_count);
+		}
+		if (selected.includes("minPageCount")) payload.minPageCount = base?.min_page_count ?? null;
+		if (selected.includes("maxPageCount")) payload.maxPageCount = base?.max_page_count ?? null;
+
+		if (selected.includes("recentlyAdded")) {
+			payload.recentlyAdded = {
+				last7Days: base?.added_7 ?? 0,
+				last30Days: base?.added_30 ?? 0,
+				last365Days: base?.added_365 ?? 0
+			};
+		}
+		if (selected.includes("recentlyEdited")) {
+			payload.recentlyEdited = {
+				last7Days: base?.edited_7 ?? 0,
+				last30Days: base?.edited_30 ?? 0,
+				last365Days: base?.edited_365 ?? 0
+			};
+		}
+
+		if (selected.includes("metadataCompleteness")) {
+			const missingCover = totalActive - (base?.with_cover_image ?? 0);
+			const missingDescription = totalActive - (base?.with_description ?? 0);
+			const missingPublisher = totalActive - (base?.with_publisher ?? 0);
+			const missingType = totalActive - (base?.with_book_type ?? 0);
+			const missingPublicationDate = totalActive - (base?.with_publication_date ?? 0);
+			const missingPageCount = totalActive - (base?.with_page_count ?? 0);
+			payload.metadataCompleteness = {
+				missingCover,
+				missingDescription,
+				missingPublisher,
+				missingBookType: missingType,
+				missingPublicationDate,
+				missingPageCount,
+				missingCoverPercentage: totalActive > 0 ? Number((missingCover / totalActive * 100).toFixed(1)) : 0,
+				missingDescriptionPercentage: totalActive > 0 ? Number((missingDescription / totalActive * 100).toFixed(1)) : 0,
+				missingPublisherPercentage: totalActive > 0 ? Number((missingPublisher / totalActive * 100).toFixed(1)) : 0,
+				missingBookTypePercentage: totalActive > 0 ? Number((missingType / totalActive * 100).toFixed(1)) : 0,
+				missingPublicationDatePercentage: totalActive > 0 ? Number((missingPublicationDate / totalActive * 100).toFixed(1)) : 0,
+				missingPageCountPercentage: totalActive > 0 ? Number((missingPageCount / totalActive * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("withTags")) {
+			const result = await pool.query(
+				`SELECT COUNT(DISTINCT bt.book_id)::int AS count
+				 FROM book_tags bt
+				 JOIN books b2 ON bt.book_id = b2.id
+				 WHERE bt.user_id = $1 AND b2.deleted_at IS NULL`,
+				[userId]
+			);
+			payload.withTags = result.rows[0]?.count ?? 0;
+		}
+		if (selected.includes("withLanguages")) {
+			const result = await pool.query(
+				`SELECT COUNT(DISTINCT bl.book_id)::int AS count
+				 FROM book_languages bl
+				 JOIN books b2 ON bl.book_id = b2.id
+				 WHERE bl.user_id = $1 AND b2.deleted_at IS NULL`,
+				[userId]
+			);
+			payload.withLanguages = result.rows[0]?.count ?? 0;
+		}
+		if (selected.includes("withAuthors")) {
+			const result = await pool.query(
+				`SELECT COUNT(DISTINCT ba.book_id)::int AS count
+				 FROM book_authors ba
+				 JOIN books b2 ON ba.book_id = b2.id
+				 WHERE ba.user_id = $1 AND b2.deleted_at IS NULL`,
+				[userId]
+			);
+			payload.withAuthors = result.rows[0]?.count ?? 0;
+		}
+		if (selected.includes("withSeries")) {
+			const result = await pool.query(
+				`SELECT COUNT(DISTINCT bsb.book_id)::int AS count
+				 FROM book_series_books bsb
+				 JOIN books b2 ON bsb.book_id = b2.id
+				 WHERE bsb.user_id = $1 AND b2.deleted_at IS NULL`,
+				[userId]
+			);
+			payload.withSeries = result.rows[0]?.count ?? 0;
+		}
+		if (selected.includes("totalCopies")) {
+			const result = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM book_copies bc
+				 JOIN books b2 ON bc.book_id = b2.id
+				 WHERE bc.user_id = $1 AND b2.deleted_at IS NULL`,
+				[userId]
+			);
+			payload.totalCopies = result.rows[0]?.count ?? 0;
+		}
+
+		if (selected.includes("publicationYearHistogram") || selected.includes("oldestPublicationYear") || selected.includes("newestPublicationYear")) {
+			const histResult = await pool.query(
+				`SELECT d.year::int AS year, COUNT(*)::int AS count
+				 FROM books b
+				 JOIN dates d ON b.publication_date_id = d.id
+				 WHERE b.user_id = $1 AND b.deleted_at IS NULL AND d.year IS NOT NULL
+				 GROUP BY d.year
+				 ORDER BY d.year ASC`,
+				[userId]
+			);
+			const rows = histResult.rows;
+			if (selected.includes("publicationYearHistogram")) {
+				payload.publicationYearHistogram = rows.map((row) => ({
+					year: row.year,
+					bookCount: row.count,
+					percentageOfBooks: totalActive > 0 ? Number(((row.count / totalActive) * 100).toFixed(1)) : 0
+				}));
+			}
+			if (selected.includes("oldestPublicationYear")) {
+				payload.oldestPublicationYear = rows.length > 0 ? rows[0].year : null;
+			}
+			if (selected.includes("newestPublicationYear")) {
+				payload.newestPublicationYear = rows.length > 0 ? rows[rows.length - 1].year : null;
+			}
+		}
+
+		if (selected.includes("longestBook")) {
+			const longestResult = await pool.query(
+				`SELECT id, title, page_count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL AND page_count IS NOT NULL
+				 ORDER BY page_count DESC, title ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = longestResult.rows[0];
+			payload.longestBook = row ? { id: row.id, title: row.title, pageCount: row.page_count } : null;
+		}
+
+		if (selected.includes("shortestBook")) {
+			const shortestResult = await pool.query(
+				`SELECT id, title, page_count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL AND page_count IS NOT NULL
+				 ORDER BY page_count ASC, title ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = shortestResult.rows[0];
+			payload.shortestBook = row ? { id: row.id, title: row.title, pageCount: row.page_count } : null;
+		}
 
 		return successResponse(res, 200, "Book stats retrieved successfully.", { stats: payload });
 	} catch (error) {

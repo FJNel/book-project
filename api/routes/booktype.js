@@ -89,6 +89,32 @@ function parseDateFilter(value, fieldLabel) {
 	return { value: new Date(parsed).toISOString() };
 }
 
+async function fetchBookTypeStats(userId, bookTypeId) {
+	const totalBooksResult = await pool.query(
+		`SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1 AND deleted_at IS NULL`,
+		[userId]
+	);
+	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+	const result = await pool.query(
+		`SELECT COUNT(b.id)::int AS book_count,
+		        AVG(b.page_count) AS avg_page_count
+		 FROM book_types bt
+		 LEFT JOIN books b
+		   ON b.book_type_id = bt.id
+		  AND b.user_id = bt.user_id
+		  AND b.deleted_at IS NULL
+		 WHERE bt.user_id = $1 AND bt.id = $2
+		 GROUP BY bt.id`,
+		[userId, bookTypeId]
+	);
+	const row = result.rows[0] || { book_count: 0, avg_page_count: null };
+	return {
+		bookCount: row.book_count ?? 0,
+		percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0,
+		avgPageCount: row.avg_page_count === null ? null : Number.parseFloat(row.avg_page_count)
+	};
+}
+
 async function resolveBookTypeId({ userId, id, name }) {
 	const hasId = Number.isInteger(id);
 	const hasName = Boolean(name);
@@ -126,6 +152,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly);
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -163,6 +190,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
 				};
+
+			if (returnStats) {
+				payload.stats = await fetchBookTypeStats(userId, row.id);
+			}
 
 			return successResponse(res, 200, "Book type retrieved successfully.", payload);
 		} catch (error) {
@@ -328,7 +359,8 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		"mostCollectedType",
 		"leastCollectedType",
 		"avgPageCountByType",
-		"booksMissingType"
+		"booksMissingType",
+		"breakdownPerBookType"
 	]);
 	const selected = fields.length > 0 ? fields : Array.from(availableFields);
 	const invalid = selected.filter((field) => !availableFields.has(field));
@@ -372,13 +404,25 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			}));
 		}
 
-		if (selected.includes("bookTypeBreakdown")) {
-			payload.bookTypeBreakdown = typeCounts.map((row) => ({
+		if (selected.includes("bookTypeBreakdown") || selected.includes("breakdownPerBookType")) {
+			const breakdown = typeCounts.map((row) => ({
 				id: row.id,
 				name: row.name,
 				bookCount: row.bookCount,
-				percentage: totalBooks > 0 ? Number(((row.bookCount / totalBooks) * 100).toFixed(1)) : 0
+				percentage: totalBooks > 0 ? Number(((row.bookCount / totalBooks) * 100).toFixed(1)) : 0,
+				avgPageCount: row.avgPageCount
 			}));
+			if (selected.includes("breakdownPerBookType")) {
+				payload.breakdownPerBookType = breakdown;
+			}
+			if (selected.includes("bookTypeBreakdown")) {
+				payload.bookTypeBreakdown = breakdown.map((row) => ({
+					id: row.id,
+					name: row.name,
+					bookCount: row.bookCount,
+					percentage: row.percentage
+				}));
+			}
 		}
 
 		if (selected.includes("mostCollectedType")) {
@@ -438,6 +482,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
 	const targetId = parseId(req.query.id ?? req.body?.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 
 	const errors = validateBookTypeName(rawName);
 	if (errors.length > 0) {
@@ -464,13 +509,17 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Book type retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchBookTypeStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Book type retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("BOOK_TYPE_GET", {
 			status: "FAILURE",
@@ -487,6 +536,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = Number.parseInt(req.params.id, 10);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Book type id must be a valid integer."]);
 	}
@@ -504,13 +554,17 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Book type retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchBookTypeStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Book type retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("BOOK_TYPE_GET", {
 			status: "FAILURE",

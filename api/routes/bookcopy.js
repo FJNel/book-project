@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validatePartialDateObject } = require("../utils/partial-date");
 
@@ -205,6 +205,36 @@ function buildBookCopyPayload(row) {
 	};
 }
 
+async function fetchBookCopyStats(userId, copyRow) {
+	const countResult = await pool.query(
+		`SELECT COUNT(*)::int AS count
+		 FROM book_copies
+		 WHERE user_id = $1 AND book_id = $2`,
+		[userId, copyRow.book_id]
+	);
+	const totalCopiesForBook = countResult.rows[0]?.count ?? 0;
+	const hasStorageLocation = Number.isInteger(copyRow.storage_location_id);
+	const hasAcquisitionStory = Boolean(copyRow.acquisition_story && String(copyRow.acquisition_story).trim());
+	const hasAcquisitionDate = Number.isInteger(copyRow.acquisition_date_id);
+	const hasAcquiredFrom = Boolean(copyRow.acquired_from && String(copyRow.acquired_from).trim());
+	const hasAcquisitionType = Boolean(copyRow.acquisition_type && String(copyRow.acquisition_type).trim());
+	const hasAcquisitionLocation = Boolean(copyRow.acquisition_location && String(copyRow.acquisition_location).trim());
+	const isMysteryCopy = !hasAcquisitionDate || !hasAcquiredFrom || !hasAcquisitionType || !hasAcquisitionLocation;
+
+	return {
+		copiesForBook: totalCopiesForBook,
+		duplicateCount: Math.max(totalCopiesForBook - 1, 0),
+		isDuplicate: totalCopiesForBook > 1,
+		hasStorageLocation,
+		hasAcquisitionStory,
+		hasAcquisitionDate,
+		hasAcquiredFrom,
+		hasAcquisitionType,
+		hasAcquisitionLocation,
+		isMysteryCopy
+	};
+}
+
 async function resolveLocationFilterIds(userId, { locationId, locationPath, includeNested }) {
 	let resolvedId = locationId;
 	if (!Number.isInteger(resolvedId) && locationPath) {
@@ -256,6 +286,7 @@ async function resolveLocationPath(userId, path) {
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 
 	if (targetId !== null) {
@@ -289,7 +320,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				return errorResponse(res, 404, "Book copy not found.", ["The requested book copy could not be located."]);
 			}
 
-			return successResponse(res, 200, "Book copy retrieved successfully.", buildBookCopyPayload(result.rows[0]));
+			const payload = buildBookCopyPayload(result.rows[0]);
+			if (returnStats) {
+				payload.stats = await fetchBookCopyStats(userId, result.rows[0]);
+			}
+			return successResponse(res, 200, "Book copy retrieved successfully.", payload);
 		} catch (error) {
 			logToFile("BOOK_COPY_GET", {
 				status: "FAILURE",
@@ -571,6 +606,212 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book copies."]);
+	}
+});
+
+// GET /bookcopy/stats - Book copy statistics
+router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+
+	const availableFields = new Set([
+		"totalCopies",
+		"uniqueBooks",
+		"duplicateCopies",
+		"uniqueVsDuplicate",
+		"mostDuplicatedBook",
+		"storageCoverage",
+		"acquisitionTimeline",
+		"acquiredFromBreakdown",
+		"topAcquisitionType",
+		"topAcquisitionLocation",
+		"storyRichCopies",
+		"mysteryCopies"
+	]);
+
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	const { value: breakdownLimit, error: breakdownLimitError } = parseOptionalInt(params.breakdownLimit, "breakdownLimit", { min: 1, max: MAX_LIST_LIMIT });
+	if (breakdownLimitError) {
+		return errorResponse(res, 400, "Validation Error", [breakdownLimitError]);
+	}
+	const limitValue = breakdownLimit ?? 50;
+
+	try {
+		const payload = {};
+
+		const totalResult = await pool.query(
+			`SELECT COUNT(*)::int AS total_copies,
+			        COUNT(DISTINCT bc.book_id)::int AS unique_books,
+			        COUNT(*) FILTER (WHERE bc.storage_location_id IS NOT NULL)::int AS with_storage,
+			        COUNT(*) FILTER (WHERE bc.acquisition_story IS NOT NULL AND TRIM(bc.acquisition_story) <> '')::int AS with_story,
+			        COUNT(*) FILTER (
+			          WHERE bc.acquisition_date_id IS NULL
+			             OR bc.acquired_from IS NULL OR TRIM(bc.acquired_from) = ''
+			             OR bc.acquisition_type IS NULL OR TRIM(bc.acquisition_type) = ''
+			             OR bc.acquisition_location IS NULL OR TRIM(bc.acquisition_location) = ''
+			        )::int AS mystery_count
+			 FROM book_copies bc
+			 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+			 WHERE bc.user_id = $1`,
+			[userId]
+		);
+		const totals = totalResult.rows[0] || {};
+		const totalCopies = totals.total_copies ?? 0;
+		const uniqueBooks = totals.unique_books ?? 0;
+		const duplicateCopies = totalCopies - uniqueBooks;
+
+		if (selected.includes("totalCopies")) payload.totalCopies = totalCopies;
+		if (selected.includes("uniqueBooks")) payload.uniqueBooks = uniqueBooks;
+		if (selected.includes("duplicateCopies")) payload.duplicateCopies = duplicateCopies;
+		if (selected.includes("uniqueVsDuplicate")) {
+			payload.uniqueVsDuplicate = {
+				uniqueBooks,
+				duplicateCopies,
+				uniqueBooksPercentage: totalCopies > 0 ? Number(((uniqueBooks / totalCopies) * 100).toFixed(1)) : 0,
+				duplicateCopiesPercentage: totalCopies > 0 ? Number(((duplicateCopies / totalCopies) * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("storageCoverage")) {
+			payload.storageCoverage = {
+				withStorageLocation: totals.with_storage ?? 0,
+				totalCopies,
+				percentage: totalCopies > 0 ? Number(((totals.with_storage ?? 0) / totalCopies * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("storyRichCopies")) {
+			payload.storyRichCopies = {
+				count: totals.with_story ?? 0,
+				percentage: totalCopies > 0 ? Number(((totals.with_story ?? 0) / totalCopies * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("mysteryCopies")) {
+			payload.mysteryCopies = {
+				count: totals.mystery_count ?? 0,
+				percentage: totalCopies > 0 ? Number(((totals.mystery_count ?? 0) / totalCopies * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("mostDuplicatedBook")) {
+			const duplicatedResult = await pool.query(
+				`SELECT bc.book_id, b.title, COUNT(*)::int AS copy_count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE bc.user_id = $1
+				 GROUP BY bc.book_id, b.title
+				 ORDER BY copy_count DESC, b.title ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = duplicatedResult.rows[0];
+			payload.mostDuplicatedBook = row
+				? {
+					bookId: row.book_id,
+					title: row.title,
+					copyCount: row.copy_count,
+					percentageOfCopies: totalCopies > 0 ? Number(((row.copy_count / totalCopies) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		if (selected.includes("acquisitionTimeline")) {
+			const timelineResult = await pool.query(
+				`SELECT d.year::int AS year, d.month::int AS month, COUNT(*)::int AS count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 JOIN dates d ON bc.acquisition_date_id = d.id
+				 WHERE bc.user_id = $1 AND d.year IS NOT NULL
+				 GROUP BY d.year, d.month
+				 ORDER BY d.year ASC, d.month ASC NULLS LAST`,
+				[userId]
+			);
+			payload.acquisitionTimeline = timelineResult.rows.map((row) => ({
+				year: row.year,
+				month: row.month,
+				copyCount: row.count
+			}));
+		}
+
+		if (selected.includes("acquiredFromBreakdown")) {
+			const acquiredResult = await pool.query(
+				`SELECT TRIM(bc.acquired_from) AS acquired_from, COUNT(*)::int AS count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE bc.user_id = $1 AND bc.acquired_from IS NOT NULL AND TRIM(bc.acquired_from) <> ''
+				 GROUP BY TRIM(bc.acquired_from)
+				 ORDER BY count DESC, acquired_from ASC
+				 LIMIT $2`,
+				[userId, limitValue]
+			);
+			payload.acquiredFromBreakdown = acquiredResult.rows.map((row) => ({
+				value: row.acquired_from,
+				count: row.count,
+				percentage: totalCopies > 0 ? Number(((row.count / totalCopies) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("topAcquisitionType")) {
+			const typeResult = await pool.query(
+				`SELECT TRIM(bc.acquisition_type) AS acquisition_type, COUNT(*)::int AS count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE bc.user_id = $1 AND bc.acquisition_type IS NOT NULL AND TRIM(bc.acquisition_type) <> ''
+				 GROUP BY TRIM(bc.acquisition_type)
+				 ORDER BY count DESC, acquisition_type ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = typeResult.rows[0];
+			payload.topAcquisitionType = row
+				? {
+					value: row.acquisition_type,
+					count: row.count,
+					percentage: totalCopies > 0 ? Number(((row.count / totalCopies) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		if (selected.includes("topAcquisitionLocation")) {
+			const locationResult = await pool.query(
+				`SELECT TRIM(bc.acquisition_location) AS acquisition_location, COUNT(*)::int AS count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE bc.user_id = $1 AND bc.acquisition_location IS NOT NULL AND TRIM(bc.acquisition_location) <> ''
+				 GROUP BY TRIM(bc.acquisition_location)
+				 ORDER BY count DESC, acquisition_location ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = locationResult.rows[0];
+			payload.topAcquisitionLocation = row
+				? {
+					value: row.acquisition_location,
+					count: row.count,
+					percentage: totalCopies > 0 ? Number(((row.count / totalCopies) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		return successResponse(res, 200, "Book copy stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("BOOK_COPY_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book copy stats at this time."]);
 	}
 });
 

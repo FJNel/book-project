@@ -121,6 +121,63 @@ function parseOptionalIntRange(value, fieldLabel, { min = 0, max = null } = {}) 
 	return { value: parsed };
 }
 
+async function fetchSeriesStats(userId, seriesId) {
+	const totalBooksResult = await pool.query(
+		`SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1 AND deleted_at IS NULL`,
+		[userId]
+	);
+	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+	const result = await pool.query(
+		`WITH ordered AS (
+			SELECT bsb.book_order,
+			       b.page_count
+			FROM book_series_books bsb
+			JOIN book_series bs ON bs.id = bsb.series_id AND bs.deleted_at IS NULL
+			JOIN books b ON b.id = bsb.book_id AND b.deleted_at IS NULL
+			WHERE bsb.user_id = $1 AND bsb.series_id = $2
+		),
+		per_series AS (
+			SELECT COUNT(*)::int AS book_count,
+			       SUM(page_count)::int AS total_pages,
+			       AVG(page_count)::numeric AS avg_pages,
+			       COUNT(*) FILTER (WHERE book_order IS NULL)::int AS null_orders,
+			       COUNT(DISTINCT book_order) FILTER (WHERE book_order IS NOT NULL)::int AS distinct_orders,
+			       COUNT(book_order) FILTER (WHERE book_order IS NOT NULL)::int AS total_orders,
+			       MIN(book_order) FILTER (WHERE book_order IS NOT NULL) AS min_order,
+			       MAX(book_order) FILTER (WHERE book_order IS NOT NULL) AS max_order
+			FROM ordered
+		)
+		SELECT COALESCE(ps.book_count, 0)::int AS book_count,
+		       ps.total_pages,
+		       ps.avg_pages,
+		       COALESCE(ps.null_orders, 0)::int AS null_orders,
+		       COALESCE(GREATEST(ps.total_orders - ps.distinct_orders, 0), 0)::int AS duplicate_orders,
+		       CASE
+		         WHEN ps.min_order IS NULL OR ps.max_order IS NULL THEN 0
+		         ELSE GREATEST((ps.max_order - ps.min_order + 1) - ps.distinct_orders, 0)
+		       END AS gap_count
+		FROM per_series ps`,
+		[userId, seriesId]
+	);
+	const row = result.rows[0] || {
+		book_count: 0,
+		total_pages: null,
+		avg_pages: null,
+		null_orders: 0,
+		duplicate_orders: 0,
+		gap_count: 0
+	};
+	return {
+		bookCount: row.book_count ?? 0,
+		percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0,
+		totalPages: row.total_pages === null ? null : Number(row.total_pages),
+		avgPages: row.avg_pages === null ? null : Number(Number.parseFloat(row.avg_pages).toFixed(2)),
+		nullBookOrderCount: row.null_orders ?? 0,
+		duplicateOrderNumbers: row.duplicate_orders ?? 0,
+		gapCount: row.gap_count ?? 0
+	};
+}
+
 function parseDateFilter(value, fieldLabel) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Date.parse(value);
@@ -238,6 +295,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -281,6 +339,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
 				};
+
+			if (returnStats) {
+				payload.stats = await fetchSeriesStats(userId, row.id);
+			}
 
 			return successResponse(res, 200, "Series retrieved successfully.", payload);
 		} catch (error) {
@@ -669,6 +731,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
 	const targetId = parseId(req.query.id ?? req.body?.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 
 	const errors = validateSeriesName(rawName);
 	if (errors.length > 0) {
@@ -697,7 +760,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const row = result.rows[0];
 		const books = await fetchSeriesBooks(userId, row.id);
 		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
-		return successResponse(res, 200, "Series retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			startDate,
@@ -707,7 +770,11 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			books,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchSeriesStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Series retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("BOOK_SERIES_GET", {
 			status: "FAILURE",
@@ -762,9 +829,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const fields = Array.isArray(params.fields)
 		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
 		: [];
+	const { value: orphanLimit, error: orphanLimitError } = parseOptionalInt(params.orphanLimit, "orphanLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: orphanOffset, error: orphanOffsetError } = parseOptionalInt(params.orphanOffset, "orphanOffset", { min: 0 });
 
 	const fieldMap = {
 		total: "COUNT(*) FILTER (WHERE deleted_at IS NULL) AS total",
+		totalSeries: "COUNT(*) FILTER (WHERE deleted_at IS NULL) AS total_series",
 		deleted: "COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted",
 		withDescription: "COUNT(*) FILTER (WHERE deleted_at IS NULL AND description IS NOT NULL AND description <> '') AS with_description",
 		withWebsite: "COUNT(*) FILTER (WHERE deleted_at IS NULL AND website IS NOT NULL AND website <> '') AS with_website",
@@ -774,31 +844,228 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		maxBooksPerSeries: "MAX(book_count) FILTER (WHERE deleted_at IS NULL) AS max_books_per_series"
 	};
 
-	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
-	const invalid = selected.filter((field) => !fieldMap[field]);
+	const derivedFields = [
+		"largestSeries",
+		"seriesCompleteness",
+		"seriesWithNoBooks",
+		"newestSeriesAdded",
+		"oldestSeriesAdded",
+		"breakdownPerSeries"
+	];
+	const availableFields = new Set([...Object.keys(fieldMap), ...derivedFields]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	const limitErrors = [orphanLimitError, orphanOffsetError].filter(Boolean);
+	if (limitErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", limitErrors);
+	}
 	if (invalid.length > 0) {
 		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
 	}
 
 	try {
-		const query = `WITH series_counts AS (
-				SELECT bs.id, bs.deleted_at, bs.description, bs.website, COUNT(bsb.id) AS book_count
-				FROM book_series bs
-				LEFT JOIN book_series_books bsb ON bsb.series_id = bs.id AND bsb.user_id = $1
-				LEFT JOIN books b ON bsb.book_id = b.id AND b.deleted_at IS NULL
-				WHERE bs.user_id = $1
-				GROUP BY bs.id, bs.deleted_at, bs.description, bs.website
-			)
-			SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
-			FROM series_counts`;
-
-		const result = await pool.query(query, [userId]);
-		const row = result.rows[0] || {};
 		const payload = {};
-		selected.forEach((field) => {
-			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			payload[field] = row[key] ?? null;
-		});
+		const scalarFields = selected.filter((field) => fieldMap[field]);
+		if (scalarFields.length > 0) {
+			const query = `WITH series_counts AS (
+					SELECT bs.id, bs.deleted_at, bs.description, bs.website, COUNT(b.id) AS book_count
+					FROM book_series bs
+					LEFT JOIN book_series_books bsb ON bsb.series_id = bs.id AND bsb.user_id = $1
+					LEFT JOIN books b ON bsb.book_id = b.id AND b.deleted_at IS NULL
+					WHERE bs.user_id = $1
+					GROUP BY bs.id, bs.deleted_at, bs.description, bs.website
+				)
+				SELECT ${scalarFields.map((field) => fieldMap[field]).join(", ")}
+				FROM series_counts`;
+
+			const result = await pool.query(query, [userId]);
+			const row = result.rows[0] || {};
+			scalarFields.forEach((field) => {
+				const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+				payload[field] = row[key] ?? null;
+			});
+		}
+
+		if (selected.includes("largestSeries")) {
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+			const largestResult = await pool.query(
+				`SELECT bs.id, bs.name, COUNT(DISTINCT b.id)::int AS book_count
+				 FROM book_series bs
+				 LEFT JOIN book_series_books bsb ON bsb.series_id = bs.id AND bsb.user_id = bs.user_id
+				 LEFT JOIN books b ON b.id = bsb.book_id AND b.deleted_at IS NULL
+				 WHERE bs.user_id = $1 AND bs.deleted_at IS NULL
+				 GROUP BY bs.id, bs.name
+				 ORDER BY book_count DESC, bs.name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = largestResult.rows[0];
+			payload.largestSeries = row
+				? {
+					id: row.id,
+					name: row.name,
+					bookCount: row.book_count,
+					percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		if (selected.includes("seriesCompleteness")) {
+			const completenessResult = await pool.query(
+				`WITH ordered AS (
+					SELECT bsb.series_id,
+					       bsb.book_order
+					FROM book_series_books bsb
+					JOIN book_series bs ON bs.id = bsb.series_id
+					JOIN books b ON b.id = bsb.book_id AND b.deleted_at IS NULL
+					WHERE bsb.user_id = $1 AND bs.deleted_at IS NULL
+				),
+				per_series AS (
+					SELECT series_id,
+					       COUNT(*) FILTER (WHERE book_order IS NULL)::int AS null_orders,
+					       COUNT(DISTINCT book_order) FILTER (WHERE book_order IS NOT NULL)::int AS distinct_orders,
+					       COUNT(book_order) FILTER (WHERE book_order IS NOT NULL)::int AS total_orders,
+					       MIN(book_order) FILTER (WHERE book_order IS NOT NULL) AS min_order,
+					       MAX(book_order) FILTER (WHERE book_order IS NOT NULL) AS max_order
+					FROM ordered
+					GROUP BY series_id
+				)
+				SELECT SUM(null_orders)::int AS null_order_count,
+				       SUM(GREATEST(total_orders - distinct_orders, 0))::int AS duplicate_order_count,
+				       SUM(
+				         CASE
+				           WHEN min_order IS NULL OR max_order IS NULL THEN 0
+				           ELSE GREATEST((max_order - min_order + 1) - distinct_orders, 0)
+				         END
+				       )::int AS gap_count
+				FROM per_series`,
+				[userId]
+			);
+			const row = completenessResult.rows[0] || {};
+			payload.seriesCompleteness = {
+				missingBookOrderNumbers: row.gap_count ?? 0,
+				duplicateOrderNumbers: row.duplicate_order_count ?? 0,
+				nullBookOrderCount: row.null_order_count ?? 0
+			};
+		}
+
+		if (selected.includes("seriesWithNoBooks")) {
+			const limitValue = orphanLimit ?? 50;
+			const offsetValue = orphanOffset ?? 0;
+			const orphanResult = await pool.query(
+				`SELECT bs.id, bs.name, bs.created_at
+				 FROM book_series bs
+				 LEFT JOIN book_series_books bsb ON bsb.series_id = bs.id AND bsb.user_id = bs.user_id
+				 LEFT JOIN books b ON b.id = bsb.book_id AND b.deleted_at IS NULL
+				 WHERE bs.user_id = $1 AND bs.deleted_at IS NULL
+				 GROUP BY bs.id, bs.name, bs.created_at
+				 HAVING COUNT(b.id) = 0
+				 ORDER BY bs.name ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.seriesWithNoBooks = orphanResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				createdAt: row.created_at
+			}));
+		}
+
+		if (selected.includes("newestSeriesAdded")) {
+			const newestResult = await pool.query(
+				`SELECT id, name, created_at
+				 FROM book_series
+				 WHERE user_id = $1 AND deleted_at IS NULL
+				 ORDER BY created_at DESC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = newestResult.rows[0];
+			payload.newestSeriesAdded = row
+				? { id: row.id, name: row.name, createdAt: row.created_at }
+				: null;
+		}
+
+		if (selected.includes("oldestSeriesAdded")) {
+			const oldestResult = await pool.query(
+				`SELECT id, name, created_at
+				 FROM book_series
+				 WHERE user_id = $1 AND deleted_at IS NULL
+				 ORDER BY created_at ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = oldestResult.rows[0];
+			payload.oldestSeriesAdded = row
+				? { id: row.id, name: row.name, createdAt: row.created_at }
+				: null;
+		}
+
+		if (selected.includes("breakdownPerSeries")) {
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+			const breakdownResult = await pool.query(
+				`WITH ordered AS (
+					SELECT bsb.series_id,
+					       bsb.book_order,
+					       b.page_count
+					FROM book_series_books bsb
+					JOIN book_series bs ON bs.id = bsb.series_id AND bs.deleted_at IS NULL
+					JOIN books b ON b.id = bsb.book_id AND b.deleted_at IS NULL
+					WHERE bsb.user_id = $1
+				),
+				per_series AS (
+					SELECT series_id,
+					       COUNT(*)::int AS book_count,
+					       SUM(page_count)::int AS total_pages,
+					       AVG(page_count)::numeric AS avg_pages,
+					       COUNT(*) FILTER (WHERE book_order IS NULL)::int AS null_orders,
+					       COUNT(DISTINCT book_order) FILTER (WHERE book_order IS NOT NULL)::int AS distinct_orders,
+					       COUNT(book_order) FILTER (WHERE book_order IS NOT NULL)::int AS total_orders,
+					       MIN(book_order) FILTER (WHERE book_order IS NOT NULL) AS min_order,
+					       MAX(book_order) FILTER (WHERE book_order IS NOT NULL) AS max_order
+					FROM ordered
+					GROUP BY series_id
+				)
+				SELECT bs.id, bs.name,
+				       COALESCE(ps.book_count, 0)::int AS book_count,
+				       ps.total_pages,
+				       ps.avg_pages,
+				       COALESCE(ps.null_orders, 0)::int AS null_orders,
+				       COALESCE(GREATEST(ps.total_orders - ps.distinct_orders, 0), 0)::int AS duplicate_orders,
+				       CASE
+				         WHEN ps.min_order IS NULL OR ps.max_order IS NULL THEN 0
+				         ELSE GREATEST((ps.max_order - ps.min_order + 1) - ps.distinct_orders, 0)
+				       END AS gap_count
+				FROM book_series bs
+				LEFT JOIN per_series ps ON ps.series_id = bs.id
+				WHERE bs.user_id = $1 AND bs.deleted_at IS NULL
+				ORDER BY bs.name ASC`,
+				[userId]
+			);
+			payload.breakdownPerSeries = breakdownResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count,
+				percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0,
+				totalPages: row.total_pages === null ? null : Number(row.total_pages),
+				avgPages: row.avg_pages === null ? null : Number(Number.parseFloat(row.avg_pages).toFixed(2)),
+				nullBookOrderCount: row.null_orders,
+				duplicateOrderNumbers: row.duplicate_orders,
+				gapCount: row.gap_count
+			}));
+		}
 
 		return successResponse(res, 200, "Series stats retrieved successfully.", { stats: payload });
 	} catch (error) {
@@ -817,6 +1084,7 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = parseId(req.params.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
 	}
@@ -836,7 +1104,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const row = result.rows[0];
 		const books = await fetchSeriesBooks(userId, row.id);
 		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
-		return successResponse(res, 200, "Series retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			startDate,
@@ -846,7 +1114,11 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			books,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchSeriesStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Series retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("BOOK_SERIES_GET", {
 			status: "FAILURE",

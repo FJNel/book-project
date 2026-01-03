@@ -114,6 +114,26 @@ function parseOptionalIntRange(value, fieldLabel, { min = 0, max = null } = {}) 
 	return { value: parsed };
 }
 
+async function fetchAuthorStats(userId, authorId) {
+	const totalBooksResult = await pool.query(
+		`SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1 AND deleted_at IS NULL`,
+		[userId]
+	);
+	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+	const result = await pool.query(
+		`SELECT COUNT(DISTINCT b.id)::int AS book_count
+		 FROM book_authors ba
+		 JOIN books b ON b.id = ba.book_id AND b.deleted_at IS NULL
+		 WHERE ba.user_id = $1 AND ba.author_id = $2`,
+		[userId, authorId]
+	);
+	const bookCount = result.rows[0]?.book_count ?? 0;
+	return {
+		bookCount,
+		percentageOfBooks: totalBooks > 0 ? Number(((bookCount / totalBooks) * 100).toFixed(1)) : 0
+	};
+}
+
 function parseDateFilter(value, fieldLabel) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Date.parse(value);
@@ -173,6 +193,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.displayName ?? req.body?.displayName);
 
@@ -224,6 +245,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
 				};
+
+			if (returnStats) {
+				payload.stats = await fetchAuthorStats(userId, row.id);
+			}
 
 			return successResponse(res, 200, "Author retrieved successfully.", payload);
 		} catch (error) {
@@ -640,6 +665,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const displayName = normalizeText(req.query.displayName ?? req.query.name ?? req.body?.displayName ?? req.body?.name);
 	const targetId = parseId(req.query.id ?? req.body?.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 
 	const errors = validateDisplayName(displayName);
 	if (errors.length > 0) {
@@ -671,7 +697,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Author retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			displayName: row.display_name,
 			firstNames: row.first_names,
@@ -686,7 +712,11 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			bio: row.bio,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchAuthorStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Author retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("AUTHOR_GET", {
 			status: "FAILURE",
@@ -743,9 +773,17 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const fields = Array.isArray(params.fields)
 		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
 		: [];
+	const breakdowns = Array.isArray(params.breakdowns)
+		? params.breakdowns.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+	const { value: orphanLimit, error: orphanLimitError } = parseOptionalInt(params.orphanLimit, "orphanLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: orphanOffset, error: orphanOffsetError } = parseOptionalInt(params.orphanOffset, "orphanOffset", { min: 0 });
+	const { value: timelineLimit, error: timelineLimitError } = parseOptionalInt(params.timelineLimit, "timelineLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: timelineOffset, error: timelineOffsetError } = parseOptionalInt(params.timelineOffset, "timelineOffset", { min: 0 });
 
 	const fieldMap = {
 		total: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL) AS total",
+		totalAuthors: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL) AS total_authors",
 		deleted: "COUNT(*) FILTER (WHERE a.deleted_at IS NOT NULL) AS deleted",
 		deceased: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = true) AS deceased",
 		alive: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = false) AS alive",
@@ -758,26 +796,247 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		latestDeathYear: "MAX(dd.year) FILTER (WHERE a.deleted_at IS NULL) AS latest_death_year"
 	};
 
-	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
-	const invalid = selected.filter((field) => !fieldMap[field]);
+	const derivedFields = [
+		"mostRepresentedAuthor",
+		"authorsWithNoBooks",
+		"aliveDeceasedRatio",
+		"oldestAuthor",
+		"youngestAuthor",
+		"authorDiscoveryTimeline",
+		"breakdownPerAuthor",
+		"breakdownPerBirthDecade",
+		"breakdownPerAliveDeceased"
+	];
+	const availableFields = new Set([...Object.keys(fieldMap), ...derivedFields]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	const limitErrors = [orphanLimitError, orphanOffsetError, timelineLimitError, timelineOffsetError].filter(Boolean);
+	if (limitErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", limitErrors);
+	}
 	if (invalid.length > 0) {
 		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
 	}
 
 	try {
-		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
-			FROM authors a
-			LEFT JOIN dates bd ON a.birth_date_id = bd.id
-			LEFT JOIN dates dd ON a.death_date_id = dd.id
-			WHERE a.user_id = $1`;
-
-		const result = await pool.query(query, [userId]);
-		const row = result.rows[0] || {};
 		const payload = {};
-		selected.forEach((field) => {
-			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			payload[field] = row[key] ?? null;
-		});
+		const scalarFields = selected.filter((field) => fieldMap[field]);
+		let scalarRow = {};
+		if (scalarFields.length > 0) {
+			const query = `SELECT ${scalarFields.map((field) => fieldMap[field]).join(", ")}
+				FROM authors a
+				LEFT JOIN dates bd ON a.birth_date_id = bd.id
+				LEFT JOIN dates dd ON a.death_date_id = dd.id
+				WHERE a.user_id = $1`;
+			const result = await pool.query(query, [userId]);
+			scalarRow = result.rows[0] || {};
+			scalarFields.forEach((field) => {
+				const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+				payload[field] = scalarRow[key] ?? null;
+			});
+		}
+
+		if (selected.includes("aliveDeceasedRatio")) {
+			let aliveCount = scalarRow.alive ?? null;
+			let deceasedCount = scalarRow.deceased ?? null;
+			if (aliveCount === null || deceasedCount === null) {
+				const ratioResult = await pool.query(
+					`SELECT COUNT(*) FILTER (WHERE deceased = true)::int AS deceased,
+					        COUNT(*) FILTER (WHERE deceased = false)::int AS alive
+					 FROM authors
+					 WHERE user_id = $1 AND deleted_at IS NULL`,
+					[userId]
+				);
+				aliveCount = ratioResult.rows[0]?.alive ?? 0;
+				deceasedCount = ratioResult.rows[0]?.deceased ?? 0;
+			}
+			const ratio = aliveCount > 0 ? Number((deceasedCount / aliveCount).toFixed(2)) : null;
+			payload.aliveDeceasedRatio = {
+				alive: aliveCount,
+				deceased: deceasedCount,
+				deceasedToAliveRatio: ratio
+			};
+		}
+
+		if (selected.includes("mostRepresentedAuthor")) {
+			const topResult = await pool.query(
+				`SELECT a.id, a.display_name, COUNT(DISTINCT ba.book_id)::int AS book_count
+				 FROM authors a
+				 JOIN book_authors ba ON ba.author_id = a.id AND ba.user_id = a.user_id
+				 JOIN books b ON b.id = ba.book_id AND b.user_id = a.user_id AND b.deleted_at IS NULL
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL
+				 GROUP BY a.id, a.display_name
+				 ORDER BY book_count DESC, a.display_name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = topResult.rows[0];
+			payload.mostRepresentedAuthor = row
+				? {
+					id: row.id,
+					displayName: row.display_name,
+					bookCount: row.book_count,
+					percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		if (selected.includes("authorsWithNoBooks")) {
+			const limitValue = orphanLimit ?? 50;
+			const offsetValue = orphanOffset ?? 0;
+			const orphanResult = await pool.query(
+				`SELECT a.id, a.display_name, a.created_at
+				 FROM authors a
+				 LEFT JOIN book_authors ba ON ba.author_id = a.id AND ba.user_id = a.user_id
+				 LEFT JOIN books b ON b.id = ba.book_id AND b.user_id = a.user_id AND b.deleted_at IS NULL
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL
+				 GROUP BY a.id, a.display_name, a.created_at
+				 HAVING COUNT(b.id) = 0
+				 ORDER BY a.display_name ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.authorsWithNoBooks = orphanResult.rows.map((row) => ({
+				id: row.id,
+				displayName: row.display_name,
+				createdAt: row.created_at
+			}));
+		}
+
+		if (selected.includes("oldestAuthor")) {
+			const oldestResult = await pool.query(
+				`SELECT a.id, a.display_name, bd.year AS birth_year
+				 FROM authors a
+				 JOIN dates bd ON a.birth_date_id = bd.id
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL AND bd.year IS NOT NULL
+				 ORDER BY bd.year ASC, a.display_name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = oldestResult.rows[0];
+			payload.oldestAuthor = row
+				? { id: row.id, displayName: row.display_name, birthYear: row.birth_year }
+				: null;
+		}
+
+		if (selected.includes("youngestAuthor")) {
+			const youngestResult = await pool.query(
+				`SELECT a.id, a.display_name, bd.year AS birth_year
+				 FROM authors a
+				 JOIN dates bd ON a.birth_date_id = bd.id
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL AND bd.year IS NOT NULL
+				 ORDER BY bd.year DESC, a.display_name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = youngestResult.rows[0];
+			payload.youngestAuthor = row
+				? { id: row.id, displayName: row.display_name, birthYear: row.birth_year }
+				: null;
+		}
+
+		if (selected.includes("authorDiscoveryTimeline")) {
+			const limitValue = timelineLimit ?? 50;
+			const offsetValue = timelineOffset ?? 0;
+			const timelineResult = await pool.query(
+				`SELECT id, display_name, created_at
+				 FROM authors
+				 WHERE user_id = $1 AND deleted_at IS NULL
+				 ORDER BY created_at ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.authorDiscoveryTimeline = timelineResult.rows.map((row) => ({
+				id: row.id,
+				displayName: row.display_name,
+				createdAt: row.created_at
+			}));
+		}
+
+		const breakdownTargets = breakdowns.length > 0
+			? new Set(breakdowns)
+			: new Set(["perAuthor", "perBirthDecade", "perAliveDeceased"]);
+
+		let totalBooks = null;
+		if (selected.includes("breakdownPerAuthor") || selected.includes("mostRepresentedAuthor")) {
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+		}
+
+		if (selected.includes("breakdownPerAuthor") && breakdownTargets.has("perAuthor")) {
+			const perAuthorResult = await pool.query(
+				`SELECT a.id, a.display_name, COUNT(DISTINCT b.id)::int AS book_count
+				 FROM authors a
+				 LEFT JOIN book_authors ba ON ba.author_id = a.id AND ba.user_id = a.user_id
+				 LEFT JOIN books b ON b.id = ba.book_id AND b.deleted_at IS NULL
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL
+				 GROUP BY a.id, a.display_name
+				 ORDER BY a.display_name ASC`,
+				[userId]
+			);
+			payload.breakdownPerAuthor = perAuthorResult.rows.map((row) => ({
+				id: row.id,
+				displayName: row.display_name,
+				bookCount: row.book_count,
+				percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("breakdownPerBirthDecade") && breakdownTargets.has("perBirthDecade")) {
+			const totalBirthResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM authors a
+				 JOIN dates bd ON a.birth_date_id = bd.id
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL AND bd.year IS NOT NULL`,
+				[userId]
+			);
+			const totalBirthAuthors = totalBirthResult.rows[0]?.count ?? 0;
+			const decadeResult = await pool.query(
+				`SELECT (bd.year / 10) * 10 AS decade,
+				        COUNT(*)::int AS author_count
+				 FROM authors a
+				 JOIN dates bd ON a.birth_date_id = bd.id
+				 WHERE a.user_id = $1 AND a.deleted_at IS NULL AND bd.year IS NOT NULL
+				 GROUP BY decade
+				 ORDER BY decade ASC`,
+				[userId]
+			);
+			payload.breakdownPerBirthDecade = decadeResult.rows.map((row) => ({
+				decade: row.decade,
+				authorCount: row.author_count,
+				percentageOfAuthors: totalBirthAuthors > 0 ? Number(((row.author_count / totalBirthAuthors) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("breakdownPerAliveDeceased") && breakdownTargets.has("perAliveDeceased")) {
+			let totalAuthors = scalarRow.total_authors ?? scalarRow.total ?? null;
+			if (totalAuthors === null) {
+				const totalResult = await pool.query(
+					`SELECT COUNT(*)::int AS count
+					 FROM authors
+					 WHERE user_id = $1 AND deleted_at IS NULL`,
+					[userId]
+				);
+				totalAuthors = totalResult.rows[0]?.count ?? 0;
+			}
+			const aliveResult = await pool.query(
+				`SELECT deceased, COUNT(*)::int AS author_count
+				 FROM authors
+				 WHERE user_id = $1 AND deleted_at IS NULL
+				 GROUP BY deceased`,
+				[userId]
+			);
+			payload.breakdownPerAliveDeceased = aliveResult.rows.map((row) => ({
+				deceased: row.deceased,
+				authorCount: row.author_count,
+				percentageOfAuthors: totalAuthors > 0 ? Number(((row.author_count / totalAuthors) * 100).toFixed(1)) : 0
+			}));
+		}
 
 		return successResponse(res, 200, "Author stats retrieved successfully.", { stats: payload });
 	} catch (error) {
@@ -796,6 +1055,7 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = parseId(req.params.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Author id must be a valid integer."]);
 	}
@@ -818,7 +1078,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Author retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			displayName: row.display_name,
 			firstNames: row.first_names,
@@ -833,7 +1093,11 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			bio: row.bio,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchAuthorStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Author retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("AUTHOR_GET", {
 			status: "FAILURE",

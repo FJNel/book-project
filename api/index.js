@@ -20,11 +20,14 @@ const bookTypeRoutes = require("./routes/booktype");
 const authorRoutes = require("./routes/author");
 const publisherRoutes = require("./routes/publisher");
 const bookSeriesRoutes = require("./routes/bookseries");
+const bookAuthorRoutes = require("./routes/bookauthor");
+const bookSeriesBooksRoutes = require("./routes/bookseriesbooks");
 const languageRoutes = require("./routes/languages");
 const bookRoutes = require("./routes/book");
 const storageLocationRoutes = require("./routes/storagelocation");
 const bookCopyRoutes = require("./routes/bookcopy");
 const tagRoutes = require("./routes/tags");
+const bookTagRoutes = require("./routes/booktags");
 const adminRoutes = require("./routes/admin");
 const searchRoutes = require("./routes/search");
 const importExportRoutes = require("./routes/import-export");
@@ -85,17 +88,22 @@ app.use("/booktype", bookTypeRoutes);
 app.use("/author", authorRoutes);
 app.use("/publisher", publisherRoutes);
 app.use("/bookseries", bookSeriesRoutes);
+app.use("/bookseriesbooks", bookSeriesBooksRoutes);
+app.use("/bookauthor", bookAuthorRoutes);
 app.use("/languages", languageRoutes);
 app.use("/book", bookRoutes);
 app.use("/books", bookRoutes);
 app.use("/storagelocation", storageLocationRoutes);
 app.use("/bookcopy", bookCopyRoutes);
 app.use("/tags", tagRoutes);
+app.use("/booktags", bookTagRoutes);
 app.use("/admin", adminRoutes);
 app.use("/search", searchRoutes);
 app.use("/", importExportRoutes);
 app.use("/authors", authorRoutes);
 app.use("/publishers", publisherRoutes);
+app.use("/bookauthors", bookAuthorRoutes);
+app.use("/seriesbooks", bookSeriesBooksRoutes);
 
 //404 Handler
 app.use((req, res) => {

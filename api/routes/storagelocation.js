@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
-const { authenticatedLimiter } = require("../utils/rate-limiters");
+const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 
 const MAX_LOCATION_NAME_LENGTH = 150;
@@ -128,11 +128,77 @@ function buildLocationPayload(row, nameOnly) {
 	};
 }
 
+async function fetchStorageLocationStats(userId, locationId) {
+	const totalResult = await pool.query(
+		`SELECT COUNT(b.id)::int AS count
+		 FROM book_copies bc
+		 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+		 WHERE bc.user_id = $1`,
+		[userId]
+	);
+	const totalCopies = totalResult.rows[0]?.count ?? 0;
+	const result = await pool.query(
+		`WITH RECURSIVE location_paths AS (
+			SELECT id, parent_id, name, name::text AS path
+			FROM storage_locations
+			WHERE user_id = $1 AND parent_id IS NULL
+			UNION ALL
+			SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+			FROM storage_locations sl
+			JOIN location_paths lp ON sl.parent_id = lp.id
+			WHERE sl.user_id = $1
+		),
+		location_tree AS (
+			SELECT id AS ancestor_id, id AS descendant_id
+			FROM storage_locations
+			WHERE user_id = $1
+			UNION ALL
+			SELECT lt.ancestor_id, sl.id
+			FROM location_tree lt
+			JOIN storage_locations sl ON sl.parent_id = lt.descendant_id
+			WHERE sl.user_id = $1
+		),
+		copy_counts AS (
+			SELECT lt.ancestor_id, COUNT(b.id)::int AS nested_copy_count
+			FROM location_tree lt
+			LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
+			LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+			GROUP BY lt.ancestor_id
+		),
+		direct_counts AS (
+			SELECT sl.id, COUNT(b.id)::int AS direct_copy_count
+			FROM storage_locations sl
+			LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = $1
+			LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+			WHERE sl.user_id = $1
+			GROUP BY sl.id
+		)
+		SELECT lp.path,
+		       COALESCE(dc.direct_copy_count, 0)::int AS direct_copy_count,
+		       COALESCE(cc.nested_copy_count, 0)::int AS nested_copy_count
+		FROM location_paths lp
+		LEFT JOIN direct_counts dc ON dc.id = lp.id
+		LEFT JOIN copy_counts cc ON cc.ancestor_id = lp.id
+		WHERE lp.id = $2
+		LIMIT 1`,
+		[userId, locationId]
+	);
+	const row = result.rows[0] || { direct_copy_count: 0, nested_copy_count: 0, path: null };
+	return {
+		path: row.path,
+		directCopyCount: row.direct_copy_count,
+		nestedCopyCount: row.nested_copy_count,
+		directPercentage: totalCopies > 0 ? Number(((row.direct_copy_count / totalCopies) * 100).toFixed(1)) : 0,
+		nestedPercentage: totalCopies > 0 ? Number(((row.nested_copy_count / totalCopies) * 100).toFixed(1)) : 0
+	};
+}
+
 // GET /storagelocation - List or fetch a specific storage location
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetPath = normalizeText(req.query.path ?? req.body?.path);
 
@@ -169,6 +235,9 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 
 			const payload = buildLocationPayload(result.rows[0], nameOnly);
+			if (returnStats) {
+				payload.stats = await fetchStorageLocationStats(userId, result.rows[0].id);
+			}
 			return successResponse(res, 200, "Storage location retrieved successfully.", payload);
 		} catch (error) {
 			logToFile("STORAGE_LOCATION_GET", {
@@ -443,6 +512,287 @@ router.get("/bookcopies", requiresAuth, authenticatedLimiter, async (req, res) =
 	const locationPath = normalizeText(req.body?.path ?? req.query.path);
 
 	return handleBookCopiesByLocation(req, res, { locationId, locationPath });
+});
+
+// GET /storagelocation/stats - Storage location statistics
+router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const fields = Array.isArray(params.fields)
+		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
+		: [];
+	const { value: emptyLimit, error: emptyLimitError } = parseOptionalInt(params.emptyLimit, "emptyLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: emptyOffset, error: emptyOffsetError } = parseOptionalInt(params.emptyOffset, "emptyOffset", { min: 0 });
+
+	const availableFields = new Set([
+		"totalLocations",
+		"maxDepth",
+		"largestLocation",
+		"emptyLocations",
+		"locationDistribution",
+		"mostCrowdedBranch",
+		"breakdownPerLocation"
+	]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	const limitErrors = [emptyLimitError, emptyOffsetError].filter(Boolean);
+	if (limitErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", limitErrors);
+	}
+	if (invalid.length > 0) {
+		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
+	}
+
+	try {
+		const payload = {};
+		let totalCopies = null;
+		if (selected.includes("breakdownPerLocation")) {
+			const totalResult = await pool.query(
+				`SELECT COUNT(b.id)::int AS count
+				 FROM book_copies bc
+				 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE bc.user_id = $1`,
+				[userId]
+			);
+			totalCopies = totalResult.rows[0]?.count ?? 0;
+		}
+		const needsPaths = selected.some((field) =>
+			["largestLocation", "emptyLocations", "locationDistribution", "mostCrowdedBranch"].includes(field)
+		);
+		const needsTree = selected.some((field) =>
+			["maxDepth", "locationDistribution", "mostCrowdedBranch"].includes(field)
+		);
+
+		let pathRows = [];
+		if (needsPaths) {
+			const pathResult = await pool.query(
+				`WITH RECURSIVE location_paths AS (
+					SELECT id, parent_id, name, name::text AS path
+					FROM storage_locations
+					WHERE user_id = $1 AND parent_id IS NULL
+					UNION ALL
+					SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+					FROM storage_locations sl
+					JOIN location_paths lp ON sl.parent_id = lp.id
+					WHERE sl.user_id = $1
+				)
+				SELECT id, parent_id, path
+				FROM location_paths`,
+				[userId]
+			);
+			pathRows = pathResult.rows;
+		}
+
+		if (selected.includes("totalLocations")) {
+			const totalResult = await pool.query(
+				`SELECT COUNT(*)::int AS count FROM storage_locations WHERE user_id = $1`,
+				[userId]
+			);
+			payload.totalLocations = totalResult.rows[0]?.count ?? 0;
+		}
+
+		if (selected.includes("maxDepth")) {
+			const depthResult = await pool.query(
+				`WITH RECURSIVE location_tree AS (
+					SELECT id, parent_id, 1 AS depth
+					FROM storage_locations
+					WHERE user_id = $1 AND parent_id IS NULL
+					UNION ALL
+					SELECT sl.id, sl.parent_id, lt.depth + 1
+					FROM storage_locations sl
+					JOIN location_tree lt ON sl.parent_id = lt.id
+					WHERE sl.user_id = $1
+				)
+				SELECT COALESCE(MAX(depth), 0) AS max_depth
+				FROM location_tree`,
+				[userId]
+			);
+			payload.maxDepth = Number(depthResult.rows[0]?.max_depth ?? 0);
+		}
+
+		if (selected.includes("largestLocation")) {
+			const largestResult = await pool.query(
+				`SELECT sl.id, sl.name, sl.parent_id,
+				        COUNT(b.id)::int AS direct_copy_count
+				 FROM storage_locations sl
+				 LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = sl.user_id
+				 LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE sl.user_id = $1
+				 GROUP BY sl.id, sl.name, sl.parent_id
+				 ORDER BY direct_copy_count DESC, sl.name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = largestResult.rows[0];
+			const path = row && pathRows.length > 0
+				? pathRows.find((entry) => entry.id === row.id)?.path ?? row.name
+				: null;
+			payload.largestLocation = row
+				? {
+					id: row.id,
+					name: row.name,
+					path,
+					directCopyCount: row.direct_copy_count
+				}
+				: null;
+		}
+
+		if (selected.includes("emptyLocations")) {
+			const limitValue = emptyLimit ?? 50;
+			const offsetValue = emptyOffset ?? 0;
+			const emptyResult = await pool.query(
+				`SELECT sl.id, sl.name, sl.parent_id,
+				        COUNT(b.id)::int AS direct_copy_count
+				 FROM storage_locations sl
+				 LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = sl.user_id
+				 LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				 WHERE sl.user_id = $1
+				 GROUP BY sl.id, sl.name, sl.parent_id
+				 HAVING COUNT(b.id) = 0
+				 ORDER BY sl.name ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.emptyLocations = emptyResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				path: pathRows.find((entry) => entry.id === row.id)?.path ?? row.name,
+				directCopyCount: row.direct_copy_count
+			}));
+		}
+
+		if (selected.includes("breakdownPerLocation")) {
+			const breakdownResult = await pool.query(
+				`WITH RECURSIVE location_paths AS (
+					SELECT id, parent_id, name, name::text AS path
+					FROM storage_locations
+					WHERE user_id = $1 AND parent_id IS NULL
+					UNION ALL
+					SELECT sl.id, sl.parent_id, sl.name, (lp.path || ' -> ' || sl.name) AS path
+					FROM storage_locations sl
+					JOIN location_paths lp ON sl.parent_id = lp.id
+					WHERE sl.user_id = $1
+				),
+				location_tree AS (
+					SELECT id AS ancestor_id, id AS descendant_id
+					FROM storage_locations
+					WHERE user_id = $1
+					UNION ALL
+					SELECT lt.ancestor_id, sl.id
+					FROM location_tree lt
+					JOIN storage_locations sl ON sl.parent_id = lt.descendant_id
+					WHERE sl.user_id = $1
+				),
+				copy_counts AS (
+					SELECT lt.ancestor_id, COUNT(b.id)::int AS nested_copy_count
+					FROM location_tree lt
+					LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
+					LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+					GROUP BY lt.ancestor_id
+				),
+				direct_counts AS (
+					SELECT sl.id, COUNT(b.id)::int AS direct_copy_count
+					FROM storage_locations sl
+					LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = $1
+					LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+					WHERE sl.user_id = $1
+					GROUP BY sl.id
+				)
+				SELECT lp.id, lp.path,
+				       COALESCE(dc.direct_copy_count, 0)::int AS direct_copy_count,
+				       COALESCE(cc.nested_copy_count, 0)::int AS nested_copy_count
+				FROM location_paths lp
+				LEFT JOIN direct_counts dc ON dc.id = lp.id
+				LEFT JOIN copy_counts cc ON cc.ancestor_id = lp.id
+				ORDER BY lp.path ASC`,
+				[userId]
+			);
+			payload.breakdownPerLocation = breakdownResult.rows.map((row) => ({
+				id: row.id,
+				path: row.path,
+				directCopyCount: row.direct_copy_count,
+				nestedCopyCount: row.nested_copy_count,
+				directPercentage: totalCopies > 0 ? Number(((row.direct_copy_count / totalCopies) * 100).toFixed(1)) : 0,
+				nestedPercentage: totalCopies > 0 ? Number(((row.nested_copy_count / totalCopies) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("locationDistribution") || selected.includes("mostCrowdedBranch")) {
+			const distributionResult = await pool.query(
+				`WITH RECURSIVE top_level AS (
+					SELECT id, name
+					FROM storage_locations
+					WHERE user_id = $1 AND parent_id IS NULL
+				),
+				location_tree AS (
+					SELECT tl.id AS root_id, tl.id AS descendant_id
+					FROM top_level tl
+					UNION ALL
+					SELECT lt.root_id, sl.id
+					FROM location_tree lt
+					JOIN storage_locations sl ON sl.parent_id = lt.descendant_id
+					WHERE sl.user_id = $1
+				),
+				copy_counts AS (
+					SELECT lt.root_id, COUNT(b.id)::int AS copy_count
+					FROM location_tree lt
+					LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
+					LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+					GROUP BY lt.root_id
+				),
+				total AS (
+					SELECT SUM(copy_count)::int AS total_copies FROM copy_counts
+				)
+				SELECT tl.id, tl.name, COALESCE(cc.copy_count, 0)::int AS copy_count,
+				       (SELECT total_copies FROM total) AS total_copies
+				FROM top_level tl
+				LEFT JOIN copy_counts cc ON cc.root_id = tl.id
+				ORDER BY tl.name ASC`,
+				[userId]
+			);
+
+			const totalBranchCopies = distributionResult.rows[0]?.total_copies ?? 0;
+			if (totalCopies === null) {
+				totalCopies = totalBranchCopies;
+			}
+			if (selected.includes("locationDistribution")) {
+				payload.locationDistribution = distributionResult.rows.map((row) => ({
+					id: row.id,
+					name: row.name,
+					copyCount: row.copy_count,
+					percentage: totalBranchCopies > 0 ? Number(((row.copy_count / totalBranchCopies) * 100).toFixed(1)) : 0
+				}));
+			}
+
+			if (selected.includes("mostCrowdedBranch")) {
+				const top = distributionResult.rows.reduce((acc, row) => {
+					if (!acc || row.copy_count > acc.copy_count) {
+						return row;
+					}
+					return acc;
+				}, null);
+				payload.mostCrowdedBranch = top
+					? {
+						id: top.id,
+						name: top.name,
+						copyCount: top.copy_count,
+						percentage: totalBranchCopies > 0 ? Number(((top.copy_count / totalBranchCopies) * 100).toFixed(1)) : 0
+					}
+					: null;
+			}
+		}
+
+		return successResponse(res, 200, "Storage location stats retrieved successfully.", { stats: payload });
+	} catch (error) {
+		logToFile("STORAGE_LOCATION_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve storage location stats at this time."]);
+	}
 });
 
 // POST /storagelocation - Create a storage location

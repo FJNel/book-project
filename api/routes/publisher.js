@@ -122,6 +122,25 @@ function parseOptionalIntRange(value, fieldLabel, { min = 0, max = null } = {}) 
 	return { value: parsed };
 }
 
+async function fetchPublisherStats(userId, publisherId) {
+	const totalBooksResult = await pool.query(
+		`SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1 AND deleted_at IS NULL`,
+		[userId]
+	);
+	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+	const result = await pool.query(
+		`SELECT COUNT(b.id)::int AS book_count
+		 FROM books b
+		 WHERE b.user_id = $1 AND b.publisher_id = $2 AND b.deleted_at IS NULL`,
+		[userId, publisherId]
+	);
+	const bookCount = result.rows[0]?.book_count ?? 0;
+	return {
+		bookCount,
+		percentageOfBooks: totalBooks > 0 ? Number(((bookCount / totalBooks) * 100).toFixed(1)) : 0
+	};
+}
+
 function parseDateFilter(value, fieldLabel) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Date.parse(value);
@@ -181,6 +200,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
+	const returnStats = parseBooleanFlag(listParams.returnStats);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -224,6 +244,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					createdAt: row.created_at,
 					updatedAt: row.updated_at
 				};
+
+			if (returnStats) {
+				payload.stats = await fetchPublisherStats(userId, row.id);
+			}
 
 			return successResponse(res, 200, "Publisher retrieved successfully.", payload);
 		} catch (error) {
@@ -536,6 +560,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
 	const targetId = parseId(req.query.id ?? req.body?.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 
 	const errors = validatePublisherName(rawName);
 	if (errors.length > 0) {
@@ -564,7 +589,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Publisher retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			foundedDate: row.founded_date_id
@@ -574,7 +599,11 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			notes: row.notes,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchPublisherStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Publisher retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("PUBLISHER_GET", {
 			status: "FAILURE",
@@ -629,9 +658,14 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const fields = Array.isArray(params.fields)
 		? params.fields.map((field) => normalizeText(field)).filter(Boolean)
 		: [];
+	const { value: oneOffLimit, error: oneOffLimitError } = parseOptionalInt(params.oneOffLimit, "oneOffLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: oneOffOffset, error: oneOffOffsetError } = parseOptionalInt(params.oneOffOffset, "oneOffOffset", { min: 0 });
+	const { value: orphanLimit, error: orphanLimitError } = parseOptionalInt(params.orphanLimit, "orphanLimit", { min: 1, max: MAX_LIST_LIMIT });
+	const { value: orphanOffset, error: orphanOffsetError } = parseOptionalInt(params.orphanOffset, "orphanOffset", { min: 0 });
 
 	const fieldMap = {
 		total: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL) AS total",
+		totalPublishers: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL) AS total_publishers",
 		deleted: "COUNT(*) FILTER (WHERE p.deleted_at IS NOT NULL) AS deleted",
 		withFoundedDate: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL AND p.founded_date_id IS NOT NULL) AS with_founded_date",
 		withWebsite: "COUNT(*) FILTER (WHERE p.deleted_at IS NULL AND p.website IS NOT NULL AND p.website <> '') AS with_website",
@@ -640,25 +674,183 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		latestFoundedYear: "MAX(fd.year) FILTER (WHERE p.deleted_at IS NULL) AS latest_founded_year"
 	};
 
-	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);
-	const invalid = selected.filter((field) => !fieldMap[field]);
+	const derivedFields = [
+		"mostCommonPublisher",
+		"publishersWithOneBook",
+		"publishersWithNoBooks",
+		"oldestFoundedPublisher",
+		"websiteCoverage",
+		"breakdownPerPublisher"
+	];
+	const availableFields = new Set([...Object.keys(fieldMap), ...derivedFields]);
+	const selected = fields.length > 0 ? fields : Array.from(availableFields);
+	const invalid = selected.filter((field) => !availableFields.has(field));
+	const limitErrors = [oneOffLimitError, oneOffOffsetError, orphanLimitError, orphanOffsetError].filter(Boolean);
+	if (limitErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", limitErrors);
+	}
 	if (invalid.length > 0) {
 		return errorResponse(res, 400, "Validation Error", [`Unknown stats fields: ${invalid.join(", ")}.`]);
 	}
 
 	try {
-		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
-			FROM publishers p
-			LEFT JOIN dates fd ON p.founded_date_id = fd.id
-			WHERE p.user_id = $1`;
-
-		const result = await pool.query(query, [userId]);
-		const row = result.rows[0] || {};
 		const payload = {};
-		selected.forEach((field) => {
-			const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-			payload[field] = row[key] ?? null;
-		});
+		const scalarFields = selected.filter((field) => fieldMap[field]);
+		let scalarRow = {};
+		if (scalarFields.length > 0) {
+			const query = `SELECT ${scalarFields.map((field) => fieldMap[field]).join(", ")}
+				FROM publishers p
+				LEFT JOIN dates fd ON p.founded_date_id = fd.id
+				WHERE p.user_id = $1`;
+			const result = await pool.query(query, [userId]);
+			scalarRow = result.rows[0] || {};
+			scalarFields.forEach((field) => {
+				const key = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+				payload[field] = scalarRow[key] ?? null;
+			});
+		}
+
+		if (selected.includes("websiteCoverage")) {
+			let totalPublishers = scalarRow.total_publishers ?? scalarRow.total ?? null;
+			let withWebsite = scalarRow.with_website ?? null;
+			if (totalPublishers === null || withWebsite === null) {
+				const coverageResult = await pool.query(
+					`SELECT COUNT(*) FILTER (WHERE deleted_at IS NULL)::int AS total,
+					        COUNT(*) FILTER (WHERE deleted_at IS NULL AND website IS NOT NULL AND website <> '')::int AS with_website
+					 FROM publishers
+					 WHERE user_id = $1`,
+					[userId]
+				);
+				totalPublishers = coverageResult.rows[0]?.total ?? 0;
+				withWebsite = coverageResult.rows[0]?.with_website ?? 0;
+			}
+			payload.websiteCoverage = {
+				withWebsite,
+				totalPublishers,
+				percentage: totalPublishers > 0 ? Number(((withWebsite / totalPublishers) * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("mostCommonPublisher")) {
+			const topResult = await pool.query(
+				`SELECT p.id, p.name, COUNT(b.id)::int AS book_count
+				 FROM publishers p
+				 JOIN books b ON b.publisher_id = p.id AND b.user_id = p.user_id AND b.deleted_at IS NULL
+				 WHERE p.user_id = $1 AND p.deleted_at IS NULL
+				 GROUP BY p.id, p.name
+				 ORDER BY book_count DESC, p.name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = topResult.rows[0];
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+			payload.mostCommonPublisher = row
+				? {
+					id: row.id,
+					name: row.name,
+					bookCount: row.book_count,
+					percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+				}
+				: null;
+		}
+
+		if (selected.includes("publishersWithOneBook")) {
+			const limitValue = oneOffLimit ?? 50;
+			const offsetValue = oneOffOffset ?? 0;
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+			const oneOffResult = await pool.query(
+				`SELECT p.id, p.name, COUNT(b.id)::int AS book_count
+				 FROM publishers p
+				 LEFT JOIN books b ON b.publisher_id = p.id AND b.user_id = p.user_id AND b.deleted_at IS NULL
+				 WHERE p.user_id = $1 AND p.deleted_at IS NULL
+				 GROUP BY p.id, p.name
+				 HAVING COUNT(b.id) = 1
+				 ORDER BY p.name ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.publishersWithOneBook = oneOffResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count,
+				percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+			}));
+		}
+
+		if (selected.includes("publishersWithNoBooks")) {
+			const limitValue = orphanLimit ?? 50;
+			const offsetValue = orphanOffset ?? 0;
+			const orphanResult = await pool.query(
+				`SELECT p.id, p.name, COUNT(b.id)::int AS book_count
+				 FROM publishers p
+				 LEFT JOIN books b ON b.publisher_id = p.id AND b.user_id = p.user_id AND b.deleted_at IS NULL
+				 WHERE p.user_id = $1 AND p.deleted_at IS NULL
+				 GROUP BY p.id, p.name
+				 HAVING COUNT(b.id) = 0
+				 ORDER BY p.name ASC
+				 LIMIT $2 OFFSET $3`,
+				[userId, limitValue, offsetValue]
+			);
+			payload.publishersWithNoBooks = orphanResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count
+			}));
+		}
+
+		if (selected.includes("oldestFoundedPublisher")) {
+			const oldestResult = await pool.query(
+				`SELECT p.id, p.name, fd.year AS founded_year
+				 FROM publishers p
+				 JOIN dates fd ON p.founded_date_id = fd.id
+				 WHERE p.user_id = $1 AND p.deleted_at IS NULL AND fd.year IS NOT NULL
+				 ORDER BY fd.year ASC, p.name ASC
+				 LIMIT 1`,
+				[userId]
+			);
+			const row = oldestResult.rows[0];
+			payload.oldestFoundedPublisher = row
+				? { id: row.id, name: row.name, foundedYear: row.founded_year }
+				: null;
+		}
+
+		if (selected.includes("breakdownPerPublisher")) {
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+			const breakdownResult = await pool.query(
+				`SELECT p.id, p.name,
+				        COUNT(b.id)::int AS book_count
+				 FROM publishers p
+				 LEFT JOIN books b ON b.publisher_id = p.id AND b.user_id = p.user_id AND b.deleted_at IS NULL
+				 WHERE p.user_id = $1 AND p.deleted_at IS NULL
+				 GROUP BY p.id, p.name
+				 ORDER BY p.name ASC`,
+				[userId]
+			);
+			payload.breakdownPerPublisher = breakdownResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count,
+				percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+			}));
+		}
 
 		return successResponse(res, 200, "Publisher stats retrieved successfully.", { stats: payload });
 	} catch (error) {
@@ -677,6 +869,7 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = parseId(req.params.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Publisher id must be a valid integer."]);
 	}
@@ -696,7 +889,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		return successResponse(res, 200, "Publisher retrieved successfully.", {
+		const payload = {
 			id: row.id,
 			name: row.name,
 			foundedDate: row.founded_date_id
@@ -706,7 +899,11 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			notes: row.notes,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at
-		});
+		};
+		if (returnStats) {
+			payload.stats = await fetchPublisherStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Publisher retrieved successfully.", payload);
 	} catch (error) {
 		logToFile("PUBLISHER_GET", {
 			status: "FAILURE",

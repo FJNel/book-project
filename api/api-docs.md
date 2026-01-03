@@ -68,6 +68,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /author/trash](#get-authortrash)
     - [POST /author/restore](#post-authorrestore)
     - [GET /author/stats](#get-authorstats)
+  - [Book Authors](#book-authors)
+    - [GET /bookauthor/stats](#get-bookauthorstats)
   - [Publishers](#publishers)
     - [GET /publisher](#get-publisher)
     - [GET /publisher/:id](#get-publisherid)
@@ -95,6 +97,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /bookseries/trash](#get-bookseriestrash)
     - [POST /bookseries/restore](#post-bookseriesrestore)
     - [GET /bookseries/stats](#get-bookseriesstats)
+  - [Book Series Links](#book-series-links)
+    - [GET /bookseriesbooks/stats](#get-bookseriesbooksstats)
   - [Languages](#languages)
     - [GET /languages](#get-languages)
     - [GET /languages/stats](#get-languagesstats)
@@ -117,8 +121,10 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [DELETE /storagelocation/:id](#delete-storagelocationid)
     - [GET /storagelocation/:id/bookcopies](#get-storagelocationidbookcopies)
     - [GET /storagelocation/bookcopies](#get-storagelocationbookcopies)
+    - [GET /storagelocation/stats](#get-storagelocationstats)
   - [Book Copies](#book-copies)
     - [GET /bookcopy](#get-bookcopy)
+    - [GET /bookcopy/stats](#get-bookcopystats)
     - [POST /bookcopy](#post-bookcopy)
     - [PUT /bookcopy](#put-bookcopy)
     - [PUT /bookcopy/:id](#put-bookcopyid)
@@ -126,6 +132,9 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [DELETE /bookcopy/:id](#delete-bookcopyid)
   - [Tags](#tags)
     - [GET /tags](#get-tags)
+    - [GET /tags/stats](#get-tagsstats)
+  - [Book Tags](#book-tags)
+    - [GET /booktags/stats](#get-booktagsstats)
   - [Search](#search)
     - [GET /search](#get-search)
   - [Import/Export](#importexport)
@@ -231,7 +240,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | Email-sending user actions (`DELETE /users/me`, `/users/me/request-email-change`, `/users/me/request-account-deletion` via `POST` or `DELETE`, `/users/me/change-password`, `/users/me/verify-*`) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Admin email actions (`POST /admin/users/send-verification`, `POST /admin/users/reset-password` and their `/:id` variants) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Admin account deletion (`POST /admin/users/handle-account-deletion` and `/:id` variant) | 2 requests | 10 minutes per admin user | Protected by `adminDeletionLimiter` and `sensitiveActionLimiter`. |
-| Stats endpoints (`/users/me/stats`, `/author/stats`, `/publisher/stats`, `/bookseries/stats`, `/book/stats`, `/booktype/stats`, `/languages/stats`) | 20 requests | 1 minute per authenticated user | Protected by `statsLimiter`; keyed by `user.id`. |
+| Stats endpoints (`/users/me/stats`, `/author/stats`, `/bookauthor/stats`, `/publisher/stats`, `/bookseries/stats`, `/bookseriesbooks/stats`, `/book/stats`, `/bookcopy/stats`, `/booktags/stats`, `/tags/stats`, `/booktype/stats`, `/languages/stats`, `/storagelocation/stats`) | 20 requests | 1 minute per authenticated user | Protected by `statsLimiter`; keyed by `user.id`. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/storagelocation/*`, `/bookcopy/*`, `/tags`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
@@ -533,6 +542,49 @@ This link will expire in <expiresIn> minutes.
 ```
 
 #### Example Responses
+
+- **Single Book (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.58",
+  "message": "Book retrieved successfully.",
+  "data": {
+    "id": 44,
+    "title": "The Hobbit",
+    "subtitle": null,
+    "isbn": "9780261103344",
+    "publicationDate": {
+      "id": 91,
+      "day": 21,
+      "month": 9,
+      "year": 1937,
+      "text": "21 September 1937"
+    },
+    "pageCount": 310,
+    "description": "A fantasy novel by J.R.R. Tolkien.",
+    "bookType": { "id": 1, "name": "Hardcover" },
+    "publisher": { "id": 4, "name": "Allen & Unwin" },
+    "stats": {
+      "copyCount": 2,
+      "authorCount": 1,
+      "tagCount": 3,
+      "languageCount": 1,
+      "seriesCount": 0,
+      "hasIsbn": true,
+      "hasPublicationDate": true,
+      "hasCoverImage": false,
+      "hasDescription": true,
+      "hasPublisher": true,
+      "hasBookType": true,
+      "hasPageCount": true
+    }
+  },
+  "errors": []
+}
+```
 
 <details>
 <summary>Error Responses</summary>
@@ -3062,6 +3114,23 @@ Please reach out to the user before fully deleting this account and all associat
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `topLimit` | integer | No | Limit for `mostCommonLanguages` (1–50). Defaults to 5. |
+| `comboLimit` | integer | No | Limit for `languageCombinations` (1–50). Defaults to 10. |
+| `orphanLimit` | integer | No | Limit for `authorsWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `authorsWithNoBooks` list. |
+| `timelineLimit` | integer | No | Limit for `authorDiscoveryTimeline` list (1–200). Defaults to 50. |
+| `timelineOffset` | integer | No | Offset for `authorDiscoveryTimeline` list. |
+| `breakdowns` | array | No | Breakdown types: `perAuthor`, `perBirthDecade`, `perAliveDeceased` (defaults to all). |
+| `orphanLimit` | integer | No | Limit for `seriesWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `seriesWithNoBooks` list. |
+| `oneOffLimit` | integer | No | Limit for `publishersWithOneBook` list (1–200). Defaults to 50. |
+| `oneOffOffset` | integer | No | Offset for `publishersWithOneBook` list. |
+| `orphanLimit` | integer | No | Limit for `publishersWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `publishersWithNoBooks` list. |
+| `orphanLimit` | integer | No | Limit for `authorsWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `authorsWithNoBooks` list. |
+| `timelineLimit` | integer | No | Limit for `authorDiscoveryTimeline` list (1–200). Defaults to 50. |
+| `timelineOffset` | integer | No | Offset for `authorDiscoveryTimeline` list. |
 
 Available fields:
 - `accountAgeDays`: Days since account creation.
@@ -3110,10 +3179,24 @@ Available fields:
   "message": "User stats retrieved successfully.",
   "data": {
     "stats": {
+      "accountAgeDays": 482,
+      "activityRecencyDays": 6,
+      "isVerified": true,
+      "passwordSet": true,
+      "passwordFreshnessDays": 45,
+      "profileCompletenessScore": 80,
       "books": 120,
+      "deletedBooks": 4,
       "authors": 48,
+      "deletedAuthors": 1,
       "publishers": 16,
-      "tags": 33
+      "deletedPublishers": 0,
+      "series": 7,
+      "tags": 33,
+      "languages": 3,
+      "storageLocations": 12,
+      "bookCopies": 145,
+      "apiKeys": 2
     }
   },
   "errors": []
@@ -3172,11 +3255,13 @@ Available fields:
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `returnStats` | boolean | No | When true and a single book type is returned, includes a `stats` object for that book type. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id` or `name` is provided (query string or JSON body), the endpoint returns a single book type instead of a list.
 If both `id` and `name` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+When `returnStats` is true, the response includes `stats` with `bookCount`, `percentageOfBooks`, and `avgPageCount` for the returned book type.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -3244,6 +3329,46 @@ You can provide these list controls via query string or JSON body. If both are p
 ```
 
 #### Example Responses
+
+- **Single Copy (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.41",
+  "message": "Book copy retrieved successfully.",
+  "data": {
+    "id": 21,
+    "bookId": 44,
+    "bookTitle": "The Hobbit",
+    "bookIsbn": "9780261103344",
+    "storageLocationId": 4,
+    "storageLocationPath": "Home -> Living Room",
+    "acquisitionStory": null,
+    "acquisitionDate": null,
+    "acquiredFrom": "Gift",
+    "acquisitionType": "Gift",
+    "acquisitionLocation": "Cape Town",
+    "notes": null,
+    "createdAt": "2025-12-12T08:11:10.000Z",
+    "updatedAt": "2025-12-12T08:11:10.000Z",
+    "stats": {
+      "copiesForBook": 2,
+      "duplicateCount": 1,
+      "isDuplicate": true,
+      "hasStorageLocation": true,
+      "hasAcquisitionStory": false,
+      "hasAcquisitionDate": false,
+      "hasAcquiredFrom": true,
+      "hasAcquisitionType": true,
+      "hasAcquisitionLocation": true,
+      "isMysteryCopy": true
+    }
+  },
+  "errors": []
+}
+```
 
 <details>
 <summary>Error Responses</summary>
@@ -3315,6 +3440,7 @@ Available fields:
 - `leastCollectedType`: Book type with the lowest non-zero count (null if no books).
 - `avgPageCountByType`: Average page count per type (null when no page counts exist).
 - `booksMissingType`: Count of active books with `book_type_id` = `null`.
+- `breakdownPerBookType`: Per-type counts, percentages, and average page counts.
 
 #### Validation & Edge Cases
 
@@ -3362,7 +3488,26 @@ Available fields:
         "bookCount": 12,
         "percentage": 60.0
       },
-      "booksMissingType": 3
+      "leastCollectedType": {
+        "id": 2,
+        "name": "Softcover",
+        "bookCount": 8,
+        "percentage": 40.0
+      },
+      "avgPageCountByType": [
+        { "id": 1, "name": "Hardcover", "avgPageCount": 510.25 },
+        { "id": 2, "name": "Softcover", "avgPageCount": 342.5 }
+      ],
+      "booksMissingType": 3,
+      "breakdownPerBookType": [
+        {
+          "id": 1,
+          "name": "Hardcover",
+          "bookCount": 12,
+          "percentage": 60.0,
+          "avgPageCount": 510.25
+        }
+      ]
     }
   },
   "errors": []
@@ -3402,14 +3547,29 @@ Available fields:
 | Path | `/booktype/:id` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned book type. Defaults to `false`. |
+
+#### Example Request Body
+
+```json
+{
+  "returnStats": true
+}
+```
 
 #### Validation & Edge Cases
 
@@ -3431,7 +3591,12 @@ Available fields:
     "name": "Softcover",
     "description": null,
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 8,
+      "percentageOfBooks": 40.0,
+      "avgPageCount": 342.5
+    }
   },
   "errors": []
 }
@@ -3501,6 +3666,7 @@ Available fields:
 | --- | --- | --- | --- |
 | `id` | integer | No | Book type id to confirm (query string or JSON body). |
 | `name` | string | Yes | Book type name to look up (query string or JSON body). |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned book type. Defaults to `false`. |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
@@ -3516,7 +3682,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ```json
 {
   "name": "Hardcover",
-  "nameOnly": false
+  "returnStats": true
 }
 ```
 
@@ -3535,7 +3701,12 @@ If `name` is provided in both the query string and JSON body, the JSON body take
     "name": "Hardcover",
     "description": "Hardback edition with rigid cover.",
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 12,
+      "percentageOfBooks": 60.0,
+      "avgPageCount": 510.25
+    }
   },
   "errors": []
 }
@@ -4279,11 +4450,13 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | `nameOnly` | boolean | No | When true, returns only `id` and `displayName`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `returnStats` | boolean | No | When true and a single author is returned, includes a `stats` object for that author. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id` or `displayName` is provided (query string or JSON body), the endpoint returns a single author instead of a list.
 If both `id` and `displayName` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+When `returnStats` is true, the response includes `stats` with `bookCount` and `percentageOfBooks` for the returned author.
 
 Use the `filter...` parameters for list filtering to avoid conflicts with the single-record lookup.
 
@@ -4430,14 +4603,29 @@ Authors without a birth/death date will not match the born/died filters.
 | Path | `/author/:id` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned author. Defaults to `false`. |
+
+#### Example Request Body
+
+```json
+{
+  "returnStats": true
+}
+```
 
 #### Validation & Edge Cases
 
@@ -4476,7 +4664,11 @@ Authors without a birth/death date will not match the born/died filters.
     },
     "bio": "Author of The Lord of the Rings.",
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 6,
+      "percentageOfBooks": 30.0
+    }
   },
   "errors": []
 }
@@ -4546,6 +4738,7 @@ Authors without a birth/death date will not match the born/died filters.
 | --- | --- | --- | --- |
 | `id` | integer | No | Author id to confirm (query string or JSON body). |
 | `displayName` | string | Yes | Display name to look up (query string or JSON body). |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned author. Defaults to `false`. |
 
 If `displayName` is provided in both the query string and JSON body, the JSON body takes precedence.
 
@@ -4564,7 +4757,7 @@ Edge cases:
 ```json
 {
   "displayName": "J.R.R. Tolkien",
-  "nameOnly": false
+  "returnStats": true
 }
 ```
 
@@ -4600,7 +4793,11 @@ Edge cases:
     },
     "bio": "Author of The Lord of the Rings.",
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 6,
+      "percentageOfBooks": 30.0
+    }
   },
   "errors": []
 }
@@ -5421,9 +5618,11 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 
 Available fields:
 - `total`: Count of active (non-deleted) authors.
+- `totalAuthors`: Count of active (non-deleted) authors (alias of `total`).
 - `deleted`: Count of soft-deleted authors.
 - `deceased`: Count of active authors marked as deceased.
 - `alive`: Count of active authors marked as not deceased.
+- `aliveDeceasedRatio`: Alive/deceased counts plus ratio (`deceased / alive`).
 - `withBirthDate`: Count of active authors with a birth date.
 - `withDeathDate`: Count of active authors with a death date.
 - `withBio`: Count of active authors with a non-empty bio.
@@ -5431,17 +5630,27 @@ Available fields:
 - `latestBirthYear`: Latest birth year across active authors (null if none).
 - `earliestDeathYear`: Earliest death year across active authors (null if none).
 - `latestDeathYear`: Latest death year across active authors (null if none).
+- `mostRepresentedAuthor`: Author with the most active books (includes `percentageOfBooks`).
+- `authorsWithNoBooks`: List of authors with zero active books.
+- `oldestAuthor`: Author with the earliest birth year (null if none).
+- `youngestAuthor`: Author with the latest birth year (null if none).
+- `authorDiscoveryTimeline`: Authors ordered by first added date (`createdAt`).
+- `breakdownPerAuthor`: Per-author book counts (includes `percentageOfBooks`).
+- `breakdownPerBirthDecade`: Per-decade author counts (includes `percentageOfAuthors`).
+- `breakdownPerAliveDeceased`: Per-status author counts (includes `percentageOfAuthors`).
 
 #### Validation & Edge Cases
 
 - If any supplied field is unknown, the API returns `400 Validation Error`.
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- `breakdowns` defaults to all (`perAuthor`, `perBirthDecade`, `perAliveDeceased`) when not specified.
 
 #### Example Request Body
 
 ```json
 {
-  "fields": ["total", "deceased", "earliestBirthYear", "latestDeathYear"]
+  "fields": ["totalAuthors", "aliveDeceasedRatio", "mostRepresentedAuthor", "authorsWithNoBooks"],
+  "orphanLimit": 25
 }
 ```
 
@@ -5457,10 +5666,47 @@ Available fields:
   "message": "Author stats retrieved successfully.",
   "data": {
     "stats": {
-      "total": 42,
-      "deceased": 18,
-      "earliestBirthYear": 1890,
-      "latestDeathYear": 2020
+      "totalAuthors": 42,
+      "aliveDeceasedRatio": {
+        "alive": 24,
+        "deceased": 18,
+        "deceasedToAliveRatio": 0.75
+      },
+      "mostRepresentedAuthor": {
+        "id": 7,
+        "displayName": "J.R.R. Tolkien",
+        "bookCount": 6,
+        "percentageOfBooks": 30.0
+      },
+      "oldestAuthor": {
+        "id": 3,
+        "displayName": "C.S. Lewis",
+        "birthYear": 1898
+      },
+      "youngestAuthor": {
+        "id": 18,
+        "displayName": "Sally Gardner",
+        "birthYear": 1954
+      },
+      "authorsWithNoBooks": [
+        {
+          "id": 19,
+          "displayName": "Bilbo Baggins",
+          "createdAt": "2025-12-01T10:12:41.000Z"
+        }
+      ],
+      "breakdownPerAliveDeceased": [
+        { "deceased": false, "authorCount": 24, "percentageOfAuthors": 57.1 },
+        { "deceased": true, "authorCount": 18, "percentageOfAuthors": 42.9 }
+      ],
+      "breakdownPerBirthDecade": [
+        { "decade": 1890, "authorCount": 2, "percentageOfAuthors": 6.7 },
+        { "decade": 1900, "authorCount": 4, "percentageOfAuthors": 13.3 }
+      ],
+      "breakdownPerAuthor": [
+        { "id": 7, "displayName": "J.R.R. Tolkien", "bookCount": 6, "percentageOfBooks": 30.0 },
+        { "id": 8, "displayName": "C.S. Lewis", "bookCount": 3, "percentageOfBooks": 15.0 }
+      ]
     }
   },
   "errors": []
@@ -5481,6 +5727,128 @@ Available fields:
   "data": {},
   "errors": [
     "Unknown stats fields: wyrm."
+  ]
+}
+```
+
+</details>
+
+## Book Authors
+
+### GET /bookauthor/stats
+
+- **Purpose:** Retrieve aggregate statistics about author usage on books.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookauthor/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `pairLimit` | integer | No | Limit for `collaborationPairs` list (1–50). Defaults to 10. |
+
+Available fields:
+- `averageAuthorsPerBook`: Average authors per active book (includes books with zero authors as 0).
+- `singleVsMultiBreakdown`: Counts of single-author, multi-author, and no-author books (includes percentages).
+- `authorRoleBreakdown`: Count of author roles (with `Unspecified` for empty roles, includes percentages).
+- `collaborationPairs`: Top author pairs that appear together on books (includes percentage of coauthored books).
+- `contributorDiversity`: Distinct authors / total active books.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- If there are no books, averages are `null` and diversity score is `0`.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["averageAuthorsPerBook", "singleVsMultiBreakdown", "collaborationPairs"],
+  "pairLimit": 10
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.71",
+  "message": "Book author stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "averageAuthorsPerBook": 1.4,
+      "singleVsMultiBreakdown": {
+        "totalBooks": 20,
+        "singleAuthorBooks": 12,
+        "multiAuthorBooks": 6,
+        "noAuthorBooks": 2,
+        "singleAuthorPercentage": 60.0,
+        "multiAuthorPercentage": 30.0,
+        "noAuthorPercentage": 10.0
+      },
+      "authorRoleBreakdown": [
+        { "role": "Author", "count": 18, "percentage": 75.0 },
+        { "role": "Editor", "count": 2, "percentage": 8.3 },
+        { "role": "Unspecified", "count": 4, "percentage": 16.7 }
+      ],
+      "contributorDiversity": {
+        "distinctAuthors": 22,
+        "totalBooks": 20,
+        "score": 1.1
+      },
+      "collaborationPairs": [
+        {
+          "authors": [
+            { "id": 7, "displayName": "J.R.R. Tolkien" },
+            { "id": 8, "displayName": "C.S. Lewis" }
+          ],
+          "bookCount": 2,
+          "percentageOfCoauthoredBooks": 50.0
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.11",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: coauthors."
   ]
 }
 ```
@@ -5519,10 +5887,12 @@ Available fields:
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `returnStats` | boolean | No | When true and a single publisher is returned, includes a `stats` object for that publisher. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id` or `name` is provided (query string or JSON body), the endpoint returns a single publisher instead of a list.
+When `returnStats` is true, the response includes `stats` with `bookCount` and `percentageOfBooks` for the returned publisher.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -5676,6 +6046,7 @@ For founded filters, the API compares using the earliest possible date from the 
 | --- | --- | --- | --- |
 | `id` | integer | No | Publisher id to confirm (query string or JSON body). |
 | `name` | string | Yes | Publisher name to look up (query string or JSON body). |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned publisher. Defaults to `false`. |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
@@ -5691,7 +6062,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ```json
 {
   "name": "Bloomsbury",
-  "nameOnly": false
+  "returnStats": true
 }
 ```
 
@@ -5718,7 +6089,11 @@ If `name` is provided in both the query string and JSON body, the JSON body take
     "website": "https://www.bloomsbury.com",
     "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 12,
+      "percentageOfBooks": 60.0
+    }
   },
   "errors": []
 }
@@ -5772,14 +6147,29 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Path | `/publisher/:id` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned publisher. Defaults to `false`. |
+
+#### Example Request Body
+
+```json
+{
+  "returnStats": true
+}
+```
 
 #### Validation & Edge Cases
 
@@ -5809,7 +6199,11 @@ If `name` is provided in both the query string and JSON body, the JSON body take
     "website": "https://www.bloomsbury.com",
     "notes": "Publisher of the Harry Potter series.",
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 12,
+      "percentageOfBooks": 60.0
+    }
   },
   "errors": []
 }
@@ -6551,12 +6945,19 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 Available fields:
 - `total`: Count of active (non-deleted) publishers.
+- `totalPublishers`: Count of active (non-deleted) publishers (alias of `total`).
 - `deleted`: Count of soft-deleted publishers.
 - `withFoundedDate`: Count of active publishers with a founded date.
 - `withWebsite`: Count of active publishers with a website.
 - `withNotes`: Count of active publishers with notes.
 - `earliestFoundedYear`: Earliest founded year across active publishers (null if none).
 - `latestFoundedYear`: Latest founded year across active publishers (null if none).
+- `mostCommonPublisher`: Publisher with the most active books (includes `percentageOfBooks`).
+- `publishersWithOneBook`: List of publishers with exactly one active book (includes `percentageOfBooks`).
+- `publishersWithNoBooks`: List of publishers with zero active books.
+- `oldestFoundedPublisher`: Publisher with the earliest founded year (null if none).
+- `websiteCoverage`: Percentage of active publishers with a website.
+- `breakdownPerPublisher`: Per-publisher book counts (includes `percentageOfBooks`).
 
 #### Validation & Edge Cases
 
@@ -6567,7 +6968,8 @@ Available fields:
 
 ```json
 {
-  "fields": ["total", "withWebsite", "earliestFoundedYear"]
+  "fields": ["totalPublishers", "mostCommonPublisher", "publishersWithOneBook", "websiteCoverage"],
+  "oneOffLimit": 10
 }
 ```
 
@@ -6583,9 +6985,42 @@ Available fields:
   "message": "Publisher stats retrieved successfully.",
   "data": {
     "stats": {
-      "total": 16,
-      "withWebsite": 9,
-      "earliestFoundedYear": 1937
+      "totalPublishers": 16,
+      "mostCommonPublisher": {
+        "id": 4,
+        "name": "Bloomsbury",
+        "bookCount": 12,
+        "percentageOfBooks": 60.0
+      },
+      "publishersWithOneBook": [
+        {
+          "id": 9,
+          "name": "Shire Press",
+          "bookCount": 1,
+          "percentageOfBooks": 5.0
+        }
+      ],
+      "publishersWithNoBooks": [
+        {
+          "id": 11,
+          "name": "Rivendell Press",
+          "bookCount": 0
+        }
+      ],
+      "oldestFoundedPublisher": {
+        "id": 2,
+        "name": "Allen & Unwin",
+        "foundedYear": 1914
+      },
+      "websiteCoverage": {
+        "withWebsite": 9,
+        "totalPublishers": 16,
+        "percentage": 56.2
+      },
+      "breakdownPerPublisher": [
+        { "id": 4, "name": "Bloomsbury", "bookCount": 12, "percentageOfBooks": 60.0 },
+        { "id": 9, "name": "Shire Press", "bookCount": 1, "percentageOfBooks": 5.0 }
+      ]
     }
   },
   "errors": []
@@ -6644,10 +7079,12 @@ Available fields:
 | `nameOnly` | boolean | No | When true, returns only `id` and `name`. Defaults to `false`. |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `returnStats` | boolean | No | When true and a single series is returned, includes a `stats` object for that series. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id` or `name` is provided (query string or JSON body), the endpoint returns a single series instead of a list.
+When `returnStats` is true, the response includes `stats` with counts/pages and order gap metrics for the returned series.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -6808,6 +7245,7 @@ For started/ended filters, the API compares using the earliest possible date fro
 | --- | --- | --- | --- |
 | `id` | integer | No | Series id to confirm (query string or JSON body). |
 | `name` | string | Yes | Series name to look up (query string or JSON body). |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned series. Defaults to `false`. |
 
 If `name` is provided in both the query string and JSON body, the JSON body takes precedence.
 
@@ -6822,7 +7260,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 ```json
 {
-  "name": "The Lord of the Rings"
+  "name": "The Lord of the Rings",
+  "returnStats": true
 }
 ```
 
@@ -6862,7 +7301,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 3,
+      "percentageOfBooks": 15.0,
+      "totalPages": 1210,
+      "avgPages": 403.33,
+      "nullBookOrderCount": 0,
+      "duplicateOrderNumbers": 0,
+      "gapCount": 0
+    }
   },
   "errors": []
 }
@@ -6916,14 +7364,29 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | Path | `/bookseries/:id` |
 | Authentication | `Authorization: Bearer <accessToken>` |
 | Rate Limit | 60 requests / minute / user |
-| Content-Type | N/A (no body) |
+| Content-Type | `application/json` (optional body) |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `returnStats` | boolean | No | When true, includes `stats` for the returned series. Defaults to `false`. |
+
+#### Example Request Body
+
+```json
+{
+  "returnStats": true
+}
+```
 
 #### Validation & Edge Cases
 
@@ -6966,7 +7429,16 @@ If `name` is provided in both the query string and JSON body, the JSON body take
       }
     ],
     "createdAt": "2025-01-10T09:15:23.000Z",
-    "updatedAt": "2025-01-14T16:58:41.000Z"
+    "updatedAt": "2025-01-14T16:58:41.000Z",
+    "stats": {
+      "bookCount": 3,
+      "percentageOfBooks": 15.0,
+      "totalPages": 1210,
+      "avgPages": 403.33,
+      "nullBookOrderCount": 0,
+      "duplicateOrderNumbers": 0,
+      "gapCount": 0
+    }
   },
   "errors": []
 }
@@ -7981,6 +8453,7 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 
 Available fields:
 - `total`: Count of active (non-deleted) series.
+- `totalSeries`: Count of active (non-deleted) series (alias of `total`).
 - `deleted`: Count of soft-deleted series.
 - `withDescription`: Count of active series with a description.
 - `withWebsite`: Count of active series with a website.
@@ -7988,6 +8461,12 @@ Available fields:
 - `avgBooksPerSeries`: Average number of books per active series.
 - `minBooksPerSeries`: Minimum number of books in any active series.
 - `maxBooksPerSeries`: Maximum number of books in any active series.
+- `largestSeries`: Series with the most active books (includes `percentageOfBooks`).
+- `seriesCompleteness`: Missing/duplicate order numbers across series.
+- `seriesWithNoBooks`: List of series with zero active books.
+- `newestSeriesAdded`: Most recently created series.
+- `oldestSeriesAdded`: Oldest created series.
+- `breakdownPerSeries`: Per-series counts, pages, and order gaps (includes `percentageOfBooks`).
 
 #### Validation & Edge Cases
 
@@ -7998,7 +8477,8 @@ Available fields:
 
 ```json
 {
-  "fields": ["total", "withBooks", "avgBooksPerSeries"]
+  "fields": ["totalSeries", "largestSeries", "seriesCompleteness", "seriesWithNoBooks"],
+  "orphanLimit": 25
 }
 ```
 
@@ -8014,9 +8494,48 @@ Available fields:
   "message": "Series stats retrieved successfully.",
   "data": {
     "stats": {
-      "total": 7,
-      "withBooks": 5,
-      "avgBooksPerSeries": 3.2
+      "totalSeries": 7,
+      "largestSeries": {
+        "id": 3,
+        "name": "Harry Potter",
+        "bookCount": 7,
+        "percentageOfBooks": 35.0
+      },
+      "seriesCompleteness": {
+        "missingBookOrderNumbers": 1,
+        "duplicateOrderNumbers": 2,
+        "nullBookOrderCount": 3
+      },
+      "seriesWithNoBooks": [
+        {
+          "id": 9,
+          "name": "Rohan Tales",
+          "createdAt": "2025-11-01T08:11:10.000Z"
+        }
+      ],
+      "newestSeriesAdded": {
+        "id": 12,
+        "name": "Gondor Chronicles",
+        "createdAt": "2026-01-02T10:12:41.000Z"
+      },
+      "oldestSeriesAdded": {
+        "id": 2,
+        "name": "The Lord of the Rings",
+        "createdAt": "2024-09-01T08:11:10.000Z"
+      },
+      "breakdownPerSeries": [
+        {
+          "id": 3,
+          "name": "Harry Potter",
+          "bookCount": 7,
+          "percentageOfBooks": 35.0,
+          "totalPages": 3400,
+          "avgPages": 485.71,
+          "nullBookOrderCount": 0,
+          "duplicateOrderNumbers": 0,
+          "gapCount": 0
+        }
+      ]
     }
   },
   "errors": []
@@ -8037,6 +8556,130 @@ Available fields:
   "data": {},
   "errors": [
     "Unknown stats fields: hobbits."
+  ]
+}
+```
+
+</details>
+
+## Book Series Links
+
+### GET /bookseriesbooks/stats
+
+- **Purpose:** Retrieve aggregate statistics about book/series links.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookseriesbooks/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+
+Available fields:
+- `booksInSeries`: Count of distinct active books linked to at least one series (includes `percentageOfBooks`).
+- `standalones`: Count of active books not linked to any series (includes `percentageOfBooks`).
+- `averageSeriesLengthBooks`: Average number of books per series (active books only).
+- `averageSeriesLengthPages`: Average total pages per series (null if no pages).
+- `outOfOrderEntries`: Null order count and gaps across series orders.
+- `booksInMultipleSeries`: Count of active books linked to more than one series (includes `percentageOfBooks`).
+- `breakdownPerSeries`: Per-series counts, pages, and order gaps (includes `percentageOfBooks`).
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Averages return `null` if no series/books exist.
+- Deleted books and deleted series are excluded from calculations.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["booksInSeries", "standalones", "averageSeriesLengthBooks", "outOfOrderEntries"]
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.68",
+  "message": "Book series link stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "booksInSeries": {
+        "count": 14,
+        "percentageOfBooks": 70.0
+      },
+      "standalones": {
+        "count": 6,
+        "percentageOfBooks": 30.0
+      },
+      "averageSeriesLengthBooks": 3.5,
+      "averageSeriesLengthPages": 1650.5,
+      "outOfOrderEntries": {
+        "nullBookOrderCount": 2,
+        "gapCount": 1
+      },
+      "booksInMultipleSeries": {
+        "count": 2,
+        "percentageOfBooks": 10.0
+      },
+      "breakdownPerSeries": [
+        {
+          "id": 3,
+          "name": "Harry Potter",
+          "bookCount": 7,
+          "percentageOfBooks": 35.0,
+          "totalPages": 3400,
+          "avgPages": 485.71,
+          "nullBookOrderCount": 0,
+          "duplicateOrderNumbers": 0,
+          "gapCount": 0
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.12",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: ordering."
   ]
 }
 ```
@@ -8131,9 +8774,15 @@ Available fields:
 Available fields:
 - `languagesInLibrary`: Count of distinct languages used by active books.
 - `mostCommonLanguage`: Language with the highest book count.
+- `mostCommonLanguages`: Top N languages by book count.
 - `rarestLanguage`: Language with the lowest non-zero book count.
 - `languageDiversityScore`: Distinct languages divided by total active books (0–1).
+- `booksWithSingleLanguage`: Books with exactly one language (counts + percentage).
+- `booksWithMultipleLanguages`: Books with more than one language (counts + percentage).
+- `booksMissingLanguage`: Books without any language link (counts + percentage).
+- `languageCombinations`: Common language pairs (counts + percentage).
 - `languageBreakdown`: List of languages with book counts and percentages.
+- `breakdownPerLanguage`: Per-language counts and percentages.
 
 #### Validation & Edge Cases
 
@@ -8145,7 +8794,9 @@ Available fields:
 
 ```json
 {
-  "fields": ["languagesInLibrary", "languageBreakdown", "mostCommonLanguage", "languageDiversityScore"]
+  "fields": ["languagesInLibrary", "languageBreakdown", "mostCommonLanguages", "languageCombinations"],
+  "topLimit": 3,
+  "comboLimit": 5
 }
 ```
 
@@ -8162,6 +8813,18 @@ Available fields:
   "data": {
     "stats": {
       "languagesInLibrary": 3,
+      "booksWithSingleLanguage": {
+        "count": 14,
+        "percentage": 56.0
+      },
+      "booksWithMultipleLanguages": {
+        "count": 4,
+        "percentage": 16.0
+      },
+      "booksMissingLanguage": {
+        "count": 7,
+        "percentage": 28.0
+      },
       "languageBreakdown": [
         {
           "id": 2,
@@ -8174,6 +8837,12 @@ Available fields:
           "name": "Afrikaans",
           "bookCount": 5,
           "percentage": 20.0
+        },
+        {
+          "id": 3,
+          "name": "Netherlands",
+          "bookCount": 2,
+          "percentage": 8.0
         }
       ],
       "mostCommonLanguage": {
@@ -8182,7 +8851,36 @@ Available fields:
         "bookCount": 18,
         "percentage": 72.0
       },
-      "languageDiversityScore": 0.12
+      "mostCommonLanguages": [
+        {
+          "id": 2,
+          "name": "English",
+          "bookCount": 18,
+          "percentage": 72.0
+        }
+      ],
+      "rarestLanguage": {
+        "id": 1,
+        "name": "Afrikaans",
+        "bookCount": 5,
+        "percentage": 20.0
+      },
+      "languageCombinations": [
+        {
+          "languages": ["English", "Afrikaans"],
+          "bookCount": 3,
+          "percentage": 12.0
+        }
+      ],
+      "languageDiversityScore": 0.12,
+      "breakdownPerLanguage": [
+        {
+          "id": 2,
+          "name": "English",
+          "bookCount": 18,
+          "percentage": 72.0
+        }
+      ]
     }
   },
   "errors": []
@@ -8242,10 +8940,12 @@ Available fields:
 | `nameOnly` | boolean | No | When true, returns only `id` and `title` (overrides `view`). |
 | `limit` | integer | No | Limits list results (1-200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
+| `returnStats` | boolean | No | When true and a single book is returned, includes a `stats` object for that book. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id`, `isbn`, or `title` is provided (query string or JSON body), the endpoint returns a single book instead of a list.
+When `returnStats` is true, the response includes `stats` with counts and metadata flags for the returned book.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -9237,19 +9937,30 @@ Available fields:
 - `deleted`: Count of soft-deleted books.
 - `withIsbn`: Count of active books with an ISBN.
 - `withoutIsbn`: Count of active books without an ISBN.
+- `isbnBreakdown`: ISBN vs non-ISBN counts with percentages.
 - `withPublicationDate`: Count of active books with a publication date.
 - `withCoverImage`: Count of active books with a cover image URL.
 - `withDescription`: Count of active books with a description.
 - `withBookType`: Count of active books with a book type.
 - `withPublisher`: Count of active books with a publisher.
+- `withPageCount`: Count of active books with a page count.
 - `avgPageCount`: Average page count across active books (null if none).
+- `medianPageCount`: Median page count across active books (null if none).
 - `minPageCount`: Minimum page count across active books (null if none).
 - `maxPageCount`: Maximum page count across active books (null if none).
+- `longestBook`: Book with the highest page count (null if none).
+- `shortestBook`: Book with the lowest page count (null if none).
 - `withTags`: Count of active books linked to at least one tag.
 - `withLanguages`: Count of active books linked to at least one language.
 - `withAuthors`: Count of active books linked to at least one author.
 - `withSeries`: Count of active books linked to at least one series.
 - `totalCopies`: Total number of book copies across active books.
+- `publicationYearHistogram`: Histogram of books by publication year (with percentages).
+- `oldestPublicationYear`: Oldest publication year (null if none).
+- `newestPublicationYear`: Newest publication year (null if none).
+- `metadataCompleteness`: Missing metadata counts and percentages.
+- `recentlyAdded`: Books added in the last 7/30/365 days.
+- `recentlyEdited`: Books edited in the last 7/30/365 days.
 
 #### Validation & Edge Cases
 
@@ -9277,8 +9988,70 @@ Available fields:
   "data": {
     "stats": {
       "total": 120,
+      "deleted": 4,
       "withIsbn": 80,
-      "totalCopies": 145
+      "withoutIsbn": 40,
+      "isbnBreakdown": {
+        "withIsbn": 80,
+        "withoutIsbn": 40,
+        "withIsbnPercentage": 66.7,
+        "withoutIsbnPercentage": 33.3
+      },
+      "withPublicationDate": 92,
+      "withCoverImage": 55,
+      "withDescription": 70,
+      "withBookType": 110,
+      "withPublisher": 96,
+      "withPageCount": 98,
+      "avgPageCount": 412.5,
+      "medianPageCount": 398.0,
+      "minPageCount": 92,
+      "maxPageCount": 1240,
+      "longestBook": {
+        "id": 88,
+        "title": "The Silmarillion",
+        "pageCount": 1240
+      },
+      "shortestBook": {
+        "id": 12,
+        "title": "The Tales of Beedle the Bard",
+        "pageCount": 92
+      },
+      "withTags": 68,
+      "withLanguages": 74,
+      "withAuthors": 102,
+      "withSeries": 26,
+      "totalCopies": 145,
+      "publicationYearHistogram": [
+        { "year": 1937, "bookCount": 3, "percentageOfBooks": 2.5 },
+        { "year": 1954, "bookCount": 5, "percentageOfBooks": 4.2 }
+      ],
+      "oldestPublicationYear": 1937,
+      "newestPublicationYear": 2023,
+      "metadataCompleteness": {
+        "missingCover": 65,
+        "missingDescription": 50,
+        "missingPublisher": 24,
+        "missingBookType": 10,
+        "missingPublicationDate": 28,
+        "missingPageCount": 22,
+        "missingCoverPercentage": 54.2,
+        "missingDescriptionPercentage": 41.7,
+        "missingPublisherPercentage": 20.0,
+        "missingBookTypePercentage": 8.3,
+        "missingPublicationDatePercentage": 23.3,
+        "missingPageCountPercentage": 18.3
+      },
+      "recentlyAdded": {
+        "last7Days": 3,
+        "last30Days": 12,
+        "last365Days": 55
+      },
+      "recentlyEdited": {
+        "last7Days": 5,
+        "last30Days": 18,
+        "last365Days": 62
+      }
     }
   },
   "errors": []
@@ -9337,6 +10110,7 @@ Available fields:
 | `id` | integer | No | Location id to fetch (query or body). |
 | `path` | string | No | Location path to fetch (query or body). |
 | `nameOnly` | boolean | No | When true, returns only `id`, `name`, and `path`. |
+| `returnStats` | boolean | No | When true and a single location is returned, includes `stats` for that location. Defaults to `false`. |
 | `limit` | integer | No | Limit list results (1–200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
 
@@ -9357,6 +10131,7 @@ Available fields:
 </details>
 
 If both `id` and `path` are provided, they must refer to the same record or the API returns `400 Validation Error`.
+When `returnStats` is true, the response includes `stats` with `directCopyCount`, `nestedCopyCount`, and percentages for the returned location.
 
 #### Validation & Edge Cases
 
@@ -9368,16 +10143,40 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 ```json
 {
-  "nameOnly": false,
-  "sortBy": "path",
-  "order": "asc",
-  "limit": 100,
-  "offset": 0,
-  "filterPathContains": "Home"
+  "path": "Home -> Living Room",
+  "returnStats": true
 }
 ```
 
 #### Example Responses
+
+- **Response (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.42",
+  "message": "Storage location retrieved successfully.",
+  "data": {
+    "id": 4,
+    "name": "Living Room",
+    "parentId": 1,
+    "notes": null,
+    "path": "Home -> Living Room",
+    "createdAt": "2025-01-10T10:12:11.000Z",
+    "updatedAt": "2025-01-10T10:12:11.000Z",
+    "stats": {
+      "path": "Home -> Living Room",
+      "directCopyCount": 2,
+      "nestedCopyCount": 12,
+      "directPercentage": 8.0,
+      "nestedPercentage": 48.0
+    }
+  },
+  "errors": []
+}
+```
 
 <details>
 <summary>Error Responses</summary>
@@ -10142,6 +10941,202 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 </details>
 
+### GET /storagelocation/stats
+
+- **Purpose:** Retrieve aggregate statistics about storage locations and copy distribution.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/storagelocation/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `emptyLimit` | integer | No | Limit for `emptyLocations` list (1–200). Defaults to 50. |
+| `emptyOffset` | integer | No | Offset for `emptyLocations` list. |
+
+Available fields:
+- `totalLocations`: Count of storage locations.
+- `maxDepth`: Maximum depth of the location tree.
+- `largestLocation`: Location with most direct book copies (no nested counts).
+- `emptyLocations`: List of locations with zero direct book copies.
+- `locationDistribution`: Percentage of copies per top-level location.
+- `mostCrowdedBranch`: Top-level location with the most descendant copies.
+- `breakdownPerLocation`: Per-location direct and nested copy counts (with path), plus percentages.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+- Percentages are `0` when no copies exist.
+- Copy counts exclude books in the trash.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["totalLocations", "locationDistribution", "mostCrowdedBranch", "emptyLocations"],
+  "emptyLimit": 20
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Storage location stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "totalLocations": 12,
+      "locationDistribution": [
+        {
+          "id": 1,
+          "name": "Home",
+          "copyCount": 18,
+          "percentage": 72.0
+        },
+        {
+          "id": 2,
+          "name": "Work",
+          "copyCount": 7,
+          "percentage": 28.0
+        }
+      ],
+      "mostCrowdedBranch": {
+        "id": 1,
+        "name": "Home",
+        "copyCount": 18,
+        "percentage": 72.0
+      },
+      "emptyLocations": [
+        {
+          "id": 7,
+          "name": "Spare Shelf",
+          "path": "Home -> Study -> Spare Shelf",
+          "directCopyCount": 0
+        }
+      ],
+      "largestLocation": {
+        "id": 4,
+        "name": "Shelf A",
+        "path": "Home -> Living Room -> Shelf A",
+        "directCopyCount": 6
+      },
+      "maxDepth": 4,
+      "breakdownPerLocation": [
+        {
+          "id": 1,
+          "path": "Home",
+          "directCopyCount": 0,
+          "nestedCopyCount": 18,
+          "directPercentage": 0.0,
+          "nestedPercentage": 72.0
+        },
+        {
+          "id": 3,
+          "path": "Home -> Living Room",
+          "directCopyCount": 2,
+          "nestedCopyCount": 12,
+          "directPercentage": 8.0,
+          "nestedPercentage": 48.0
+        },
+        {
+          "id": 4,
+          "path": "Home -> Living Room -> Shelf A",
+          "directCopyCount": 6,
+          "nestedCopyCount": 6,
+          "directPercentage": 24.0,
+          "nestedPercentage": 24.0
+        },
+        {
+          "id": 5,
+          "path": "Home -> Living Room -> Shelf B",
+          "directCopyCount": 4,
+          "nestedCopyCount": 4,
+          "directPercentage": 16.0,
+          "nestedPercentage": 16.0
+        },
+        {
+          "id": 6,
+          "path": "Home -> Study",
+          "directCopyCount": 1,
+          "nestedCopyCount": 6,
+          "directPercentage": 4.0,
+          "nestedPercentage": 24.0
+        },
+        {
+          "id": 7,
+          "path": "Home -> Study -> Spare Shelf",
+          "directCopyCount": 0,
+          "nestedCopyCount": 0,
+          "directPercentage": 0.0,
+          "nestedPercentage": 0.0
+        },
+        {
+          "id": 2,
+          "path": "Work",
+          "directCopyCount": 0,
+          "nestedCopyCount": 7,
+          "directPercentage": 0.0,
+          "nestedPercentage": 28.0
+        },
+        {
+          "id": 8,
+          "path": "Work -> Office",
+          "directCopyCount": 7,
+          "nestedCopyCount": 7,
+          "directPercentage": 28.0,
+          "nestedPercentage": 28.0
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.21",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: branches."
+  ]
+}
+```
+
+</details>
+
 ## Book Copies
 
 ### GET /bookcopy
@@ -10175,10 +11170,12 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 | `limit` | integer | No | Limit list results (1–200). |
 | `offset` | integer | No | Offset for list pagination (0+). |
 | `includeNested` | boolean | No | When filtering by location, include nested locations (default true). |
+| `returnStats` | boolean | No | When true and a single book copy is returned, includes a `stats` object for that copy. Defaults to `false`. |
 
 #### Optional Lookup (query or body)
 
 When `id` is provided (query string or JSON body), the endpoint returns a single book copy instead of a list.
+When `returnStats` is true, the response includes `stats` with duplicate/storage/acquisition flags for the returned copy.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -10267,6 +11264,136 @@ Notes:
   "data": {},
   "errors": [
     "The requested book copy could not be located."
+  ]
+}
+```
+
+</details>
+
+### GET /bookcopy/stats
+
+- **Purpose:** Retrieve aggregate statistics about book copies.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/bookcopy/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `breakdownLimit` | integer | No | Limit for breakdown lists (1–200). Defaults to 50. |
+
+Available fields:
+- `totalCopies`: Total number of active copies.
+- `uniqueBooks`: Distinct books represented by copies.
+- `duplicateCopies`: Total copies minus distinct books.
+- `uniqueVsDuplicate`: Unique vs duplicate counts with percentages.
+- `mostDuplicatedBook`: Book with the most copies.
+- `storageCoverage`: Copies with a storage location (counts + percentage).
+- `acquisitionTimeline`: Copies acquired per month/year.
+- `acquiredFromBreakdown`: Breakdown of `acquired_from` values.
+- `topAcquisitionType`: Most common acquisition type.
+- `topAcquisitionLocation`: Most common acquisition location.
+- `storyRichCopies`: Copies with acquisition story (counts + percentage).
+- `mysteryCopies`: Copies missing acquisition date/type/from/location (counts + percentage).
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["totalCopies", "uniqueVsDuplicate", "storageCoverage", "acquiredFromBreakdown"],
+  "breakdownLimit": 10
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.52",
+  "message": "Book copy stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "totalCopies": 145,
+      "uniqueVsDuplicate": {
+        "uniqueBooks": 120,
+        "duplicateCopies": 25,
+        "uniqueBooksPercentage": 82.8,
+        "duplicateCopiesPercentage": 17.2
+      },
+      "storageCoverage": {
+        "withStorageLocation": 110,
+        "totalCopies": 145,
+        "percentage": 75.9
+      },
+      "acquiredFromBreakdown": [
+        { "value": "Gift", "count": 20, "percentage": 13.8 },
+        { "value": "Bookshop", "count": 15, "percentage": 10.3 }
+      ],
+      "mostDuplicatedBook": {
+        "bookId": 44,
+        "title": "The Hobbit",
+        "copyCount": 3,
+        "percentageOfCopies": 2.1
+      },
+      "storyRichCopies": {
+        "count": 30,
+        "percentage": 20.7
+      },
+      "mysteryCopies": {
+        "count": 62,
+        "percentage": 42.8
+      },
+      "acquisitionTimeline": [
+        { "year": 2024, "month": 12, "copyCount": 6 },
+        { "year": 2025, "month": 1, "copyCount": 4 }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.17",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: lineage."
   ]
 }
 ```
@@ -10956,6 +12083,240 @@ Notes:
   "data": {},
   "errors": [
     "Search query (q) must be provided."
+  ]
+}
+```
+
+</details>
+
+### GET /tags/stats
+
+- **Purpose:** Retrieve aggregate statistics about your tags.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/tags/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `leastLimit` | integer | No | Limit for `leastUsedTags` list (1–200). Defaults to 50. |
+| `unusedLimit` | integer | No | Limit for `unusedTags` list (1–200). Defaults to 50. |
+
+Available fields:
+- `totalTags`: Total number of tags.
+- `mostUsedTag`: Tag linked to the most active books.
+- `leastUsedTags`: Tags used by exactly one active book.
+- `unusedTags`: Tags not linked to any active book (can happen if tags were created but never used, or only used on deleted books).
+- `tagGrowth`: Tags created in the last 30/90 days.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["totalTags", "mostUsedTag", "unusedTags", "tagGrowth"],
+  "unusedLimit": 10
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.41",
+  "message": "Tag stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "totalTags": 18,
+      "mostUsedTag": {
+        "id": 3,
+        "name": "Fantasy",
+        "bookCount": 12,
+        "percentageOfBooks": 40.0
+      },
+      "leastUsedTags": [
+        { "id": 10, "name": "Mythic", "bookCount": 1, "percentageOfBooks": 3.3 }
+      ],
+      "unusedTags": [
+        { "id": 15, "name": "Wishlist" }
+      ],
+      "tagGrowth": {
+        "last30Days": 2,
+        "last90Days": 6
+      }
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.18",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: sparkle."
+  ]
+}
+```
+
+</details>
+
+## Book Tags
+
+### GET /booktags/stats
+
+- **Purpose:** Retrieve aggregate statistics about tag usage on books.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `GET` |
+| Path | `/booktags/stats` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` (optional body) |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `pairLimit` | integer | No | Limit for `coOccurringTags` (1–50). Defaults to 10. |
+| `breakdownLimit` | integer | No | Limit for `tagBreakdown` (1–200). Defaults to 50. |
+
+Available fields:
+- `averageTagsPerBook`: Average tags per active book.
+- `untaggedBooks`: Books with zero tags (counts + percentage).
+- `mostTaggedBook`: Book with the most tags.
+- `coOccurringTags`: Top tag pairs appearing on the same book.
+- `tagEntropy`: Entropy score showing how balanced tag usage is.
+- `tagBreakdown`: Per-tag usage counts with percentages.
+
+#### Validation & Edge Cases
+
+- If any supplied field is unknown, the API returns `400 Validation Error`.
+- If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
+
+#### Example Request Body
+
+```json
+{
+  "fields": ["averageTagsPerBook", "coOccurringTags", "tagEntropy", "tagBreakdown"],
+  "pairLimit": 5,
+  "breakdownLimit": 10
+}
+```
+
+#### Example Responses
+
+- **Stats Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.53",
+  "message": "Book tag stats retrieved successfully.",
+  "data": {
+    "stats": {
+      "averageTagsPerBook": 2.4,
+      "untaggedBooks": {
+        "count": 12,
+        "percentage": 20.0
+      },
+      "mostTaggedBook": {
+        "id": 44,
+        "title": "The Hobbit",
+        "tagCount": 7,
+        "percentageOfBooks": 1.7
+      },
+      "coOccurringTags": [
+        {
+          "tags": ["Fantasy", "Adventure"],
+          "bookCount": 8,
+          "percentageOfBooks": 13.3
+        }
+      ],
+      "tagEntropy": {
+        "totalUses": 130,
+        "distinctTagsUsed": 16,
+        "entropy": 2.43,
+        "normalizedEntropy": 0.88
+      },
+      "tagBreakdown": [
+        {
+          "id": 3,
+          "name": "Fantasy",
+          "bookCount": 12,
+          "percentageOfBooks": 40.0,
+          "percentageOfTagUses": 9.2
+        }
+      ]
+    }
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.21",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Unknown stats fields: overlap."
   ]
 }
 ```

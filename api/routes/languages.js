@@ -7,6 +7,19 @@ const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 
+function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
+	if (value === undefined || value === null || value === "") return { value: null };
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed)) {
+		return { error: `${fieldLabel} must be an integer.` };
+	}
+	if (parsed < min || (max !== null && parsed > max)) {
+		const range = max !== null ? `between ${min} and ${max}` : `greater than or equal to ${min}`;
+		return { error: `${fieldLabel} must be ${range}.` };
+	}
+	return { value: parsed };
+}
+
 // GET /languages/stats - Language usage statistics
 router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -18,9 +31,15 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const availableFields = new Set([
 		"languagesInLibrary",
 		"mostCommonLanguage",
+		"mostCommonLanguages",
 		"rarestLanguage",
 		"languageDiversityScore",
-		"languageBreakdown"
+		"booksWithSingleLanguage",
+		"booksWithMultipleLanguages",
+		"booksMissingLanguage",
+		"languageCombinations",
+		"languageBreakdown",
+		"breakdownPerLanguage"
 	]);
 	const selected = fields.length > 0 ? fields : Array.from(availableFields);
 	const invalid = selected.filter((field) => !availableFields.has(field));
@@ -36,6 +55,17 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			[userId]
 		);
 		const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+
+		const { value: topLimit, error: topLimitError } = parseOptionalInt(params.topLimit, "topLimit", { min: 1, max: 50 });
+		if (topLimitError) {
+			return errorResponse(res, 400, "Validation Error", [topLimitError]);
+		}
+		const { value: comboLimit, error: comboLimitError } = parseOptionalInt(params.comboLimit, "comboLimit", { min: 1, max: 50 });
+		if (comboLimitError) {
+			return errorResponse(res, 400, "Validation Error", [comboLimitError]);
+		}
+		const topLimitValue = topLimit ?? 5;
+		const comboLimitValue = comboLimit ?? 10;
 
 		let distinctLanguages = null;
 		if (selected.includes("languagesInLibrary") || selected.includes("languageDiversityScore")) {
@@ -58,7 +88,48 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			payload.languageDiversityScore = diversity;
 		}
 
-		if (selected.includes("mostCommonLanguage") || selected.includes("rarestLanguage") || selected.includes("languageBreakdown")) {
+		if (selected.includes("booksWithSingleLanguage")
+			|| selected.includes("booksWithMultipleLanguages")
+			|| selected.includes("booksMissingLanguage")) {
+			const langCountsResult = await pool.query(
+				`SELECT bl.book_id, COUNT(*)::int AS lang_count
+				 FROM book_languages bl
+				 JOIN books b ON bl.book_id = b.id
+				 WHERE bl.user_id = $1 AND b.deleted_at IS NULL
+				 GROUP BY bl.book_id`,
+				[userId]
+			);
+			const counts = langCountsResult.rows.map((row) => row.lang_count);
+			const withLanguages = counts.length;
+			const singleLanguage = counts.filter((count) => count === 1).length;
+			const multiLanguage = counts.filter((count) => count > 1).length;
+			const missingLanguage = totalBooks - withLanguages;
+
+			if (selected.includes("booksWithSingleLanguage")) {
+				payload.booksWithSingleLanguage = {
+					count: singleLanguage,
+					percentage: totalBooks > 0 ? Number(((singleLanguage / totalBooks) * 100).toFixed(1)) : 0
+				};
+			}
+			if (selected.includes("booksWithMultipleLanguages")) {
+				payload.booksWithMultipleLanguages = {
+					count: multiLanguage,
+					percentage: totalBooks > 0 ? Number(((multiLanguage / totalBooks) * 100).toFixed(1)) : 0
+				};
+			}
+			if (selected.includes("booksMissingLanguage")) {
+				payload.booksMissingLanguage = {
+					count: missingLanguage,
+					percentage: totalBooks > 0 ? Number(((missingLanguage / totalBooks) * 100).toFixed(1)) : 0
+				};
+			}
+		}
+
+		if (selected.includes("mostCommonLanguage")
+			|| selected.includes("mostCommonLanguages")
+			|| selected.includes("rarestLanguage")
+			|| selected.includes("languageBreakdown")
+			|| selected.includes("breakdownPerLanguage")) {
 			const countsResult = await pool.query(
 				`SELECT l.id, l.name, COUNT(DISTINCT bl.book_id)::int AS book_count
 				 FROM book_languages bl
@@ -73,13 +144,19 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			const most = rows.find((row) => row.book_count > 0) || null;
 			const least = [...rows].reverse().find((row) => row.book_count > 0) || null;
 
-			if (selected.includes("languageBreakdown")) {
-				payload.languageBreakdown = rows.map((row) => ({
+			if (selected.includes("languageBreakdown") || selected.includes("breakdownPerLanguage")) {
+				const breakdown = rows.map((row) => ({
 					id: row.id,
 					name: row.name,
 					bookCount: row.book_count,
 					percentage: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
 				}));
+				if (selected.includes("languageBreakdown")) {
+					payload.languageBreakdown = breakdown;
+				}
+				if (selected.includes("breakdownPerLanguage")) {
+					payload.breakdownPerLanguage = breakdown;
+				}
 			}
 
 			if (selected.includes("mostCommonLanguage")) {
@@ -103,6 +180,39 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 					}
 					: null;
 			}
+
+			if (selected.includes("mostCommonLanguages")) {
+				payload.mostCommonLanguages = rows.slice(0, topLimitValue).map((row) => ({
+					id: row.id,
+					name: row.name,
+					bookCount: row.book_count,
+					percentage: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+				}));
+			}
+		}
+
+		if (selected.includes("languageCombinations")) {
+			const comboResult = await pool.query(
+				`SELECT l1.name AS language_a, l2.name AS language_b, COUNT(DISTINCT bl1.book_id)::int AS book_count
+				 FROM book_languages bl1
+				 JOIN book_languages bl2
+				   ON bl1.book_id = bl2.book_id
+				  AND bl1.language_id < bl2.language_id
+				  AND bl1.user_id = bl2.user_id
+				 JOIN books b ON bl1.book_id = b.id
+				 JOIN languages l1 ON bl1.language_id = l1.id
+				 JOIN languages l2 ON bl2.language_id = l2.id
+				 WHERE bl1.user_id = $1 AND b.deleted_at IS NULL
+				 GROUP BY l1.name, l2.name
+				 ORDER BY book_count DESC, l1.name ASC, l2.name ASC
+				 LIMIT $2`,
+				[userId, comboLimitValue]
+			);
+			payload.languageCombinations = comboResult.rows.map((row) => ({
+				languages: [row.language_a, row.language_b],
+				bookCount: row.book_count,
+				percentage: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0
+			}));
 		}
 
 		return successResponse(res, 200, "Language stats retrieved successfully.", { stats: payload });
