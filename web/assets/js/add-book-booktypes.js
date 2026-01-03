@@ -32,16 +32,17 @@
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
-    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+    const log = (...args) => console.log('[Add Book][Book Types]', ...args);
 
     bindModalLock(modalEl, modalState);
 
     function validateName() {
-        const name = nameInput.value.trim();
-        if (!name) {
-            setHelpText(nameHelp, 'Book Type Name is required.', true);
+        if (!nameInput.value.trim()) {
+            setHelpText(nameHelp, 'This field is required.', true);
             return false;
         }
+        const name = nameInput.value.trim();
         if (name.length < 2 || name.length > 100) {
             setHelpText(nameHelp, 'Book Type Name must be between 2 and 100 characters.', true);
             return false;
@@ -118,8 +119,10 @@
             clearModalValues('addBookTypeModal', [nameInput, descInput]);
             hideAlert(errorAlert);
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            log('Book type saved:', created);
         } catch (error) {
             showAlert(errorAlert, 'Unable to save book type. Please try again.');
+            log('Failed to save book type:', error);
         } finally {
             setLocked(false);
         }
@@ -130,6 +133,7 @@
         clearHelpText(nameHelp);
         clearHelpText(descHelp);
         hideAlert(errorAlert);
+        log('Book type modal reset.');
     }
 
     modalEl.addEventListener('hidden.bs.modal', () => {

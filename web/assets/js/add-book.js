@@ -12,6 +12,7 @@
         isValidUrl,
         ensureHelpText
     } = addBook.utils;
+    const log = (...args) => console.log('[Add Book]', ...args);
 
     const selectors = {
         title: byId('twoEdtTitle'),
@@ -89,11 +90,11 @@
     }
 
     const patterns = {
-        title: /^[A-Za-z0-9 .,'"\\-:;!?()&/]+$/,
-        subtitle: /^[A-Za-z0-9 .,'"\\-:;!?()&/]+$/,
-        acquisitionType: /^[A-Za-z0-9 .,'"\\-:;!?()&/]+$/,
-        personText: /^[A-Za-z0-9 .,'"\\-:;!?()&/]+$/,
-        authorRole: /^[A-Za-z0-9 .,'"\\-:;!?()&/]+$/
+        title: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
+        subtitle: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
+        acquisitionType: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
+        personText: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
+        authorRole: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/
     };
 
     function renderBookTypes() {
@@ -103,6 +104,7 @@
             selectors.bookType.disabled = true;
             setHelpText(selectors.bookTypeHelp, 'No book types available. Please add a new book type.', true);
             selectors.bookTypeDesc.textContent = 'No Book Type selected.';
+            log('Book types loaded: none available.');
             return;
         }
         selectors.bookType.disabled = false;
@@ -113,6 +115,7 @@
             option.textContent = type.name;
             selectors.bookType.appendChild(option);
         });
+        log('Book types loaded:', addBook.state.bookTypes.length);
     }
 
     function updateBookTypeDisplay() {
@@ -120,11 +123,13 @@
         if (!selectedId || selectedId === 'none') {
             addBook.state.selections.bookTypeId = null;
             selectors.bookTypeDesc.textContent = 'No Book Type selected.';
+            log('Book type cleared.');
             return;
         }
         addBook.state.selections.bookTypeId = Number.parseInt(selectedId, 10);
         const type = addBook.state.bookTypes.find((entry) => String(entry.id) === selectedId);
         selectors.bookTypeDesc.textContent = type && type.description ? type.description : 'No description available.';
+        log('Book type selected:', type || selectedId);
     }
 
     function renderPublishers() {
@@ -136,6 +141,7 @@
             selectors.publisherFounded.textContent = 'No Publisher selected.';
             selectors.publisherWebsite.textContent = 'No Publisher selected.';
             selectors.publisherNotes.textContent = 'No Publisher selected.';
+            log('Publishers loaded: none available.');
             return;
         }
         selectors.publisher.disabled = false;
@@ -146,6 +152,7 @@
             option.textContent = publisher.name;
             selectors.publisher.appendChild(option);
         });
+        log('Publishers loaded:', addBook.state.publishers.length);
     }
 
     function updatePublisherDisplay() {
@@ -155,6 +162,7 @@
             selectors.publisherFounded.textContent = 'No Publisher selected.';
             selectors.publisherWebsite.textContent = 'No Publisher selected.';
             selectors.publisherNotes.textContent = 'No Publisher selected.';
+            log('Publisher cleared.');
             return;
         }
         addBook.state.selections.publisherId = Number.parseInt(selectedId, 10);
@@ -162,6 +170,7 @@
         selectors.publisherFounded.textContent = publisher?.foundedDate?.text || 'No founded date provided.';
         selectors.publisherWebsite.textContent = publisher?.website || 'No website provided.';
         selectors.publisherNotes.textContent = publisher?.notes || 'No notes provided.';
+        log('Publisher selected:', publisher || selectedId);
     }
 
     function renderLocations() {
@@ -171,6 +180,7 @@
             selectors.storageLocation.disabled = true;
             setHelpText(selectors.storageLocationHelp, 'No storage locations available. Please add a new storage location.', true);
             selectors.storageLocationNotes.textContent = 'No storage location selected.';
+            log('Storage locations loaded: none available.');
             return;
         }
         selectors.storageLocation.disabled = false;
@@ -181,6 +191,7 @@
             option.textContent = location.path || location.name;
             selectors.storageLocation.appendChild(option);
         });
+        log('Storage locations loaded:', addBook.state.locations.length);
     }
 
     function updateLocationDisplay() {
@@ -189,12 +200,14 @@
             addBook.state.selections.storageLocationId = null;
             addBook.state.selections.storageLocationPath = null;
             selectors.storageLocationNotes.textContent = 'No storage location selected.';
+            log('Storage location cleared.');
             return;
         }
         const location = addBook.state.locations.find((entry) => String(entry.id) === selectedId);
         addBook.state.selections.storageLocationId = Number.parseInt(selectedId, 10);
         addBook.state.selections.storageLocationPath = location?.path || null;
         selectors.storageLocationNotes.textContent = location?.notes || 'No notes provided.';
+        log('Storage location selected:', location || selectedId);
     }
 
     function renderAuthors() {
@@ -206,6 +219,7 @@
             placeholder.id = 'noAuthorsPlaceholder';
             placeholder.textContent = 'No authors selected yet.';
             selectors.authorList.appendChild(placeholder);
+            log('Rendered authors: none selected.');
             return;
         }
 
@@ -252,7 +266,8 @@
                 otherRoleInput.addEventListener('input', () => {
                     author.customRole = otherRoleInput.value.trim();
                     if (!author.customRole) {
-                        helpEl.classList.add('d-none');
+                        helpEl.textContent = 'This field is required.';
+                        helpEl.classList.remove('d-none');
                         return;
                     }
                     if (author.customRole.length < 2 || author.customRole.length > 100 || !patterns.authorRole.test(author.customRole)) {
@@ -262,6 +277,10 @@
                         helpEl.classList.add('d-none');
                     }
                 });
+                if (author.role === 'Other' && !author.customRole) {
+                    helpEl.textContent = 'This field is required.';
+                    helpEl.classList.remove('d-none');
+                }
             }
             if (removeBtn) {
                 removeBtn.addEventListener('click', () => {
@@ -271,6 +290,7 @@
             }
             selectors.authorList.appendChild(li);
         });
+        log('Rendered authors:', addBook.state.selections.authors.length);
     }
 
     function renderSeries() {
@@ -282,6 +302,7 @@
             placeholder.id = 'noSeriesPlaceholder';
             placeholder.textContent = 'No series selected yet.';
             selectors.seriesList.appendChild(placeholder);
+            log('Rendered series: none selected.');
             return;
         }
 
@@ -336,6 +357,7 @@
             }
             selectors.seriesList.appendChild(li);
         });
+        log('Rendered series:', addBook.state.selections.series.length);
     }
 
     function showSearchResults(container, items, onSelect) {
@@ -372,6 +394,7 @@
             selectors.authorSearch.value = '';
             hideSearchResults(selectors.authorResults);
             renderAuthors();
+            log('Author added from search:', author);
         });
     }
 
@@ -399,17 +422,21 @@
             selectors.seriesSearch.value = '';
             hideSearchResults(selectors.seriesResults);
             renderSeries();
+            log('Series added from search:', series);
         });
     }
 
     async function loadLanguages() {
+        log('Loading languages...');
         const response = await apiFetch('/languages', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.languages.all = response.ok ? (data.data?.languages || []) : [];
         addBook.events.dispatchEvent(new CustomEvent('languages:loaded', { detail: addBook.state.languages.all }));
+        log('Languages loaded:', addBook.state.languages.all.length);
     }
 
     async function loadBookTypes() {
+        log('Loading book types...');
         const response = await apiFetch('/booktype', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.bookTypes = response.ok ? (data.data?.bookTypes || []) : [];
@@ -417,6 +444,7 @@
     }
 
     async function loadPublishers() {
+        log('Loading publishers...');
         const response = await apiFetch('/publisher', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.publishers = response.ok ? (data.data?.publishers || []) : [];
@@ -424,22 +452,27 @@
     }
 
     async function loadAuthors() {
+        log('Loading authors...');
         const response = await apiFetch('/author', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.authors = response.ok ? (data.data?.authors || []) : [];
         const hasAuthors = addBook.state.authors.length > 0;
         setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, !hasAuthors, 'No authors available yet. Add a new author to begin.');
+        log('Authors loaded:', addBook.state.authors.length);
     }
 
     async function loadSeries() {
+        log('Loading series...');
         const response = await apiFetch('/bookseries', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.series = response.ok ? (data.data?.series || []) : [];
         const hasSeries = addBook.state.series.length > 0;
         setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, !hasSeries, 'No series available yet. Add a new series to begin.');
+        log('Series loaded:', addBook.state.series.length);
     }
 
     async function loadLocations() {
+        log('Loading storage locations...');
         const response = await apiFetch('/storagelocation', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.locations = response.ok ? (data.data?.storageLocations || []) : [];
@@ -591,6 +624,11 @@
             }
         });
 
+        if (errors.length) {
+            log('Main form validation errors:', errors);
+        } else {
+            log('Main form validation passed.');
+        }
         return errors;
     };
 
@@ -600,6 +638,7 @@
         renderBookTypes();
         selectors.bookType.value = String(event.detail.id);
         updateBookTypeDisplay();
+        log('Book type created event received:', event.detail);
     });
 
     addBook.events.addEventListener('publisher:created', (event) => {
@@ -608,6 +647,7 @@
         renderPublishers();
         selectors.publisher.value = String(event.detail.id);
         updatePublisherDisplay();
+        log('Publisher created event received:', event.detail);
     });
 
     addBook.events.addEventListener('author:created', (event) => {
@@ -616,6 +656,7 @@
         addBook.state.selections.authors.push({ id: event.detail.id, displayName: event.detail.displayName, role: null, customRole: '' });
         renderAuthors();
         setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, false, '');
+        log('Author created event received:', event.detail);
     });
 
     addBook.events.addEventListener('series:created', (event) => {
@@ -624,6 +665,7 @@
         addBook.state.selections.series.push({ id: event.detail.id, name: event.detail.name, order: null });
         renderSeries();
         setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, false, '');
+        log('Series created event received:', event.detail);
     });
 
     addBook.events.addEventListener('location:created', (event) => {
@@ -632,6 +674,7 @@
         renderLocations();
         selectors.storageLocation.value = String(event.detail.id);
         updateLocationDisplay();
+        log('Location created event received:', event.detail);
     });
 
     function attachEvents() {
@@ -639,10 +682,10 @@
         selectors.publisher.addEventListener('change', updatePublisherDisplay);
         selectors.storageLocation.addEventListener('change', updateLocationDisplay);
 
-        selectors.title.addEventListener('input', () => {
+        const validateTitleField = () => {
             const value = selectors.title.value.trim();
             if (!value) {
-                setHelpText(selectors.titleHelp, 'Title is required.', true);
+                setHelpText(selectors.titleHelp, 'This field is required.', true);
                 return;
             }
             if (value.length < 2 || value.length > 255) {
@@ -654,7 +697,8 @@
                 return;
             }
             clearHelpText(selectors.titleHelp);
-        });
+        };
+        selectors.title.addEventListener('input', validateTitleField);
         selectors.subtitle.addEventListener('input', () => {
             const value = selectors.subtitle.value.trim();
             if (!value) {
@@ -789,9 +833,13 @@
                 clearHelpText(selectors.copyNotesHelp);
             }
         });
+
+        selectors.title.addEventListener('blur', validateTitleField);
+        validateTitleField();
     }
 
     async function initialize() {
+        log('Initializing Add Book page...');
         attachEvents();
         renderAuthors();
         renderSeries();
@@ -803,6 +851,7 @@
             loadSeries(),
             loadLocations()
         ]);
+        log('Initialization complete.');
     }
 
     document.addEventListener('DOMContentLoaded', initialize);

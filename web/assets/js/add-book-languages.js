@@ -4,6 +4,7 @@
     if (!addBook || !addBook.utils) return;
 
     const { byId, setHelpText, clearHelpText } = addBook.utils;
+    const log = (...args) => console.log('[Add Book][Languages]', ...args);
 
     const languageSelect = byId('twoCmbLanguage');
     const addButton = byId('twoBtnAddLanguage');
@@ -77,6 +78,7 @@
         const selectedId = languageSelect.value;
         if (!selectedId || selectedId === 'none') {
             setHelpText(helpEl, 'Please select a language to add.', true);
+            log('Add language failed: no selection.');
             return;
         }
         const lang = addBook.state.languages.all.find((entry) => String(entry.id) === selectedId);
@@ -84,17 +86,20 @@
         addBook.state.languages.selected.push(lang);
         refreshSelectOptions();
         renderSelected();
+        log('Language added:', lang);
     }
 
     function removeLanguage(id) {
         addBook.state.languages.selected = addBook.state.languages.selected.filter((lang) => lang.id !== id);
         refreshSelectOptions();
         renderSelected();
+        log('Language removed:', id);
     }
 
     addBook.events.addEventListener('languages:loaded', () => {
         refreshSelectOptions();
         renderSelected();
+        log('Languages event received:', addBook.state.languages.all.length);
     });
 
     addButton.addEventListener('click', addLanguage);

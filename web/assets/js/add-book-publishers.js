@@ -40,7 +40,8 @@
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
-    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+    const log = (...args) => console.log('[Add Book][Publishers]', ...args);
 
     bindModalLock(modalEl, modalState);
 
@@ -59,6 +60,10 @@
     }
 
     function validateName() {
+        if (!nameInput.value.trim()) {
+            setHelpText(nameHelp, 'This field is required.', true);
+            return false;
+        }
         const error = getNameError();
         if (error) {
             setHelpText(nameHelp, error, true);
@@ -147,6 +152,7 @@
 
         if (errors.length) {
             showAlert(errorAlert, errors.join(' '));
+            log('Validation errors:', errors);
         }
         return valid;
     }
@@ -197,8 +203,10 @@
             clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
             hideAlert(errorAlert);
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            log('Publisher saved:', created);
         } catch (error) {
             showAlert(errorAlert, 'Unable to save publisher. Please try again.');
+            log('Failed to save publisher:', error);
         } finally {
             setLocked(false);
         }
@@ -211,6 +219,7 @@
         clearHelpText(websiteHelp);
         clearHelpText(notesHelp);
         hideAlert(errorAlert);
+        log('Publisher modal reset.');
     }
 
     foundedInput.addEventListener('input', () => setPartialDateHelp(foundedInput, foundedHelp));

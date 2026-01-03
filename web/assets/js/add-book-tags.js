@@ -4,13 +4,14 @@
     if (!addBook || !addBook.utils) return;
 
     const { byId, setHelpText, clearHelpText, normalizeTag } = addBook.utils;
+    const log = (...args) => console.log('[Add Book][Tags]', ...args);
 
     const input = byId('sevenEdtBookTag');
     const addButton = byId('sevenBtnAddBookTag');
     const listContainer = byId('selectedSeriesList-1');
     const placeholder = byId('noSeriesPlaceholder-1');
     const helpEl = byId('sevenBookTagHelp');
-    const tagPattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
+    const tagPattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
 
     if (!input || !addButton || !listContainer) return;
 
@@ -72,16 +73,19 @@
         const error = validateTag(normalized);
         if (error) {
             setHelpText(helpEl, error, true);
+            log('Tag validation error:', error);
             return;
         }
         addBook.state.selections.tags.push(normalized);
         input.value = '';
         renderTags();
+        log('Tag added:', normalized);
     }
 
     function removeTag(tag) {
         addBook.state.selections.tags = addBook.state.selections.tags.filter((item) => item !== tag);
         renderTags();
+        log('Tag removed:', tag);
     }
 
     input.addEventListener('input', () => {

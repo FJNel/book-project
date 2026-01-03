@@ -39,8 +39,9 @@
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
-    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
     let cachedLocations = [];
+    const log = (...args) => console.log('[Add Book][Locations]', ...args);
 
     const baseNameHelp = ensureHelpText(baseNameInput, 'eightLocationBaseNameHelp');
     const baseNotesHelp = ensureHelpText(baseNotesInput, 'eightLocationBaseNotesHelp');
@@ -90,7 +91,7 @@
         if (baseRadio.checked) {
             const name = baseNameInput.value.trim();
             if (!name) {
-                setHelpText(baseNameHelp, 'Location Name is required.', true);
+                setHelpText(baseNameHelp, 'This field is required.', true);
             } else if (name.length < 2 || name.length > 150) {
                 setHelpText(baseNameHelp, 'Location Name must be between 2 and 150 characters.', true);
             } else if (!namePattern.test(name)) {
@@ -112,14 +113,14 @@
 
         const parentId = parentSelect.value;
         if (!parentId || parentId === 'none') {
-            setHelpText(parentHelp, 'Parent Location is required for nested locations.', true);
+            setHelpText(parentHelp, 'This field is required.', true);
         } else {
             clearHelpText(parentHelp);
         }
 
         const name = nestedNameInput.value.trim();
         if (!name) {
-            setHelpText(nestedNameHelp, 'Location Name is required.', true);
+            setHelpText(nestedNameHelp, 'This field is required.', true);
         } else if (name.length < 2 || name.length > 150) {
             setHelpText(nestedNameHelp, 'Location Name must be between 2 and 150 characters.', true);
         } else if (!namePattern.test(name)) {
@@ -154,12 +155,17 @@
         toggleDisabled([baseNameInput, baseNotesInput], !isBase);
         toggleDisabled([parentSelect, nestedNameInput, nestedNotesInput], isBase);
         updateInlineHelp();
+        log('Location mode:', {
+            allowNested,
+            selected: isBase ? 'base' : 'nested'
+        });
     }
 
     addBook.events.addEventListener('locations:loaded', (event) => {
         cachedLocations = event.detail || [];
         populateParents(cachedLocations);
         applyLocationMode();
+        log('Locations loaded:', cachedLocations.length);
     });
 
     addBook.events.addEventListener('location:created', (event) => {
@@ -167,6 +173,7 @@
         cachedLocations = cachedLocations.concat(event.detail);
         populateParents(cachedLocations);
         applyLocationMode();
+        log('Location created:', event.detail);
     });
 
     function validate() {
@@ -206,6 +213,7 @@
 
         if (errors.length) {
             showAlert(errorAlert, errors.join(' '));
+            log('Validation errors:', errors);
             return false;
         }
         return true;
@@ -273,8 +281,10 @@
             ]);
             hideAlert(errorAlert);
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            log('Location saved:', created);
         } catch (error) {
             showAlert(errorAlert, 'Unable to save location. Please try again.');
+            log('Failed to save location:', error);
         } finally {
             setLocked(false);
         }
@@ -293,6 +303,7 @@
         baseRadio.checked = true;
         applyLocationMode();
         hideAlert(errorAlert);
+        log('Location modal reset.');
     }
 
     baseRadio.addEventListener('change', applyLocationMode);

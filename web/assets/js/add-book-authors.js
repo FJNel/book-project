@@ -46,7 +46,8 @@
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
-    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+    const log = (...args) => console.log('[Add Book][Authors]', ...args);
 
     bindModalLock(modalEl, modalState);
 
@@ -65,6 +66,10 @@
     }
 
     function validateDisplayName() {
+        if (!displayNameInput.value.trim()) {
+            setHelpText(displayNameHelp, 'This field is required.', true);
+            return false;
+        }
         const error = getDisplayNameError();
         if (error) {
             setHelpText(displayNameHelp, error, true);
@@ -194,6 +199,7 @@
 
         if (errors.length) {
             showAlert(errorAlert, errors.join(' '));
+            log('Validation errors:', errors);
         }
 
         return valid;
@@ -265,8 +271,10 @@
             ]);
             hideAlert(errorAlert);
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            log('Author saved:', created);
         } catch (error) {
             showAlert(errorAlert, 'Unable to save author. Please try again.');
+            log('Failed to save author:', error);
         } finally {
             setLocked(false);
         }
@@ -289,6 +297,7 @@
         clearHelpText(deathHelp);
         clearHelpText(bioHelp);
         hideAlert(errorAlert);
+        log('Author modal reset.');
     }
 
     birthDateInput.addEventListener('input', () => setPartialDateHelp(birthDateInput, birthHelp));

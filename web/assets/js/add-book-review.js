@@ -4,6 +4,7 @@
     if (!addBook || !addBook.utils) return;
 
     const { byId, showAlert, hideAlert, setButtonLoading, bindModalLock, setModalLocked } = addBook.utils;
+    const log = (...args) => console.log('[Add Book][Review]', ...args);
 
     const reviewButton = byId('reviewAddBookBtn');
     const modalEl = byId('reviewAddBookModal');
@@ -153,14 +154,21 @@
         hideAlert(dryRunAlert);
         confirmButton.disabled = true;
 
+        if (typeof addBook.validateMainForm !== 'function') {
+            showAlert(errorAlert, 'Validation is not available yet. Please refresh the page.');
+            log('validateMainForm is unavailable.', addBook);
+            return;
+        }
         const validationErrors = addBook.validateMainForm();
         if (validationErrors.length) {
             showAlert(errorAlert, validationErrors.join(' '));
+            log('Dry run blocked by validation errors.');
             return;
         }
 
         const payload = addBook.buildPayload({ dryRun: true });
         renderSummary(payload);
+        log('Running dry run with payload:', payload);
 
         try {
             const response = await apiFetch('/book', {
@@ -172,13 +180,16 @@
                 const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Validation failed.';
                 showAlert(errorAlert, errors);
                 confirmButton.disabled = true;
+                log('Dry run failed:', errors);
                 return;
             }
             showAlert(dryRunAlert, data.message || 'Ready to be added.');
             confirmButton.disabled = false;
+            log('Dry run succeeded.');
         } catch (error) {
             showAlert(errorAlert, 'Unable to validate the book right now.');
             confirmButton.disabled = true;
+            log('Dry run exception:', error);
         }
     }
 
@@ -187,6 +198,7 @@
         setModalLocked(modalEl, true);
         setButtonLoading(confirmButton, confirmSpinner, true);
         const payload = addBook.buildPayload({ dryRun: false });
+        log('Submitting book payload:', payload);
 
         try {
             const response = await apiFetch('/book', {
@@ -197,13 +209,16 @@
             if (!response.ok) {
                 const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add book.';
                 showAlert(errorAlert, errors);
+                log('Submit failed:', errors);
                 return;
             }
             const id = data.data?.id;
             const target = id ? `${redirectBase}/${id}` : redirectBase;
+            log('Book created. Redirecting to:', target);
             window.location.href = target;
         } catch (error) {
             showAlert(errorAlert, 'Unable to add the book right now.');
+            log('Submit exception:', error);
         } finally {
             setButtonLoading(confirmButton, confirmSpinner, false);
             modalState.locked = false;
