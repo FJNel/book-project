@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "title": "Undergoing Maintenance",
   "message": "The Book Project is currently undergoing maintenance.",
   "disclaimer": "You can continue using the site, but some features may be unavailable or unreliable."
