@@ -556,6 +556,25 @@
             bookOrder: series.order || undefined
         }));
 
+        const storageLocationId = addBook.state.selections.storageLocationId || null;
+        const storageLocationPath = addBook.state.selections.storageLocationPath || null;
+        const acquisitionTypeValue = selectors.acquisitionType.value.trim();
+
+        const bookCopy = {
+            acquisitionStory: selectors.acquisitionStory.value.trim() || null,
+            acquisitionDate: acquisitionParsed.value || null,
+            acquiredFrom: selectors.acquiredFrom.value.trim() || null,
+            acquisitionType: acquisitionTypeValue && acquisitionTypeValue !== 'none' ? acquisitionTypeValue : null,
+            acquisitionLocation: selectors.acquisitionLocation.value.trim() || null,
+            notes: selectors.copyNotes.value.trim() || null
+        };
+        if (storageLocationId) {
+            bookCopy.storageLocationId = storageLocationId;
+            if (storageLocationPath) {
+                bookCopy.storageLocationPath = storageLocationPath;
+            }
+        }
+
         const payload = {
             title: selectors.title.value.trim(),
             subtitle: selectors.subtitle.value.trim() || null,
@@ -570,16 +589,7 @@
             languageIds: addBook.state.languages.selected.map((lang) => lang.id),
             tags: addBook.state.selections.tags,
             series: seriesPayload,
-            bookCopy: {
-                storageLocationId: addBook.state.selections.storageLocationId || null,
-                storageLocationPath: addBook.state.selections.storageLocationPath || null,
-                acquisitionStory: selectors.acquisitionStory.value.trim() || null,
-                acquisitionDate: acquisitionParsed.value || null,
-                acquiredFrom: selectors.acquiredFrom.value.trim() || null,
-                acquisitionType: selectors.acquisitionType.value.trim() || null,
-                acquisitionLocation: selectors.acquisitionLocation.value.trim() || null,
-                notes: selectors.copyNotes.value.trim() || null
-            },
+            bookCopy,
             dryRun
         };
 
@@ -649,9 +659,10 @@
             errors.push('Acquired from contains unsupported characters.');
         }
 
-        if (selectors.acquisitionType.value.trim().length > 100) {
+        const acquisitionTypeValue = selectors.acquisitionType.value.trim();
+        if (acquisitionTypeValue && acquisitionTypeValue !== 'none' && acquisitionTypeValue.length > 100) {
             errors.push('Acquisition type must be 100 characters or fewer.');
-        } else if (selectors.acquisitionType.value.trim() && !patterns.acquisitionType.test(selectors.acquisitionType.value.trim())) {
+        } else if (acquisitionTypeValue && acquisitionTypeValue !== 'none' && !patterns.acquisitionType.test(acquisitionTypeValue)) {
             errors.push('Acquisition type contains unsupported characters.');
         }
 
@@ -845,7 +856,7 @@
         });
         selectors.acquisitionType.addEventListener('change', () => {
             const value = selectors.acquisitionType.value.trim();
-            if (!value) {
+            if (!value || value === 'none') {
                 clearHelpText(selectors.acquisitionTypeHelp);
                 return;
             }
