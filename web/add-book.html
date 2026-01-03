@@ -181,7 +181,7 @@
                             <option value="Magazine">Magazine</option>
                             <option value="Hardcover">Hardcover</option>
                         </select><small class="form-text" id="threeBookTypeHelp"></small></div>
-                    <div id="bookTypeDescriptionDisplay"><label class="form-label mb-1" for="threeLblBookTypeDescription"><strong>Selected Book Type Description:</strong></label>
+                    <div id="bookTypeDescriptionDisplay" class="d-none"><span class="form-label mb-1"><strong>Selected Book Type Description:</strong></span>
                         <p id="threeLblBookTypeDescription">No Book Type selected.</p>
                     </div>
                     <div>
@@ -249,9 +249,9 @@
                             <option value="Penguin Random House">Penguin Random House</option>
                             <option value="HarperCollins">HarperCollins</option>
                         </select><small class="form-text" id="bookPublisherHelp"></small></div>
-                    <div id="bookPublisherDescriptionDisplay"><label class="form-label mb-1" for="fiveLblPublisherFoundedDate"><strong>The selected Publisher's founded date:</strong></label>
-                        <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p><label class="form-label mb-1" for="fiveLblPublisherWebsite"><strong>The selected Publisher's website:</strong></label>
-                        <p id="fiveLblPublisherWebsite">No Publisher selected.</p><label class="form-label mb-1" for="fiveLblPublisherNotes"><strong>The selected Publisher's notes:</strong></label>
+                    <div id="bookPublisherDescriptionDisplay" class="d-none"><span class="form-label mb-1"><strong>The selected Publisher's founded date:</strong></span>
+                        <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p><span class="form-label mb-1"><strong>The selected Publisher's website:</strong></span>
+                        <p id="fiveLblPublisherWebsite">No Publisher selected.</p><span class="form-label mb-1"><strong>The selected Publisher's notes:</strong></span>
                         <p id="fiveLblPublisherNotes">No Publisher selected.</p>
                     </div>
                     <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher.</p><button class="btn btn-outline-secondary" id="fiveBtnAddPublisher" type="button" data-bs-toggle="modal" data-bs-target="#addPublisherModal">Add new Publisher<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
@@ -355,7 +355,7 @@
                                                 <option value="Uni Residence -> Black Bookshelf -> Top Rack">Uni Residence -> Black Bookshelf -> Top Rack</option>
                                                 <option value="Uni Residence -> Old Bookshelf">Uni Residence -> Old Bookshelf</option>
                                             </select><small class="form-text" id="eightBookLocationHelp"></small></div>
-                                        <div class="mt-2" id="storageLocationNotesDisplay"><label class="form-label mb-1"><strong>Selected location notes:</strong></label>
+                                        <div class="mt-2 d-none" id="storageLocationNotesDisplay"><span class="form-label mb-1"><strong>Selected location notes:</strong></span>
                                             <p id="eightLblLocationNotes" class="mb-0">No storage location selected.</p>
                                         </div>
                                         <p class="fs-6 text-secondary mb-1">Storage locations are hierarchical. You can store books broadly (for example, "<em>Home</em>") or very specifically (for example, "<em>Home → Study → Top Shelf</em>").</p>
@@ -675,6 +675,9 @@
     <script src="assets/js/add-book-tags.js"></script>
     <script src="assets/js/add-book-locations.js"></script>
     <script src="assets/js/add-book-cover.js"></script>
+    <script>
+        window.ADD_BOOK_REDIRECT_BASE = 'temp/books.html?id=';
+    </script>
     <script src="assets/js/add-book-review.js"></script>
     <script src="assets/js/add-book.js"></script>
 </body>

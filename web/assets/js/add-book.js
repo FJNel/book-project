@@ -104,6 +104,7 @@
             selectors.bookType.disabled = true;
             setHelpText(selectors.bookTypeHelp, 'No book types available. Please add a new book type.', true);
             selectors.bookTypeDesc.textContent = 'No Book Type selected.';
+            selectors.bookTypeDesc?.parentElement?.classList.add('d-none');
             log('Book types loaded: none available.');
             return;
         }
@@ -115,6 +116,7 @@
             option.textContent = type.name;
             selectors.bookType.appendChild(option);
         });
+        updateBookTypeDisplay();
         log('Book types loaded:', addBook.state.bookTypes.length);
     }
 
@@ -123,12 +125,18 @@
         if (!selectedId || selectedId === 'none') {
             addBook.state.selections.bookTypeId = null;
             selectors.bookTypeDesc.textContent = 'No Book Type selected.';
+            if (selectors.bookTypeDesc?.parentElement) {
+                selectors.bookTypeDesc.parentElement.classList.add('d-none');
+            }
             log('Book type cleared.');
             return;
         }
         addBook.state.selections.bookTypeId = Number.parseInt(selectedId, 10);
         const type = addBook.state.bookTypes.find((entry) => String(entry.id) === selectedId);
         selectors.bookTypeDesc.textContent = type && type.description ? type.description : 'No description available.';
+        if (selectors.bookTypeDesc?.parentElement) {
+            selectors.bookTypeDesc.parentElement.classList.remove('d-none');
+        }
         log('Book type selected:', type || selectedId);
     }
 
@@ -141,6 +149,7 @@
             selectors.publisherFounded.textContent = 'No Publisher selected.';
             selectors.publisherWebsite.textContent = 'No Publisher selected.';
             selectors.publisherNotes.textContent = 'No Publisher selected.';
+            selectors.publisherFounded?.parentElement?.classList.add('d-none');
             log('Publishers loaded: none available.');
             return;
         }
@@ -152,6 +161,7 @@
             option.textContent = publisher.name;
             selectors.publisher.appendChild(option);
         });
+        updatePublisherDisplay();
         log('Publishers loaded:', addBook.state.publishers.length);
     }
 
@@ -162,6 +172,9 @@
             selectors.publisherFounded.textContent = 'No Publisher selected.';
             selectors.publisherWebsite.textContent = 'No Publisher selected.';
             selectors.publisherNotes.textContent = 'No Publisher selected.';
+            if (selectors.publisherFounded?.parentElement) {
+                selectors.publisherFounded.parentElement.classList.add('d-none');
+            }
             log('Publisher cleared.');
             return;
         }
@@ -170,6 +183,9 @@
         selectors.publisherFounded.textContent = publisher?.foundedDate?.text || 'No founded date provided.';
         selectors.publisherWebsite.textContent = publisher?.website || 'No website provided.';
         selectors.publisherNotes.textContent = publisher?.notes || 'No notes provided.';
+        if (selectors.publisherFounded?.parentElement) {
+            selectors.publisherFounded.parentElement.classList.remove('d-none');
+        }
         log('Publisher selected:', publisher || selectedId);
     }
 
@@ -180,6 +196,7 @@
             selectors.storageLocation.disabled = true;
             setHelpText(selectors.storageLocationHelp, 'No storage locations available. Please add a new storage location.', true);
             selectors.storageLocationNotes.textContent = 'No storage location selected.';
+            selectors.storageLocationNotes?.parentElement?.classList.add('d-none');
             log('Storage locations loaded: none available.');
             return;
         }
@@ -192,6 +209,7 @@
             selectors.storageLocation.appendChild(option);
         });
         log('Storage locations loaded:', addBook.state.locations.length);
+        updateLocationDisplay();
     }
 
     function updateLocationDisplay() {
@@ -200,6 +218,7 @@
             addBook.state.selections.storageLocationId = null;
             addBook.state.selections.storageLocationPath = null;
             selectors.storageLocationNotes.textContent = 'No storage location selected.';
+            selectors.storageLocationNotes?.parentElement?.classList.add('d-none');
             log('Storage location cleared.');
             return;
         }
@@ -207,6 +226,7 @@
         addBook.state.selections.storageLocationId = Number.parseInt(selectedId, 10);
         addBook.state.selections.storageLocationPath = location?.path || null;
         selectors.storageLocationNotes.textContent = location?.notes || 'No notes provided.';
+        selectors.storageLocationNotes?.parentElement?.classList.remove('d-none');
         log('Storage location selected:', location || selectedId);
     }
 
@@ -237,6 +257,8 @@
             }
             if (roleSelect) {
                 roleSelect.removeAttribute('id');
+                roleSelect.id = `authorRole-${author.id}`;
+                roleSelect.name = `authorRole-${author.id}`;
                 roleSelect.value = author.role || 'none';
                 roleSelect.addEventListener('change', () => {
                     author.role = roleSelect.value === 'none' ? null : roleSelect.value;
@@ -255,6 +277,8 @@
             }
             if (otherRoleInput) {
                 otherRoleInput.removeAttribute('id');
+                otherRoleInput.id = `authorOtherRole-${author.id}`;
+                otherRoleInput.name = `authorOtherRole-${author.id}`;
                 otherRoleInput.value = author.customRole || '';
                 otherRoleInput.closest('.input-group')?.classList.toggle('d-none', author.role !== 'Other');
                 let helpEl = li.querySelector('.author-role-help');
@@ -266,8 +290,7 @@
                 otherRoleInput.addEventListener('input', () => {
                     author.customRole = otherRoleInput.value.trim();
                     if (!author.customRole) {
-                        helpEl.textContent = 'This field is required.';
-                        helpEl.classList.remove('d-none');
+                        helpEl.classList.add('d-none');
                         return;
                     }
                     if (author.customRole.length < 2 || author.customRole.length > 100 || !patterns.authorRole.test(author.customRole)) {
@@ -277,10 +300,7 @@
                         helpEl.classList.add('d-none');
                     }
                 });
-                if (author.role === 'Other' && !author.customRole) {
-                    helpEl.textContent = 'This field is required.';
-                    helpEl.classList.remove('d-none');
-                }
+                helpEl.classList.add('d-none');
             }
             if (removeBtn) {
                 removeBtn.addEventListener('click', () => {
@@ -319,6 +339,8 @@
             }
             if (orderInput) {
                 orderInput.removeAttribute('id');
+                orderInput.id = `seriesOrder-${series.id}`;
+                orderInput.name = `seriesOrder-${series.id}`;
                 orderInput.value = series.order || '';
                 orderInput.addEventListener('input', () => {
                     const value = orderInput.value.trim();
@@ -486,8 +508,8 @@
         const pageCountValue = selectors.pages.value ? Number.parseInt(selectors.pages.value, 10) : null;
 
         const authorsPayload = addBook.state.selections.authors.map((author) => {
-            const role = author.role === 'Other' ? (author.customRole || null) : author.role;
-            return { authorId: author.id, authorRole: role };
+            const role = author.role === 'Other' ? (author.customRole || 'Other') : author.role;
+            return { authorId: author.id, authorRole: role || null };
         });
 
         const seriesPayload = addBook.state.selections.series.map((series) => ({
@@ -605,9 +627,6 @@
         }
 
         addBook.state.selections.authors.forEach((author) => {
-            if (author.role === 'Other' && (!author.customRole || author.customRole.trim().length < 2)) {
-                errors.push(`Author role is required for ${author.displayName}.`);
-            }
             if (author.customRole && author.customRole.length > 100) {
                 errors.push(`Author role for ${author.displayName} must be 100 characters or fewer.`);
             }

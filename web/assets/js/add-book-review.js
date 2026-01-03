@@ -33,7 +33,7 @@
             : null;
         const languageNames = addBook.state.languages.selected.map((lang) => lang.name);
         const authorNames = addBook.state.selections.authors.map((author) => {
-            const role = author.role === 'Other' ? (author.customRole || null) : author.role;
+            const role = author.role === 'Other' ? (author.customRole || 'Other') : author.role;
             return role ? `${author.displayName} (${role})` : author.displayName;
         });
         const seriesNames = addBook.state.selections.series.map((series) => {
@@ -213,7 +213,16 @@
                 return;
             }
             const id = data.data?.id;
-            const target = id ? `${redirectBase}/${id}` : redirectBase;
+            let target = redirectBase;
+            if (id) {
+                if (redirectBase.includes('{id}')) {
+                    target = redirectBase.replace('{id}', id);
+                } else if (redirectBase.includes('?') || redirectBase.endsWith('=')) {
+                    target = `${redirectBase}${id}`;
+                } else {
+                    target = `${redirectBase}/${id}`;
+                }
+            }
             log('Book created. Redirecting to:', target);
             window.location.href = target;
         } catch (error) {

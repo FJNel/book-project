@@ -280,10 +280,15 @@ async function refreshAccessToken() {
 	}
 
 	console.log('[HTTP Interceptor] Token refreshed successfully. New access token received.');
-	localStorage.setItem('accessToken', data.accessToken);
+	const accessToken = data.accessToken || data.data?.accessToken;
+	if (!accessToken) {
+		console.error('[HTTP Interceptor] Refresh response did not include an access token.', data);
+		throw new Error('Refresh response missing access token.');
+	}
+	localStorage.setItem('accessToken', accessToken);
 
 	console.log('[HTTP Interceptor] New access token stored in local storage. Returning new access token to refreshAccessToken() caller.');
-	return data.accessToken;
+	return accessToken;
 }
 
 // Displays a modal informing the user that their session has expired
