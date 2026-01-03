@@ -35,6 +35,34 @@ const googleClient = new OAuth2Client(config.google.clientId);
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 let lastTokenCleanupAt = 0;
 
+router.use((req, res, next) => {
+	logToFile("AUTH_REQUEST", {
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		request: req.body || {}
+	}, "info");
+	next();
+});
+
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("AUTH_RESPONSE", {
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
+
 const registerLimiter = rateLimit({
 		windowMs: 10 * 60 * 1000, //10 minutes
 		max: 5, // 5 requests
@@ -662,6 +690,7 @@ router.post("/refresh-token", async (req, res) => {
 	const { refreshToken } = req.body || {};
 
 	if (!refreshToken || typeof refreshToken !== "string") {
+		logToFile("REFRESH_TOKEN", { status: "FAILURE", reason: "MISSING_TOKEN", ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 		return errorResponse(res, 400, "Refresh token required", ["Please provide a valid refresh token in the request body."]);
 	}
 
@@ -669,6 +698,7 @@ router.post("/refresh-token", async (req, res) => {
 	try {
 		payload = verifyRefreshToken(refreshToken);
 	} catch (e) {
+		logToFile("REFRESH_TOKEN", { status: "FAILURE", reason: "INVALID_TOKEN", ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 		return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 	}
 
@@ -684,12 +714,14 @@ router.post("/refresh-token", async (req, res) => {
 		);
 
 		if (tokenRes.rows.length === 0) {
+			logToFile("REFRESH_TOKEN", { status: "FAILURE", reason: "TOKEN_REVOKED", user_id: payload.id, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 			return errorResponse(res, 401, "Invalid refresh token", ["The provided refresh token is invalid or has expired."]);
 		}
 
 		// Fetch user details
 		const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [payload.id]);
 		if (userRes.rows.length === 0) {
+			logToFile("REFRESH_TOKEN", { status: "FAILURE", reason: "USER_NOT_FOUND", user_id: payload.id, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 			return errorResponse(res, 401, "Invalid refresh token", ["User associated with token not found."]);
 		}
 		const user = userRes.rows[0];
@@ -699,14 +731,17 @@ router.post("/refresh-token", async (req, res) => {
 				`UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND token_fingerprint = $2 AND revoked = false`,
 				[user.id, payload.fingerprint]
 			);
+			logToFile("REFRESH_TOKEN", { status: "FAILURE", reason: "ACCOUNT_DISABLED", user_id: user.id, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 			return errorResponse(res, 403, "Your account has been disabled.", ["Please contact the system administrator if you believe this is a mistake."]);
 		}
 
 		// Generate a new access token
 		const newAccessToken = generateAccessToken(user);
 
+		logToFile("REFRESH_TOKEN", { status: "SUCCESS", user_id: user.id, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 		return successResponse(res, 200, "Access token refreshed.", { accessToken: newAccessToken });
 	} catch (e) {
+		logToFile("REFRESH_TOKEN", { status: "FAILURE", error_message: e.message, user_id: payload?.id, ip: req.ip, user_agent: req.get("user-agent") }, "error");
 		return errorResponse(res, 500, "Internal Server Error", ["An error occurred while refreshing the access token."]);
 	}
 }); // router.post("/refresh-token")
@@ -796,7 +831,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 		// CAPTCHA check
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'reset_password');
 		if (!captchaValid) {
-				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+				logToFile("PASSWORD_RESET", { status: "FAILURE", reason: "CAPTCHA_FAILED", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 				return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 		}
 
@@ -812,7 +847,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 		].filter(Boolean);
 
 		if (errors.length > 0) {
-				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+				logToFile("PASSWORD_RESET", { status: "FAILURE", reason: "VALIDATION", email, errors, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 				return errorResponse(res, 400, "Validation Error", errors);
 		}
 
@@ -820,7 +855,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 				// Find user by email
 				const userRes = await pool.query("SELECT id, preferred_name FROM users WHERE email = $1", [email]);
 				if (userRes.rows.length === 0) {
-						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "NO_USER", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+						logToFile("PASSWORD_RESET", { status: "FAILURE", reason: "NO_USER", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 						return errorResponse(res, 400, "Token expired or incorrect email address", [
 								"The provided token is invalid, has expired, or the email address is incorrect.",
 								"Please request a new password reset email."
@@ -845,7 +880,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 						tokenRes.rows[0].used ||
 						new Date(tokenRes.rows[0].expires_at) < new Date()
 				) {
-						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", reason: "INVALID_OR_EXPIRED_TOKEN", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
+						logToFile("PASSWORD_RESET", { status: "FAILURE", reason: "INVALID_OR_EXPIRED_TOKEN", email, ip: req.ip, user_agent: req.get("user-agent") }, "warn");
 						return errorResponse(res, 400, "Token expired or incorrect email address", [
 								"The provided token is invalid, has expired, or the email address is incorrect.",
 								"Please request a new password reset email."
@@ -873,7 +908,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 						);
 
 						await client.query("COMMIT");
-						logToFile("Password reset successfully. You can now log in.", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
+						logToFile("PASSWORD_RESET", { status: "SUCCESS", user_id: user.id, email, reset: true, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 
 						// Send password reset success confirmation (best-effort, fire-and-forget)
 						enqueueEmail({
@@ -890,7 +925,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 						});
 				} catch (e) {
 						await client.query("ROLLBACK");
-						logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+						logToFile("PASSWORD_RESET", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
 						return errorResponse(res, 500, "Database Error", [
 								"An error occurred while resetting your password. Please try again."
 						]);
@@ -898,7 +933,7 @@ router.post("/reset-password", passwordResetLimiter, async (req, res) => {
 						client.release();
 				}
 		} catch (e) {
-				logToFile("Password reset successfully. You can now log in.", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+				logToFile("PASSWORD_RESET", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
 				return errorResponse(res, 500, "Internal Server Error", [
 						"An error occurred while resetting your password. Please try again."
 				]);

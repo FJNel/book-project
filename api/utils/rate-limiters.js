@@ -16,7 +16,22 @@ function rateLimitHandler(req, res, _next, options) {
 	return errorResponse(res, 429, "Too many requests", ["You have exceeded the maximum number of requests. Please try again later."]);
 }
 
-const authenticatedLimiter = rateLimit({
+function logLimiterConfig(name, config) {
+	logToFile("RATE_LIMIT_CONFIG", {
+		status: "INFO",
+		name,
+		window_seconds: config.windowMs / 1000,
+		max: config.max
+	}, "info");
+}
+
+function buildLimiter(name, config) {
+	const limiter = rateLimit(config);
+	logLimiterConfig(name, config);
+	return limiter;
+}
+
+const authenticatedLimiter = buildLimiter("authenticatedLimiter", {
 	windowMs: 60 * 1000, // 1 minute window
 	max: 60, // Cap: 60 requests per 1 minute per user
 	standardHeaders: true,
@@ -25,7 +40,7 @@ const authenticatedLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
-const emailCostLimiter = rateLimit({
+const emailCostLimiter = buildLimiter("emailCostLimiter", {
 	windowMs: 5 * 60 * 1000, // 5 minutes
 	max: 1,
 	standardHeaders: true,
@@ -34,7 +49,7 @@ const emailCostLimiter = rateLimit({
 	keyGenerator: (req) => ipKeyGenerator(req)
 });
 
-const sensitiveActionLimiter = rateLimit({
+const sensitiveActionLimiter = buildLimiter("sensitiveActionLimiter", {
 	windowMs: 5 * 60 * 1000, // 5 minutes
 	max: 3,
 	standardHeaders: true,
@@ -43,7 +58,7 @@ const sensitiveActionLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
-const incorrectDateReportLimiter = rateLimit({
+const incorrectDateReportLimiter = buildLimiter("incorrectDateReportLimiter", {
 	windowMs: 5 * 60 * 1000, // 5 minutes
 	max: 10,
 	standardHeaders: true,
@@ -52,7 +67,7 @@ const incorrectDateReportLimiter = rateLimit({
 	keyGenerator: (req) => ipKeyGenerator(req)
 });
 
-const adminDeletionLimiter = rateLimit({
+const adminDeletionLimiter = buildLimiter("adminDeletionLimiter", {
 	windowMs: 10 * 60 * 1000, // 10 minutes
 	max: 2,
 	standardHeaders: true,
@@ -61,7 +76,7 @@ const adminDeletionLimiter = rateLimit({
 	keyGenerator: (req) => (req.user && req.user.id ? `user:${req.user.id}` : ipKeyGenerator(req))
 });
 
-const statsLimiter = rateLimit({
+const statsLimiter = buildLimiter("statsLimiter", {
 	windowMs: 60 * 1000, // 1 minute window
 	max: 20, // Cap: 20 requests per 1 minute per user
 	standardHeaders: true,

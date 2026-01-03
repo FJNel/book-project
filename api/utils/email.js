@@ -13,6 +13,10 @@ const MAILGUN_REGION = config.mail.mailgunRegion; // "EU" for EU domains
 const SUPPORT_EMAIL = config.mail.supportEmail;
 const API_BASE_URL = config.api.baseUrl;
 
+function logEmailAttempt(type, toEmail, details = {}) {
+	logToFile("EMAIL_SEND_ATTEMPT", { type, to: toEmail, ...details }, "info");
+}
+
 function normalizeFrontendUrl(url) {
 	if (!url || typeof url !== "string") return "";
 	return url.endsWith("/") ? url.slice(0, -1) : url;
@@ -31,8 +35,9 @@ const mg = mailgun.client({
 });
 
 async function sendVerificationEmail(toEmail, verificationToken, preferredName, expiresIn = 60) {
+	logEmailAttempt("verification", toEmail, { expires_in: expiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
-	  logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+	  logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "verification", to: toEmail }, "error");
 	  console.error("Email service is not configured. Please check environment variables.");
 	  return false;
 	}
@@ -97,8 +102,9 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 
   
 async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expiresIn = 60) {
+	logEmailAttempt("password_reset", toEmail, { expires_in: expiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "password_reset", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -169,8 +175,9 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 } // sendPasswordResetEmail
 
 async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
+	logEmailAttempt("account_disabled", toEmail);
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
-	  	logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+	  	logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "account_disabled", to: toEmail }, "error");
 	  	console.error("Email service is not configured. Please check environment variables.");
 	  	return false;
 	}
@@ -240,8 +247,9 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 } // sendAccountDisableConfirmationEmail
 
 async function sendAccountDisableVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	logEmailAttempt("account_disable_verification", toEmail, { expires_in: expiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "account_disable_verification", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -312,8 +320,9 @@ async function sendAccountDisableVerificationEmail(toEmail, preferredName, token
 } // sendAccountDisableVerificationEmail
 
 async function sendAccountDeletionVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	logEmailAttempt("account_delete_verification", toEmail, { expires_in: expiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "account_delete_verification", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -388,8 +397,9 @@ async function sendAccountDeletionAdminEmail({
 	requestedAt,
 	requestIp
 }) {
+	logEmailAttempt("account_delete_admin_notice", SUPPORT_EMAIL);
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !SUPPORT_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "account_delete_admin_notice", to: SUPPORT_EMAIL }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -463,8 +473,9 @@ async function sendAccountDeletionAdminEmail({
 } // sendAccountDeletionAdminEmail
 
 async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, expiresIn = 60) {
+	logEmailAttempt("email_change_verification", toEmail, { expires_in: expiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !API_BASE_URL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "email_change_verification", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -531,8 +542,9 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 } // sendEmailChangeVerificationEmail
 
 async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName) {
+	logEmailAttempt("email_change_confirmation", toEmail, { new_email: newEmail });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "email_change_confirmation", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -589,8 +601,9 @@ async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName
 } // sendEmailChangeConfirmationEmail
 
 async function sendWelcomeEmail(toEmail, preferredName) {
+	logEmailAttempt("welcome", toEmail);
     if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-        logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+        logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "welcome", to: toEmail }, "error");
         console.error("Email service is not configured. Please check environment variables.");
         return false;
     }
@@ -654,8 +667,9 @@ async function sendWelcomeEmail(toEmail, preferredName) {
 } // sendWelcomeEmail
 
 async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
+	logEmailAttempt("password_reset_success", toEmail);
     if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-        logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+        logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "password_reset_success", to: toEmail }, "error");
         console.error("Email service is not configured. Please check environment variables.");
         return false;
     }
@@ -719,8 +733,9 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
 } // sendPasswordResetSuccessEmail
 
 async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = []) {
+	logEmailAttempt("admin_profile_update", toEmail, { change_count: Array.isArray(changes) ? changes.length : 0 });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_profile_update", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -782,8 +797,9 @@ async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = [])
 } // sendAdminProfileUpdateEmail
 
 async function sendAdminAccountDisabledEmail(toEmail, preferredName) {
+	logEmailAttempt("admin_account_disabled", toEmail);
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_account_disabled", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -839,8 +855,9 @@ async function sendAdminAccountDisabledEmail(toEmail, preferredName) {
 } // sendAdminAccountDisabledEmail
 
 async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
+	logEmailAttempt("admin_account_enabled", toEmail);
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_account_enabled", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -904,8 +921,9 @@ async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
 } // sendAdminAccountEnabledEmail
 
 async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
+	logEmailAttempt("admin_email_unverified", toEmail, { reason });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_email_unverified", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -963,8 +981,9 @@ async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
 } // sendAdminEmailUnverifiedEmail
 
 async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
+	logEmailAttempt("admin_email_verified", toEmail, { reason });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_email_verified", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}
@@ -1021,8 +1040,9 @@ async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
 } // sendAdminEmailVerifiedEmail
 
 async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationToken, resetToken, verificationExpiresIn = 60, resetExpiresIn = 60) {
+	logEmailAttempt("admin_account_setup", toEmail, { verification_expires_in: verificationExpiresIn, reset_expires_in: resetExpiresIn });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
-		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set." }, "error");
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "admin_account_setup", to: toEmail }, "error");
 		console.error("Email service is not configured. Please check environment variables.");
 		return false;
 	}

@@ -14,8 +14,39 @@ const { enqueueEmail } = require("../utils/email-queue");
 const config = require("../config");
 const pool = require("../db");
 
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("ADMIN_RESPONSE", {
+			admin_id: req.user ? req.user.id : null,
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
+
+function logAdminRequest(req, res, next) {
+	logToFile("ADMIN_REQUEST", {
+		admin_id: req.user ? req.user.id : null,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		query: req.query || {},
+		request: req.body || {}
+	}, "info");
+	next();
+}
+
 // Middleware to ensure the user is an authenticated admin
-const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"])];
+const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"]), logAdminRequest];
 
 const MAX_LANGUAGE_NAME_LENGTH = 100;
 const MAX_LIST_LIMIT = 200;

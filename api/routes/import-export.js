@@ -21,6 +21,37 @@ const ENTITY_MAP = {
 	storagelocations: "storageLocations"
 };
 
+router.use((req, res, next) => {
+	logToFile("IMPORT_EXPORT_REQUEST", {
+		user_id: req.user ? req.user.id : null,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		query: req.query || {},
+		request: req.body || {}
+	}, "info");
+	next();
+});
+
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("IMPORT_EXPORT_RESPONSE", {
+			user_id: req.user ? req.user.id : null,
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
+
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
 	return value.trim();

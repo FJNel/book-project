@@ -2,6 +2,7 @@
 // Pulls from environment variables with sensible defaults and light parsing.
 
 require('dotenv').config();
+const { logToFile } = require("./utils/logging");
 
 function env(name, def = undefined) {
 	const v = process.env[name];
@@ -107,3 +108,31 @@ module.exports = {
 	},
 };
 
+const missingConfig = [];
+if (!recaptchaSecret) missingConfig.push("RECAPTCHA_SECRET");
+if (!jwt.accessSecret || jwt.accessSecret === "change-me-access") missingConfig.push("ACCESS_TOKEN_SECRET");
+if (!jwt.refreshSecret || jwt.refreshSecret === "change-me-refresh") missingConfig.push("REFRESH_TOKEN_SECRET");
+if (!db.host) missingConfig.push("DB_HOST");
+if (!db.user) missingConfig.push("DB_USER");
+if (!db.name) missingConfig.push("DB_NAME");
+
+logToFile("CONFIG_LOADED", {
+	environment: nodeEnv,
+	port,
+	api_base_url: apiBaseUrl,
+	frontend_url: frontendUrl,
+	cors_origins: cors.allowedOrigins,
+	mailgun_configured: Boolean(mail.mailgunApiKey && mail.mailgunDomain),
+	google_oauth_configured: Boolean(google.clientId),
+	recaptcha_configured: Boolean(recaptchaSecret),
+	jwt_configured: Boolean(jwt.accessSecret && jwt.refreshSecret),
+	db: {
+		host: db.host,
+		port: db.port,
+		name: db.name
+	}
+}, "info");
+
+if (missingConfig.length > 0) {
+	logToFile("CONFIG_WARNING", { missing: missingConfig }, "warn");
+}

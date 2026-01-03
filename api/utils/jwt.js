@@ -12,7 +12,7 @@ const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn; // Long-lived
 
 function generateAccessToken(user) {
 	// Only include safe fields
-	return jwt.sign(
+	const token = jwt.sign(
 		{
 			id: user.id,
 			role: user.role
@@ -20,11 +20,13 @@ function generateAccessToken(user) {
 		ACCESS_TOKEN_SECRET,
 		{ expiresIn: ACCESS_TOKEN_EXPIRES_IN }
 	);
+	logToFile("TOKEN_ISSUED", { type: "access", user_id: user.id }, "info");
+	return token;
 } // generateAccessToken
 
 function generateRefreshToken(user, fingerprint) {
 	// Only include user id and fingerprint
-	return jwt.sign(
+	const token = jwt.sign(
 		{
 			id: user.id,
 			fingerprint
@@ -32,14 +34,20 @@ function generateRefreshToken(user, fingerprint) {
 		REFRESH_TOKEN_SECRET,
 		{ expiresIn: REFRESH_TOKEN_EXPIRES_IN }
 	);
+	logToFile("TOKEN_ISSUED", { type: "refresh", user_id: user.id }, "info");
+	return token;
 } // generateRefreshToken
 
 function verifyAccessToken(token) {
-	return jwt.verify(token, ACCESS_TOKEN_SECRET);
+	const payload = jwt.verify(token, ACCESS_TOKEN_SECRET);
+	logToFile("TOKEN_VERIFIED", { type: "access", user_id: payload?.id ?? null }, "info");
+	return payload;
 } // verifyAccessToken
 
 function verifyRefreshToken(token) {
-	return jwt.verify(token, REFRESH_TOKEN_SECRET);
+	const payload = jwt.verify(token, REFRESH_TOKEN_SECRET);
+	logToFile("TOKEN_VERIFIED", { type: "refresh", user_id: payload?.id ?? null }, "info");
+	return payload;
 } // verifyRefreshToken
 
 async function requiresAuth(req, res, next) {
@@ -75,14 +83,37 @@ async function requiresAuth(req, res, next) {
 			);
 
 			if (rows.length === 0) {
+				logToFile("AUTH_CHECK", {
+					status: "FAILURE",
+					reason: "API_KEY_NOT_FOUND",
+					ip: req.ip,
+					path: req.originalUrl,
+					user_agent: req.get("user-agent")
+				}, "warn");
 				return errorResponse(res, 401, "Invalid or expired access token.", ["Authentication failed."]);
 			}
 
 			const key = rows[0];
 			if (key.revoked_at) {
+				logToFile("AUTH_CHECK", {
+					status: "FAILURE",
+					reason: "API_KEY_REVOKED",
+					user_id: key.user_id,
+					ip: req.ip,
+					path: req.originalUrl,
+					user_agent: req.get("user-agent")
+				}, "warn");
 				return errorResponse(res, 401, "Invalid or expired access token.", ["Authentication failed."]);
 			}
 			if (key.expires_at && new Date(key.expires_at) <= new Date()) {
+				logToFile("AUTH_CHECK", {
+					status: "FAILURE",
+					reason: "API_KEY_EXPIRED",
+					user_id: key.user_id,
+					ip: req.ip,
+					path: req.originalUrl,
+					user_agent: req.get("user-agent")
+				}, "warn");
 				return errorResponse(res, 401, "Invalid or expired access token.", ["Authentication failed."]);
 			}
 			if (key.is_disabled) {
@@ -96,6 +127,14 @@ async function requiresAuth(req, res, next) {
 
 			req.user = { id: key.user_id, role: key.role };
 			req.authMethod = "apiKey";
+			logToFile("AUTH_CHECK", {
+				status: "SUCCESS",
+				method: "apiKey",
+				user_id: key.user_id,
+				ip: req.ip,
+				path: req.originalUrl,
+				user_agent: req.get("user-agent")
+			}, "info");
 			return next();
 		} catch (dbErr) {
 			logToFile("AUTH_CHECK", {
@@ -159,6 +198,14 @@ async function requiresAuth(req, res, next) {
 			role: user.role
 		};
 		req.authMethod = "accessToken";
+		logToFile("AUTH_CHECK", {
+			status: "SUCCESS",
+			method: "accessToken",
+			user_id: user.id,
+			ip: req.ip,
+			path: req.originalUrl,
+			user_agent: req.get("user-agent")
+		}, "info");
 		return next();
 	} catch (dbErr) {
 		logToFile("AUTH_CHECK", {

@@ -11,6 +11,38 @@ const pool = require("../db");
 const { requiresAuth, requireRole } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { getQueueStats } = require("../utils/email-queue");
+const { logToFile } = require("../utils/logging");
+
+router.use((req, res, next) => {
+	logToFile("ROOT_REQUEST", {
+		user_id: req.user ? req.user.id : null,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		query: req.query || {},
+		request: req.body || {}
+	}, "info");
+	next();
+});
+
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("ROOT_RESPONSE", {
+			user_id: req.user ? req.user.id : null,
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
 
 router.get("/", (req, res) => {
 		const now = new Date();
@@ -23,6 +55,12 @@ router.get("/", (req, res) => {
 			minute: "2-digit",
 			second: "2-digit",
 		});
+		logToFile("ROOT_STATUS", {
+			status: "SUCCESS",
+			path: "/",
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
 		return successResponse(res, 200, "The API is working!", {
 			timestamp,
 			api_documentation_url: config.api.docsUrl
@@ -32,6 +70,11 @@ router.get("/", (req, res) => {
 
 // GET /health - Basic health check
 router.get("/health", (req, res) => {
+	logToFile("HEALTH_CHECK", {
+		status: "SUCCESS",
+		ip: req.ip,
+		user_agent: req.get("user-agent")
+	}, "info");
 	return successResponse(res, 200, "OK", {
 		status: "ok",
 		timestamp: new Date().toISOString()
@@ -46,6 +89,14 @@ router.get("/status", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 		const dbLatencyMs = Date.now() - dbStart;
 
 		const queueStats = getQueueStats();
+		logToFile("STATUS_CHECK", {
+			status: "SUCCESS",
+			user_id: req.user ? req.user.id : null,
+			db_latency_ms: dbLatencyMs,
+			queue_size: queueStats?.queueLength ?? null,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
 		return successResponse(res, 200, "Status retrieved successfully.", {
 			status: "ok",
 			db: {
@@ -55,6 +106,13 @@ router.get("/status", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 			emailQueue: queueStats
 		});
 	} catch (error) {
+		logToFile("STATUS_CHECK", {
+			status: "FAILURE",
+			user_id: req.user ? req.user.id : null,
+			error_message: error.message,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve status at this time."]);
 	}
 });
@@ -62,6 +120,15 @@ router.get("/status", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 // GET /rate-limits - Show remaining rate limit details
 router.get("/rate-limits", requiresAuth, authenticatedLimiter, (req, res) => {
 	const rate = req.rateLimit || {};
+	logToFile("RATE_LIMIT_STATUS", {
+		status: "SUCCESS",
+		user_id: req.user ? req.user.id : null,
+		limit: rate.limit ?? null,
+		remaining: rate.remaining ?? null,
+		resetTime: rate.resetTime ?? null,
+		ip: req.ip,
+		user_agent: req.get("user-agent")
+	}, "info");
 	return successResponse(res, 200, "Rate limit status retrieved successfully.", {
 		limit: rate.limit ?? null,
 		remaining: rate.remaining ?? null,

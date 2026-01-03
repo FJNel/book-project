@@ -9,6 +9,37 @@ const { logToFile } = require("../utils/logging");
 
 const MAX_LIST_LIMIT = 200;
 
+router.use((req, res, next) => {
+	logToFile("TAGS_REQUEST", {
+		user_id: req.user ? req.user.id : null,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		query: req.query || {},
+		request: req.body || {}
+	}, "info");
+	next();
+});
+
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("TAGS_RESPONSE", {
+			user_id: req.user ? req.user.id : null,
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
+
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Number.parseInt(value, 10);

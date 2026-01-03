@@ -109,6 +109,13 @@ app.use("/seriesbooks", bookSeriesBooksRoutes);
 
 //404 Handler
 app.use((req, res) => {
+	logToFile("ENDPOINT_NOT_FOUND", {
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		user_id: (req.user && req.user.id) || null
+	}, "warn");
 	return errorResponse(
 		res,
 		404,
@@ -139,4 +146,8 @@ app.use((err, req, res, next) => {
 const PORT = config.port;
 app.listen(PORT, () => {
 	console.log(`Server is running on port ${PORT}`);
+	logToFile("SERVER_START", {
+		port: PORT,
+		environment: process.env.NODE_ENV || "development"
+	}, "info");
 }); // app.listen

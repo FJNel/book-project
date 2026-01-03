@@ -2,6 +2,7 @@ const MONTH_NAMES = [
 	"January", "February", "March", "April", "May", "June",
 	"July", "August", "September", "October", "November", "December"
 ];
+const { logToFile } = require("./logging");
 
 function normalizeDateText(value) {
 	if (typeof value !== "string") return "";
@@ -18,10 +19,12 @@ function formatPartialDate(day, month, year) {
 function validatePartialDateObject(value, fieldLabel) {
 	const errors = [];
 	if (value === undefined || value === null) {
+		logToFile("PARTIAL_DATE_VALIDATION", { status: "SKIPPED", field: fieldLabel }, "info");
 		return errors;
 	}
 	if (typeof value !== "object") {
 		errors.push(`${fieldLabel} must be an object with day, month, year, and text.`);
+		logToFile("PARTIAL_DATE_VALIDATION", { status: "FAILURE", field: fieldLabel, reason: "NOT_OBJECT" }, "warn");
 		return errors;
 	}
 	const day = value.day;
@@ -56,6 +59,7 @@ function validatePartialDateObject(value, fieldLabel) {
 	}
 
 	if (errors.length > 0) {
+		logToFile("PARTIAL_DATE_VALIDATION", { status: "FAILURE", field: fieldLabel, errors }, "warn");
 		return errors;
 	}
 
@@ -73,6 +77,19 @@ function validatePartialDateObject(value, fieldLabel) {
 		errors.push(`${fieldLabel} text must match the provided day, month, and year.`);
 	}
 
+	if (errors.length > 0) {
+		logToFile("PARTIAL_DATE_VALIDATION", { status: "FAILURE", field: fieldLabel, errors }, "warn");
+		return errors;
+	}
+
+	logToFile("PARTIAL_DATE_VALIDATION", {
+		status: "SUCCESS",
+		field: fieldLabel,
+		day: hasDay ? day : null,
+		month: hasMonth ? month : null,
+		year: hasYear ? year : null,
+		text: textValue
+	}, "info");
 	return errors;
 }
 

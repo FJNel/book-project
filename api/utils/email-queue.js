@@ -201,6 +201,21 @@ async function runJob(job) {
 				params.resetExpiresIn
 			);
 		default:
+			logToFile(
+				'EMAIL_SEND',
+				{
+					status: 'FAILURE',
+					job_id: job.id,
+					type,
+					user_id: job.userId,
+					error_message: 'Unknown email job type',
+					details: {
+						context: job.context,
+						attempt: job.attempt + 1,
+					},
+				},
+				'error',
+			);
 			throw new Error(`Unknown email job type: ${type}`);
 	}
 }

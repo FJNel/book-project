@@ -6,10 +6,13 @@
 // The user's full name. This allows for flexibility in name formats. 
 // Must be between 2 and 255 characters. 
 // Only alphabetic characters, spaces, hyphens, full stops and apostrophes are allowed.
+const { logToFile } = require("./logging");
+
 function validateFullName(fullName) {
 	const errors = [];
 	if (typeof fullName !== "string" || !fullName.trim()) {
 		errors.push("Full Name must be provided.");
+		logToFile("VALIDATION_FULL_NAME", { status: "FAILURE", reason: "MISSING_OR_INVALID" }, "warn");
 		return errors;
 	}
 	const name = fullName.trim();
@@ -19,6 +22,11 @@ function validateFullName(fullName) {
 	if (!/^[A-Za-z\s\-.'’]+$/.test(name)) {
 		errors.push("Full Name can only contain alphabetic characters, spaces, hyphens, full stops, and apostrophes.");
 	}
+	if (errors.length > 0) {
+		logToFile("VALIDATION_FULL_NAME", { status: "FAILURE", errors }, "warn");
+		return errors;
+	}
+	logToFile("VALIDATION_FULL_NAME", { status: "SUCCESS" }, "info");
 	return errors;
 } // validateFullName
 
@@ -30,10 +38,12 @@ function validateFullName(fullName) {
 function validatePreferredName(preferredName) {
 	const errors = [];
 	if (preferredName === undefined || preferredName === null || preferredName === "") {
+		logToFile("VALIDATION_PREFERRED_NAME", { status: "SKIPPED" }, "info");
 		return errors; // Not required
 	}
 	if (typeof preferredName !== "string") {
 		errors.push("Preferred Name must be a string.");
+		logToFile("VALIDATION_PREFERRED_NAME", { status: "FAILURE", reason: "NOT_STRING" }, "warn");
 		return errors;
 	}
 	const name = preferredName.trim();
@@ -43,6 +53,11 @@ function validatePreferredName(preferredName) {
 	if (!/^[A-Za-z]+$/.test(name)) {
 		errors.push("Preferred Name can only contain alphabetic characters (no spaces or symbols).");
 	}
+	if (errors.length > 0) {
+		logToFile("VALIDATION_PREFERRED_NAME", { status: "FAILURE", errors }, "warn");
+		return errors;
+	}
+	logToFile("VALIDATION_PREFERRED_NAME", { status: "SUCCESS" }, "info");
 	return errors;
 } // validatePreferredName
 
@@ -57,6 +72,7 @@ function validateEmail(email) {
 	const errors = [];
 	if (typeof email !== "string" || !email.trim()) {
 		errors.push("Email must be provided.");
+		logToFile("VALIDATION_EMAIL", { status: "FAILURE", reason: "MISSING_OR_INVALID" }, "warn");
 		return errors;
 	}
 	const e = email.trim();
@@ -67,6 +83,11 @@ function validateEmail(email) {
 	if (!/^(?=.{3,255}$)[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/.test(e)) {
 		errors.push("Email format is incorrect.");
 	}
+	if (errors.length > 0) {
+		logToFile("VALIDATION_EMAIL", { status: "FAILURE", errors }, "warn");
+		return errors;
+	}
+	logToFile("VALIDATION_EMAIL", { status: "SUCCESS" }, "info");
 	return errors;
 } // validateEmail
 
@@ -80,6 +101,7 @@ function validatePassword(password) {
 	const errors = [];
 	if (typeof password !== "string" || !password.trim()) {
 		errors.push("Password must be provided.");
+		logToFile("VALIDATION_PASSWORD", { status: "FAILURE", reason: "MISSING_OR_INVALID" }, "warn");
 		return errors;
 	}
 	const p = password.trim();
@@ -98,6 +120,11 @@ function validatePassword(password) {
 	if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\;/']/.test(p)) {
 		errors.push("Password must include at least one special character.");
 	}
+	if (errors.length > 0) {
+		logToFile("VALIDATION_PASSWORD", { status: "FAILURE", errors }, "warn");
+		return errors;
+	}
+	logToFile("VALIDATION_PASSWORD", { status: "SUCCESS" }, "info");
 	return errors;
 } // validatePassword
 

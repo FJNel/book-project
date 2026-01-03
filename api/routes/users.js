@@ -30,6 +30,37 @@ const ACTION_LIMITS = {
 	passwordChange: { limit: 2, label: "password changes" }
 };
 
+router.use((req, res, next) => {
+	logToFile("USERS_REQUEST", {
+		user_id: req.user ? req.user.id : null,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		query: req.query || {},
+		request: req.body || {}
+	}, "info");
+	next();
+});
+
+router.use((req, res, next) => {
+	const start = process.hrtime();
+	res.on("finish", () => {
+		const diff = process.hrtime(start);
+		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
+		logToFile("USERS_RESPONSE", {
+			user_id: req.user ? req.user.id : null,
+			method: req.method,
+			path: req.originalUrl || req.url,
+			http_status: res.statusCode,
+			duration_ms: durationMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+	});
+	next();
+});
+
 function getTodayKey() {
 	return new Date().toISOString().slice(0, 10);
 }
