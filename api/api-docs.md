@@ -252,7 +252,8 @@ The email cost limiter is shared across endpoints that explicitly apply it. Requ
 
 ## Shared Behaviours
 
-- **Authentication:** Routes guarded by `requiresAuth` return HTTP `401` with `message` `"Authentication required for this action."` when the Authorization header is missing or invalid. Disabled accounts receive HTTP `403` with `message` `"Your account has been disabled."`.
+- **Authentication:** Routes guarded by `requiresAuth` accept either `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` (or `Authorization: ApiKey <apiKey>`). If neither is present or the credentials are invalid, the API returns HTTP `401` with `message` `"Authentication required for this action."`. Disabled accounts receive HTTP `403` with `message` `"Your account has been disabled."`.
+- **API key usage:** Unless an endpoint explicitly says "access token only", any route that requires authentication will also accept a valid API key via `X-API-Key` or `Authorization: ApiKey <apiKey>`.
 - **Role Checks:** Admin-only routes use `requireRole`. Non-admin users receive HTTP `403` with `message` `"Forbidden: Insufficient permissions."`.
 - **Validation:** Validation failures respond with HTTP `400`, `message` `"Validation Error"`, and each issue listed in `errors`.
 - **Global 404:** Unmatched routes return HTTP `404` with `message` `"Endpoint Not Found"` and guidance in `errors`.
@@ -516,7 +517,6 @@ Authentication flows combine email/password, Google OAuth, email verification, a
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - CAPTCHA failures return `400` with a descriptive error message.
-- After successful confirmation, the API records an `accountDeletionConfirmed` marker in the user metadata. The admin-only deletion endpoint checks this marker before permanently removing the account.
 
 #### Email Content
 
@@ -546,44 +546,16 @@ This link will expire in <expiresIn> minutes.
 
 #### Example Responses
 
-- **Single Book (200):**
+- **Registration Accepted (200):**
 
 ```json
 {
   "status": "success",
   "httpCode": 200,
   "responseTime": "2.58",
-  "message": "Book retrieved successfully.",
+  "message": "If this email can be registered, you will receive an email with the next steps shortly.",
   "data": {
-    "id": 44,
-    "title": "The Hobbit",
-    "subtitle": null,
-    "isbn": "9780261103344",
-    "publicationDate": {
-      "id": 91,
-      "day": 21,
-      "month": 9,
-      "year": 1937,
-      "text": "21 September 1937"
-    },
-    "pageCount": 310,
-    "description": "A fantasy novel by J.R.R. Tolkien.",
-    "bookType": { "id": 1, "name": "Hardcover" },
-    "publisher": { "id": 4, "name": "Allen & Unwin" },
-    "stats": {
-      "copyCount": 2,
-      "authorCount": 1,
-      "tagCount": 3,
-      "languageCount": 1,
-      "seriesCount": 0,
-      "hasIsbn": true,
-      "hasPublicationDate": true,
-      "hasCoverImage": false,
-      "hasDescription": true,
-      "hasPublisher": true,
-      "hasBookType": true,
-      "hasPageCount": true
-    }
+    "disclaimer": "If you do not see an email within a few minutes, please check your spam folder or try again later. This could also mean that the email is already registered: If so, please log in or use the 'Resend Verification Email' option."
   },
   "errors": []
 }
@@ -826,6 +798,7 @@ If you did not verify this email address, please contact the system administrato
 
 ```json
 {
+  "captchaToken": "<captcha-token>",
   "email": "jane@example.com",
   "token": "<verification-token>"
 }
@@ -842,7 +815,7 @@ If you did not verify this email address, please contact the system administrato
   "responseTime": "6.84",
   "message": "Email verified successfully. You can now log in.",
   "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+    "id": 12,
     "email": "jane@example.com"
   },
   "errors": []
@@ -858,7 +831,7 @@ If you did not verify this email address, please contact the system administrato
   "responseTime": "4.56",
   "message": "Email already verified. You can log in.",
   "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+    "id": 12,
     "email": "jane@example.com"
   },
   "errors": []
@@ -1011,7 +984,7 @@ If you did not verify this email address, please contact the system administrato
     "accessToken": "<jwt>",
     "refreshToken": "<jwt>",
     "user": {
-      "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+      "id": 12,
       "email": "jane@example.com",
       "fullName": "Jane Doe",
       "preferredName": "Jane",
@@ -1202,7 +1175,7 @@ If you did not verify this email address, please contact the system administrato
 ### POST /auth/logout
 
 - **Purpose:** Revoke one or all active refresh tokens for the authenticated user.
-- **Authentication:** Access token required (`Authorization: Bearer <accessToken>`).
+- **Authentication:** Access token or API key required.
 - **Rate Limit:** 60 requests per minute per authenticated user.
 
 #### Request Overview
@@ -1211,15 +1184,16 @@ If you did not verify this email address, please contact the system administrato
 | --- | --- |
 | Method | `POST` |
 | Path | `/auth/logout` |
-| Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
 #### Required Headers
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token generated by `/auth/login` or `/auth/google`. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -1518,7 +1492,7 @@ If you did not reset your password, please contact the system administrator at <
   "responseTime": "9.42",
   "message": "Password reset successfully. You can now log in.",
   "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+    "id": 12,
     "email": "jane@example.com",
     "passwordUpdated": "2025-01-17T09:02:44.000Z"
   },
@@ -1650,7 +1624,7 @@ If you did not reset your password, please contact the system administrator at <
     "accessToken": "<jwt>",
     "refreshToken": "<jwt>",
     "user": {
-      "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+      "id": 12,
       "email": "jane@example.com",
       "fullName": "Jane Doe",
       "preferredName": "Jane",
@@ -1758,7 +1732,7 @@ If you did not reset your password, please contact the system administrator at <
 | --- | --- |
 | Method | `GET` |
 | Path | `/users/me` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -1766,7 +1740,8 @@ If you did not reset your password, please contact the system administrator at <
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token generated by `/auth/login` or `/auth/google`. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -1791,7 +1766,7 @@ If you did not reset your password, please contact the system administrator at <
   "responseTime": "4.73",
   "message": "User profile retrieved successfully.",
   "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+    "id": 12,
     "email": "jane@example.com",
     "fullName": "Jane Doe",
     "preferredName": "Jane",
@@ -1832,7 +1807,7 @@ If you did not reset your password, please contact the system administrator at <
 ### PUT /users/me
 
 - **Purpose:** Update `fullName` and/or `preferredName`. To change the email or password, use the dedicated endpoints.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -1840,7 +1815,7 @@ If you did not reset your password, please contact the system administrator at <
 | --- | --- |
 | Method | `PUT` |
 | Path | `/users/me` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -1848,7 +1823,8 @@ If you did not reset your password, please contact the system administrator at <
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token generated by `/auth/login` or `/auth/google`. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -1887,7 +1863,7 @@ At least one of `fullName` or `preferredName` must be provided.
   "responseTime": "6.41",
   "message": "User profile updated successfully.",
   "data": {
-    "id": "b6df9c94-91b3-4ea7-ac37-4f5b8d2c8d1e",
+    "id": 12,
     "email": "jane@example.com",
     "fullName": "Jane Q. Doe",
     "preferredName": "Jan",
@@ -1963,7 +1939,7 @@ At least one of `fullName` or `preferredName` must be provided.
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/users/me` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | `application/json` (optional body) |
 
@@ -1971,7 +1947,8 @@ At least one of `fullName` or `preferredName` must be provided.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Required to identify the user being disabled. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -2140,7 +2117,7 @@ If you would like to reactivate your account, please contact the System Administ
 
 - **Purpose:** Initiate an email change for the authenticated user. Sends a verification link to the new email address. The user is signed out everywhere once the new email is confirmed.
 - **Daily Quota:** Only one email change request can be initiated per account per day.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2148,7 +2125,7 @@ If you would like to reactivate your account, please contact the System Administ
 | --- | --- |
 | Method | `POST` |
 | Path | `/users/me/request-email-change` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 1 request / day / account |
 | Content-Type | `application/json` |
 
@@ -2156,7 +2133,8 @@ If you would like to reactivate your account, please contact the System Administ
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user requesting the change. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -2333,7 +2311,7 @@ If you did not authorise this change, please contact our support team immediatel
 
 - **Purpose:** Starts the permanent deletion workflow. Sends a confirmation link to the account email. After confirmation, support (support@fjnel.co.za) is notified with the account details needed to complete the deletion.
 - **Daily Quota:** Up to two deletion requests per account per day (shared between `DELETE` and `POST` clients).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2341,7 +2319,7 @@ If you did not authorise this change, please contact our support team immediatel
 | --- | --- |
 | Method | `DELETE` (legacy clients may still use `POST`) |
 | Path | `/users/me/request-account-deletion` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | Content-Type | `application/json` (optional body) |
 
@@ -2349,7 +2327,8 @@ If you did not authorise this change, please contact our support team immediatel
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user requesting deletion. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -2503,7 +2482,7 @@ Please reach out to the user before fully deleting this account and all associat
 ### GET /users/me/sessions
 
 - **Purpose:** List the authenticated user’s active refresh-token sessions, including device, browser, IP hint, and remaining lifetime.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2511,7 +2490,7 @@ Please reach out to the user before fully deleting this account and all associat
 | --- | --- |
 | Method | `GET` |
 | Path | `/users/me/sessions` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -2519,7 +2498,8 @@ Please reach out to the user before fully deleting this account and all associat
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the user whose sessions are being listed. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -2578,7 +2558,7 @@ Please reach out to the user before fully deleting this account and all associat
 ### DELETE /users/me/sessions/:fingerprint
 
 - **Purpose:** Revoke a single refresh-token session (for example, to sign out a lost or unattended device). Fingerprints are returned by `GET /users/me/sessions`.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2586,7 +2566,7 @@ Please reach out to the user before fully deleting this account and all associat
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/users/me/sessions/:fingerprint` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -2594,7 +2574,8 @@ Please reach out to the user before fully deleting this account and all associat
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the requesting user. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Path Parameters
@@ -2652,7 +2633,7 @@ Please reach out to the user before fully deleting this account and all associat
 ### DELETE /users/me/sessions
 
 - **Purpose:** Revoke a single refresh-token session using a JSON request body (preferred for clients that avoid URL parameters).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2660,7 +2641,7 @@ Please reach out to the user before fully deleting this account and all associat
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/users/me/sessions` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -2668,7 +2649,8 @@ Please reach out to the user before fully deleting this account and all associat
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the requesting user. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body is required. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -2733,7 +2715,7 @@ Please reach out to the user before fully deleting this account and all associat
 
 - **Purpose:** Allows an authenticated user to update their password without email verification. Requires the current password, a compliant new password, and a CAPTCHA check. All active sessions are revoked.
 - **Daily Quota:** A user can change their password via this endpoint up to twice per day.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -2741,8 +2723,8 @@ Please reach out to the user before fully deleting this account and all associat
 | --- | --- |
 | Method | `POST` |
 | Path | `/users/me/change-password` |
-| Authentication | `Authorization: Bearer <accessToken>` |
-| Rate Limit | 3 requests / 5 minutes / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user + 3 requests / 5 minutes / user + 1 request / 5 minutes / IP (email cost) + 2 requests / day / account |
 | CAPTCHA Action | `change_password` |
 | Content-Type | `application/json` |
 
@@ -2750,7 +2732,8 @@ Please reach out to the user before fully deleting this account and all associat
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Identifies the signed-in user. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 
 #### Body Parameters
@@ -2766,6 +2749,18 @@ Please reach out to the user before fully deleting this account and all associat
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - CAPTCHA failures return `400` with a descriptive error message.
 - Daily quota limits return `429` with a daily limit message.
+
+#### Email Content
+
+- **Subject:** `Your password has been reset`
+- **Body (text):**
+
+```
+Password Reset Successful, <preferredName>
+Your password has been updated successfully. You can now log in using your new password.
+Log In: <frontend_login_url>
+If you did not reset your password, please contact the system administrator at <supportEmail> to secure your account.
+```
 
 #### Example Request Body
 
@@ -3117,23 +3112,6 @@ Please reach out to the user before fully deleting this account and all associat
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
-| `topLimit` | integer | No | Limit for `mostCommonLanguages` (1–50). Defaults to 5. |
-| `comboLimit` | integer | No | Limit for `languageCombinations` (1–50). Defaults to 10. |
-| `orphanLimit` | integer | No | Limit for `authorsWithNoBooks` list (1–200). Defaults to 50. |
-| `orphanOffset` | integer | No | Offset for `authorsWithNoBooks` list. |
-| `timelineLimit` | integer | No | Limit for `authorDiscoveryTimeline` list (1–200). Defaults to 50. |
-| `timelineOffset` | integer | No | Offset for `authorDiscoveryTimeline` list. |
-| `breakdowns` | array | No | Breakdown types: `perAuthor`, `perBirthDecade`, `perAliveDeceased` (defaults to all). |
-| `orphanLimit` | integer | No | Limit for `seriesWithNoBooks` list (1–200). Defaults to 50. |
-| `orphanOffset` | integer | No | Offset for `seriesWithNoBooks` list. |
-| `oneOffLimit` | integer | No | Limit for `publishersWithOneBook` list (1–200). Defaults to 50. |
-| `oneOffOffset` | integer | No | Offset for `publishersWithOneBook` list. |
-| `orphanLimit` | integer | No | Limit for `publishersWithNoBooks` list (1–200). Defaults to 50. |
-| `orphanOffset` | integer | No | Offset for `publishersWithNoBooks` list. |
-| `orphanLimit` | integer | No | Limit for `authorsWithNoBooks` list (1–200). Defaults to 50. |
-| `orphanOffset` | integer | No | Offset for `authorsWithNoBooks` list. |
-| `timelineLimit` | integer | No | Limit for `authorDiscoveryTimeline` list (1–200). Defaults to 50. |
-| `timelineOffset` | integer | No | Offset for `authorDiscoveryTimeline` list. |
 
 Available fields:
 - `accountAgeDays`: Days since account creation.
@@ -3166,7 +3144,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["books", "authors", "publishers", "tags"]
+  "fields": []
 }
 ```
 
@@ -3195,6 +3173,8 @@ Available fields:
       "publishers": 16,
       "deletedPublishers": 0,
       "series": 7,
+      "deletedSeries": 1,
+      "bookTypes": 5,
       "tags": 33,
       "languages": 3,
       "storageLocations": 12,
@@ -3231,7 +3211,7 @@ Available fields:
 ### GET /booktype
 
 - **Purpose:** Retrieve all book types for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -3239,7 +3219,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/booktype` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -3247,7 +3227,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -3333,41 +3314,31 @@ You can provide these list controls via query string or JSON body. If both are p
 
 #### Example Responses
 
-- **Single Copy (200):**
+- **Book Types Retrieved (200):**
 
 ```json
 {
   "status": "success",
   "httpCode": 200,
   "responseTime": "2.41",
-  "message": "Book copy retrieved successfully.",
+  "message": "Book types retrieved successfully.",
   "data": {
-    "id": 21,
-    "bookId": 44,
-    "bookTitle": "The Hobbit",
-    "bookIsbn": "9780261103344",
-    "storageLocationId": 4,
-    "storageLocationPath": "Home -> Living Room",
-    "acquisitionStory": null,
-    "acquisitionDate": null,
-    "acquiredFrom": "Gift",
-    "acquisitionType": "Gift",
-    "acquisitionLocation": "Cape Town",
-    "notes": null,
-    "createdAt": "2025-12-12T08:11:10.000Z",
-    "updatedAt": "2025-12-12T08:11:10.000Z",
-    "stats": {
-      "copiesForBook": 2,
-      "duplicateCount": 1,
-      "isDuplicate": true,
-      "hasStorageLocation": true,
-      "hasAcquisitionStory": false,
-      "hasAcquisitionDate": false,
-      "hasAcquiredFrom": true,
-      "hasAcquisitionType": true,
-      "hasAcquisitionLocation": true,
-      "isMysteryCopy": true
-    }
+    "bookTypes": [
+      {
+        "id": 1,
+        "name": "Hardcover",
+        "description": "Hardback edition with rigid cover.",
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      },
+      {
+        "id": 2,
+        "name": "Softcover",
+        "description": null,
+        "createdAt": "2025-01-10T09:15:23.000Z",
+        "updatedAt": "2025-01-14T16:58:41.000Z"
+      }
+    ]
   },
   "errors": []
 }
@@ -3455,7 +3426,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["bookTypeBreakdown", "mostCollectedType", "booksMissingType"]
+  "fields": ["bookTypeBreakdown", "mostCollectedType", "leastCollectedType", "avgPageCountByType", "booksMissingType", "breakdownPerBookType"]
 }
 ```
 
@@ -3540,7 +3511,7 @@ Available fields:
 ### GET /booktype/:id
 
 - **Purpose:** Retrieve a specific book type by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -3548,7 +3519,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/booktype/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -3556,7 +3527,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -3643,7 +3615,7 @@ Available fields:
 ### GET /booktype/by-name
 
 - **Purpose:** Retrieve a specific book type by name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -3651,7 +3623,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/booktype/by-name` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -3659,7 +3631,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -3753,7 +3726,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### POST /booktype
 
 - **Purpose:** Create a new book type for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -3761,7 +3734,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `POST` |
 | Path | `/booktype` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -3769,7 +3742,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -3789,8 +3763,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 ```json
 {
-  "name": "Hardcover",
-  "description": "Standard hardcover binding."
+  "name": "Illustrated Edition",
+  "description": "Special edition with collector illustrations."
 }
 ```
 
@@ -3806,8 +3780,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "message": "Book type created successfully.",
   "data": {
     "id": 10,
-    "name": "Hogwarts Illustrated Edition",
-    "description": "Harry Potter special edition with illustrations.",
+    "name": "Illustrated Edition",
+    "description": "Special edition with collector illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:02:11.000Z"
   },
@@ -3825,51 +3799,6 @@ If `name` is provided in both the query string and JSON body, the JSON body take
   "status": "error",
   "httpCode": 400,
   "responseTime": "2.10",
-  "message": "Validation Error",
-  "data": {},
-  "errors": [
-    "Language name must be between 2 and 100 characters."
-  ]
-}
-```
-
-- **Conflict (409):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 409,
-  "responseTime": "2.18",
-  "message": "Language already exists.",
-  "data": {},
-  "errors": [
-    "A language with this name already exists."
-  ]
-}
-```
-
-- **Forbidden (403):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 403,
-  "responseTime": "2.18",
-  "message": "Forbidden: Insufficient permissions.",
-  "data": {},
-  "errors": [
-    "Admin privileges are required for this action."
-  ]
-}
-```
-
-- **Validation Error (400):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 400,
-  "responseTime": "2.22",
   "message": "Validation Error",
   "data": {},
   "errors": [
@@ -3898,7 +3827,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### PUT /booktype/:id
 
 - **Purpose:** Update a book type.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -3906,7 +3835,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `PUT` |
 | Path | `/booktype/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -3914,7 +3843,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -3955,8 +3885,8 @@ At least one field must be provided.
   "message": "Book type updated successfully.",
   "data": {
     "id": 10,
-    "name": "Hogwarts Illustrated Edition",
-    "description": "Harry Potter special edition with illustrations.",
+    "name": "Illustrated Edition",
+    "description": "Special edition with collector illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:05:48.000Z"
   },
@@ -3977,52 +3907,7 @@ At least one field must be provided.
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Language name must be between 2 and 100 characters."
-  ]
-}
-```
-
-- **Not Found (404):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Language not found.",
-  "data": {},
-  "errors": [
-    "The requested language could not be located."
-  ]
-}
-```
-
-- **Conflict (409):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 409,
-  "responseTime": "2.18",
-  "message": "Language already exists.",
-  "data": {},
-  "errors": [
-    "A language with this name already exists."
-  ]
-}
-```
-
-- **Forbidden (403):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 403,
-  "responseTime": "2.18",
-  "message": "Forbidden: Insufficient permissions.",
-  "data": {},
-  "errors": [
-    "Admin privileges are required for this action."
+    "Book Type Name must be between 2 and 100 characters."
   ]
 }
 ```
@@ -4077,7 +3962,7 @@ At least one field must be provided.
 ### PUT /booktype
 
 - **Purpose:** Update a book type by `id` or `name`.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4085,7 +3970,7 @@ At least one field must be provided.
 | --- | --- |
 | Method | `PUT` |
 | Path | `/booktype` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -4093,7 +3978,8 @@ At least one field must be provided.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4139,8 +4025,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
   "message": "Book type updated successfully.",
   "data": {
     "id": 10,
-    "name": "Hogwarts Illustrated Edition",
-    "description": "Harry Potter special edition with illustrations.",
+    "name": "Illustrated Edition",
+    "description": "Special edition with collector illustrations.",
     "createdAt": "2025-01-17T10:02:11.000Z",
     "updatedAt": "2025-01-17T10:05:48.000Z"
   },
@@ -4216,7 +4102,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 ### DELETE /booktype
 
 - **Purpose:** Delete a book type by `id` or `name`.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4224,7 +4110,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/booktype` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -4232,7 +4118,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4290,37 +4177,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Language id must be a valid integer."
-  ]
-}
-```
-
-- **Not Found (404):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 404,
-  "responseTime": "2.84",
-  "message": "Language not found.",
-  "data": {},
-  "errors": [
-    "The requested language could not be located."
-  ]
-}
-```
-
-- **Forbidden (403):**
-
-```json
-{
-  "status": "error",
-  "httpCode": 403,
-  "responseTime": "2.18",
-  "message": "Forbidden: Insufficient permissions.",
-  "data": {},
-  "errors": [
-    "Admin privileges are required for this action."
+    "Book type id must be a valid integer."
   ]
 }
 ```
@@ -4360,7 +4217,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 ### DELETE /booktype/:id
 
 - **Purpose:** Delete a book type owned by the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4368,7 +4225,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/booktype/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -4376,7 +4233,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -4426,7 +4284,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 ### GET /author
 
 - **Purpose:** Retrieve all authors for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4434,7 +4292,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `GET` |
 | Path | `/author` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -4442,7 +4300,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4596,7 +4455,7 @@ Authors without a birth/death date will not match the born/died filters.
 ### GET /author/:id
 
 - **Purpose:** Retrieve a specific author by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4604,7 +4463,7 @@ Authors without a birth/death date will not match the born/died filters.
 | --- | --- |
 | Method | `GET` |
 | Path | `/author/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -4612,7 +4471,8 @@ Authors without a birth/death date will not match the born/died filters.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4715,7 +4575,7 @@ Authors without a birth/death date will not match the born/died filters.
 ### GET /author/by-name
 
 - **Purpose:** Retrieve a specific author by display name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4723,7 +4583,7 @@ Authors without a birth/death date will not match the born/died filters.
 | --- | --- |
 | Method | `GET` |
 | Path | `/author/by-name` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -4731,7 +4591,8 @@ Authors without a birth/death date will not match the born/died filters.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4844,7 +4705,7 @@ Edge cases:
 ### POST /author
 
 - **Purpose:** Create a new author for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4852,7 +4713,7 @@ Edge cases:
 | --- | --- |
 | Method | `POST` |
 | Path | `/author` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -4860,7 +4721,8 @@ Edge cases:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -4985,7 +4847,7 @@ Edge cases:
 ### PUT /author
 
 - **Purpose:** Update an author by `id` or `displayName`.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -4993,7 +4855,7 @@ Edge cases:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/author` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -5001,7 +4863,8 @@ Edge cases:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -5150,7 +5013,7 @@ Edge cases:
 ### PUT /author/:id
 
 - **Purpose:** Update an author by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -5158,7 +5021,7 @@ Edge cases:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/author/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -5166,7 +5029,8 @@ Edge cases:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -5264,7 +5128,7 @@ Edge cases:
 ### DELETE /author
 
 - **Purpose:** Delete an author by `id` or `displayName`.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -5272,7 +5136,7 @@ Edge cases:
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/author` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -5280,7 +5144,8 @@ Edge cases:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -5363,7 +5228,7 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 ### DELETE /author/:id
 
 - **Purpose:** Delete an author by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -5371,7 +5236,7 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/author/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -5379,7 +5244,8 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -5618,6 +5484,11 @@ If both `id` and `displayName` are provided, they must refer to the same record 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `orphanLimit` | integer | No | Limit for `authorsWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `authorsWithNoBooks` list. |
+| `timelineLimit` | integer | No | Limit for `authorDiscoveryTimeline` list (1–200). Defaults to 50. |
+| `timelineOffset` | integer | No | Offset for `authorDiscoveryTimeline` list. |
+| `breakdowns` | array | No | Breakdown types: `perAuthor`, `perBirthDecade`, `perAliveDeceased` (defaults to all). |
 
 Available fields:
 - `total`: Count of active (non-deleted) authors.
@@ -5652,8 +5523,19 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalAuthors", "aliveDeceasedRatio", "mostRepresentedAuthor", "authorsWithNoBooks"],
-  "orphanLimit": 25
+  "fields": [
+    "totalAuthors",
+    "aliveDeceasedRatio",
+    "mostRepresentedAuthor",
+    "oldestAuthor",
+    "youngestAuthor",
+    "authorsWithNoBooks",
+    "breakdownPerAliveDeceased",
+    "breakdownPerBirthDecade",
+    "breakdownPerAuthor"
+  ],
+  "orphanLimit": 25,
+  "breakdowns": ["perAuthor", "perBirthDecade", "perAliveDeceased"]
 }
 ```
 
@@ -5785,7 +5667,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["averageAuthorsPerBook", "singleVsMultiBreakdown", "collaborationPairs"],
+  "fields": ["averageAuthorsPerBook", "singleVsMultiBreakdown", "authorRoleBreakdown", "contributorDiversity", "collaborationPairs"],
   "pairLimit": 10
 }
 ```
@@ -5863,7 +5745,7 @@ Available fields:
 ### GET /publisher
 
 - **Purpose:** Retrieve all publishers for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -5871,7 +5753,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/publisher` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -5879,7 +5761,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6023,7 +5906,7 @@ For founded filters, the API compares using the earliest possible date from the 
 ### GET /publisher/by-name
 
 - **Purpose:** Retrieve a specific publisher by name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6031,7 +5914,7 @@ For founded filters, the API compares using the earliest possible date from the 
 | --- | --- |
 | Method | `GET` |
 | Path | `/publisher/by-name` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -6039,7 +5922,8 @@ For founded filters, the API compares using the earliest possible date from the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6140,7 +6024,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### GET /publisher/:id
 
 - **Purpose:** Retrieve a specific publisher by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6148,7 +6032,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `GET` |
 | Path | `/publisher/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -6156,7 +6040,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6250,7 +6135,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### POST /publisher
 
 - **Purpose:** Create a new publisher.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6258,7 +6143,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `POST` |
 | Path | `/publisher` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -6266,7 +6151,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6366,7 +6252,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### PUT /publisher
 
 - **Purpose:** Update a publisher by id or name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6374,7 +6260,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `PUT` |
 | Path | `/publisher` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -6382,7 +6268,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6496,7 +6383,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 ### PUT /publisher/:id
 
 - **Purpose:** Update a publisher by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6504,7 +6391,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 | --- | --- |
 | Method | `PUT` |
 | Path | `/publisher/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -6512,7 +6399,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6596,7 +6484,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 ### DELETE /publisher
 
 - **Purpose:** Delete a publisher by id or name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6604,7 +6492,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/publisher` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -6612,7 +6500,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -6693,7 +6582,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 ### DELETE /publisher/:id
 
 - **Purpose:** Delete a publisher by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -6701,7 +6590,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/publisher/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -6709,7 +6598,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -6945,6 +6835,10 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `oneOffLimit` | integer | No | Limit for `publishersWithOneBook` list (1–200). Defaults to 50. |
+| `oneOffOffset` | integer | No | Offset for `publishersWithOneBook` list. |
+| `orphanLimit` | integer | No | Limit for `publishersWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `publishersWithNoBooks` list. |
 
 Available fields:
 - `total`: Count of active (non-deleted) publishers.
@@ -6971,8 +6865,9 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalPublishers", "mostCommonPublisher", "publishersWithOneBook", "websiteCoverage"],
-  "oneOffLimit": 10
+  "fields": ["totalPublishers", "mostCommonPublisher", "publishersWithOneBook", "publishersWithNoBooks", "oldestFoundedPublisher", "websiteCoverage", "breakdownPerPublisher"],
+  "oneOffLimit": 10,
+  "orphanLimit": 10
 }
 ```
 
@@ -7055,7 +6950,7 @@ Available fields:
 ### GET /bookseries
 
 - **Purpose:** Retrieve all book series for the authenticated user.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7063,7 +6958,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/bookseries` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -7071,7 +6966,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7222,7 +7118,7 @@ For started/ended filters, the API compares using the earliest possible date fro
 ### GET /bookseries/by-name
 
 - **Purpose:** Retrieve a specific series by name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7230,7 +7126,7 @@ For started/ended filters, the API compares using the earliest possible date fro
 | --- | --- |
 | Method | `GET` |
 | Path | `/bookseries/by-name` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -7238,7 +7134,8 @@ For started/ended filters, the API compares using the earliest possible date fro
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7357,7 +7254,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### GET /bookseries/:id
 
 - **Purpose:** Retrieve a specific series by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7365,7 +7262,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `GET` |
 | Path | `/bookseries/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -7373,7 +7270,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7485,7 +7383,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### POST /bookseries
 
 - **Purpose:** Create a new book series.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7493,7 +7391,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `POST` |
 | Path | `/bookseries` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -7501,7 +7399,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7588,7 +7487,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 ### PUT /bookseries
 
 - **Purpose:** Update a series by id or name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7596,7 +7495,7 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 | --- | --- |
 | Method | `PUT` |
 | Path | `/bookseries` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -7604,7 +7503,8 @@ If `name` is provided in both the query string and JSON body, the JSON body take
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7710,7 +7610,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 ### PUT /bookseries/:id
 
 - **Purpose:** Update a series by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7718,7 +7618,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 | --- | --- |
 | Method | `PUT` |
 | Path | `/bookseries/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -7726,7 +7626,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7803,7 +7704,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 ### DELETE /bookseries
 
 - **Purpose:** Delete a series by id or name.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7811,7 +7712,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/bookseries` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -7819,7 +7720,8 @@ If both `id` and `targetName` are provided, they must refer to the same record o
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -7900,7 +7802,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 ### DELETE /bookseries/:id
 
 - **Purpose:** Delete a series by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7908,7 +7810,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/bookseries/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -7916,7 +7818,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -7979,7 +7882,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 ### POST /bookseries/link
 
 - **Purpose:** Link a book to a series with an optional order.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -7987,7 +7890,7 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `POST` |
 | Path | `/bookseries/link` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -7995,7 +7898,8 @@ If both `id` and `name` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -8090,7 +7994,7 @@ Notes:
 ### PUT /bookseries/link
 
 - **Purpose:** Update a book-series link (book order).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -8098,7 +8002,7 @@ Notes:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/bookseries/link` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -8106,7 +8010,8 @@ Notes:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -8196,7 +8101,7 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 ### DELETE /bookseries/link
 
 - **Purpose:** Remove a book-series link.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -8204,7 +8109,7 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/bookseries/link` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -8212,7 +8117,8 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -8453,6 +8359,8 @@ If both `seriesId` and `seriesName` are provided, they must refer to the same re
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `orphanLimit` | integer | No | Limit for `seriesWithNoBooks` list (1–200). Defaults to 50. |
+| `orphanOffset` | integer | No | Offset for `seriesWithNoBooks` list. |
 
 Available fields:
 - `total`: Count of active (non-deleted) series.
@@ -8480,7 +8388,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalSeries", "largestSeries", "seriesCompleteness", "seriesWithNoBooks"],
+  "fields": ["totalSeries", "largestSeries", "seriesCompleteness", "seriesWithNoBooks", "newestSeriesAdded", "oldestSeriesAdded", "breakdownPerSeries"],
   "orphanLimit": 25
 }
 ```
@@ -8616,7 +8524,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["booksInSeries", "standalones", "averageSeriesLengthBooks", "outOfOrderEntries"]
+  "fields": ["booksInSeries", "standalones", "averageSeriesLengthBooks", "averageSeriesLengthPages", "outOfOrderEntries", "booksInMultipleSeries", "breakdownPerSeries"]
 }
 ```
 
@@ -8694,7 +8602,7 @@ Available fields:
 ### GET /languages
 
 - **Purpose:** Retrieve all available languages (alphabetical).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -8702,7 +8610,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/languages` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -8710,7 +8618,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -8773,6 +8682,8 @@ Available fields:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `fields` | array | No | List of stats fields to compute. If omitted, all stats are returned. |
+| `topLimit` | integer | No | Limit for `mostCommonLanguages` list (1–50). Defaults to 5. |
+| `comboLimit` | integer | No | Limit for `languageCombinations` list (1–50). Defaults to 10. |
 
 Available fields:
 - `languagesInLibrary`: Count of distinct languages used by active books.
@@ -8797,7 +8708,19 @@ Available fields:
 
 ```json
 {
-  "fields": ["languagesInLibrary", "languageBreakdown", "mostCommonLanguages", "languageCombinations"],
+  "fields": [
+    "languagesInLibrary",
+    "booksWithSingleLanguage",
+    "booksWithMultipleLanguages",
+    "booksMissingLanguage",
+    "languageBreakdown",
+    "mostCommonLanguage",
+    "mostCommonLanguages",
+    "rarestLanguage",
+    "languageDiversityScore",
+    "breakdownPerLanguage",
+    "languageCombinations"
+  ],
   "topLimit": 3,
   "comboLimit": 5
 }
@@ -8817,16 +8740,16 @@ Available fields:
     "stats": {
       "languagesInLibrary": 3,
       "booksWithSingleLanguage": {
-        "count": 14,
-        "percentage": 56.0
+        "count": 21,
+        "percentage": 84.0
       },
       "booksWithMultipleLanguages": {
         "count": 4,
         "percentage": 16.0
       },
       "booksMissingLanguage": {
-        "count": 7,
-        "percentage": 28.0
+        "count": 0,
+        "percentage": 0.0
       },
       "languageBreakdown": [
         {
@@ -8863,10 +8786,10 @@ Available fields:
         }
       ],
       "rarestLanguage": {
-        "id": 1,
-        "name": "Afrikaans",
-        "bookCount": 5,
-        "percentage": 20.0
+        "id": 3,
+        "name": "Netherlands",
+        "bookCount": 2,
+        "percentage": 8.0
       },
       "languageCombinations": [
         {
@@ -8915,7 +8838,7 @@ Available fields:
 ### GET /book
 
 - **Purpose:** Retrieve all books for the authenticated user, or fetch a specific book by id, ISBN, or title.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -8923,7 +8846,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/book` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -8931,7 +8854,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -9080,7 +9004,7 @@ You can provide these list controls via query string or JSON body. If both are p
 ### POST /book
 
 - **Purpose:** Create a new book and link it to related entities.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -9088,7 +9012,7 @@ You can provide these list controls via query string or JSON body. If both are p
 | --- | --- |
 | Method | `POST` |
 | Path | `/book` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -9096,7 +9020,8 @@ You can provide these list controls via query string or JSON body. If both are p
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -9312,7 +9237,7 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 ### PUT /book
 
 - **Purpose:** Update a book by id, ISBN, or title.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -9320,7 +9245,7 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 | --- | --- |
 | Method | `PUT` |
 | Path | `/book` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -9328,7 +9253,8 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -9489,7 +9415,7 @@ Notes:
 ### PUT /book/:id
 
 - **Purpose:** Update a book by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -9497,7 +9423,7 @@ Notes:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/book/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -9505,7 +9431,8 @@ Notes:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -9571,7 +9498,7 @@ Notes:
 ### DELETE /book
 
 - **Purpose:** Delete a book by id, ISBN, or title using a JSON request body.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -9579,7 +9506,7 @@ Notes:
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/book` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -9587,7 +9514,8 @@ Notes:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -9670,7 +9598,7 @@ At least one identifier is required. If multiple identifiers are provided, they 
 ### DELETE /book/:id
 
 - **Purpose:** Delete a book by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -9678,7 +9606,7 @@ At least one identifier is required. If multiple identifiers are provided, they 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/book/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -9686,7 +9614,8 @@ At least one identifier is required. If multiple identifiers are provided, they 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -9974,7 +9903,36 @@ Available fields:
 
 ```json
 {
-  "fields": ["total", "withIsbn", "totalCopies"]
+  "fields": [
+    "total",
+    "deleted",
+    "withIsbn",
+    "withoutIsbn",
+    "isbnBreakdown",
+    "withPublicationDate",
+    "withCoverImage",
+    "withDescription",
+    "withBookType",
+    "withPublisher",
+    "withPageCount",
+    "avgPageCount",
+    "medianPageCount",
+    "minPageCount",
+    "maxPageCount",
+    "longestBook",
+    "shortestBook",
+    "withTags",
+    "withLanguages",
+    "withAuthors",
+    "withSeries",
+    "totalCopies",
+    "publicationYearHistogram",
+    "oldestPublicationYear",
+    "newestPublicationYear",
+    "metadataCompleteness",
+    "recentlyAdded",
+    "recentlyEdited"
+  ]
 }
 ```
 
@@ -10086,7 +10044,7 @@ Available fields:
 ### GET /storagelocation
 
 - **Purpose:** Retrieve all storage locations or fetch a single location by id/path.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10094,7 +10052,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/storagelocation` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -10102,7 +10060,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -10219,7 +10178,7 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 ### POST /storagelocation
 
 - **Purpose:** Create a new storage location (base or nested).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10227,7 +10186,7 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 | --- | --- |
 | Method | `POST` |
 | Path | `/storagelocation` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -10235,7 +10194,8 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -10323,7 +10283,7 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 ### PUT /storagelocation
 
 - **Purpose:** Update a storage location by id or path.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10331,7 +10291,7 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 | --- | --- |
 | Method | `PUT` |
 | Path | `/storagelocation` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -10339,7 +10299,8 @@ When `returnStats` is true, the response includes `stats` with `directCopyCount`
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -10432,7 +10393,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 ### PUT /storagelocation/:id
 
 - **Purpose:** Update a storage location by id (path parameter).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10440,7 +10401,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `PUT` |
 | Path | `/storagelocation/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -10448,7 +10409,8 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -10536,7 +10498,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 ### DELETE /storagelocation
 
 - **Purpose:** Delete a storage location by id or path.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10544,7 +10506,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/storagelocation` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -10552,7 +10514,8 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -10619,7 +10582,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 ### DELETE /storagelocation/:id
 
 - **Purpose:** Delete a storage location by id (path parameter).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -10627,7 +10590,7 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/storagelocation/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -10635,7 +10598,8 @@ If both `id` and `path` are provided, they must refer to the same record or the 
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -10995,7 +10959,15 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalLocations", "locationDistribution", "mostCrowdedBranch", "emptyLocations"],
+  "fields": [
+    "totalLocations",
+    "locationDistribution",
+    "mostCrowdedBranch",
+    "emptyLocations",
+    "largestLocation",
+    "maxDepth",
+    "breakdownPerLocation"
+  ],
   "emptyLimit": 20
 }
 ```
@@ -11145,7 +11117,7 @@ Available fields:
 ### POST /timeline/buckets
 
 - **Purpose:** Return counts in timeline buckets for a chosen entity/date field.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11153,7 +11125,7 @@ Available fields:
 | --- | --- |
 | Method | `POST` |
 | Path | `/timeline/buckets` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 20 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -11161,7 +11133,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11272,7 +11245,7 @@ Supported combinations:
 ### GET /bookcopy
 
 - **Purpose:** Retrieve all book copies, or fetch a specific copy by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11280,7 +11253,7 @@ Supported combinations:
 | --- | --- |
 | Method | `GET` |
 | Path | `/bookcopy` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` (optional body) |
 
@@ -11288,7 +11261,8 @@ Supported combinations:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11453,7 +11427,16 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalCopies", "uniqueVsDuplicate", "storageCoverage", "acquiredFromBreakdown"],
+  "fields": [
+    "totalCopies",
+    "uniqueVsDuplicate",
+    "storageCoverage",
+    "acquiredFromBreakdown",
+    "mostDuplicatedBook",
+    "storyRichCopies",
+    "mysteryCopies",
+    "acquisitionTimeline"
+  ],
   "breakdownLimit": 10
 }
 ```
@@ -11533,7 +11516,7 @@ Available fields:
 ### POST /bookcopy
 
 - **Purpose:** Add a new book copy to a book.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11541,7 +11524,7 @@ Available fields:
 | --- | --- |
 | Method | `POST` |
 | Path | `/bookcopy` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -11549,7 +11532,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11647,7 +11631,7 @@ Available fields:
 ### PUT /bookcopy
 
 - **Purpose:** Update a book copy by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11655,7 +11639,7 @@ Available fields:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/bookcopy` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -11663,7 +11647,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11752,7 +11737,7 @@ Available fields:
 ### PUT /bookcopy/:id
 
 - **Purpose:** Update a book copy by id (path parameter).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11760,7 +11745,7 @@ Available fields:
 | --- | --- |
 | Method | `PUT` |
 | Path | `/bookcopy/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -11768,7 +11753,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11856,7 +11842,7 @@ Available fields:
 ### DELETE /bookcopy
 
 - **Purpose:** Delete a book copy by id.
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11864,7 +11850,7 @@ Available fields:
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/bookcopy` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | `application/json` |
 
@@ -11872,7 +11858,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -11951,7 +11938,7 @@ Available fields:
 ### DELETE /bookcopy/:id
 
 - **Purpose:** Delete a book copy by id (path parameter).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -11959,7 +11946,7 @@ Available fields:
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/bookcopy/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -11967,7 +11954,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -12055,7 +12043,7 @@ Available fields:
 ### GET /tags
 
 - **Purpose:** Retrieve all tags for the authenticated user (alphabetical order).
-- **Authentication:** Access token required.
+- **Authentication:** Access token or API key required.
 
 #### Request Overview
 
@@ -12063,7 +12051,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/tags` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / user |
 | Content-Type | N/A (no body) |
 
@@ -12071,7 +12059,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -12266,7 +12255,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["totalTags", "mostUsedTag", "unusedTags", "tagGrowth"],
+  "fields": ["totalTags", "mostUsedTag", "leastUsedTags", "unusedTags", "tagGrowth"],
   "unusedLimit": 10
 }
 ```
@@ -12376,7 +12365,7 @@ Available fields:
 
 ```json
 {
-  "fields": ["averageTagsPerBook", "coOccurringTags", "tagEntropy", "tagBreakdown"],
+  "fields": ["averageTagsPerBook", "untaggedBooks", "mostTaggedBook", "coOccurringTags", "tagEntropy", "tagBreakdown"],
   "pairLimit": 5,
   "breakdownLimit": 10
 }
@@ -12423,8 +12412,9 @@ Available fields:
           "id": 3,
           "name": "Fantasy",
           "bookCount": 12,
+          "tagUseCount": 18,
           "percentageOfBooks": 40.0,
-          "percentageOfTagUses": 9.2
+          "percentageOfTagUses": 13.8
         }
       ]
     }
@@ -12682,7 +12672,7 @@ Available fields:
 ### GET /admin/users
 
 - **Purpose:** Retrieve all users, or fetch a single user when `id` or `email` is provided.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -12690,7 +12680,7 @@ Available fields:
 | --- | --- |
 | Method | `GET` |
 | Path | `/admin/users` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` (optional body) |
 
@@ -12698,7 +12688,8 @@ Available fields:
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -12859,7 +12850,7 @@ You can provide these list controls via query string or JSON body. If both are p
 ### GET /admin/users/:id
 
 - **Purpose:** Retrieve a specific user profile by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -12867,7 +12858,7 @@ You can provide these list controls via query string or JSON body. If both are p
 | --- | --- |
 | Method | `GET` |
 | Path | `/admin/users/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` (optional body) |
 
@@ -12875,7 +12866,8 @@ You can provide these list controls via query string or JSON body. If both are p
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. If provided, it must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -12968,7 +12960,7 @@ You can provide these list controls via query string or JSON body. If both are p
 ### POST /admin/users
 
 - **Purpose:** Create a new user account (admin only).
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -12976,7 +12968,7 @@ You can provide these list controls via query string or JSON body. If both are p
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -12984,7 +12976,8 @@ You can provide these list controls via query string or JSON body. If both are p
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13119,7 +13112,7 @@ If you did not expect this email, please contact the system administrator at <su
 ### PUT /admin/users
 
 - **Purpose:** Update a user profile using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13127,7 +13120,7 @@ If you did not expect this email, please contact the system administrator at <su
 | --- | --- |
 | Method | `PUT` |
 | Path | `/admin/users` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -13135,7 +13128,8 @@ If you did not expect this email, please contact the system administrator at <su
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13294,7 +13288,7 @@ This link will expire in <expiresIn> minutes.
 ### PUT /admin/users/:id
 
 - **Purpose:** Update a user profile by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13302,7 +13296,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `PUT` |
 | Path | `/admin/users/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -13310,7 +13304,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13461,7 +13456,7 @@ This link will expire in <expiresIn> minutes.
 ### DELETE /admin/users
 
 - **Purpose:** Disable a user account using a JSON body `id` or `email` (soft delete).
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13469,7 +13464,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/admin/users` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -13477,7 +13472,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13571,7 +13567,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 ### DELETE /admin/users/:id
 
 - **Purpose:** Disable a user account by id (soft delete).
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13579,7 +13575,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/admin/users/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` (optional body) |
 
@@ -13587,7 +13583,8 @@ If you believe this was a mistake, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -13672,7 +13669,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 ### POST /admin/users/enable
 
 - **Purpose:** Re-enable a disabled user account using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13680,7 +13677,7 @@ If you believe this was a mistake, please contact the system administrator at <s
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/enable` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -13688,7 +13685,8 @@ If you believe this was a mistake, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13779,7 +13777,7 @@ If you did not request this change, please contact the system administrator at <
 ### POST /admin/users/:id/enable
 
 - **Purpose:** Re-enable a disabled user account by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13787,7 +13785,7 @@ If you did not request this change, please contact the system administrator at <
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/enable` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` (optional body) |
 
@@ -13795,7 +13793,8 @@ If you did not request this change, please contact the system administrator at <
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -13878,7 +13877,7 @@ If you did not request this change, please contact the system administrator at <
 ### POST /admin/users/unverify
 
 - **Purpose:** Mark a user's email as unverified using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13886,7 +13885,7 @@ If you did not request this change, please contact the system administrator at <
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/unverify` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -13894,7 +13893,8 @@ If you did not request this change, please contact the system administrator at <
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -13988,7 +13988,7 @@ If you did not expect this change, please contact the system administrator at <s
 ### POST /admin/users/:id/unverify
 
 - **Purpose:** Mark a user's email as unverified by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -13996,7 +13996,7 @@ If you did not expect this change, please contact the system administrator at <s
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/unverify` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -14004,7 +14004,8 @@ If you did not expect this change, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14097,7 +14098,7 @@ If you did not expect this change, please contact the system administrator at <s
 ### POST /admin/users/verify
 
 - **Purpose:** Mark a user's email as verified using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14105,7 +14106,7 @@ If you did not expect this change, please contact the system administrator at <s
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/verify` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -14113,7 +14114,8 @@ If you did not expect this change, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14207,7 +14209,7 @@ If you did not expect this change, please contact the system administrator at <s
 ### POST /admin/users/:id/verify
 
 - **Purpose:** Mark a user's email as verified by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14215,7 +14217,7 @@ If you did not expect this change, please contact the system administrator at <s
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/verify` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -14223,7 +14225,8 @@ If you did not expect this change, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14314,7 +14317,7 @@ If you did not expect this change, please contact the system administrator at <s
 ### POST /admin/users/send-verification
 
 - **Purpose:** Send a verification email using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14322,7 +14325,7 @@ If you did not expect this change, please contact the system administrator at <s
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/send-verification` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | `application/json` |
 
@@ -14330,7 +14333,8 @@ If you did not expect this change, please contact the system administrator at <s
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14442,7 +14446,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/:id/send-verification
 
 - **Purpose:** Send a verification email by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14450,7 +14454,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/send-verification` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | `application/json` |
 
@@ -14458,7 +14462,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14572,7 +14577,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/reset-password
 
 - **Purpose:** Send a password reset email using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14580,7 +14585,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/reset-password` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | `application/json` |
 
@@ -14588,7 +14593,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14684,7 +14690,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/:id/reset-password
 
 - **Purpose:** Send a password reset email by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14692,7 +14698,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/reset-password` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + 1 request / 5 minutes / IP (email cost) |
 | Content-Type | `application/json` |
 
@@ -14700,7 +14706,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14792,7 +14799,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/sessions
 
 - **Purpose:** List active sessions for a user using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14800,7 +14807,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/sessions` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -14808,7 +14815,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -14901,7 +14909,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/:id/sessions
 
 - **Purpose:** List active sessions for a user by id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -14909,7 +14917,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/sessions` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` (optional body) |
 
@@ -14917,7 +14925,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Body Parameters
@@ -15000,7 +15009,7 @@ This link will expire in <expiresIn> minutes.
 ### POST /admin/users/force-logout
 
 - **Purpose:** Revoke one or more sessions using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15008,7 +15017,7 @@ This link will expire in <expiresIn> minutes.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/force-logout` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15016,7 +15025,8 @@ This link will expire in <expiresIn> minutes.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15108,7 +15118,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### POST /admin/users/:id/force-logout
 
 - **Purpose:** Revoke one or more sessions by user id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15116,7 +15126,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/force-logout` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15124,7 +15134,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | No | `application/json` | Body is optional. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15210,7 +15221,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### POST /admin/users/handle-account-deletion
 
 - **Purpose:** Permanently delete a user account after confirmation using a JSON body `id` or `email`.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15218,7 +15229,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/handle-account-deletion` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + additional admin deletion limits |
 | Content-Type | `application/json` |
 
@@ -15226,7 +15237,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15362,7 +15374,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### POST /admin/users/:id/handle-account-deletion
 
 - **Purpose:** Permanently delete a user account by id after confirmation.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15370,7 +15382,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/users/:id/handle-account-deletion` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user + additional admin deletion limits |
 | Content-Type | `application/json` |
 
@@ -15378,7 +15390,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15515,7 +15528,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### POST /admin/languages
 
 - **Purpose:** Add a new language.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15523,7 +15536,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `POST` |
 | Path | `/admin/languages` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15531,7 +15544,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15612,7 +15626,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### PUT /admin/languages
 
 - **Purpose:** Update a language using a JSON body id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15620,7 +15634,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `PUT` |
 | Path | `/admin/languages` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15628,7 +15642,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15727,7 +15742,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### DELETE /admin/languages
 
 - **Purpose:** Delete a language using a JSON body id.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15735,7 +15750,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/admin/languages` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15743,7 +15758,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15822,7 +15838,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### PUT /admin/languages/:id
 
 - **Purpose:** Update a language.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15830,7 +15846,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `PUT` |
 | Path | `/admin/languages/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | `application/json` |
 
@@ -15838,7 +15854,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
@@ -15935,7 +15952,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### DELETE /admin/languages/:id
 
 - **Purpose:** Delete a language.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -15943,7 +15960,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `DELETE` |
 | Path | `/admin/languages/:id` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | N/A (no body) |
 
@@ -15951,7 +15968,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Validation & Edge Cases
@@ -16015,7 +16033,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 ### GET /status
 
 - **Purpose:** Admin status check for database and email queue health.
-- **Authentication:** Admin access token required.
+- **Authentication:** Admin access token or admin API key required.
 
 #### Request Overview
 
@@ -16023,7 +16041,7 @@ If no fingerprint is supplied, all active sessions are revoked.
 | --- | --- |
 | Method | `GET` |
 | Path | `/status` |
-| Authentication | `Authorization: Bearer <accessToken>` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
 | Rate Limit | 60 requests / minute / admin user |
 | Content-Type | None |
 
@@ -16031,7 +16049,8 @@ If no fingerprint is supplied, all active sessions are revoked.
 
 | Header | Required | Value | Notes |
 | --- | --- | --- | --- |
-| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Authorization` | Conditional | `Bearer <accessToken>` | Required if `X-API-Key` is not provided. |
+| `X-API-Key` | Conditional | `bk_<token>` | Required if `Authorization` is not provided. |
 | `Accept` | No | `application/json` | Responses are JSON. |
 
 #### Example Responses

@@ -108,26 +108,29 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 				};
 			}
 
-			if (selected.includes("tagBreakdown")) {
-				const breakdownResult = await pool.query(
-					`SELECT t.id, t.name, COUNT(DISTINCT bt.book_id)::int AS book_count
-					 FROM tags t
-					 JOIN book_tags bt ON bt.tag_id = t.id AND bt.user_id = t.user_id
-					 JOIN books b ON b.id = bt.book_id AND b.deleted_at IS NULL
-					 WHERE t.user_id = $1
-					 GROUP BY t.id, t.name
-					 ORDER BY book_count DESC, t.name ASC
-					 LIMIT $2`,
-					[userId, breakdownLimitValue]
-				);
-				payload.tagBreakdown = breakdownResult.rows.map((row) => ({
-					id: row.id,
-					name: row.name,
-					bookCount: row.book_count,
-					percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0,
-					percentageOfTagUses: totalTagLinks > 0 ? Number(((row.book_count / totalTagLinks) * 100).toFixed(1)) : 0
-				}));
-			}
+		if (selected.includes("tagBreakdown")) {
+			const breakdownResult = await pool.query(
+				`SELECT t.id, t.name,
+				        COUNT(DISTINCT bt.book_id)::int AS book_count,
+				        COUNT(*)::int AS tag_use_count
+				 FROM tags t
+				 JOIN book_tags bt ON bt.tag_id = t.id AND bt.user_id = t.user_id
+				 JOIN books b ON b.id = bt.book_id AND b.deleted_at IS NULL
+				 WHERE t.user_id = $1
+				 GROUP BY t.id, t.name
+				 ORDER BY book_count DESC, t.name ASC
+				 LIMIT $2`,
+				[userId, breakdownLimitValue]
+			);
+			payload.tagBreakdown = breakdownResult.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				bookCount: row.book_count,
+				tagUseCount: row.tag_use_count,
+				percentageOfBooks: totalBooks > 0 ? Number(((row.book_count / totalBooks) * 100).toFixed(1)) : 0,
+				percentageOfTagUses: totalTagLinks > 0 ? Number(((row.tag_use_count / totalTagLinks) * 100).toFixed(1)) : 0
+			}));
+		}
 		}
 
 		if (selected.includes("untaggedBooks")) {
