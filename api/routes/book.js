@@ -19,6 +19,7 @@ const MAX_ACQUIRED_FROM_LENGTH = 255;
 const MAX_ACQUISITION_TYPE_LENGTH = 100;
 const MAX_ACQUISITION_LOCATION_LENGTH = 255;
 const MAX_COPY_NOTES_LENGTH = 2000;
+const MAX_AUTHOR_ROLE_LENGTH = 100;
 
 router.use((req, res, next) => {
 	logToFile("BOOK_REQUEST", {
@@ -583,7 +584,7 @@ async function ensureLanguageIdsExist(ids) {
 async function fetchBookRelations(userId, bookId) {
 	const [authors, languages, tags, series, copies] = await Promise.all([
 		pool.query(
-			`SELECT author_id FROM book_authors WHERE user_id = $1 AND book_id = $2 ORDER BY author_id ASC`,
+			`SELECT author_id, role FROM book_authors WHERE user_id = $1 AND book_id = $2 ORDER BY author_id ASC`,
 			[userId, bookId]
 		),
 		pool.query(
@@ -617,6 +618,7 @@ async function fetchBookRelations(userId, bookId) {
 
 	return {
 		authorIds: authors.rows.map((row) => row.author_id),
+		authorRoles: authors.rows.map((row) => row.role ?? null),
 		languages: languages.rows,
 		tags: tags.rows,
 		series: series.rows.map((row) => ({
@@ -670,6 +672,7 @@ function buildBookPayload(row, view, relations) {
 	return {
 		...base,
 		authors: relations?.authorIds || [],
+		authorRoles: relations?.authorRoles || [],
 		languages: relations?.languages || [],
 		tags: relations?.tags || [],
 		series: relations?.series || [],
@@ -1060,9 +1063,35 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	const { value: bookTypeId, error: bookTypeError } = parseSingleIdInput(req.body?.bookTypeId, "Book Type");
 	const { value: publisherId, error: publisherError } = parseSingleIdInput(req.body?.publisherId, "Publisher");
-	const rawAuthorIds = Array.isArray(req.body?.authorIds) ? req.body.authorIds : [];
-	const authorIds = rawAuthorIds.map((value) => parseId(value)).filter(Number.isInteger);
-	const hasInvalidAuthorIds = rawAuthorIds.length !== authorIds.length;
+	const rawAuthors = Array.isArray(req.body?.authors) ? req.body.authors : [];
+	const hasLegacyAuthorIds = Object.prototype.hasOwnProperty.call(req.body || {}, "authorIds");
+	const hasLegacyAuthorRoles = Object.prototype.hasOwnProperty.call(req.body || {}, "authorRoles");
+
+	let authorIds = [];
+	let authorRoles = [];
+	let hasInvalidAuthorIds = false;
+	let hasInvalidAuthorRoles = false;
+
+	const parsedAuthors = rawAuthors.map((entry) => {
+		if (typeof entry === "number" || typeof entry === "string") {
+			return { authorId: parseId(entry), authorRole: null };
+		}
+		if (entry && typeof entry === "object") {
+			const authorId = parseId(entry.authorId ?? entry.id);
+			const authorRoleRaw = entry.authorRole ?? entry.role ?? null;
+			const authorRole = authorRoleRaw === undefined || authorRoleRaw === null || authorRoleRaw === ""
+				? null
+				: (typeof authorRoleRaw === "string" ? authorRoleRaw.trim() : authorRoleRaw);
+			return { authorId, authorRole };
+		}
+		return { authorId: null, authorRole: null };
+	});
+	authorIds = parsedAuthors.map((entry) => entry.authorId).filter(Number.isInteger);
+	authorRoles = parsedAuthors.map((entry) => entry.authorRole ?? null);
+	hasInvalidAuthorIds = authorIds.length !== rawAuthors.length;
+	hasInvalidAuthorRoles = authorRoles.some((role) =>
+		role !== null && (typeof role !== "string" || role.length > MAX_AUTHOR_ROLE_LENGTH)
+	);
 
 	const rawLanguageIds = Array.isArray(req.body?.languageIds) ? req.body.languageIds : [];
 	const parsedLanguageIds = rawLanguageIds.map((value) => parseId(value)).filter(Number.isInteger);
@@ -1077,6 +1106,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const series = Array.isArray(req.body?.series) ? req.body.series : [];
 	const bookCopyInput = extractBookCopyInput(req.body);
 	const { errors: bookCopyErrors, normalized: normalizedBookCopy } = validateBookCopyPayload(bookCopyInput);
+	const dryRun = parseBooleanFlag(req.body?.dryRun) === true;
 
 	const errors = [
 		...validateTitle(title),
@@ -1089,7 +1119,16 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	if (pageError) errors.push(pageError);
 	if (bookTypeError) errors.push(bookTypeError);
 	if (publisherError) errors.push(publisherError);
-	if (hasInvalidAuthorIds) errors.push("authorIds must contain valid integers.");
+	if (hasLegacyAuthorIds || hasLegacyAuthorRoles) {
+		errors.push("authorIds/authorRoles are no longer supported. Use authors instead.");
+	}
+	if (hasInvalidAuthorIds) errors.push("Authors must be ids or objects with authorId and optional authorRole.");
+	if (authorRoles.length !== authorIds.length) {
+		errors.push("Authors must be ids or objects with authorId and optional authorRole.");
+	}
+	if (hasInvalidAuthorRoles) {
+		errors.push(`Author roles must be strings of ${MAX_AUTHOR_ROLE_LENGTH} characters or fewer.`);
+	}
 	if (hasInvalidLanguageIds) errors.push("languageIds must contain valid integers.");
 	if (languageResolution.missingNames.length > 0) {
 		errors.push(`Unknown language name(s): ${languageResolution.missingNames.join(", ")}.`);
@@ -1105,6 +1144,10 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	for (const entry of series) {
 		if (entry && typeof entry === "object" && entry.bookPublishedDate) {
 			errors.push("bookPublishedDate is no longer supported. Series dates are derived from book publicationDate.");
+		}
+		if (entry && typeof entry === "object" && entry.bookOrder !== undefined) {
+			const { error: orderError } = parseOptionalInt(entry.bookOrder, "Book order", { min: 1, max: 10000 });
+			if (orderError) errors.push(orderError);
 		}
 	}
 	errors.push(...bookCopyErrors);
@@ -1159,6 +1202,27 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
+		if (normalizedBookCopy?.storageLocationId || normalizedBookCopy?.storageLocationPath) {
+			const copyResolution = await resolveStorageLocationId(pool, userId, {
+				id: normalizedBookCopy?.storageLocationId ?? null,
+				path: normalizedBookCopy?.storageLocationPath ?? null
+			});
+			if (copyResolution.error) {
+				return errorResponse(res, 400, "Validation Error", [copyResolution.error]);
+			}
+		}
+
+		if (dryRun) {
+			logToFile("BOOK_CREATE", {
+				status: "INFO",
+				user_id: userId,
+				dry_run: true,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+			return successResponse(res, 200, "Ready to be added.", { ready: true });
+		}
+
 		const client = await pool.connect();
 		try {
 			await client.query("BEGIN");
@@ -1174,11 +1238,12 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const row = result.rows[0];
 
 			if (authorIds.length > 0) {
-				const insertValues = authorIds.map((authorId) => `(${userId}, ${row.id}, ${authorId}, NOW(), NOW())`).join(", ");
+				const roleValues = authorIds.map((_, index) => authorRoles[index] ?? null);
 				await client.query(
-					`INSERT INTO book_authors (user_id, book_id, author_id, created_at, updated_at)
-					 VALUES ${insertValues}
-					 ON CONFLICT DO NOTHING`
+					`INSERT INTO book_authors (user_id, book_id, author_id, role, created_at, updated_at)
+					 SELECT $1, $2, UNNEST($3::int[]), UNNEST($4::text[]), NOW(), NOW()
+					 ON CONFLICT DO NOTHING`,
+					[userId, row.id, authorIds, roleValues]
 				);
 			}
 
@@ -1314,7 +1379,9 @@ async function handleBookUpdate(req, res, bookId) {
 	const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, "description");
 	const hasBookTypeId = Object.prototype.hasOwnProperty.call(req.body || {}, "bookTypeId");
 	const hasPublisherId = Object.prototype.hasOwnProperty.call(req.body || {}, "publisherId");
-	const hasAuthorIds = Object.prototype.hasOwnProperty.call(req.body || {}, "authorIds");
+	const hasAuthors = Object.prototype.hasOwnProperty.call(req.body || {}, "authors");
+	const hasLegacyAuthorIds = Object.prototype.hasOwnProperty.call(req.body || {}, "authorIds");
+	const hasLegacyAuthorRoles = Object.prototype.hasOwnProperty.call(req.body || {}, "authorRoles");
 	const hasLanguageIds = Object.prototype.hasOwnProperty.call(req.body || {}, "languageIds");
 	const hasLanguageNames = Object.prototype.hasOwnProperty.call(req.body || {}, "languageNames");
 	const hasTags = Object.prototype.hasOwnProperty.call(req.body || {}, "tags");
@@ -1331,9 +1398,27 @@ async function handleBookUpdate(req, res, bookId) {
 
 	const { value: bookTypeId, error: bookTypeError } = hasBookTypeId ? parseSingleIdInput(req.body?.bookTypeId, "Book Type") : { value: null };
 	const { value: publisherId, error: publisherError } = hasPublisherId ? parseSingleIdInput(req.body?.publisherId, "Publisher") : { value: null };
-	const rawAuthorIds = hasAuthorIds && Array.isArray(req.body?.authorIds) ? req.body.authorIds : [];
-	const authorIds = hasAuthorIds ? rawAuthorIds.map((value) => parseId(value)).filter(Number.isInteger) : null;
-	const hasInvalidAuthorIds = hasAuthorIds && rawAuthorIds.length !== authorIds.length;
+	const rawAuthors = hasAuthors && Array.isArray(req.body?.authors) ? req.body.authors : [];
+	const parsedAuthors = hasAuthors ? rawAuthors.map((entry) => {
+		if (typeof entry === "number" || typeof entry === "string") {
+			return { authorId: parseId(entry), authorRole: null };
+		}
+		if (entry && typeof entry === "object") {
+			const authorId = parseId(entry.authorId ?? entry.id);
+			const authorRoleRaw = entry.authorRole ?? entry.role ?? null;
+			const authorRole = authorRoleRaw === undefined || authorRoleRaw === null || authorRoleRaw === ""
+				? null
+				: (typeof authorRoleRaw === "string" ? authorRoleRaw.trim() : authorRoleRaw);
+			return { authorId, authorRole };
+		}
+		return { authorId: null, authorRole: null };
+	}) : [];
+	const authorIds = hasAuthors ? parsedAuthors.map((entry) => entry.authorId).filter(Number.isInteger) : null;
+	const authorRoles = hasAuthors ? parsedAuthors.map((entry) => entry.authorRole ?? null) : null;
+	const hasInvalidAuthorIds = hasAuthors && authorIds.length !== rawAuthors.length;
+	const hasInvalidAuthorRoles = hasAuthors && authorRoles.some((role) =>
+		role !== null && (typeof role !== "string" || role.length > MAX_AUTHOR_ROLE_LENGTH)
+	);
 
 	const errors = [
 		...(hasTitle ? validateTitle(title) : []),
@@ -1346,7 +1431,18 @@ async function handleBookUpdate(req, res, bookId) {
 	if (hasPageCount && pageError) errors.push(pageError);
 	if (hasBookTypeId && bookTypeError) errors.push(bookTypeError);
 	if (hasPublisherId && publisherError) errors.push(publisherError);
-	if (hasInvalidAuthorIds) errors.push("authorIds must contain valid integers.");
+	if (hasLegacyAuthorIds || hasLegacyAuthorRoles) {
+		errors.push("authorIds/authorRoles are no longer supported. Use authors instead.");
+	}
+	if (hasAuthors && !Array.isArray(req.body?.authors)) {
+		errors.push("authors must be an array.");
+	}
+	if (hasInvalidAuthorIds || (hasAuthors && authorRoles.length !== authorIds.length)) {
+		errors.push("authors must be ids or objects with authorId and optional authorRole.");
+	}
+	if (hasInvalidAuthorRoles) {
+		errors.push(`Author roles must be strings of ${MAX_AUTHOR_ROLE_LENGTH} characters or fewer.`);
+	}
 	if (hasSeries && Array.isArray(req.body?.series)) {
 		for (const entry of req.body.series) {
 			if (entry && typeof entry === "object" && entry.bookPublishedDate) {
@@ -1356,7 +1452,7 @@ async function handleBookUpdate(req, res, bookId) {
 	}
 
 	if (!hasTitle && !hasSubtitle && !hasIsbn && !hasPublicationDate && !hasPageCount && !hasCoverImageUrl && !hasDescription
-		&& !hasBookTypeId && !hasPublisherId && !hasAuthorIds && !hasLanguageIds && !hasLanguageNames && !hasTags && !hasSeries) {
+		&& !hasBookTypeId && !hasPublisherId && !hasAuthors && !hasLanguageIds && !hasLanguageNames && !hasTags && !hasSeries) {
 		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
 	}
 	if (errors.length > 0) {
@@ -1382,7 +1478,7 @@ async function handleBookUpdate(req, res, bookId) {
 			const check = await ensureEntitiesExist({ userId, table: "publishers", ids: [publisherId], label: "Publisher" });
 			if (!check.ok) return errorResponse(res, 400, "Validation Error", [check.error]);
 		}
-		if (hasAuthorIds && authorIds && authorIds.length > 0) {
+		if (hasAuthors && authorIds && authorIds.length > 0) {
 			const check = await ensureEntitiesExist({ userId, table: "authors", ids: authorIds, label: "Author ids" });
 			if (!check.ok) return errorResponse(res, 400, "Validation Error", [check.error]);
 		}
@@ -1503,11 +1599,12 @@ async function handleBookUpdate(req, res, bookId) {
 					[userId, bookId]
 				);
 				if (authorIds && authorIds.length > 0) {
-					const insertValues = authorIds.map((authorId) => `(${userId}, ${bookId}, ${authorId}, NOW(), NOW())`).join(", ");
+					const roleValues = authorIds.map((_, index) => (authorRoles ? authorRoles[index] ?? null : null));
 					await client.query(
-						`INSERT INTO book_authors (user_id, book_id, author_id, created_at, updated_at)
-						 VALUES ${insertValues}
-						 ON CONFLICT DO NOTHING`
+						`INSERT INTO book_authors (user_id, book_id, author_id, role, created_at, updated_at)
+						 SELECT $1, $2, UNNEST($3::int[]), UNNEST($4::text[]), NOW(), NOW()
+						 ON CONFLICT DO NOTHING`,
+						[userId, bookId, authorIds, roleValues]
 					);
 				}
 			}

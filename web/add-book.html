@@ -139,6 +139,7 @@
                                                     <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                                                     <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                                                 </svg></button></div>
+                                        <small class="form-text" id="twoBookLanguageHelp"></small>
                                     </div>
                                     <div class="mb-3"><label class="form-label" for="bookCoverURL"><strong>Book Cover Image URL</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="A direct link to an image of the book cover. The URL should point to an image file (JPG, PNG, or WebP)." tabindex="-1">
                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
@@ -248,7 +249,9 @@
                             <option value="HarperCollins">HarperCollins</option>
                         </select><small class="form-text" id="bookPublisherHelp"></small></div>
                     <div id="bookPublisherDescriptionDisplay"><label class="form-label mb-1" for="publisherDescriptionDisplay"><strong>The selected Publisher's founded date:</strong></label>
-                        <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p>
+                        <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p><label class="form-label mb-1" for="publisherWebsiteDisplay"><strong>The selected Publisher's website:</strong></label>
+                        <p id="fiveLblPublisherWebsite">No Publisher selected.</p><label class="form-label mb-1" for="publisherNotesDisplay"><strong>The selected Publisher's notes:</strong></label>
+                        <p id="fiveLblPublisherNotes">No Publisher selected.</p>
                     </div>
                     <p class="text-muted mb-1">If you can't find the publisher you're looking for, you can add a new publisher.</p><button class="btn btn-outline-secondary" id="fiveBtnAddPublisher" type="button" data-bs-toggle="modal" data-bs-target="#addPublisherModal">Add new Publisher<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                             <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
@@ -318,6 +321,7 @@
                                     <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
                                     <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
                                 </svg></button></div>
+                        <small class="form-text" id="sevenBookTagHelp"></small>
                         <div class="position-absolute d-none w-100 list-group" id="seriesSearchResults-1"></div>
                     </div>
                 </div>
@@ -349,6 +353,9 @@
                                                 <option value="Uni Residence -> Black Bookshelf -> Top Rack">Uni Residence -> Black Bookshelf -> Top Rack</option>
                                                 <option value="Uni Residence -> Old Bookshelf">Uni Residence -> Old Bookshelf</option>
                                             </select><small class="form-text" id="eightBookLocationHelp"></small></div>
+                                        <div class="mt-2" id="storageLocationNotesDisplay"><label class="form-label mb-1"><strong>Selected location notes:</strong></label>
+                                            <p id="eightLblLocationNotes" class="mb-0">No storage location selected.</p>
+                                        </div>
                                         <p class="fs-6 text-secondary mb-1">Storage locations are hierarchical. You can store books broadly (for example, "<em>Home</em>") or very specifically (for example, "<em>Home → Study → Top Shelf</em>").</p>
                                         <p class="text-secondary mb-1">If you can't find the storage location you're looking for, you can add a new storage location.</p><button class="btn btn-outline-secondary" id="eightBtnAddLocation" type="button" data-bs-toggle="modal" data-bs-target="#addLocationModal">Add new Storage Location<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
                                                 <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
@@ -384,13 +391,13 @@
                                                         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                                     </svg><select class="form-select" id="eightCmbAcquisitionType" name="bookSubtitle" placeholder="2022" autocomplete="off" minlength="2" maxlength="255" value="Select type...">
-                                                        <option value="">Purchased</option>
-                                                        <option value="">Gifted</option>
-                                                        <option value="">Inherited</option>
-                                                        <option value="">Found</option>
-                                                        <option value="">Won</option>
-                                                        <option value="">Borrowed</option>
-                                                        <option value="">Other</option>
+                                                        <option value="Purchased">Purchased</option>
+                                                        <option value="Gifted">Gifted</option>
+                                                        <option value="Inherited">Inherited</option>
+                                                        <option value="Found">Found</option>
+                                                        <option value="Won">Won</option>
+                                                        <option value="Borrowed">Borrowed</option>
+                                                        <option value="Other">Other</option>
                                                     </select><small class="form-text" id="eightAcquisitioType"></small></div>
                                             </div>
                                             <div class="col-12 col-md-6">
@@ -418,6 +425,30 @@
                 </div>
             </div>
         </form>
+        <div class="d-flex justify-content-center my-4">
+            <button class="btn btn-primary btn-lg" id="reviewAddBookBtn" type="button">Review and then Add Book</button>
+        </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="reviewAddBookModal">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Review Book Details</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="reviewErrorsAlert"></div>
+                        <div class="alert alert-info d-none" role="alert" id="reviewDryRunAlert"></div>
+                        <div id="reviewSummary"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" id="reviewGoBackBtn" data-bs-dismiss="modal" type="button">Go Back</button>
+                        <button class="btn btn-primary" id="confirmAddBookBtn" type="button">
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="confirmAddBookSpinner"></span>
+                            Confirm and Add Book
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="aboutPartialDates">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -476,6 +507,7 @@
                         <h4 class="modal-title" id="addBookTypeModalLabel">Create a New Book Type</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="threeBookTypeErrorAlert"></div>
                         <form id="threeAddBookTypeForm">
                             <div class="mb-3"><label class="form-label" for="threeEdtBookTypeName"><strong>Book Type Name</strong></label><label class="form-label text-danger" for="threeEdtBookTypeName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter a clear name for this book type, such as Hardcover or Softcover.">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
@@ -487,7 +519,7 @@
                                 </svg><textarea class="form-control" id="threeRdtBookTypeDescription" name="bookTypeDescription" placeholder="Sturdy hardback with dust jacket." autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea><small class="form-text" id="threeBookTypeDescriptionHelp"></small></div>
                         </form>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button">Save Book Type</button></div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="threeBtnResetBookType" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button">Add Book Type</button></div>
                 </div>
             </div>
         </div>
@@ -498,6 +530,7 @@
                         <h4 class="modal-title" id="addAuthorModalLabel">Add a New Author</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="fourAuthorErrorAlert"></div>
                         <form id="fourAddAuthorForm">
                             <div class="mb-3"><label class="form-label" for="fourEdtAuthorDisplayName"><strong>Display Name</strong></label><label class="form-label text-danger" for="fourEdtAuthorDisplayName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name shown in your collection (for example, a pen name or organization).">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
@@ -528,7 +561,7 @@
                             <div class="mb-0"><label class="form-label" for="fourRdtAuthorBio"><strong>Short Bio</strong></label><textarea class="form-control" id="fourRdtAuthorBio" name="authorBio" placeholder="Short background or notes about this author." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
                         </form>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button">Save Author</button></div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button">Add Author</button></div>
                 </div>
             </div>
         </div>
@@ -539,6 +572,7 @@
                         <h4 class="modal-title" id="addPublisherModalLabel">Add a New Publisher</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="fivePublisherErrorAlert"></div>
                         <form id="fiveAddPublisherForm">
                             <div class="mb-3"><label class="form-label" for="fiveEdtPublisherName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="fiveEdtPublisherName"><strong>*</strong></label><input class="form-control" type="text" id="fiveEdtPublisherName" name="publisherName" placeholder="HarperCollins" autocomplete="off" required="" minlength="2" maxlength="150"></div>
                             <div class="row">
@@ -550,7 +584,7 @@
                             <div class="mb-0"><label class="form-label" for="fiveRdtPublisherNotes"><strong>Notes</strong></label><textarea class="form-control" id="fiveRdtPublisherNotes" name="publisherNotes" placeholder="Optional description or notes about this publisher." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
                         </form>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Save Publisher</button></div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fiveBtnResetPublisher" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Add Publisher</button></div>
                 </div>
             </div>
         </div>
@@ -561,13 +595,15 @@
                         <h4 class="modal-title" id="addSeriesModalLabel">Add a New Series</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="sixSeriesErrorAlert"></div>
+                        <p class="text-muted mb-3">Series start and end dates are automatically derived from the books you add to the series.</p>
                         <form id="sixAddSeriesForm">
                             <div class="mb-3"><label class="form-label" for="sixEdtSeriesName"><strong>Series Name</strong></label><label class="form-label text-danger" for="sixEdtSeriesName"><strong>*</strong></label><input class="form-control" type="text" id="sixEdtSeriesName" name="seriesName" placeholder="The Lord of the Rings" autocomplete="off" required="" minlength="2" maxlength="150"></div>
                             <div class="mb-3"><label class="form-label" for="sixEdtSeriesWebsite"><strong>Series Website</strong></label><input class="form-control" type="url" id="sixEdtSeriesWebsite" name="seriesWebsite" placeholder="https://www.series.com" inputmode="url" autocomplete="off"></div>
                             <div class="mb-0"><label class="form-label" for="sixRdtSeriesDescription"><strong>Description</strong></label><textarea class="form-control" id="sixRdtSeriesDescription" name="seriesDescription" placeholder="Brief overview or notes about this series." autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
                         </form>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Save Series</button></div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="sixBtnResetSeries" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Add Series</button></div>
                 </div>
             </div>
         </div>
@@ -578,6 +614,7 @@
                         <h4 class="modal-title" id="addLocationModalLabel">Add a New Storage Location</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="alert alert-danger d-none" role="alert" id="eightLocationErrorAlert"></div>
                         <form id="eightAddLocationForm">
                             <div class="mb-3" id="eightLocationTypeGroup">
                                 <label class="form-label"><strong>Location Type</strong></label>
@@ -614,7 +651,7 @@
                             </div>
                         </form>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Save Location</button></div>
+                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="eightBtnResetLocation" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Add Location</button></div>
                 </div>
             </div>
         </div>
@@ -622,7 +659,166 @@
     <div id="recaptcha-root" class="hidden" data-sitekey="6LeedsorAAAAALv_xUltcVyeYvCInfhGVl7qkeMA"></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/bs-init.js"></script>
+    <script src="assets/js/http-interceptor.js"></script>
+    <script src="assets/js/common.js"></script>
+    <script src="assets/js/recaptcha-v3.js"></script>
+    <script src="assets/js/partial-date-parser.js"></script>
     <script src="assets/js/maintenance.js"></script>
+    <script src="assets/js/add-book-helpers.js"></script>
+    <script src="assets/js/add-book-booktypes.js"></script>
+    <script src="assets/js/add-book-authors.js"></script>
+    <script src="assets/js/add-book-publishers.js"></script>
+    <script src="assets/js/add-book-series.js"></script>
+    <script src="assets/js/add-book-languages.js"></script>
+    <script src="assets/js/add-book-tags.js"></script>
+    <script src="assets/js/add-book-locations.js"></script>
+    <script src="assets/js/add-book-cover.js"></script>
+    <script src="assets/js/add-book-review.js"></script>
+    <script src="assets/js/add-book.js"></script>
 </body>
 
 </html>
+
+<!--
+
+You are allowed to edit and modify the HTML code above as needed, but the main focus of your task is to
+write the necessary JavaScript code to implement the required functionality for this "Add Book" page.
+
+The JS needs to handle the following:
+- Validation of all fields as the user fills them in (with appropriate error messages shown 
+  in the small help text areas below each field) (if field is empty, no error message should
+  be shown, except for required fields). To see validation rules, look at api\api-docs.md and
+  the appropriate endpoints in the api folder.
+- Each individual "Add New ..." modals need to handle validation and submission of the data to the
+  appropriate API endpoint, and if successful, add the new item to the appropriate dropdown
+  in the main form, and select it (or add it to the appropriate list). If unsuccessful, show 
+  appropriate error messages in the modal itself: Error messages from the API should be shown using 
+  an alert at the top of the modal (see how this is done in index.html for register, login, etc.). 
+  If possible, "Add New ..." modals should remember the data the user entered when the user closes
+  the modal, and re-populate the fields when they re-open the modal. There should be
+  a "Reset" button in each modal that clears all fields back to empty/default state (and clears any
+  error messages in alerts and help text areas). If the user successfully adds a new item, the modal
+  should be cleared/reset for the next time it is opened. Note: A model cannot be closed while an API
+  request is in progress!!
+- When a user clicks a button that sends an API request, a loading spinner should be shown on the button,
+  and the button should be disabled to prevent multiple clicks. The fields should also be disabled while
+  the request is in progress. A model cannot be closed while an API request is in progress!! If the request 
+  fails, the button and fields should be re-enabled. Error messages from the API should be shown using an 
+  alert at the top of the modal (see how this is done in index.html for register, login, etc.). 
+- Any field that takes in a date should use the partial date parser from assets/js/partial-date-parser.js
+  and show "Your date will be stored as: ..." below the field (in the small help text area) once
+  the user has entered a valid date. If the date is invalid, show an appropriate error message
+  instead. This is for all date fields, including in the "Add New ..." modals. If the field is empty,
+  no message should be shown.
+- Important note: A field is only considered required if it has a red asterisk (*) next to its label.
+  Any other field, including book type, book authors, book publisher, book series, book tags, and copy
+  details are all optional. 
+- The Book Cover Image URL field has a "Preview" button next to it that opens a modal. This modal
+  should show the preview of the book cover image (if the URL is valid), or a placeholder image
+  if not. The modal should also have a short explanation of how the book cover preview works
+  (see the existing modal in the code).
+- Check what the POST /book endpoint requires, and ensure that you store all necessary data
+  from the form to send to this endpoint when the user clicks the "Review and then Add Book" button. 
+  If the API requires language ids instead of names, you will need to store the ids when populating
+  the dropdowns/lists, for example.
+- Languages should be populated into the Language dropdown from the GET /languages endpoint when
+  the page loads. Sometimes users can add multiple languages to a book. The user selects a language from 
+  the dropdown, and clicks an "Add Language" button next to it. The selected language is then
+  added to a list above it, and removed from the dropdown. Each language in the list has a
+  "Remove" icon/button next to it that should remove it from the list, and add it back to the dropdown.
+  If no language has been added yet, show "No languages added yet." in the list area. If the 
+  user removes all languages, show this message again. If the user attempts to click the Add
+  Language button without selecting a language, show an error message in the help text area. If
+  no more languages are available to add, disable the Add Language button and the dropdown, and show
+  "All available languages have been added." in the help text area. 
+- Book Types should be populated into the Book Type dropdown from the GET /booktype endpoint when
+  the page loads. If no book types exist yet, the dropdown should be disabled, and a message "No book 
+  types available. Please add a new book type." should be shown in the help text area below. For the 
+  Book Type, users can select one from the dropdown. When a user selects a book type from the
+  dropdown, the Book Type's description (if any) should be shown in the appropriate field in the Book
+  Type card. 
+- For the Create a New Book Type modal, the Book Type Name is required, and the Description is optional.
+- Book Authors should be retrieved from the GET /author endpoint when the page loads. For Authors, the
+  users use a search-as-you-type field to find and select authors. As the user types, show
+  matching authors in a dropdown/list below the field. The user can then click on an author in the 
+  dropdown/list to select them. Once selected, the author is added to a list of selected authors
+  above the field, and removed from the dropdown/list. If an author is already in the selected
+  authors list, they should not be shown in the dropdown/list while the user searches for other
+  authors (i.e. authors already selected should not appear in search results). Each author in the
+  selected authors list has a "Remove" icon/button next to them that removes them from the selected
+  authors list, and adds them back to the search results. If no authors have been selected yet,
+  show "No authors selected yet." in the selected authors list area. If the user removes all authors, 
+  show this message again. The authors that appear in the
+  selected authors list should show their display name. There should also be a dropdown next to the
+  author's name that allows the user to select the author's role for this book (see the example in the
+  html code). If the user selects "Other" as the role, a small text field should appear next to the dropdown
+  that allows the user to enter a custom role. This role should be required if "Other" is selected. 
+  Validation should be done as the user types in the custom role to ensure that the role is valid.
+  Author roles are not required, so if the user does not select a role, no role should be sent to the API
+  for that author.
+- For the Add a New Author modal, the Display Name is required, First Name(s) and Last Name are optional,
+  Birth Date and Death Date are optional and Short Bio is optional. The Death Date field should only be shown
+  if the user enables a checkbox that indicates the author is deceased. Note, this checkbox is the deceased
+  flag: It can be checked with no Death Date provided. If it is unchecked, the Death Date field should be hidden
+  and no Death Date should be sent to the API.
+- Book Publishers should be populated into the Publisher dropdown from the GET /publisher endpoint when
+  the page loads. If no publishers exist yet, the dropdown should be disabled, and a message "No publishers 
+  available. Please add a new publisher." should be shown in the help text area below. For the Publisher,
+  users can select one from the dropdown. When a user selects a publisher from the dropdown, the Publisher's
+  website (if any) should be shown in the appropriate field in the Publisher card along with the publisher's
+  founded date (as in the text field of the partial date from the API) (if any) and notes (if any).
+- For the Add a New Publisher modal, the Publisher Name is required, Founded Date is optional,
+  Website is optional, and Notes is optional.
+- Book Series is similar to Book Authors. Series should be populated from the GET /bookseries endpoint when
+  the page loads. Users can search-as-they-type to find series, and select one to add to the book.
+  Once selected, the series is added to a list of selected series above the search field, and removed
+  from the search results. Each series in the selected series list has a "Remove" icon/button next
+  to it that removes it from the selected series list, and adds it back to the search results.
+  If no series have been selected yet, show "No series selected yet." in the selected series list area. 
+  If the user removes all series, show this message again.
+  The series that appear in the selected series list should show their name. There should also be a spinner
+  next to the series name that allows the user to set the book's number (order) in that series (see the example 
+  in the html code).. If the user does not set a number, no number should be sent to the API for that series. 
+  Book order in series is not required.
+- For the Add a New Series modal, the Series Name is required, Series Website is optional,
+  and Description is optional. Add a paragraph in the modal that explains that the series' start date and 
+  end date is derived from the books in the series.
+- Book Tags are not retrieved from the API. Users can enter tags in a text field, and click an "Add Tag" button
+  next to it. The tag is then added to a list of tags above the field (similar to languages). Each tag in the list has a
+  "Remove" icon/button next to it that removes it from the list. If no tags have been added yet,
+  show "No tags added yet." in the list area. If the user removes all tags, show this message again.
+  If the user attempts to click the Add Tag button without entering a tag, show an error message
+  in the help text area. Tags must be unique (case-insensitive), so if the user attempts to add
+  a tag that already exists in the list, show an error message in the help text area. Also validate the tag as the user
+  types it, and show appropriate error messages in the help text area. if it does not meet the validation (see api\api-docs.md).
+- Book Storage Locations should be populated into the Storage Location dropdown from the GET /storagelocation 
+  endpoint when the page loads. If no storage locations exist yet, the dropdown should be disabled, and a message 
+  "No storage locations available. Please add a new storage location." should be shown in the help text area below. 
+  For the Storage Location, users can select one from the dropdown. When a user selects a storage location from the
+  dropdown, the Storage Location's notes (if any) should be shown in an appropriate field in the Storage Location div in the
+  Book Copy card. 
+- For the Add a New Storage Location modal, the user can choose to create a new base location, or a nested location
+  under an existing location. If creating a nested location, the user must select the parent location from a dropdown (populated
+  from the existing locations), and then provide the new location's name as well as optional notes. If creating a base location,
+  the user just provides the location's name and optional notes. The Location Name is required in both cases. Ensure that the 
+  appropriate fields are shown/hidden based on whether the user is creating a base or nested location. 
+- In the Cook Copy card, users can also enter an Acquisition story, date, acquired from, type, location and notes.
+- Add a button to the bottom of the page (appropriate for buttons of this significance (if you look at other buttons 
+  accross the site) with the text "Review and then Add Book". This will then show a modal with a summary of all the 
+  information the user entered, (if validation succeeds for everything), the front-end should also do a dry-run (to POST /book) of the
+  everything it plans to send to the API, and show any errors that would be returned by the API in the modal as well. 
+  If the user is fine with everything, they can then click a button on the modal called "Confirm and Add Book", or a secondary
+  button called "Go Back". If there are validation errors, the user should be able to go back and fix them. (Confirm and
+  add book button should be disabled if there are validation errors). If the user clicks "Confirm and Add Book", the front-end
+  should then send the data to the POST /book endpoint. If the request is successful, the user should be redirected to the book's
+  details page. If unsuccessful, the user should be shown appropriate error messages in the modal, and be able to go back and fix
+  them. 
+
+  Note: I recommend you use seperate JS files for adding authors, book types, etc. (one per thing) as we'll be reusing the modal to add or edit these things later on.
+  - Do not add a book copy condition field
+  - For now assume that author roles will be sent in along with the array that sends in author IDs. The array must take in JSON objects 
+  - The redirect URL is unknown at this stage, so make it something that makes sense and that is customisable. 
+
+
+
+-->

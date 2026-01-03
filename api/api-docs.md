@@ -1759,6 +1759,9 @@ If you did not reset your password, please contact the system administrator at <
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - If the requested record cannot be found, the API returns `404`.
+- Request body fields mirror `PUT /book` (including `authors`).
+- If `authors` is provided, entries may be numbers or objects with `authorId` and optional `authorRole`.
+- `authorIds` and `authorRoles` are not supported; use `authors` instead.
 
 #### Example Responses
 
@@ -9043,19 +9046,21 @@ You can provide these list controls via query string or JSON body. If both are p
 | `description` | string | No | Optional description (<= 2000 characters). |
 | `bookTypeId` | integer or array | No | Book type id (single number or array with one number). |
 | `publisherId` | integer or array | No | Publisher id (single number or array with one number). |
-| `authorIds` | array | No | Array of author ids. |
+| `authors` | array | No | Array of author ids or objects with `authorId` and optional `authorRole`. |
 | `languageIds` | array | No | Array of language ids. |
 | `languageNames` | array | No | Array of language names (case-insensitive). |
 | `tags` | array | No | Array of tag strings (<= 50 chars). |
 | `series` | array | No | Array of series ids or objects with `seriesId` and optional `bookOrder`. |
 | `bookCopy` | object | No | First book copy to create (see fields below). |
 | `bookCopies` | array | No | Array of book copy objects; only the first entry is used. |
+| `dryRun` | boolean | No | When `true`, validates everything but does not create the book. |
 
 Notes:
 - Tags are normalised and de-duplicated per user.
 - Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
 - If no `bookCopy` is provided, the API creates a blank copy so every book has at least one copy.
 - The response includes `series[].bookPublishedDate` derived from the book's `publicationDate`.
+- If `authors` is provided, entries may be numbers or objects with `authorId` and optional `authorRole`.
 
 Book copy fields:
 
@@ -9076,6 +9081,8 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
+- When `dryRun` is `true`, no inserts occur and the API returns `200 Ready to be added.` if validation passes.
+- `authorIds` and `authorRoles` are not supported; use `authors` instead.
 
 #### Example Request Body
 
@@ -9095,8 +9102,11 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
   "description": "The first volume of The Lord of the Rings.",
   "bookTypeId": 1,
   "publisherId": 5,
-  "authorIds": [
-    1
+  "authors": [
+    {
+      "authorId": 1,
+      "authorRole": "Primary Author"
+    }
   ],
   "languageNames": [
     "English"
@@ -9130,6 +9140,21 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
 
 #### Example Responses
 
+- **Dry Run Ready (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.91",
+  "message": "Ready to be added.",
+  "data": {
+    "ready": true
+  },
+  "errors": []
+}
+```
+
 - **Created (201):**
 
 ```json
@@ -9156,6 +9181,9 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "The first volume of The Lord of the Rings.",
     "authors": [1],
+    "authorRoles": [
+      "Primary Author"
+    ],
     "languages": [
       { "id": 2, "name": "English" }
     ],
@@ -9288,7 +9316,7 @@ Updatable fields (all optional):
 | `description` | string | New description (use `null` to clear). |
 | `bookTypeId` | integer or array | New book type id (single number or array with one number). |
 | `publisherId` | integer or array | New publisher id (single number or array with one number). |
-| `authorIds` | array | Replace author links (empty array clears). |
+| `authors` | array | Replace author links with ids or objects (empty array clears). |
 | `languageIds` | array | Replace language links (empty array clears). |
 | `languageNames` | array | Replace language links by name (empty array clears). |
 | `tags` | array | Replace tags (empty array clears). |
@@ -9297,12 +9325,14 @@ Updatable fields (all optional):
 Notes:
 - If a relation array is provided, the API replaces existing links with the supplied list.
 - Series dates are derived from the linked books' `publicationDate`; `bookPublishedDate` is not accepted in requests.
+- If `authors` is provided, entries may be numbers or objects with `authorId` and optional `authorRole`.
 
 #### Validation & Edge Cases
 
 - Validation errors return `400 Validation Error` with details in the `errors` array.
 - Conflicts (for example, duplicate identifying values or ambiguous matches) return `409`.
 - If a title lookup matches multiple books, the API returns `409` and requires an id or ISBN to disambiguate.
+- `authorIds` and `authorRoles` are not supported; use `authors` instead.
 
 #### Example Request Body
 
