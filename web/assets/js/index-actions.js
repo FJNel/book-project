@@ -138,7 +138,7 @@ function attachAlreadyLoggedInHandlers(modalElement) {
 	}, { once: true });
 
 	dashboardButton.addEventListener('click', () => {
-		window.location.href = 'https://bookproject.fjnel.co.za/books';
+		window.location.href = 'https://bookproject.fjnel.co.za/add-book';
 	}, { once: true });
 }
 

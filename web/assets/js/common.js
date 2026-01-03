@@ -3,6 +3,32 @@ window.appInitializationPromise = new Promise((resolve) => {
 	appInitializationDeferred.resolve = resolve;
 });
 
+const pageContentDeferred = {};
+window.pageContentReady = window.pageContentReady || {};
+window.pageContentReady.promise = new Promise((resolve) => {
+	pageContentDeferred.resolve = resolve;
+});
+window.pageContentReady.resolve = (payload) => {
+	if (pageContentDeferred.resolve) {
+		pageContentDeferred.resolve(payload);
+		pageContentDeferred.resolve = null;
+	}
+};
+window.pageContentReady.reset = () => {
+	const deferred = {};
+	const promise = new Promise((resolve) => {
+		deferred.resolve = resolve;
+	});
+	window.pageContentReady.promise = promise;
+	window.pageContentReady.resolve = (payload) => {
+		if (deferred.resolve) {
+			deferred.resolve(payload);
+			deferred.resolve = null;
+		}
+	};
+};
+window.pageContentReady.resolve({ success: true, default: true });
+
 // Checks if the API is reachable
 async function checkApiHealth() {
 	console.log('[API Health Check] Checking API health...');
@@ -227,6 +253,10 @@ async function initializeApp() {
 			console.log('[Initialization] All checks passed.');
 		} else {
 			console.warn('[Initialization] API health check failed. Application may not function correctly.');
+		}
+		if (window.pageContentReady && window.pageContentReady.promise) {
+			const result = await window.pageContentReady.promise;
+			console.log('[Initialization] Page content readiness resolved:', result);
 		}
 	} catch (error) {
 		console.error('[Initialization] An unexpected error occurred:', error);

@@ -13,6 +13,9 @@
         ensureHelpText
     } = addBook.utils;
     const log = (...args) => console.log('[Add Book]', ...args);
+    if (window.pageContentReady && typeof window.pageContentReady.reset === 'function') {
+        window.pageContentReady.reset();
+    }
 
     const selectors = {
         title: byId('twoEdtTitle'),
@@ -487,6 +490,7 @@
         addBook.state.languages.all = response.ok ? (data.data?.languages || []) : [];
         addBook.events.dispatchEvent(new CustomEvent('languages:loaded', { detail: addBook.state.languages.all }));
         log('Languages loaded:', addBook.state.languages.all.length);
+        return response.ok;
     }
 
     async function loadBookTypes() {
@@ -495,6 +499,7 @@
         const data = await response.json().catch(() => ({}));
         addBook.state.bookTypes = response.ok ? (data.data?.bookTypes || []) : [];
         renderBookTypes();
+        return response.ok;
     }
 
     async function loadPublishers() {
@@ -503,6 +508,7 @@
         const data = await response.json().catch(() => ({}));
         addBook.state.publishers = response.ok ? (data.data?.publishers || []) : [];
         renderPublishers();
+        return response.ok;
     }
 
     async function loadAuthors() {
@@ -512,6 +518,7 @@
         addBook.state.authors = response.ok ? (data.data?.authors || []) : [];
         updateAuthorSearchAvailability();
         log('Authors loaded:', addBook.state.authors.length);
+        return response.ok;
     }
 
     async function loadSeries() {
@@ -521,6 +528,7 @@
         addBook.state.series = response.ok ? (data.data?.series || []) : [];
         updateSeriesSearchAvailability();
         log('Series loaded:', addBook.state.series.length);
+        return response.ok;
     }
 
     async function loadLocations() {
@@ -530,6 +538,7 @@
         addBook.state.locations = response.ok ? (data.data?.storageLocations || []) : [];
         renderLocations();
         addBook.events.dispatchEvent(new CustomEvent('locations:loaded', { detail: addBook.state.locations }));
+        return response.ok;
     }
 
     addBook.buildPayload = function buildPayload({ dryRun = false } = {}) {
@@ -892,7 +901,7 @@
         attachEvents();
         renderAuthors();
         renderSeries();
-        await Promise.allSettled([
+        const results = await Promise.allSettled([
             loadLanguages(),
             loadBookTypes(),
             loadPublishers(),
@@ -900,6 +909,13 @@
             loadSeries(),
             loadLocations()
         ]);
+        const allOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+            window.pageContentReady.resolve({ success: allOk });
+        }
+        if (!allOk) {
+            log('One or more data loads failed.', results);
+        }
         log('Initialization complete.');
     }
 
