@@ -24,37 +24,128 @@
         if (!summaryEl) return;
         summaryEl.innerHTML = '';
 
-        const entries = [
+        const bookTypeName = payload.bookTypeId
+            ? addBook.state.bookTypes.find((entry) => entry.id === payload.bookTypeId)?.name
+            : null;
+        const publisherName = payload.publisherId
+            ? addBook.state.publishers.find((entry) => entry.id === payload.publisherId)?.name
+            : null;
+        const languageNames = addBook.state.languages.selected.map((lang) => lang.name);
+        const authorNames = addBook.state.selections.authors.map((author) => {
+            const role = author.role === 'Other' ? (author.customRole || null) : author.role;
+            return role ? `${author.displayName} (${role})` : author.displayName;
+        });
+        const seriesNames = addBook.state.selections.series.map((series) => {
+            return series.order ? `${series.name} (#${series.order})` : series.name;
+        });
+
+        function createChip(text) {
+            const chip = document.createElement('span');
+            chip.className = 'badge rounded-pill bg-light text-dark border me-1 mb-1';
+            chip.textContent = text;
+            return chip;
+        }
+
+        function addSection(title, entries) {
+            const section = document.createElement('div');
+            section.className = 'mb-3';
+            const heading = document.createElement('h5');
+            heading.textContent = title;
+            heading.className = 'mb-2';
+            section.appendChild(heading);
+
+            const list = document.createElement('ul');
+            list.className = 'list-group';
+            entries.forEach(([label, value]) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between';
+                const name = document.createElement('span');
+                name.textContent = label;
+                const val = document.createElement('span');
+                if (Array.isArray(value)) {
+                    if (!value.length) {
+                        val.textContent = '—';
+                    } else {
+                        value.forEach((item) => val.appendChild(createChip(item)));
+                    }
+                } else {
+                    val.textContent = value || '—';
+                }
+                li.appendChild(name);
+                li.appendChild(val);
+                list.appendChild(li);
+            });
+            section.appendChild(list);
+            summaryEl.appendChild(section);
+        }
+
+        addSection('Book Details', [
             ['Title', payload.title],
             ['Subtitle', payload.subtitle],
             ['ISBN', payload.isbn],
-            ['Publication Date', payload.publicationDate?.text],
+            ['Publication Date', payload.publicationDate?.text ? [payload.publicationDate.text] : null],
             ['Page Count', payload.pageCount],
-            ['Book Type', payload.bookTypeId],
-            ['Publisher', payload.publisherId],
-            ['Languages', payload.languageIds?.length ? payload.languageIds.join(', ') : null],
-            ['Tags', payload.tags?.length ? payload.tags.join(', ') : null],
-            ['Authors', payload.authors?.length ? payload.authors.map((a) => `${a.authorId}${a.authorRole ? ` (${a.authorRole})` : ''}`).join(', ') : null],
-            ['Series', payload.series?.length ? payload.series.map((s) => `${s.seriesId}${s.bookOrder ? ` (#${s.bookOrder})` : ''}`).join(', ') : null],
-            ['Storage Location', payload.bookCopy?.storageLocationPath],
-            ['Acquisition Date', payload.bookCopy?.acquisitionDate?.text]
-        ];
+            ['Book Type', bookTypeName],
+            ['Publisher', publisherName],
+            ['Languages', languageNames.length ? languageNames : null],
+            ['Tags', payload.tags?.length ? payload.tags : null]
+        ]);
 
-        const list = document.createElement('ul');
-        list.className = 'list-group';
-        entries.forEach(([label, value]) => {
+        const listSection = document.createElement('div');
+        listSection.className = 'mb-3';
+        const listHeading = document.createElement('h5');
+        listHeading.textContent = 'People & Series';
+        listHeading.className = 'mb-2';
+        listSection.appendChild(listHeading);
+
+        const authorList = document.createElement('ul');
+        authorList.className = 'list-group mb-2';
+        if (authorNames.length) {
+            authorNames.forEach((name) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = name;
+                authorList.appendChild(li);
+            });
+        } else {
             const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between';
-            const name = document.createElement('span');
-            name.textContent = label;
-            const val = document.createElement('span');
-            val.textContent = value || '—';
-            li.appendChild(name);
-            li.appendChild(val);
-            list.appendChild(li);
-        });
+            li.className = 'list-group-item';
+            li.textContent = 'No authors selected.';
+            authorList.appendChild(li);
+        }
+        listSection.appendChild(authorList);
 
-        summaryEl.appendChild(list);
+        const seriesList = document.createElement('ul');
+        seriesList.className = 'list-group';
+        if (seriesNames.length) {
+            seriesNames.forEach((name) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = name;
+                seriesList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.textContent = 'No series selected.';
+            seriesList.appendChild(li);
+        }
+        listSection.appendChild(seriesList);
+        summaryEl.appendChild(listSection);
+
+        addSection('Copy Details', [
+            ['Storage Location', payload.bookCopy?.storageLocationPath],
+            ['Acquisition Date', payload.bookCopy?.acquisitionDate?.text ? [payload.bookCopy.acquisitionDate.text] : null],
+            ['Acquired From', payload.bookCopy?.acquiredFrom],
+            ['Acquisition Type', payload.bookCopy?.acquisitionType],
+            ['Acquisition Location', payload.bookCopy?.acquisitionLocation]
+        ]);
+
+        addSection('Additional Details', [
+            ['Cover Image URL', payload.coverImageUrl],
+            ['Description', payload.description],
+            ['Copy Notes', payload.bookCopy?.notes]
+        ]);
     }
 
     async function runDryRun() {

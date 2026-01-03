@@ -15,7 +15,10 @@
         cacheModalValues,
         restoreModalValues,
         clearModalValues,
-        isValidUrl
+        isValidUrl,
+        setHelpText,
+        clearHelpText,
+        ensureHelpText
     } = addBook.utils;
 
     const modalEl = byId('addSeriesModal');
@@ -24,36 +27,108 @@
     const nameInput = byId('sixEdtSeriesName');
     const websiteInput = byId('sixEdtSeriesWebsite');
     const descInput = byId('sixRdtSeriesDescription');
+    const nameHelp = ensureHelpText(nameInput, 'sixSeriesNameHelp');
+    const websiteHelp = ensureHelpText(websiteInput, 'sixSeriesWebsiteHelp');
+    const descHelp = ensureHelpText(descInput, 'sixSeriesDescriptionHelp');
     const errorAlert = byId('sixSeriesErrorAlert');
     const saveButton = byId('sixBtnSaveSeries');
     const resetButton = byId('sixBtnResetSeries');
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
+    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
 
     bindModalLock(modalEl, modalState);
+
+    function getNameError() {
+        const name = nameInput.value.trim();
+        if (!name) {
+            return 'Series Name is required.';
+        }
+        if (name.length < 2 || name.length > 150) {
+            return 'Series Name must be between 2 and 150 characters.';
+        }
+        if (!namePattern.test(name)) {
+            return 'Series Name contains unsupported characters.';
+        }
+        return null;
+    }
+
+    function validateName() {
+        const error = getNameError();
+        if (error) {
+            setHelpText(nameHelp, error, true);
+            return false;
+        }
+        clearHelpText(nameHelp);
+        return true;
+    }
+
+    function getWebsiteError() {
+        const value = websiteInput.value.trim();
+        if (!value) {
+            return null;
+        }
+        if (value.length > 300) {
+            return 'Series Website must be 300 characters or fewer.';
+        }
+        if (!isValidUrl(value)) {
+            return 'Series Website must be a valid URL starting with http:// or https://';
+        }
+        return null;
+    }
+
+    function validateWebsite() {
+        const error = getWebsiteError();
+        if (error) {
+            setHelpText(websiteHelp, error, true);
+            return false;
+        }
+        clearHelpText(websiteHelp);
+        return true;
+    }
+
+    function getDescriptionError() {
+        const value = descInput.value.trim();
+        if (!value) {
+            return null;
+        }
+        if (value.length > 1000) {
+            return 'Description must be 1000 characters or fewer.';
+        }
+        return null;
+    }
+
+    function validateDescription() {
+        const error = getDescriptionError();
+        if (error) {
+            setHelpText(descHelp, error, true);
+            return false;
+        }
+        clearHelpText(descHelp);
+        return true;
+    }
 
     function validate() {
         let valid = true;
         hideAlert(errorAlert);
         const errors = [];
 
-        const name = nameInput.value.trim();
-        if (!name) {
-            errors.push('Series Name is required.');
-            valid = false;
-        } else if (name.length < 2 || name.length > 150) {
-            errors.push('Series Name must be between 2 and 150 characters.');
+        const nameError = getNameError();
+        if (nameError) {
+            errors.push(nameError);
             valid = false;
         }
 
-        if (websiteInput.value.trim() && !isValidUrl(websiteInput.value.trim())) {
-            errors.push('Series Website must be a valid URL starting with http:// or https://');
+        const websiteError = getWebsiteError();
+        if (websiteError) {
+            errors.push(websiteError);
             valid = false;
         }
 
-        if (descInput.value.trim().length > 1000) {
-            errors.push('Description must be 1000 characters or fewer.');
+        const descError = getDescriptionError();
+        if (descError) {
+            errors.push(descError);
             valid = false;
         }
 
@@ -116,6 +191,9 @@
 
     function handleReset() {
         clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
+        clearHelpText(nameHelp);
+        clearHelpText(websiteHelp);
+        clearHelpText(descHelp);
         hideAlert(errorAlert);
     }
 
@@ -126,8 +204,15 @@
     modalEl.addEventListener('shown.bs.modal', () => {
         restoreModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
         hideAlert(errorAlert);
+        validateName();
+        validateWebsite();
+        validateDescription();
     });
 
     saveButton.addEventListener('click', handleSave);
     resetButton.addEventListener('click', handleReset);
+
+    nameInput.addEventListener('input', validateName);
+    websiteInput.addEventListener('input', validateWebsite);
+    descInput.addEventListener('input', validateDescription);
 })();

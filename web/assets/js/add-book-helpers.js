@@ -191,6 +191,20 @@
         return value.trim().replace(/\s+/g, ' ');
     }
 
+    function ensureHelpText(inputEl, helpId) {
+        if (!inputEl) return null;
+        let helpEl = helpId ? document.getElementById(helpId) : null;
+        if (!helpEl) {
+            helpEl = document.createElement('small');
+            helpEl.className = 'form-text';
+            if (helpId) {
+                helpEl.id = helpId;
+            }
+            inputEl.insertAdjacentElement('afterend', helpEl);
+        }
+        return helpEl;
+    }
+
     addBook.utils = {
         byId,
         setHelpText,
@@ -208,6 +222,7 @@
         parsePartialDateInput,
         setPartialDateHelp,
         isValidUrl,
-        normalizeTag
+        normalizeTag,
+        ensureHelpText
     };
 })();

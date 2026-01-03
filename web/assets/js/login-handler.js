@@ -259,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            console.log('[Redirect] Redirecting to books.html...');
-            window.location.href = 'books.html';
+            console.log('[Redirect] Redirecting to add-book...');
+            window.location.href = 'add-book';
         }, 3000);
     }
 

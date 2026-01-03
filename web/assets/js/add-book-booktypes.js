@@ -32,25 +32,43 @@
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
+    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
 
     bindModalLock(modalEl, modalState);
 
-    function validate() {
-        let valid = true;
-        clearHelpText(nameHelp);
-        clearHelpText(descHelp);
-
+    function validateName() {
         const name = nameInput.value.trim();
         if (!name) {
             setHelpText(nameHelp, 'Book Type Name is required.', true);
-            valid = false;
-        } else if (name.length < 2 || name.length > 100) {
-            setHelpText(nameHelp, 'Book Type Name must be between 2 and 100 characters.', true);
-            valid = false;
+            return false;
         }
+        if (name.length < 2 || name.length > 100) {
+            setHelpText(nameHelp, 'Book Type Name must be between 2 and 100 characters.', true);
+            return false;
+        }
+        if (!namePattern.test(name)) {
+            setHelpText(nameHelp, 'Book Type Name contains unsupported characters.', true);
+            return false;
+        }
+        clearHelpText(nameHelp);
+        return true;
+    }
 
+    function validateDescription() {
         if (descInput.value && descInput.value.trim().length > 1000) {
             setHelpText(descHelp, 'Description must be 1000 characters or fewer.', true);
+            return false;
+        }
+        clearHelpText(descHelp);
+        return true;
+    }
+
+    function validate() {
+        let valid = true;
+        if (!validateName()) {
+            valid = false;
+        }
+        if (!validateDescription()) {
             valid = false;
         }
 
@@ -121,8 +139,13 @@
     modalEl.addEventListener('shown.bs.modal', () => {
         restoreModalValues('addBookTypeModal', [nameInput, descInput]);
         hideAlert(errorAlert);
+        validateName();
+        validateDescription();
     });
 
     saveButton.addEventListener('click', handleSave);
     resetButton.addEventListener('click', handleReset);
+
+    nameInput.addEventListener('input', validateName);
+    descInput.addEventListener('input', validateDescription);
 })();

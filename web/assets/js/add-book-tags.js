@@ -10,6 +10,7 @@
     const listContainer = byId('selectedSeriesList-1');
     const placeholder = byId('noSeriesPlaceholder-1');
     const helpEl = byId('sevenBookTagHelp');
+    const tagPattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
 
     if (!input || !addButton || !listContainer) return;
 
@@ -54,6 +55,9 @@
         }
         if (value.length > 50) {
             return 'Tags must be 50 characters or fewer.';
+        }
+        if (!tagPattern.test(value)) {
+            return 'Tags contain unsupported characters.';
         }
         const exists = addBook.state.selections.tags.some((tag) => tag.toLowerCase() === value.toLowerCase());
         if (exists) {

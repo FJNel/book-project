@@ -19,7 +19,8 @@
         clearModalValues,
         parsePartialDateInput,
         setPartialDateHelp,
-        isValidUrl
+        isValidUrl,
+        ensureHelpText
     } = addBook.utils;
 
     const modalEl = byId('addPublisherModal');
@@ -30,14 +31,87 @@
     const websiteInput = byId('fiveEdtPublisherWebsite');
     const notesInput = byId('fiveRdtPublisherNotes');
     const foundedHelp = byId('fivePublisherFoundedDateHelp');
+    const nameHelp = ensureHelpText(nameInput, 'fivePublisherNameHelp');
+    const websiteHelp = ensureHelpText(websiteInput, 'fivePublisherWebsiteHelp');
+    const notesHelp = ensureHelpText(notesInput, 'fivePublisherNotesHelp');
     const errorAlert = byId('fivePublisherErrorAlert');
     const saveButton = byId('fiveBtnSavePublisher');
     const resetButton = byId('fiveBtnResetPublisher');
 
     const spinnerState = attachButtonSpinner(saveButton);
     const modalState = { locked: false };
+    const namePattern = /^[A-Za-z0-9 .,'\-:;!?()&/]+$/;
 
     bindModalLock(modalEl, modalState);
+
+    function getNameError() {
+        const name = nameInput.value.trim();
+        if (!name) {
+            return 'Publisher Name is required.';
+        }
+        if (name.length < 2 || name.length > 150) {
+            return 'Publisher Name must be between 2 and 150 characters.';
+        }
+        if (!namePattern.test(name)) {
+            return 'Publisher Name contains unsupported characters.';
+        }
+        return null;
+    }
+
+    function validateName() {
+        const error = getNameError();
+        if (error) {
+            setHelpText(nameHelp, error, true);
+            return false;
+        }
+        clearHelpText(nameHelp);
+        return true;
+    }
+
+    function getWebsiteError() {
+        const value = websiteInput.value.trim();
+        if (!value) {
+            return null;
+        }
+        if (value.length > 300) {
+            return 'Website must be 300 characters or fewer.';
+        }
+        if (!isValidUrl(value)) {
+            return 'Website must be a valid URL starting with http:// or https://';
+        }
+        return null;
+    }
+
+    function validateWebsite() {
+        const error = getWebsiteError();
+        if (error) {
+            setHelpText(websiteHelp, error, true);
+            return false;
+        }
+        clearHelpText(websiteHelp);
+        return true;
+    }
+
+    function getNotesError() {
+        const value = notesInput.value.trim();
+        if (!value) {
+            return null;
+        }
+        if (value.length > 1000) {
+            return 'Notes must be 1000 characters or fewer.';
+        }
+        return null;
+    }
+
+    function validateNotes() {
+        const error = getNotesError();
+        if (error) {
+            setHelpText(notesHelp, error, true);
+            return false;
+        }
+        clearHelpText(notesHelp);
+        return true;
+    }
 
     function validate() {
         let valid = true;
@@ -45,12 +119,9 @@
         clearHelpText(foundedHelp);
         const errors = [];
 
-        const name = nameInput.value.trim();
-        if (!name) {
-            errors.push('Publisher Name is required.');
-            valid = false;
-        } else if (name.length < 2 || name.length > 150) {
-            errors.push('Publisher Name must be between 2 and 150 characters.');
+        const nameError = getNameError();
+        if (nameError) {
+            errors.push(nameError);
             valid = false;
         }
 
@@ -62,13 +133,15 @@
             }
         }
 
-        if (websiteInput.value.trim() && !isValidUrl(websiteInput.value.trim())) {
-            errors.push('Website must be a valid URL starting with http:// or https://');
+        const websiteError = getWebsiteError();
+        if (websiteError) {
+            errors.push(websiteError);
             valid = false;
         }
 
-        if (notesInput.value.trim().length > 1000) {
-            errors.push('Notes must be 1000 characters or fewer.');
+        const notesError = getNotesError();
+        if (notesError) {
+            errors.push(notesError);
             valid = false;
         }
 
@@ -133,11 +206,17 @@
 
     function handleReset() {
         clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+        clearHelpText(nameHelp);
         clearHelpText(foundedHelp);
+        clearHelpText(websiteHelp);
+        clearHelpText(notesHelp);
         hideAlert(errorAlert);
     }
 
     foundedInput.addEventListener('input', () => setPartialDateHelp(foundedInput, foundedHelp));
+    nameInput.addEventListener('input', validateName);
+    websiteInput.addEventListener('input', validateWebsite);
+    notesInput.addEventListener('input', validateNotes);
 
     modalEl.addEventListener('hidden.bs.modal', () => {
         cacheModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
@@ -147,6 +226,9 @@
         restoreModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
         hideAlert(errorAlert);
         setPartialDateHelp(foundedInput, foundedHelp);
+        validateName();
+        validateWebsite();
+        validateNotes();
     });
 
     saveButton.addEventListener('click', handleSave);
