@@ -21,15 +21,18 @@
     async function getMaintenanceConfig() {
         const globalFlag = getMaintenanceFlagFromGlobals();
         if (globalFlag !== null) {
+            console.log('[Maintenance] Using global flag:', globalFlag);
             return { enabled: globalFlag };
         }
 
         try {
             const response = await fetch(DEFAULT_CONFIG_URL, { cache: 'no-store' });
             if (!response.ok) {
+                console.warn('[Maintenance] Config request failed with status:', response.status);
                 return { enabled: DEFAULT_MAINTENANCE_MODE };
             }
             const data = await response.json();
+            console.log('[Maintenance] Loaded config:', data);
             return {
                 enabled: getBoolean(data.enabled) ?? DEFAULT_MAINTENANCE_MODE,
                 title: typeof data.title === 'string' ? data.title : null,
@@ -92,18 +95,23 @@
     }
 
     async function showMaintenanceModal() {
+        console.log('[Maintenance] Checking maintenance status.');
         if (window.location.pathname.includes('404')) {
+            console.log('[Maintenance] Skipping on 404 page.');
             return;
         }
 
         if (wasDismissedThisSession()) {
+            console.log('[Maintenance] Modal dismissed for this session. Skipping display.');
             return;
         }
 
         const config = await getMaintenanceConfig();
         if (!config.enabled) {
+            console.log('[Maintenance] Maintenance mode disabled.');
             return;
         }
+        console.log('[Maintenance] Maintenance mode enabled. Showing modal.');
 
         ensureModalMarkup(config);
         const modalElement = document.getElementById('maintenanceModal');
@@ -114,6 +122,7 @@
         const onDismiss = () => {
             modalElement.removeEventListener('hidden.bs.modal', onDismiss);
             markDismissedThisSession();
+            console.log('[Maintenance] Modal dismissed; recorded for session.');
         };
 
         if (window.modalManager && typeof window.modalManager.showModal === 'function') {
@@ -135,6 +144,7 @@
         const fallbackText = `${config.title || 'Undergoing Maintenance'}: ${config.message || 'The Book Project is currently undergoing maintenance.'} Disclaimer: ${config.disclaimer || 'Some features may be unavailable.'}`;
         alert(fallbackText);
         markDismissedThisSession();
+        console.log('[Maintenance] Fallback alert used; recorded dismissal.');
     }
 
     document.addEventListener('DOMContentLoaded', showMaintenanceModal);
