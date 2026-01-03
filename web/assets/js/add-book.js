@@ -240,6 +240,7 @@
             placeholder.textContent = 'No authors selected yet.';
             selectors.authorList.appendChild(placeholder);
             log('Rendered authors: none selected.');
+            updateAuthorSearchAvailability();
             return;
         }
 
@@ -311,6 +312,7 @@
             selectors.authorList.appendChild(li);
         });
         log('Rendered authors:', addBook.state.selections.authors.length);
+        updateAuthorSearchAvailability();
     }
 
     function renderSeries() {
@@ -323,6 +325,7 @@
             placeholder.textContent = 'No series selected yet.';
             selectors.seriesList.appendChild(placeholder);
             log('Rendered series: none selected.');
+            updateSeriesSearchAvailability();
             return;
         }
 
@@ -380,6 +383,7 @@
             selectors.seriesList.appendChild(li);
         });
         log('Rendered series:', addBook.state.selections.series.length);
+        updateSeriesSearchAvailability();
     }
 
     function showSearchResults(container, items, onSelect) {
@@ -430,6 +434,34 @@
         }
     }
 
+    function updateAuthorSearchAvailability() {
+        const total = addBook.state.authors.length;
+        const selected = addBook.state.selections.authors.length;
+        if (!total) {
+            setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, true, 'No authors available yet. Add a new author to begin.');
+            return;
+        }
+        if (selected >= total) {
+            setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, true, 'All available authors have been added.');
+            return;
+        }
+        setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, false, '');
+    }
+
+    function updateSeriesSearchAvailability() {
+        const total = addBook.state.series.length;
+        const selected = addBook.state.selections.series.length;
+        if (!total) {
+            setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, true, 'No series available yet. Add a new series to begin.');
+            return;
+        }
+        if (selected >= total) {
+            setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, true, 'All available series have been added.');
+            return;
+        }
+        setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, false, '');
+    }
+
     function handleSeriesSearch() {
         const query = selectors.seriesSearch.value.trim().toLowerCase();
         if (!query) {
@@ -478,8 +510,7 @@
         const response = await apiFetch('/author', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.authors = response.ok ? (data.data?.authors || []) : [];
-        const hasAuthors = addBook.state.authors.length > 0;
-        setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, !hasAuthors, 'No authors available yet. Add a new author to begin.');
+        updateAuthorSearchAvailability();
         log('Authors loaded:', addBook.state.authors.length);
     }
 
@@ -488,8 +519,7 @@
         const response = await apiFetch('/bookseries', { method: 'GET' });
         const data = await response.json().catch(() => ({}));
         addBook.state.series = response.ok ? (data.data?.series || []) : [];
-        const hasSeries = addBook.state.series.length > 0;
-        setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, !hasSeries, 'No series available yet. Add a new series to begin.');
+        updateSeriesSearchAvailability();
         log('Series loaded:', addBook.state.series.length);
     }
 
@@ -674,7 +704,7 @@
         addBook.state.authors.push(event.detail);
         addBook.state.selections.authors.push({ id: event.detail.id, displayName: event.detail.displayName, role: null, customRole: '' });
         renderAuthors();
-        setSearchDisabled(selectors.authorSearch, selectors.authorSearchHelp, false, '');
+        updateAuthorSearchAvailability();
         log('Author created event received:', event.detail);
     });
 
@@ -683,7 +713,7 @@
         addBook.state.series.push(event.detail);
         addBook.state.selections.series.push({ id: event.detail.id, name: event.detail.name, order: null });
         renderSeries();
-        setSearchDisabled(selectors.seriesSearch, selectors.seriesSearchHelp, false, '');
+        updateSeriesSearchAvailability();
         log('Series created event received:', event.detail);
     });
 

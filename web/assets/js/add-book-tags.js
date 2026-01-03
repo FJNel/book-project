@@ -26,10 +26,9 @@
             return;
         }
 
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex flex-wrap gap-2';
         addBook.state.selections.tags.forEach((tag) => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item';
-
             const badge = document.createElement('span');
             badge.className = 'badge rounded-pill bg-light fw-normal border rounded-1 border-1 border-black d-inline-flex align-items-center me-2 mb-1';
 
@@ -46,19 +45,25 @@
             label.appendChild(removeBtn);
             badge.appendChild(label);
             li.appendChild(badge);
-            listContainer.appendChild(li);
         });
+        listContainer.appendChild(li);
     }
 
     function validateTag(value) {
         if (!value) {
             return 'Please enter a tag before adding.';
         }
+        if (value.length < 2) {
+            return 'Tags must be at least 2 characters long.';
+        }
         if (value.length > 50) {
             return 'Tags must be 50 characters or fewer.';
         }
         if (!tagPattern.test(value)) {
             return 'Tags contain unsupported characters.';
+        }
+        if (!/[A-Za-z]/.test(value)) {
+            return 'Tags must include at least one letter.';
         }
         const exists = addBook.state.selections.tags.some((tag) => tag.toLowerCase() === value.toLowerCase());
         if (exists) {
