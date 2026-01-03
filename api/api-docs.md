@@ -135,6 +135,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /tags/stats](#get-tagsstats)
   - [Book Tags](#book-tags)
     - [GET /booktags/stats](#get-booktagsstats)
+  - [Timeline Buckets](#timeline-buckets)
+    - [POST /timeline/buckets](#post-timelinebuckets)
   - [Search](#search)
     - [GET /search](#get-search)
   - [Import/Export](#importexport)
@@ -241,6 +243,7 @@ When a limit is exceeded the API returns HTTP `429` using the standard error env
 | Admin email actions (`POST /admin/users/send-verification`, `POST /admin/users/reset-password` and their `/:id` variants) | 1 request | 5 minutes per IP | Additional `emailCostLimiter` applied to limit outbound email costs. |
 | Admin account deletion (`POST /admin/users/handle-account-deletion` and `/:id` variant) | 2 requests | 10 minutes per admin user | Protected by `adminDeletionLimiter` and `sensitiveActionLimiter`. |
 | Stats endpoints (`/users/me/stats`, `/author/stats`, `/bookauthor/stats`, `/publisher/stats`, `/bookseries/stats`, `/bookseriesbooks/stats`, `/book/stats`, `/bookcopy/stats`, `/booktags/stats`, `/tags/stats`, `/booktype/stats`, `/languages/stats`, `/storagelocation/stats`) | 20 requests | 1 minute per authenticated user | Protected by `statsLimiter`; keyed by `user.id`. |
+| Timeline bucket endpoint (`/timeline/buckets`) | 20 requests | 1 minute per authenticated user | Protected by `statsLimiter`; keyed by `user.id`. |
 | Authenticated endpoints (`/auth/logout`, `/users/*`, `/booktype/*`, `/author/*`, `/publisher/*`, `/bookseries/*`, `/languages`, `/book/*`, `/storagelocation/*`, `/bookcopy/*`, `/tags`, `/admin/*`) | 60 requests | 1 minute per authenticated user | Enforced by `authenticatedLimiter`; keyed by `user.id`. |
 
 All other endpoints currently have no dedicated custom limit.
@@ -11131,6 +11134,133 @@ Available fields:
   "data": {},
   "errors": [
     "Unknown stats fields: branches."
+  ]
+}
+```
+
+</details>
+
+## Timeline Buckets
+
+### POST /timeline/buckets
+
+- **Purpose:** Return counts in timeline buckets for a chosen entity/date field.
+- **Authentication:** Access token required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/timeline/buckets` |
+| Authentication | `Authorization: Bearer <accessToken>` |
+| Rate Limit | 20 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Required Headers
+
+| Header | Required | Value | Notes |
+| --- | --- | --- | --- |
+| `Authorization` | Yes | `Bearer <accessToken>` | Access token required for this endpoint. |
+| `Content-Type` | Yes | `application/json` | Body must be JSON encoded. |
+| `Accept` | No | `application/json` | Responses are JSON. |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `entity` | string | Yes | `books`, `authors`, `bookCopies`, or `publishers`. |
+| `field` | string | Yes | `datePublished`, `birthDate`, `deathDate`, `acquisitionDate`, or `foundedDate` (valid values depend on entity). |
+| `start` | string | Yes | Start date (inclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. |
+| `end` | string | Yes | End date (exclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. |
+| `step` | integer | No | Bucket size (default: `1`). |
+| `stepUnit` | string | No | `day`, `month`, or `year` (default: `year`). |
+
+Supported combinations:
+- `books` + `datePublished`
+- `authors` + `birthDate`
+- `authors` + `deathDate`
+- `bookCopies` + `acquisitionDate`
+- `publishers` + `foundedDate`
+
+#### Validation & Edge Cases
+
+- `start` and `end` are anchored to earliest possible dates for partial values (e.g. `2024` = `2024-01-01`).
+- For partial `end` values, the API anchors to the next unit boundary (e.g. `2024` = `2025-01-01`, `2024-03` = `2024-04-01`).
+- Buckets are half-open intervals: `[bucket_start, bucket_end)`.
+- `beforeStart` includes any anchored date before the start bucket.
+- `afterEnd` includes anchored dates on or after the exclusive end date.
+- `unknown` includes entities with no date id or without a year in the partial date.
+- Soft-deleted entities are excluded.
+- `end` must be at least one step after `start`.
+- The API rejects requests that would generate more than 200 buckets.
+
+#### Example Request Body
+
+```json
+{
+  "entity": "books",
+  "field": "datePublished",
+  "start": "1950",
+  "end": "1960",
+  "step": 1,
+  "stepUnit": "year"
+}
+```
+
+#### Example Responses
+
+- **Buckets Retrieved (200):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.66",
+  "message": "Timeline buckets retrieved successfully.",
+  "data": {
+    "entity": "books",
+    "field": "datePublished",
+    "start": "1950-01-01",
+    "end": "1960-01-01",
+    "step": 1,
+    "stepUnit": "year",
+    "beforeStart": 12,
+    "afterEnd": 5,
+    "unknown": 7,
+    "buckets": [
+      {
+        "start": "1950-01-01",
+        "end": "1951-01-01",
+        "label": "1 January 1950 to 31 December 1950",
+        "count": 3
+      },
+      {
+        "start": "1951-01-01",
+        "end": "1952-01-01",
+        "label": "1 January 1951 to 31 December 1951",
+        "count": 4
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+<details>
+<summary>Error Responses</summary>
+
+- **Validation Error (400):**
+
+```json
+{
+  "status": "error",
+  "httpCode": 400,
+  "responseTime": "2.18",
+  "message": "Validation Error",
+  "data": {},
+  "errors": [
+    "Entity and field combination is not supported."
   ]
 }
 ```
