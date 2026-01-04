@@ -68,8 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeUI() {
         registerControlsLocked = false;
         console.log('[UI] Initializing register form UI state.');
-        successAlert.style.display = 'none';
-        errorAlert.style.display = 'none';
+        clearRegisterAlerts();
         registerSpinner.style.display = 'none';
         registerButtonText.textContent = 'Register';
         setRegisterInputsDisabled(false);
@@ -117,6 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function focusInvalidField(field) {
+        if (!field) return;
+        if (typeof field.scrollIntoView === 'function') {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        field.focus({ preventScroll: true });
+    }
+
     function showRegisterError(htmlContent) {
         console.log('[UI] Displaying register error alert.');
         successAlert.style.display = 'none';
@@ -133,18 +140,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearRegisterErrors() {
         console.log('[UI] Clearing register error messages.');
-        successAlert.style.display = 'none';
-        errorAlert.style.display = 'none';
+        clearRegisterAlerts();
         fullNameHelp.textContent = '';
         preferredNameHelp.textContent = '';
         emailHelp.textContent = '';
         passwordHelp.textContent = '';
     }
 
+    function clearRegisterAlerts() {
+        successAlert.style.display = 'none';
+        errorAlert.style.display = 'none';
+    }
+
     // --- Form Validation ---
     function validateRegisterForm() {
         clearRegisterErrors();
         let isValid = true;
+        let firstInvalidField = null;
 
         const fullName = fullNameInput.value;
         const preferredName = preferredNameInput.value;
@@ -157,12 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (fullName.length === 0) fullNameHelp.textContent = 'Please enter your full name.';
             else if (fullName.length < 2) fullNameHelp.textContent = 'Full name is too short.';
             else fullNameHelp.textContent = 'Full name contains invalid characters (allowed: letters, spaces, -, ., \').';
+            if (!firstInvalidField) firstInvalidField = fullNameInput;
         }
 
         // Preferred Name (optional, but validate if present)
         if (preferredName && !preferredNameInput.checkValidity()) {
             isValid = false;
             preferredNameHelp.textContent = 'Preferred name can only contain letters and must be at least 2 characters long.';
+            if (!firstInvalidField) firstInvalidField = preferredNameInput;
         }
 
         // Email
@@ -170,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isValid = false;
             if (email.length === 0) emailHelp.textContent = 'Please enter your email address.';
             else emailHelp.textContent = 'Please enter a valid email address format.';
+            if (!firstInvalidField) firstInvalidField = emailInput;
         }
 
         // Password
@@ -177,13 +192,15 @@ document.addEventListener('DOMContentLoaded', () => {
             isValid = false;
             if (password.length === 0) passwordHelp.textContent = 'Please enter a password.';
             else passwordHelp.textContent = 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.';
+            if (!firstInvalidField) firstInvalidField = passwordInput;
         }
         
         console.log(`[Validation] Register form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
-        return isValid;
+        return { isValid, firstInvalidField };
     }
 
     function validateFullNameRealtime() {
+        clearRegisterAlerts();
         const fullName = fullNameInput.value;
         if (!fullName) {
             fullNameHelp.textContent = 'Please enter your full name.';
@@ -202,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function validatePreferredNameRealtime() {
+        clearRegisterAlerts();
         const preferredName = preferredNameInput.value;
         if (!preferredName) {
             preferredNameHelp.textContent = '';
@@ -216,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function validateEmailRealtime() {
+        clearRegisterAlerts();
         const email = emailInput.value;
         if (!email) {
             emailHelp.textContent = 'Please enter your email address.';
@@ -230,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function validatePasswordRealtime() {
+        clearRegisterAlerts();
         const password = passwordInput.value;
         if (!password) {
             passwordHelp.textContent = 'Please enter a password.';
@@ -248,7 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         console.log('[Register] Registration process initiated.');
 
-        if (!validateRegisterForm()) {
+        const { isValid, firstInvalidField } = validateRegisterForm();
+        if (!isValid) {
+            focusInvalidField(firstInvalidField);
             return;
         }
 
@@ -342,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     passwordInput.addEventListener('input', validatePasswordRealtime);
     
     [fullNameInput, preferredNameInput, emailInput, passwordInput].forEach(input => {
-        input.addEventListener('input', clearRegisterErrors);
+        input.addEventListener('input', clearRegisterAlerts);
     });
 
     // --- App Initialization ---

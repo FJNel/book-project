@@ -77,8 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initializeUI() {
         console.log('[UI] Initializing resend verification form UI state.');
-        successAlert.style.display = 'none';
-        errorAlert.style.display = 'none';
+        clearAlerts();
         resetControlsState();
         setModalLocked(false);
     }
@@ -108,6 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function focusInvalidField(field) {
+        if (!field) return;
+        if (typeof field.scrollIntoView === 'function') {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        field.focus({ preventScroll: true });
+    }
+
     resendModal.addEventListener('hide.bs.modal', (event) => {
         if (isSubmitting && event.isTrusted) {
             event.preventDefault();
@@ -133,10 +140,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function clearAlertsAndErrors() {
-        console.log('[UI] Clearing resend verification alerts and help text.');
+    function clearAlerts() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
+    }
+
+    function clearAlertsAndErrors() {
+        console.log('[UI] Clearing resend verification alerts and help text.');
+        clearAlerts();
         emailHelp.textContent = '';
     }
 
@@ -144,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function validateForm() {
         clearAlertsAndErrors();
         let isValid = true;
+        let firstInvalidField = null;
         const email = emailInput.value.trim();
 
         if (!emailInput.checkValidity()) {
@@ -153,13 +165,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 emailHelp.textContent = 'Please enter a valid email address format.';
             }
+            if (!firstInvalidField) firstInvalidField = emailInput;
         }
 
         console.log(`[Validation] Resend verification form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
-        return isValid;
+        return { isValid, firstInvalidField };
     }
 
     function validateEmailRealtime() {
+        clearAlerts();
         const email = emailInput.value.trim();
         if (!email) {
             emailHelp.textContent = 'Please enter your email address.';
@@ -178,7 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         console.log('[Resend Verification] Request process initiated.');
 
-        if (!validateForm()) {
+        const { isValid, firstInvalidField } = validateForm();
+        if (!isValid) {
+            focusInvalidField(firstInvalidField);
             return;
         }
 
@@ -270,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resendForm.addEventListener('submit', handleResendVerificationRequest);
     emailInput.addEventListener('input', validateEmailRealtime);
     sendLinkButton.addEventListener('click', handleResendVerificationRequest);
-    emailInput.addEventListener('input', clearAlertsAndErrors);
+    emailInput.addEventListener('input', clearAlerts);
 
     resendModal.addEventListener('show.bs.modal', () => {
         initializeUI();

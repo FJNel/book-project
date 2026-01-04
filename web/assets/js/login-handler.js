@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function initializeUI() {
         console.log('[UI] Initializing login form UI state.');
-        loginErrorAlert.style.display = 'none';
+        clearLoginAlerts();
         loginSpinner.style.display = 'none';
         loginButtonText.textContent = 'Login';
         loginSuccessAlert.style.display = 'none'; // Explicitly hide loginSuccessAlert
@@ -116,6 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function focusInvalidField(field) {
+        if (!field) return;
+        if (typeof field.scrollIntoView === 'function') {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        field.focus({ preventScroll: true });
+    }
+
     if (loginModalEl) {
         loginModalEl.addEventListener('hide.bs.modal', (event) => {
             if (isSubmitting && event.isTrusted) {
@@ -130,7 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isSubmitting = true;
 
         console.log('[Login] Login process initiated.');
-        if (!validateForm()) {
+        const { isValid, firstInvalidField } = validateForm();
+        if (!isValid) {
+            focusInvalidField(firstInvalidField);
             isSubmitting = false;
             return;
         }
@@ -184,12 +194,16 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Clears all validation help texts and hides the main error alert.
      */
+    function clearLoginAlerts() {
+        loginErrorAlert.style.display = 'none';
+        loginErrorResendVerificationAlert.style.display = 'none';
+    }
+
     function clearLoginErrors() {
         console.log('[UI] Clearing login error messages.');
-        loginErrorAlert.style.display = 'none';
+        clearLoginAlerts();
         loginEmailHelp.textContent = '';
         loginPasswordHelp.textContent = '';
-        loginErrorResendVerificationAlert.style.display = 'none';
     }
 
     // --- Form Validation ---
@@ -200,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function validateForm() {
         clearLoginErrors();
         let isValid = true;
+        let firstInvalidField = null;
         const email = loginEmailInput.value.trim();
         const password = loginPasswordInput.value;
 
@@ -207,22 +222,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!email) {
             loginEmailHelp.textContent = 'Please enter your email address.';
             isValid = false;
+            if (!firstInvalidField) firstInvalidField = loginEmailInput;
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             loginEmailHelp.textContent = 'Please enter a valid email format.';
             isValid = false;
+            if (!firstInvalidField) firstInvalidField = loginEmailInput;
         }
 
         // Password validation
         if (!password) {
             loginPasswordHelp.textContent = 'Please enter your password.';
             isValid = false;
+            if (!firstInvalidField) firstInvalidField = loginPasswordInput;
         }
 
         console.log(`[Validation] Form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
-        return isValid;
+        return { isValid, firstInvalidField };
     }
 
     function validateEmailRealtime() {
+        clearLoginAlerts();
         const email = loginEmailInput.value.trim();
         if (!email) {
             loginEmailHelp.textContent = 'Please enter your email address.';
@@ -237,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function validatePasswordRealtime() {
+        clearLoginAlerts();
         const password = loginPasswordInput.value;
         if (!password) {
             loginPasswordHelp.textContent = 'Please enter your password.';
@@ -350,9 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
         validatePasswordRealtime();
     });
     loginButton.addEventListener('click', handleLogin);
-
-    loginEmailInput.addEventListener('input', clearLoginErrors);
-    loginPasswordInput.addEventListener('input', clearLoginErrors);
 
     loadLanguageFile();
     initializeUI();

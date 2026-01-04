@@ -62,28 +62,38 @@ window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ 
 
 window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard() {
 	let resetAt = null;
-	const STORAGE_KEY = 'rateLimitResetAt';
+	let startedAt = null;
+	const STORAGE_RESET_KEY = 'rateLimitResetAt';
+	const STORAGE_START_KEY = 'rateLimitStartAt';
 
-	function loadStoredReset() {
+	function loadStoredTimes() {
 		try {
-			const stored = sessionStorage.getItem(STORAGE_KEY);
-			if (!stored) return null;
-			const parsed = Number.parseInt(stored, 10);
-			if (!Number.isFinite(parsed)) return null;
-			if (parsed <= Date.now()) {
-				sessionStorage.removeItem(STORAGE_KEY);
+			const storedReset = sessionStorage.getItem(STORAGE_RESET_KEY);
+			const storedStart = sessionStorage.getItem(STORAGE_START_KEY);
+			if (!storedReset) return null;
+			const parsedReset = Number.parseInt(storedReset, 10);
+			const parsedStart = storedStart ? Number.parseInt(storedStart, 10) : null;
+			if (!Number.isFinite(parsedReset)) return null;
+			if (parsedReset <= Date.now()) {
+				sessionStorage.removeItem(STORAGE_RESET_KEY);
+				sessionStorage.removeItem(STORAGE_START_KEY);
 				return null;
 			}
-			return parsed;
+			return {
+				resetAt: parsedReset,
+				startedAt: Number.isFinite(parsedStart) ? parsedStart : null
+			};
 		} catch (error) {
 			return null;
 		}
 	}
 
-	function storeReset(value) {
-		resetAt = value;
+	function storeTimes({ reset, start }) {
+		resetAt = reset;
+		startedAt = start || Date.now();
 		try {
-			sessionStorage.setItem(STORAGE_KEY, String(value));
+			sessionStorage.setItem(STORAGE_RESET_KEY, String(resetAt));
+			sessionStorage.setItem(STORAGE_START_KEY, String(startedAt));
 		} catch (error) {
 			// Ignore storage errors.
 		}
@@ -112,20 +122,29 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 	}
 
 	function record(response) {
-		const existing = resetAt || loadStoredReset();
-		if (existing && existing > Date.now()) {
-			resetAt = existing;
+		const existing = loadStoredTimes();
+		if (existing && existing.resetAt > Date.now()) {
+			resetAt = existing.resetAt;
+			startedAt = existing.startedAt || existing.resetAt - 60 * 1000;
+			if (!existing.startedAt) {
+				storeTimes({ reset: existing.resetAt, start: startedAt });
+			}
 			console.log('[Rate Limit] Using stored reset time:', new Date(resetAt).toISOString());
 			return;
 		}
 		const nextReset = parseRateLimitReset(response);
-		storeReset(nextReset);
+		const now = Date.now();
+		storeTimes({ reset: nextReset, start: now });
 		console.log('[Rate Limit] Recorded reset time:', new Date(resetAt).toISOString());
 	}
 
 	async function showModal({ modalId = 'rateLimitModal' } = {}) {
-		if (!resetAt) {
-			resetAt = loadStoredReset();
+		if (!resetAt || !startedAt) {
+			const storedTimes = loadStoredTimes();
+			if (storedTimes) {
+				resetAt = storedTimes.resetAt;
+				startedAt = storedTimes.startedAt || storedTimes.resetAt - 60 * 1000;
+			}
 		}
 		if (!resetAt) return false;
 		const modalEl = document.getElementById(modalId);
@@ -137,7 +156,7 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 			await window.authGuard.waitForMaintenance();
 		}
 
-		const startTime = Date.now();
+		const startTime = Math.min(startedAt || Date.now(), resetAt);
 		const endTime = resetAt;
 		if (resetTimeEl) {
 			resetTimeEl.textContent = new Date(endTime).toLocaleTimeString();
@@ -155,7 +174,7 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 		const updateProgress = () => {
 			const now = Date.now();
 			const total = Math.max(endTime - startTime, 1000);
-			const elapsed = Math.min(now - startTime, total);
+			const elapsed = Math.min(Math.max(now - startTime, 0), total);
 			const percent = Math.min(Math.max((elapsed / total) * 100, 0), 100);
 			if (progressEl) {
 				progressEl.style.width = `${percent.toFixed(1)}%`;
@@ -177,9 +196,10 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 		if (resetAt && resetAt > Date.now()) {
 			return true;
 		}
-		const stored = loadStoredReset();
+		const stored = loadStoredTimes();
 		if (stored) {
-			resetAt = stored;
+			resetAt = stored.resetAt;
+			startedAt = stored.startedAt || stored.resetAt - 60 * 1000;
 			return true;
 		}
 		return false;
