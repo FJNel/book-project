@@ -84,6 +84,7 @@
         addBook.state.selections.tags.push(normalized);
         input.value = '';
         renderTags();
+        setHelpText(helpEl, 'Type a tag and click Add to save it.', false);
         log('Tag added:', normalized);
     }
 
@@ -99,6 +100,12 @@
         const error = validateTag(normalized);
         if (error && normalized) {
             setHelpText(helpEl, error, true);
+            return;
+        }
+        if (normalized) {
+            setHelpText(helpEl, 'Click Add to save this tag.', false);
+        } else {
+            setHelpText(helpEl, 'Type a tag and click Add to save it.', false);
         }
     });
 

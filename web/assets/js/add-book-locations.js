@@ -282,7 +282,11 @@
                 nestedRadio
             ]);
             hideAlert(errorAlert);
-            window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+                window.modalManager.hideModal(modalEl);
+            } else {
+                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            }
             log('Location saved:', created);
         } catch (error) {
             showAlertWithDetails(errorAlert, 'Unable to save location. Please try again.');

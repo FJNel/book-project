@@ -204,7 +204,11 @@
 
             clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
             hideAlert(errorAlert);
-            window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+                window.modalManager.hideModal(modalEl);
+            } else {
+                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            }
             log('Publisher saved:', created);
         } catch (error) {
             showAlertWithDetails(errorAlert, 'Unable to save publisher. Please try again.');

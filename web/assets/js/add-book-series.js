@@ -189,7 +189,11 @@
 
             clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
             hideAlert(errorAlert);
-            window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+                window.modalManager.hideModal(modalEl);
+            } else {
+                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            }
             log('Series saved:', created);
         } catch (error) {
             showAlertWithDetails(errorAlert, 'Unable to save series. Please try again.');

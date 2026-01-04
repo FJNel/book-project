@@ -470,6 +470,23 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Please Slow Down for a Moment</h4>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information needed to add a book isn’t available right now.</p>
+                        <p class="mb-3">Nothing is wrong, and there’s nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+                        <p class="mb-2 text-muted">Preparing to continue…</p>
+                        <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="aboutPartialDates">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">

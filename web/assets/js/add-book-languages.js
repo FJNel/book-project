@@ -71,6 +71,7 @@
             option.textContent = lang.name;
             languageSelect.appendChild(option);
         });
+        setHelpText(helpEl, 'Select a language and click Add to save it.', false);
     }
 
     function addLanguage() {
@@ -102,5 +103,12 @@
         log('Languages event received:', addBook.state.languages.all.length);
     });
 
+    languageSelect.addEventListener('change', () => {
+        if (!languageSelect.value || languageSelect.value === 'none') {
+            clearHelpText(helpEl);
+            return;
+        }
+        setHelpText(helpEl, 'Click Add to save this language.', false);
+    });
     addButton.addEventListener('click', addLanguage);
 })();

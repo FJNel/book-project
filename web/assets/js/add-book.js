@@ -17,6 +17,8 @@
         window.pageContentReady.reset();
     }
 
+    const rateLimitGuard = window.rateLimitGuard;
+
     const selectors = {
         title: byId('twoEdtTitle'),
         subtitle: byId('twoEdtSubtitle'),
@@ -486,58 +488,100 @@
     async function loadLanguages() {
         log('Loading languages...');
         const response = await apiFetch('/languages', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.languages.all = response.ok ? (data.data?.languages || []) : [];
         addBook.events.dispatchEvent(new CustomEvent('languages:loaded', { detail: addBook.state.languages.all }));
         log('Languages loaded:', addBook.state.languages.all.length);
+        if (!response.ok) {
+            log('Languages failed to load:', response.status);
+        }
         return response.ok;
     }
 
     async function loadBookTypes() {
         log('Loading book types...');
         const response = await apiFetch('/booktype', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.bookTypes = response.ok ? (data.data?.bookTypes || []) : [];
         renderBookTypes();
+        if (!response.ok) {
+            log('Book types failed to load:', response.status);
+        }
         return response.ok;
     }
 
     async function loadPublishers() {
         log('Loading publishers...');
         const response = await apiFetch('/publisher', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.publishers = response.ok ? (data.data?.publishers || []) : [];
         renderPublishers();
+        if (!response.ok) {
+            log('Publishers failed to load:', response.status);
+        }
         return response.ok;
     }
 
     async function loadAuthors() {
         log('Loading authors...');
         const response = await apiFetch('/author', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.authors = response.ok ? (data.data?.authors || []) : [];
         updateAuthorSearchAvailability();
         log('Authors loaded:', addBook.state.authors.length);
+        if (!response.ok) {
+            log('Authors failed to load:', response.status);
+        }
         return response.ok;
     }
 
     async function loadSeries() {
         log('Loading series...');
         const response = await apiFetch('/bookseries', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.series = response.ok ? (data.data?.series || []) : [];
         updateSeriesSearchAvailability();
         log('Series loaded:', addBook.state.series.length);
+        if (!response.ok) {
+            log('Series failed to load:', response.status);
+        }
         return response.ok;
     }
 
     async function loadLocations() {
         log('Loading storage locations...');
         const response = await apiFetch('/storagelocation', { method: 'GET' });
+        if (response.status === 429) {
+            rateLimitGuard?.record(response);
+            return false;
+        }
         const data = await response.json().catch(() => ({}));
         addBook.state.locations = response.ok ? (data.data?.storageLocations || []) : [];
         renderLocations();
         addBook.events.dispatchEvent(new CustomEvent('locations:loaded', { detail: addBook.state.locations }));
+        if (!response.ok) {
+            log('Storage locations failed to load:', response.status);
+        }
         return response.ok;
     }
 
@@ -1015,6 +1059,10 @@
         const allOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
         if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
             window.pageContentReady.resolve({ success: allOk });
+        }
+        if (rateLimitGuard?.hasReset()) {
+            await rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+            return;
         }
         if (!allOk) {
             log('One or more data loads failed.', results);

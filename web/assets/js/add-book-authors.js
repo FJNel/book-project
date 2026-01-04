@@ -272,7 +272,11 @@
                 bioInput
             ]);
             hideAlert(errorAlert);
-            window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+                window.modalManager.hideModal(modalEl);
+            } else {
+                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+            }
             log('Author saved:', created);
         } catch (error) {
             showAlertWithDetails(errorAlert, 'Unable to save author. Please try again.');

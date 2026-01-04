@@ -60,6 +60,94 @@ window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ 
 	return false;
 };
 
+window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard() {
+	let resetAt = null;
+
+	function parseRateLimitReset(response) {
+		const retryAfter = response.headers.get('Retry-After') || response.headers.get('retry-after');
+		if (retryAfter) {
+			const seconds = Number.parseInt(retryAfter, 10);
+			if (Number.isFinite(seconds)) {
+				return Date.now() + seconds * 1000;
+			}
+			const parsedDate = Date.parse(retryAfter);
+			if (!Number.isNaN(parsedDate)) {
+				return parsedDate;
+			}
+		}
+		const resetHeader = response.headers.get('X-RateLimit-Reset') || response.headers.get('x-ratelimit-reset');
+		if (resetHeader) {
+			const seconds = Number.parseInt(resetHeader, 10);
+			if (Number.isFinite(seconds)) {
+				return seconds < 10_000_000_000 ? seconds * 1000 : seconds;
+			}
+		}
+		return Date.now() + 60 * 1000;
+	}
+
+	function record(response) {
+		const nextReset = parseRateLimitReset(response);
+		resetAt = Math.max(resetAt || 0, nextReset);
+		console.log('[Rate Limit] Recorded reset time:', new Date(resetAt).toISOString());
+	}
+
+	async function showModal({ modalId = 'rateLimitModal' } = {}) {
+		if (!resetAt) return false;
+		const modalEl = document.getElementById(modalId);
+		const resetTimeEl = document.getElementById('rateLimitResetTime');
+		const progressEl = document.getElementById('rateLimitProgress');
+		if (!modalEl) return false;
+
+		if (window.authGuard && typeof window.authGuard.waitForMaintenance === 'function') {
+			await window.authGuard.waitForMaintenance();
+		}
+
+		const startTime = Date.now();
+		const endTime = resetAt;
+		if (resetTimeEl) {
+			resetTimeEl.textContent = new Date(endTime).toLocaleTimeString();
+		}
+
+		if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+			await window.modalManager.showModal(modalEl, { backdrop: 'static', keyboard: false });
+		} else if (window.bootstrap && window.bootstrap.Modal) {
+			const instance = window.bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
+			instance.show();
+		} else {
+			modalEl.style.display = 'block';
+		}
+
+		const updateProgress = () => {
+			const now = Date.now();
+			const total = Math.max(endTime - startTime, 1000);
+			const elapsed = Math.min(now - startTime, total);
+			const percent = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+			if (progressEl) {
+				progressEl.style.width = `${percent.toFixed(1)}%`;
+			}
+		};
+
+		updateProgress();
+		const interval = setInterval(updateProgress, 1000);
+		const delay = Math.max(endTime - Date.now(), 0) + 2000;
+		setTimeout(() => {
+			clearInterval(interval);
+			window.location.reload();
+		}, delay);
+		return true;
+	}
+
+	function hasReset() {
+		return Boolean(resetAt);
+	}
+
+	return {
+		record,
+		showModal,
+		hasReset
+	};
+})();
+
 // Checks if the API is reachable
 async function checkApiHealth() {
 	console.log('[API Health Check] Checking API health...');
