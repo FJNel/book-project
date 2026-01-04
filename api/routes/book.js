@@ -617,8 +617,10 @@ async function fetchBookRelations(userId, bookId) {
 	]);
 
 	return {
-		authorIds: authors.rows.map((row) => row.author_id),
-		authorRoles: authors.rows.map((row) => row.role ?? null),
+		authors: authors.rows.map((row) => ({
+			authorId: row.author_id,
+			authorRole: row.role ?? null
+		})),
 		languages: languages.rows,
 		tags: tags.rows,
 		series: series.rows.map((row) => ({
@@ -671,8 +673,7 @@ function buildBookPayload(row, view, relations) {
 
 	return {
 		...base,
-		authors: relations?.authorIds || [],
-		authorRoles: relations?.authorRoles || [],
+		authors: relations?.authors || [],
 		languages: relations?.languages || [],
 		tags: relations?.tags || [],
 		series: relations?.series || [],

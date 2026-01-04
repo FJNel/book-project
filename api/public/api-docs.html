@@ -2656,6 +2656,9 @@ If you did not reset your password, please contact the system administrator at &
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
+<li>Request body fields mirror <code>PUT /book</code> (including <code>authors</code>).</li>
+<li>If <code>authors</code> is provided, entries may be numbers or objects with <code>authorId</code> and optional <code>authorRole</code>.</li>
+<li><code>authorIds</code> and <code>authorRoles</code> are not supported; use <code>authors</code> instead.</li>
 </ul>
 <h4 id="example-responses-12">Example Responses</h4>
 <ul>
@@ -14067,6 +14070,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <p>Notes:</p>
 <ul>
 <li><code>view=all</code> includes <code>bookCopies</code>, <code>series</code>, <code>tags</code>, <code>languages</code>, and <code>authors</code>.</li>
+<li><code>authors</code> is returned as an array of <code>{ authorId, authorRole }</code> objects.</li>
 </ul>
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -14453,10 +14457,10 @@ You can provide these list controls via query string or JSON body. If both are p
 <td>Publisher id (single number or array with one number).</td>
 </tr>
 <tr>
-<td><code>authorIds</code></td>
+<td><code>authors</code></td>
 <td>array</td>
 <td>No</td>
-<td>Array of author ids.</td>
+<td>Array of author ids or objects with <code>authorId</code> and optional <code>authorRole</code>.</td>
 </tr>
 <tr>
 <td><code>languageIds</code></td>
@@ -14494,6 +14498,12 @@ You can provide these list controls via query string or JSON body. If both are p
 <td>No</td>
 <td>Array of book copy objects; only the first entry is used.</td>
 </tr>
+<tr>
+<td><code>dryRun</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>When <code>true</code>, validates everything but does not create the book.</td>
+</tr>
 </tbody>
 </table>
 <p>Notes:</p>
@@ -14502,6 +14512,7 @@ You can provide these list controls via query string or JSON body. If both are p
 <li>Series dates are derived from the linked books' <code>publicationDate</code>; <code>bookPublishedDate</code> is not accepted in requests.</li>
 <li>If no <code>bookCopy</code> is provided, the API creates a blank copy so every book has at least one copy.</li>
 <li>The response includes <code>series[].bookPublishedDate</code> derived from the book's <code>publicationDate</code>.</li>
+<li>If <code>authors</code> is provided, entries may be numbers or objects with <code>authorId</code> and optional <code>authorRole</code>.</li>
 </ul>
 <p>Book copy fields:</p>
 <table>
@@ -14569,6 +14580,8 @@ You can provide these list controls via query string or JSON body. If both are p
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
+<li>When <code>dryRun</code> is <code>true</code>, no inserts occur and the API returns <code>200 Ready to be added.</code> if validation passes.</li>
+<li><code>authorIds</code> and <code>authorRoles</code> are not supported; use <code>authors</code> instead.</li>
 </ul>
 <h4 id="example-request-body-62">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -14586,8 +14599,11 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The first volume of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;bookTypeId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;authorIds&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-number">1</span>
+  <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+    <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;authorId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;authorRole&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Primary Author&quot;</span>
+    <span class="hljs-punctuation">}</span>
   <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;languageNames&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-string">&quot;English&quot;</span>
@@ -14620,6 +14636,20 @@ You can provide these list controls via query string or JSON body. If both are p
 </code></pre>
 <h4 id="example-responses-78">Example Responses</h4>
 <ul>
+<li><strong>Dry Run Ready (200):</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.91&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Ready to be added.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;ready&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<ul>
 <li><strong>Created (201):</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -14644,7 +14674,12 @@ You can provide these list controls via query string or JSON body. If both are p
     <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;coverImageUrl&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://example.com/lotr-fotr.jpg&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;The first volume of The Lord of the Rings.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-number">1</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;authorId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;authorRole&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Primary Author&quot;</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;languages&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
       <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English&quot;</span> <span class="hljs-punctuation">}</span>
     <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
@@ -14885,9 +14920,9 @@ You can provide these list controls via query string or JSON body. If both are p
 <td>New publisher id (single number or array with one number).</td>
 </tr>
 <tr>
-<td><code>authorIds</code></td>
+<td><code>authors</code></td>
 <td>array</td>
-<td>Replace author links (empty array clears).</td>
+<td>Replace author links with ids or objects (empty array clears).</td>
 </tr>
 <tr>
 <td><code>languageIds</code></td>
@@ -14915,12 +14950,14 @@ You can provide these list controls via query string or JSON body. If both are p
 <ul>
 <li>If a relation array is provided, the API replaces existing links with the supplied list.</li>
 <li>Series dates are derived from the linked books' <code>publicationDate</code>; <code>bookPublishedDate</code> is not accepted in requests.</li>
+<li>If <code>authors</code> is provided, entries may be numbers or objects with <code>authorId</code> and optional <code>authorRole</code>.</li>
 </ul>
 <h4 id="validation--edge-cases-73">Validation &amp; Edge Cases</h4>
 <ul>
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
 <li>If a title lookup matches multiple books, the API returns <code>409</code> and requires an id or ISBN to disambiguate.</li>
+<li><code>authorIds</code> and <code>authorRoles</code> are not supported; use <code>authors</code> instead.</li>
 </ul>
 <h4 id="example-request-body-63">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
@@ -14963,7 +15000,12 @@ You can provide these list controls via query string or JSON body. If both are p
     <span class="hljs-attr">&quot;publisherId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;coverImageUrl&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;https://example.com/lotr-fotr.jpg&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;description&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Updated description.&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-number">1</span><span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;authors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;authorId&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;authorRole&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Primary Author&quot;</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;languages&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
       <span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;English&quot;</span> <span class="hljs-punctuation">}</span>
     <span class="hljs-punctuation">]</span><span class="hljs-punctuation">,</span>
@@ -17724,14 +17766,14 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <tr>
 <td><code>start</code></td>
 <td>string</td>
-<td>Yes</td>
-<td>Start date (inclusive). Supports <code>YYYY</code>, <code>YYYY-MM</code>, or <code>YYYY-MM-DD</code>.</td>
+<td>Conditional</td>
+<td>Start date (inclusive). Supports <code>YYYY</code>, <code>YYYY-MM</code>, or <code>YYYY-MM-DD</code>. Required unless <code>auto</code> is true.</td>
 </tr>
 <tr>
 <td><code>end</code></td>
 <td>string</td>
-<td>Yes</td>
-<td>End date (exclusive). Supports <code>YYYY</code>, <code>YYYY-MM</code>, or <code>YYYY-MM-DD</code>.</td>
+<td>Conditional</td>
+<td>End date (exclusive). Supports <code>YYYY</code>, <code>YYYY-MM</code>, or <code>YYYY-MM-DD</code>. Required unless <code>auto</code> is true.</td>
 </tr>
 <tr>
 <td><code>step</code></td>
@@ -17744,6 +17786,30 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <td>string</td>
 <td>No</td>
 <td><code>day</code>, <code>month</code>, or <code>year</code> (default: <code>year</code>).</td>
+</tr>
+<tr>
+<td><code>auto</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>When true, automatically determines start/end and step.</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>string</td>
+<td>No</td>
+<td>Set to <code>automatic</code> to enable auto mode (alias of <code>auto</code>).</td>
+</tr>
+<tr>
+<td><code>numberOfBuckets</code></td>
+<td>integer</td>
+<td>No</td>
+<td>Target bucket count (default: <code>10</code> in auto mode).</td>
+</tr>
+<tr>
+<td><code>hideEmptyBuckets</code></td>
+<td>boolean</td>
+<td>No</td>
+<td>When true, omits buckets with <code>count = 0</code> (default: <code>false</code>).</td>
 </tr>
 </tbody>
 </table>
@@ -17766,20 +17832,24 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <li>Soft-deleted entities are excluded.</li>
 <li><code>end</code> must be at least one step after <code>start</code>.</li>
 <li>The API rejects requests that would generate more than 200 buckets.</li>
+<li>When <code>auto</code> is true, the API chooses start/end based on the earliest/latest dates in the dataset and selects an appropriate step unit.</li>
+<li>When <code>numberOfBuckets</code> is provided, the API computes a step that yields that number of buckets and may adjust the end date to align the buckets.</li>
+<li>If <code>auto</code> is true and <code>numberOfBuckets</code> is omitted, the API uses <code>10</code>.</li>
 </ul>
 <h4 id="example-request-body-76">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1960&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;step&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;stepUnit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;year&quot;</span>
+  <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1958&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;numberOfBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;stepUnit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;year&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;hideEmptyBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
 <h4 id="example-responses-95">Example Responses</h4>
 <ul>
-<li><strong>Buckets Retrieved (200):</strong></li>
+<li><strong>Buckets Retrieved (200) — Manual range with adjusted end:</strong></li>
 </ul>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
@@ -17791,23 +17861,73 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
     <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1960-01-01&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;step&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;step&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;stepUnit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;year&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;numberOfBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;hideEmptyBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;beforeStart&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;afterEnd&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">5</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;unknown&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;buckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
       <span class="hljs-punctuation">{</span>
         <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1951-01-01&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 January 1950 to 31 December 1950&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1952-01-01&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 January 1950 to 31 December 1951&quot;</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span>
       <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
       <span class="hljs-punctuation">{</span>
-        <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1951-01-01&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1952-01-01&quot;</span><span class="hljs-punctuation">,</span>
-        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 January 1951 to 31 December 1951&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1952-01-01&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1954-01-01&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1 January 1952 to 31 December 1953&quot;</span><span class="hljs-punctuation">,</span>
         <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span>
+      <span class="hljs-punctuation">}</span>
+    <span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-punctuation">]</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-request-body-auto-mode">Example Request Body (Auto Mode)</h4>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;auto&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;numberOfBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;hideEmptyBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4 id="example-responses-96">Example Responses</h4>
+<ul>
+<li><strong>Buckets Retrieved (200) — Auto mode:</strong></li>
+</ul>
+<pre><code class="language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;success&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;httpCode&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">200</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.48&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Timeline buckets retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1937-09-21&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1961-09-21&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;step&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;stepUnit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;year&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;numberOfBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;hideEmptyBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;beforeStart&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;afterEnd&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;unknown&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;buckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1937-09-21&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1939-09-21&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 September 1937 to 20 September 1939&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span>
+      <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-punctuation">{</span>
+        <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1939-09-21&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1941-09-21&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;label&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;21 September 1939 to 20 September 1941&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-attr">&quot;count&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span>
       <span class="hljs-punctuation">}</span>
     <span class="hljs-punctuation">]</span>
   <span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
@@ -18136,7 +18256,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">50</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-96">Example Responses</h4>
+<h4 id="example-responses-97">Example Responses</h4>
 <details>
 <summary>Error Responses</summary>
 <ul>
@@ -18295,7 +18415,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;breakdownLimit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-97">Example Responses</h4>
+<h4 id="example-responses-98">Example Responses</h4>
 <ul>
 <li><strong>Stats Retrieved (200):</strong></li>
 </ul>
@@ -18524,7 +18644,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Signed by the author.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-98">Example Responses</h4>
+<h4 id="example-responses-99">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -18723,7 +18843,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Dust jacket included.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-99">Example Responses</h4>
+<h4 id="example-responses-100">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -18916,7 +19036,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;notes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Dust jacket included.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-100">Example Responses</h4>
+<h4 id="example-responses-101">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -19065,7 +19185,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">503</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-101">Example Responses</h4>
+<h4 id="example-responses-102">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -19204,7 +19324,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <li>Conflicts (for example, duplicate identifying values or ambiguous matches) return <code>409</code>.</li>
 <li>The id in the URL path must be a valid integer.</li>
 </ul>
-<h4 id="example-responses-102">Example Responses</h4>
+<h4 id="example-responses-103">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -19356,7 +19476,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <li>Validation errors return <code>400 Validation Error</code> with details in the <code>errors</code> array.</li>
 <li>If no tags exist, the API returns an empty list.</li>
 </ul>
-<h4 id="example-responses-103">Example Responses</h4>
+<h4 id="example-responses-104">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -19502,7 +19622,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-104">Example Responses</h4>
+<h4 id="example-responses-105">Example Responses</h4>
 <ul>
 <li><strong>Search Results (200):</strong></li>
 </ul>
@@ -19668,7 +19788,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;unusedLimit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-105">Example Responses</h4>
+<h4 id="example-responses-106">Example Responses</h4>
 <ul>
 <li><strong>Stats Retrieved (200):</strong></li>
 </ul>
@@ -19838,7 +19958,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;breakdownLimit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">10</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-106">Example Responses</h4>
+<h4 id="example-responses-107">Example Responses</h4>
 <ul>
 <li><strong>Stats Retrieved (200):</strong></li>
 </ul>
@@ -20018,7 +20138,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;includeDeleted&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-107">Example Responses</h4>
+<h4 id="example-responses-108">Example Responses</h4>
 <ul>
 <li><strong>Export Generated (200):</strong></li>
 </ul>
@@ -20221,7 +20341,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-108">Example Responses</h4>
+<h4 id="example-responses-109">Example Responses</h4>
 <ul>
 <li><strong>Import Summary (200):</strong></li>
 </ul>
@@ -20437,7 +20557,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;offset&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">0</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-109">Example Responses</h4>
+<h4 id="example-responses-110">Example Responses</h4>
 <ul>
 <li><strong>Logs Retrieved (200):</strong></li>
 </ul>
@@ -20662,7 +20782,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;limit&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">20</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-110">Example Responses</h4>
+<h4 id="example-responses-111">Example Responses</h4>
 <ul>
 <li><strong>Logs Retrieved (200):</strong></li>
 </ul>
@@ -20775,7 +20895,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </tr>
 </tbody>
 </table>
-<h4 id="example-responses-111">Example Responses</h4>
+<h4 id="example-responses-112">Example Responses</h4>
 <ul>
 <li><strong>Log Types Retrieved (200):</strong></li>
 </ul>
@@ -20864,7 +20984,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </tr>
 </tbody>
 </table>
-<h4 id="example-responses-112">Example Responses</h4>
+<h4 id="example-responses-113">Example Responses</h4>
 <ul>
 <li><strong>Log Levels Retrieved (200):</strong></li>
 </ul>
@@ -20952,7 +21072,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </tr>
 </tbody>
 </table>
-<h4 id="example-responses-113">Example Responses</h4>
+<h4 id="example-responses-114">Example Responses</h4>
 <ul>
 <li><strong>Log Statuses Retrieved (200):</strong></li>
 </ul>
@@ -21254,7 +21374,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;filterCreatedAfter&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-01&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-114">Example Responses</h4>
+<h4 id="example-responses-115">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -21431,7 +21551,7 @@ You can provide these list controls via query string or JSON body. If both are p
   <span class="hljs-attr">&quot;nameOnly&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-115">Example Responses</h4>
+<h4 id="example-responses-116">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -21672,7 +21792,7 @@ If you did not expect this email, please contact the system administrator at &lt
   <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-116">Example Responses</h4>
+<h4 id="example-responses-117">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -21899,7 +22019,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;role&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;user&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-117">Example Responses</h4>
+<h4 id="example-responses-118">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -22141,7 +22261,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;preferredName&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Harry&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-118">Example Responses</h4>
+<h4 id="example-responses-119">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -22344,7 +22464,7 @@ If you believe this was a mistake, please contact the system administrator at &l
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-119">Example Responses</h4>
+<h4 id="example-responses-120">Example Responses</h4>
 <ul>
 <li><strong>Disabled (200):</strong></li>
 </ul>
@@ -22500,7 +22620,7 @@ If you believe this was a mistake, please contact the system administrator at &l
 An administrator has disabled your Book Project account. You can no longer sign in or use the service.
 If you believe this was a mistake, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-responses-120">Example Responses</h4>
+<h4 id="example-responses-121">Example Responses</h4>
 <ul>
 <li><strong>Disabled (200):</strong></li>
 </ul>
@@ -22666,7 +22786,7 @@ If you did not request this change, please contact the system administrator at &
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-121">Example Responses</h4>
+<h4 id="example-responses-122">Example Responses</h4>
 <ul>
 <li><strong>Enabled (200):</strong></li>
 </ul>
@@ -22820,7 +22940,7 @@ An administrator has re-enabled your Book Project account. You can now sign in a
 Log In: &lt;frontend_login_url&gt;
 If you did not request this change, please contact the system administrator at &lt;supportEmail&gt;.
 </code></pre>
-<h4 id="example-responses-122">Example Responses</h4>
+<h4 id="example-responses-123">Example Responses</h4>
 <ul>
 <li><strong>Enabled (200):</strong></li>
 </ul>
@@ -22992,7 +23112,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-123">Example Responses</h4>
+<h4 id="example-responses-124">Example Responses</h4>
 <ul>
 <li><strong>Unverified (200):</strong></li>
 </ul>
@@ -23163,7 +23283,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Email bounced during delivery.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-124">Example Responses</h4>
+<h4 id="example-responses-125">Example Responses</h4>
 <ul>
 <li><strong>Unverified (200):</strong></li>
 </ul>
@@ -23335,7 +23455,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-125">Example Responses</h4>
+<h4 id="example-responses-126">Example Responses</h4>
 <ul>
 <li><strong>Verified (200):</strong></li>
 </ul>
@@ -23494,7 +23614,7 @@ If you did not expect this change, please contact the system administrator at &l
   <span class="hljs-attr">&quot;reason&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Customer support verified identity.&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-126">Example Responses</h4>
+<h4 id="example-responses-127">Example Responses</h4>
 <ul>
 <li><strong>Verified (200):</strong></li>
 </ul>
@@ -23668,7 +23788,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-127">Example Responses</h4>
+<h4 id="example-responses-128">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -23869,7 +23989,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">120</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-128">Example Responses</h4>
+<h4 id="example-responses-129">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -24057,7 +24177,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-129">Example Responses</h4>
+<h4 id="example-responses-130">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -24217,7 +24337,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;duration&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">90</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-130">Example Responses</h4>
+<h4 id="example-responses-131">Example Responses</h4>
 <ul>
 <li><strong>Sent (200):</strong></li>
 </ul>
@@ -24373,7 +24493,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">7</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-131">Example Responses</h4>
+<h4 id="example-responses-132">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -24529,7 +24649,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li>If <code>id</code> is also provided in the body, it must match the URL path.</li>
 <li>If <code>email</code> is provided, it must match the user's email.</li>
 </ul>
-<h4 id="example-responses-132">Example Responses</h4>
+<h4 id="example-responses-133">Example Responses</h4>
 <ul>
 <li><strong>Response (200):</strong></li>
 </ul>
@@ -24708,7 +24828,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-133">Example Responses</h4>
+<h4 id="example-responses-134">Example Responses</h4>
 <ul>
 <li><strong>Revoked (200):</strong></li>
 </ul>
@@ -24874,7 +24994,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;fingerprint&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;session-abc123&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-134">Example Responses</h4>
+<h4 id="example-responses-135">Example Responses</h4>
 <ul>
 <li><strong>Revoked (200):</strong></li>
 </ul>
@@ -25056,7 +25176,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;userToBeDeletedEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;gollum@ring.me&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-135">Example Responses</h4>
+<h4 id="example-responses-136">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -25281,7 +25401,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;userToBeDeletedEmail&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;gollum@ring.me&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-136">Example Responses</h4>
+<h4 id="example-responses-137">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -25475,7 +25595,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Zulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-137">Example Responses</h4>
+<h4 id="example-responses-138">Example Responses</h4>
 <ul>
 <li><strong>Created (201):</strong></li>
 </ul>
@@ -25634,7 +25754,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-138">Example Responses</h4>
+<h4 id="example-responses-139">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -25800,7 +25920,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">4</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-139">Example Responses</h4>
+<h4 id="example-responses-140">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -25949,7 +26069,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
   <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;isiZulu&quot;</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
-<h4 id="example-responses-140">Example Responses</h4>
+<h4 id="example-responses-141">Example Responses</h4>
 <ul>
 <li><strong>Updated (200):</strong></li>
 </ul>
@@ -26085,7 +26205,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 <li>If the requested record cannot be found, the API returns <code>404</code>.</li>
 <li>The <code>:id</code> path parameter must be a valid integer.</li>
 </ul>
-<h4 id="example-responses-141">Example Responses</h4>
+<h4 id="example-responses-142">Example Responses</h4>
 <ul>
 <li><strong>Deleted (200):</strong></li>
 </ul>
@@ -26198,7 +26318,7 @@ This link will expire in &lt;expiresIn&gt; minutes.
 </tr>
 </tbody>
 </table>
-<h4 id="example-responses-142">Example Responses</h4>
+<h4 id="example-responses-143">Example Responses</h4>
 <ul>
 <li><strong>Status Retrieved (200):</strong></li>
 </ul>

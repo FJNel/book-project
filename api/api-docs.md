@@ -8894,6 +8894,7 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 Notes:
 - `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
+- `authors` is returned as an array of `{ authorId, authorRole }` objects.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -9180,9 +9181,11 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
     "publisherId": 5,
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "The first volume of The Lord of the Rings.",
-    "authors": [1],
-    "authorRoles": [
-      "Primary Author"
+    "authors": [
+      {
+        "authorId": 1,
+        "authorRole": "Primary Author"
+      }
     ],
     "languages": [
       { "id": 2, "name": "English" }
@@ -9379,7 +9382,12 @@ Notes:
     "publisherId": 5,
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "Updated description.",
-    "authors": [1],
+    "authors": [
+      {
+        "authorId": 1,
+        "authorRole": "Primary Author"
+      }
+    ],
     "languages": [
       { "id": 2, "name": "English" }
     ],
@@ -11179,10 +11187,14 @@ Available fields:
 | --- | --- | --- | --- |
 | `entity` | string | Yes | `books`, `authors`, `bookCopies`, or `publishers`. |
 | `field` | string | Yes | `datePublished`, `birthDate`, `deathDate`, `acquisitionDate`, or `foundedDate` (valid values depend on entity). |
-| `start` | string | Yes | Start date (inclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. |
-| `end` | string | Yes | End date (exclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. |
+| `start` | string | Conditional | Start date (inclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. Required unless `auto` is true. |
+| `end` | string | Conditional | End date (exclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. Required unless `auto` is true. |
 | `step` | integer | No | Bucket size (default: `1`). |
 | `stepUnit` | string | No | `day`, `month`, or `year` (default: `year`). |
+| `auto` | boolean | No | When true, automatically determines start/end and step. |
+| `mode` | string | No | Set to `automatic` to enable auto mode (alias of `auto`). |
+| `numberOfBuckets` | integer | No | Target bucket count (default: `10` in auto mode). |
+| `hideEmptyBuckets` | boolean | No | When true, omits buckets with `count = 0` (default: `false`). |
 
 Supported combinations:
 - `books` + `datePublished`
@@ -11202,6 +11214,9 @@ Supported combinations:
 - Soft-deleted entities are excluded.
 - `end` must be at least one step after `start`.
 - The API rejects requests that would generate more than 200 buckets.
+- When `auto` is true, the API chooses start/end based on the earliest/latest dates in the dataset and selects an appropriate step unit.
+- When `numberOfBuckets` is provided, the API computes a step that yields that number of buckets and may adjust the end date to align the buckets.
+- If `auto` is true and `numberOfBuckets` is omitted, the API uses `10`.
 
 #### Example Request Body
 
@@ -11210,15 +11225,16 @@ Supported combinations:
   "entity": "books",
   "field": "datePublished",
   "start": "1950",
-  "end": "1960",
-  "step": 1,
-  "stepUnit": "year"
+  "end": "1958",
+  "numberOfBuckets": 5,
+  "stepUnit": "year",
+  "hideEmptyBuckets": false
 }
 ```
 
 #### Example Responses
 
-- **Buckets Retrieved (200):**
+- **Buckets Retrieved (200) — Manual range with adjusted end:**
 
 ```json
 {
@@ -11231,23 +11247,78 @@ Supported combinations:
     "field": "datePublished",
     "start": "1950-01-01",
     "end": "1960-01-01",
-    "step": 1,
+    "step": 2,
     "stepUnit": "year",
+    "numberOfBuckets": 5,
+    "hideEmptyBuckets": false,
     "beforeStart": 12,
     "afterEnd": 5,
     "unknown": 7,
     "buckets": [
       {
         "start": "1950-01-01",
-        "end": "1951-01-01",
-        "label": "1 January 1950 to 31 December 1950",
+        "end": "1952-01-01",
+        "label": "1 January 1950 to 31 December 1951",
         "count": 3
       },
       {
-        "start": "1951-01-01",
-        "end": "1952-01-01",
-        "label": "1 January 1951 to 31 December 1951",
+        "start": "1952-01-01",
+        "end": "1954-01-01",
+        "label": "1 January 1952 to 31 December 1953",
         "count": 4
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+#### Example Request Body (Auto Mode)
+
+```json
+{
+  "entity": "books",
+  "field": "datePublished",
+  "auto": true,
+  "numberOfBuckets": 12,
+  "hideEmptyBuckets": false
+}
+```
+
+#### Example Responses
+
+- **Buckets Retrieved (200) — Auto mode:**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.48",
+  "message": "Timeline buckets retrieved successfully.",
+  "data": {
+    "entity": "books",
+    "field": "datePublished",
+    "start": "1937-09-21",
+    "end": "1961-09-21",
+    "step": 2,
+    "stepUnit": "year",
+    "numberOfBuckets": 12,
+    "hideEmptyBuckets": false,
+    "beforeStart": 0,
+    "afterEnd": 0,
+    "unknown": 7,
+    "buckets": [
+      {
+        "start": "1937-09-21",
+        "end": "1939-09-21",
+        "label": "21 September 1937 to 20 September 1939",
+        "count": 1
+      },
+      {
+        "start": "1939-09-21",
+        "end": "1941-09-21",
+        "label": "21 September 1939 to 20 September 1941",
+        "count": 0
       }
     ]
   },
