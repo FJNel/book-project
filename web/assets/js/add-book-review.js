@@ -251,8 +251,10 @@
                     ? addBook.focusFirstInvalidField()
                     : null;
                 if (targetField && typeof targetField.focus === 'function') {
-                    targetField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    targetField.focus({ preventScroll: true });
+                    targetField.scrollIntoView({ block: 'center' });
+                    requestAnimationFrame(() => {
+                        targetField.focus({ preventScroll: true });
+                    });
                 }
                 log('Review blocked by validation errors.', validationErrors);
                 return;
