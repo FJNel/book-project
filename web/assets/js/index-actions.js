@@ -20,6 +20,21 @@ async function waitForAppInitialization() {
 	return { apiHealthy: true };
 }
 
+async function waitForMaintenanceModal() {
+	const maintenancePromise = window.maintenanceModalPromise;
+	if (maintenancePromise && typeof maintenancePromise.then === 'function') {
+		try {
+			console.log('[Index Actions] Waiting for maintenance modal resolution...');
+			const result = await maintenancePromise;
+			console.log('[Index Actions] Maintenance flow resolved:', result);
+			return result;
+		} catch (error) {
+			console.warn('[Index Actions] Maintenance promise rejected.', error);
+		}
+	}
+	return null;
+}
+
 async function showModalElement(modalElement, options = {}) {
 	if (!modalElement) {
 		return null;
@@ -53,6 +68,8 @@ async function hideModalElement(modalElement) {
 }
 
 async function handleActionModalFromQuery() {
+	console.log('[Index Actions] Waiting to show action modal...');
+	await waitForMaintenanceModal();
 	const urlParams = new URLSearchParams(window.location.search);
 	let action = urlParams.get('action');
 	if (!action) {
@@ -157,16 +174,18 @@ async function showAlreadyLoggedInModalIfNeeded() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+	console.log('[Index Actions] Index modal flow starting.');
 	const initResult = await waitForAppInitialization();
 	if (!initResult || initResult.apiHealthy === false) {
 		console.warn('[Index Actions] App initialization not healthy; skipping additional modals.');
 		return;
 	}
 
+	await waitForMaintenanceModal();
 	if (await showAlreadyLoggedInModalIfNeeded()) {
+		console.log('[Index Actions] Already logged in modal shown; action modals deferred.');
 		return;
 	}
 	await handleActionModalFromQuery();
+	console.log('[Index Actions] Index modal flow complete.');
 });
-
-

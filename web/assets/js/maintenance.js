@@ -3,6 +3,23 @@
     const DEFAULT_MAINTENANCE_MODE = false;
     const DEFAULT_CONFIG_URL = 'assets/data/maintenance.json';
     const DISMISS_KEY = 'maintenanceModalDismissed';
+    const maintenanceDeferred = {};
+    if (!window.maintenanceModalPromise) {
+        window.maintenanceModalPromise = new Promise((resolve) => {
+            maintenanceDeferred.resolve = resolve;
+            window.maintenanceModalResolve = resolve;
+        });
+    } else if (typeof window.maintenanceModalResolve === 'function') {
+        maintenanceDeferred.resolve = window.maintenanceModalResolve;
+    }
+    function resolveMaintenance(payload) {
+        const resolver = maintenanceDeferred.resolve || window.maintenanceModalResolve;
+        if (resolver) {
+            resolver(payload);
+            maintenanceDeferred.resolve = null;
+            window.maintenanceModalResolve = null;
+        }
+    }
 
     function getBoolean(value) {
         return typeof value === 'boolean' ? value : null;
@@ -98,17 +115,20 @@
         console.log('[Maintenance] Checking maintenance status.');
         if (window.location.pathname.includes('404')) {
             console.log('[Maintenance] Skipping on 404 page.');
+            resolveMaintenance({ shown: false, reason: '404' });
             return;
         }
 
         if (wasDismissedThisSession()) {
             console.log('[Maintenance] Modal dismissed for this session. Skipping display.');
+            resolveMaintenance({ shown: false, reason: 'dismissed' });
             return;
         }
 
         const config = await getMaintenanceConfig();
         if (!config.enabled) {
             console.log('[Maintenance] Maintenance mode disabled.');
+            resolveMaintenance({ shown: false, reason: 'disabled' });
             return;
         }
         console.log('[Maintenance] Maintenance mode enabled. Showing modal.');
@@ -123,10 +143,12 @@
             modalElement.removeEventListener('hidden.bs.modal', onDismiss);
             markDismissedThisSession();
             console.log('[Maintenance] Modal dismissed; recorded for session.');
+            resolveMaintenance({ shown: true, dismissed: true });
         };
 
         if (window.modalManager && typeof window.modalManager.showModal === 'function') {
             modalElement.addEventListener('hidden.bs.modal', onDismiss, { once: true });
+            console.log('[Maintenance] Showing modal via modalManager.');
             window.modalManager.showModal(modalElement, { backdrop: true, keyboard: true });
             return;
         }
@@ -137,15 +159,33 @@
                 backdrop: true,
                 keyboard: true
             });
+            console.log('[Maintenance] Showing modal via Bootstrap.');
             instance.show();
             return;
         }
 
         const fallbackText = `${config.title || 'Undergoing Maintenance'}: ${config.message || 'The Book Project is currently undergoing maintenance.'} Disclaimer: ${config.disclaimer || 'Some features may be unavailable.'}`;
+        console.warn('[Maintenance] Using fallback alert for maintenance modal.');
         alert(fallbackText);
         markDismissedThisSession();
         console.log('[Maintenance] Fallback alert used; recorded dismissal.');
+        resolveMaintenance({ shown: true, dismissed: true, fallback: true });
     }
 
-    document.addEventListener('DOMContentLoaded', showMaintenanceModal);
+    async function waitForAppInitialization() {
+        const initPromise = window.appInitializationPromise;
+        if (initPromise && typeof initPromise.then === 'function') {
+            try {
+                await initPromise;
+            } catch (error) {
+                console.warn('[Maintenance] App initialization promise rejected.', error);
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await waitForAppInitialization();
+        console.log('[Maintenance] App initialization complete, evaluating maintenance modal.');
+        await showMaintenanceModal();
+    });
 })();

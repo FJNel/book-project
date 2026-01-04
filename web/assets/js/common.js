@@ -248,6 +248,7 @@ async function initializeApp() {
 	let apiHealthy = false;
 	try {
 		showPageLoadingModal();
+		console.log('[Initialization] Waiting for API health check...');
 		apiHealthy = await checkApiHealth();
 		if (apiHealthy) {
 			console.log('[Initialization] All checks passed.');
@@ -255,13 +256,16 @@ async function initializeApp() {
 			console.warn('[Initialization] API health check failed. Application may not function correctly.');
 		}
 		if (window.pageContentReady && window.pageContentReady.promise) {
+			console.log('[Initialization] Waiting for page content readiness...');
 			const result = await window.pageContentReady.promise;
 			console.log('[Initialization] Page content readiness resolved:', result);
 		}
 	} catch (error) {
 		console.error('[Initialization] An unexpected error occurred:', error);
 	} finally {
+		console.log('[Initialization] Hiding page loading modal...');
 		await hidePageLoadingModal();
+		console.log('[Initialization] Page loading modal hidden.');
 	}
 
 	if (!apiHealthy) {
