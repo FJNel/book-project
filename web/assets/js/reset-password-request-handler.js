@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lang = {};
 
     let controlsLocked = false;
+    let isSubmitting = false;
 
     // --- Language File Handler ---
     /**
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         resetControlsState();
+        setModalLocked(false);
     }
 
     function toggleSpinner(show) {
@@ -86,13 +88,30 @@ document.addEventListener('DOMContentLoaded', () => {
             spinner.style.display = 'inline-block';
             buttonText.textContent = '';
             sendLinkButton.disabled = true;
+            setModalLocked(true);
         } else {
             console.log('[UI] Hiding password reset spinner.');
             spinner.style.display = 'none';
             buttonText.textContent = 'Send Link';
             sendLinkButton.disabled = false;
+            setModalLocked(false);
         }
     }
+
+    function setModalLocked(locked) {
+        if (!forgotPasswordModal) return;
+        forgotPasswordModal.dataset.locked = locked ? 'true' : 'false';
+        const closeButtons = forgotPasswordModal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
+
+    forgotPasswordModal.addEventListener('hide.bs.modal', (event) => {
+        if (isSubmitting && event.isTrusted) {
+            event.preventDefault();
+        }
+    });
 
     function showAlert(type, htmlContent, { disableControls = false } = {}) {
         console.log(`[UI] Displaying password reset ${type} alert.`);
@@ -148,6 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
 			return;
 		}
 
+        if (isSubmitting) {
+            return;
+        }
+        isSubmitting = true;
 		toggleSpinner(true);
 
 		try {
@@ -190,9 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (controlsLocked) {
                 spinner.style.display = 'none';
                 buttonText.textContent = 'Send Link';
+                setModalLocked(false);
             } else {
                 toggleSpinner(false);
             }
+            isSubmitting = false;
         }
     }
 

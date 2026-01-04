@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI Initialization and State Management ---
     let registerControlsLocked = false;
+    let isSubmitting = false;
 
     function initializeUI() {
         registerControlsLocked = false;
@@ -72,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
         registerSpinner.style.display = 'none';
         registerButtonText.textContent = 'Register';
         setRegisterInputsDisabled(false);
+        setModalLocked(false);
     }
 
     function setRegisterInputsDisabled(disabled) {
@@ -88,12 +90,31 @@ document.addEventListener('DOMContentLoaded', () => {
             registerSpinner.style.display = 'inline-block';
             registerButtonText.textContent = '';
             registerButton.disabled = true;
+            setModalLocked(true);
         } else {
             console.log('[UI] Hiding register spinner.');
             registerSpinner.style.display = 'none';
             registerButtonText.textContent = 'Register';
             registerButton.disabled = registerControlsLocked;
+            setModalLocked(false);
         }
+    }
+
+    function setModalLocked(locked) {
+        if (!registerModal) return;
+        registerModal.dataset.locked = locked ? 'true' : 'false';
+        const closeButtons = registerModal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
+
+    if (registerModal) {
+        registerModal.addEventListener('hide.bs.modal', (event) => {
+            if (isSubmitting && event.isTrusted) {
+                event.preventDefault();
+            }
+        });
     }
 
     function showRegisterError(htmlContent) {
@@ -171,6 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (isSubmitting) {
+            return;
+        }
+        isSubmitting = true;
+
         let shouldKeepDisabled = false;
         setRegisterInputsDisabled(true);
         toggleSpinner(true);
@@ -216,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!registerControlsLocked) {
                 setRegisterInputsDisabled(false);
             }
+            isSubmitting = false;
         }
     }
 

@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loginButtonText.textContent = 'Login';
         loginSuccessAlert.style.display = 'none'; // Explicitly hide loginSuccessAlert
         loginErrorResendVerificationAlert.style.display = 'none'; // Explicitly hide loginErrorResendVerificationAlert
+        setModalLocked(false);
     }
 
     /**
@@ -95,13 +96,32 @@ document.addEventListener('DOMContentLoaded', () => {
             loginButtonText.textContent = '';
             loginButton.disabled = true;
             setLoginInputsDisabled(true);
+            setModalLocked(true);
         } else {
             console.log('[UI] Hiding login spinner.');
             loginSpinner.style.display = 'none';
             loginButtonText.textContent = 'Login';
             loginButton.disabled = false;
             setLoginInputsDisabled(false);
+            setModalLocked(false);
         }
+    }
+
+    function setModalLocked(locked) {
+        if (!loginModalEl) return;
+        loginModalEl.dataset.locked = locked ? 'true' : 'false';
+        const closeButtons = loginModalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
+
+    if (loginModalEl) {
+        loginModalEl.addEventListener('hide.bs.modal', (event) => {
+            if (isSubmitting && event.isTrusted) {
+                event.preventDefault();
+            }
+        });
     }
 
     async function handleLogin(event) {

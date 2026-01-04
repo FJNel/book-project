@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'https://api.fjnel.co.za';
     let lang = {};
     let controlsLocked = false;
+    let isSubmitting = false;
 
     // --- Language File Handler ---
     /**
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         resetControlsState();
+        setModalLocked(false);
     }
 
     function toggleSpinner(show) {
@@ -87,13 +89,30 @@ document.addEventListener('DOMContentLoaded', () => {
             spinner.style.display = 'inline-block';
             buttonText.textContent = '';
             sendLinkButton.disabled = true;
+            setModalLocked(true);
         } else {
             console.log('[UI] Hiding resend verification spinner.');
             spinner.style.display = 'none';
             buttonText.textContent = 'Send Link';
             sendLinkButton.disabled = false;
+            setModalLocked(false);
         }
     }
+
+    function setModalLocked(locked) {
+        if (!resendModal) return;
+        resendModal.dataset.locked = locked ? 'true' : 'false';
+        const closeButtons = resendModal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach((btn) => {
+            btn.disabled = locked;
+        });
+    }
+
+    resendModal.addEventListener('hide.bs.modal', (event) => {
+        if (isSubmitting && event.isTrusted) {
+            event.preventDefault();
+        }
+    });
 
     function showAlert(type, htmlContent, { disableControls = false } = {}) {
         console.log(`[UI] Displaying resend verification ${type} alert.`);
@@ -149,6 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (isSubmitting) {
+            return;
+        }
+        isSubmitting = true;
         toggleSpinner(true);
 
         try {
@@ -184,9 +207,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (controlsLocked) {
                 spinner.style.display = 'none';
                 buttonText.textContent = 'Send Link';
+                setModalLocked(false);
             } else {
                 toggleSpinner(false);
             }
+            isSubmitting = false;
         }
     }
 
