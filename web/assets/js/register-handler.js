@@ -183,6 +183,66 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
+    function validateFullNameRealtime() {
+        const fullName = fullNameInput.value;
+        if (!fullName) {
+            fullNameHelp.textContent = 'Please enter your full name.';
+            return false;
+        }
+        if (fullName.length < 2) {
+            fullNameHelp.textContent = 'Full name is too short.';
+            return false;
+        }
+        if (!fullNameInput.checkValidity()) {
+            fullNameHelp.textContent = 'Full name contains invalid characters (allowed: letters, spaces, -, ., \').';
+            return false;
+        }
+        fullNameHelp.textContent = '';
+        return true;
+    }
+
+    function validatePreferredNameRealtime() {
+        const preferredName = preferredNameInput.value;
+        if (!preferredName) {
+            preferredNameHelp.textContent = '';
+            return true;
+        }
+        if (!preferredNameInput.checkValidity()) {
+            preferredNameHelp.textContent = 'Preferred name can only contain letters and must be at least 2 characters long.';
+            return false;
+        }
+        preferredNameHelp.textContent = '';
+        return true;
+    }
+
+    function validateEmailRealtime() {
+        const email = emailInput.value;
+        if (!email) {
+            emailHelp.textContent = 'Please enter your email address.';
+            return false;
+        }
+        if (!emailInput.checkValidity()) {
+            emailHelp.textContent = 'Please enter a valid email address format.';
+            return false;
+        }
+        emailHelp.textContent = '';
+        return true;
+    }
+
+    function validatePasswordRealtime() {
+        const password = passwordInput.value;
+        if (!password) {
+            passwordHelp.textContent = 'Please enter a password.';
+            return false;
+        }
+        if (!passwordInput.checkValidity()) {
+            passwordHelp.textContent = 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.';
+            return false;
+        }
+        passwordHelp.textContent = '';
+        return true;
+    }
+
     // --- Main Registration Handler ---
     async function handleRegister(event) {
         event.preventDefault();
@@ -275,6 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     registerForm.addEventListener('submit', handleRegister);
     registerButton.addEventListener('click', handleRegister);
+
+    fullNameInput.addEventListener('input', validateFullNameRealtime);
+    preferredNameInput.addEventListener('input', validatePreferredNameRealtime);
+    emailInput.addEventListener('input', validateEmailRealtime);
+    passwordInput.addEventListener('input', validatePasswordRealtime);
     
     [fullNameInput, preferredNameInput, emailInput, passwordInput].forEach(input => {
         input.addEventListener('input', clearRegisterErrors);

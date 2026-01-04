@@ -62,6 +62,32 @@ window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ 
 
 window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard() {
 	let resetAt = null;
+	const STORAGE_KEY = 'rateLimitResetAt';
+
+	function loadStoredReset() {
+		try {
+			const stored = sessionStorage.getItem(STORAGE_KEY);
+			if (!stored) return null;
+			const parsed = Number.parseInt(stored, 10);
+			if (!Number.isFinite(parsed)) return null;
+			if (parsed <= Date.now()) {
+				sessionStorage.removeItem(STORAGE_KEY);
+				return null;
+			}
+			return parsed;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function storeReset(value) {
+		resetAt = value;
+		try {
+			sessionStorage.setItem(STORAGE_KEY, String(value));
+		} catch (error) {
+			// Ignore storage errors.
+		}
+	}
 
 	function parseRateLimitReset(response) {
 		const retryAfter = response.headers.get('Retry-After') || response.headers.get('retry-after');
@@ -86,12 +112,21 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 	}
 
 	function record(response) {
+		const existing = resetAt || loadStoredReset();
+		if (existing && existing > Date.now()) {
+			resetAt = existing;
+			console.log('[Rate Limit] Using stored reset time:', new Date(resetAt).toISOString());
+			return;
+		}
 		const nextReset = parseRateLimitReset(response);
-		resetAt = Math.max(resetAt || 0, nextReset);
+		storeReset(nextReset);
 		console.log('[Rate Limit] Recorded reset time:', new Date(resetAt).toISOString());
 	}
 
 	async function showModal({ modalId = 'rateLimitModal' } = {}) {
+		if (!resetAt) {
+			resetAt = loadStoredReset();
+		}
 		if (!resetAt) return false;
 		const modalEl = document.getElementById(modalId);
 		const resetTimeEl = document.getElementById('rateLimitResetTime');
@@ -128,7 +163,8 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 		};
 
 		updateProgress();
-		const interval = setInterval(updateProgress, 250);
+		//Progress bar update interval
+		const interval = setInterval(updateProgress, 50);
 		const delay = Math.max(endTime - Date.now(), 0) + 2000;
 		setTimeout(() => {
 			clearInterval(interval);
@@ -138,7 +174,15 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 	}
 
 	function hasReset() {
-		return Boolean(resetAt);
+		if (resetAt && resetAt > Date.now()) {
+			return true;
+		}
+		const stored = loadStoredReset();
+		if (stored) {
+			resetAt = stored;
+			return true;
+		}
+		return false;
 	}
 
 	return {

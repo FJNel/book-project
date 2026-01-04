@@ -159,6 +159,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
+    function validateEmailRealtime() {
+        const email = emailInput.value.trim();
+        if (!email) {
+            emailHelp.textContent = 'Please enter your email address.';
+            return false;
+        }
+        if (!emailInput.checkValidity()) {
+            emailHelp.textContent = 'Please enter a valid email address format.';
+            return false;
+        }
+        emailHelp.textContent = '';
+        return true;
+    }
+
     // --- Main Handler ---
     async function handleResendVerificationRequest(event) {
         event.preventDefault();
@@ -254,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     resendForm.addEventListener('submit', handleResendVerificationRequest);
+    emailInput.addEventListener('input', validateEmailRealtime);
     sendLinkButton.addEventListener('click', handleResendVerificationRequest);
     emailInput.addEventListener('input', clearAlertsAndErrors);
 

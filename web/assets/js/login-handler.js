@@ -222,6 +222,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
+    function validateEmailRealtime() {
+        const email = loginEmailInput.value.trim();
+        if (!email) {
+            loginEmailHelp.textContent = 'Please enter your email address.';
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            loginEmailHelp.textContent = 'Please enter a valid email format.';
+            return false;
+        }
+        loginEmailHelp.textContent = '';
+        return true;
+    }
+
+    function validatePasswordRealtime() {
+        const password = loginPasswordInput.value;
+        if (!password) {
+            loginPasswordHelp.textContent = 'Please enter your password.';
+            return false;
+        }
+        loginPasswordHelp.textContent = '';
+        return true;
+    }
+
     /**
      * Handles a successful login response from the API.
      * @param {object} data The success response data.
@@ -318,6 +342,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loginForm.addEventListener('submit', handleLogin);
+
+    loginEmailInput.addEventListener('input', () => {
+        validateEmailRealtime();
+    });
+    loginPasswordInput.addEventListener('input', () => {
+        validatePasswordRealtime();
+    });
     loginButton.addEventListener('click', handleLogin);
 
     loginEmailInput.addEventListener('input', clearLoginErrors);

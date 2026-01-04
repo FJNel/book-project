@@ -158,6 +158,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
+    function validateEmailRealtime() {
+        const email = emailInput.value.trim();
+        if (!email) {
+            emailHelp.textContent = 'Please enter your email address.';
+            return false;
+        }
+        if (!emailInput.checkValidity()) {
+            emailHelp.textContent = 'Please enter a valid email address format.';
+            return false;
+        }
+        emailHelp.textContent = '';
+        return true;
+    }
+
     // --- Main Handler ---
 	async function handlePasswordResetRequest(event) {
 		event.preventDefault();
@@ -260,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     forgotPasswordForm.addEventListener('submit', handlePasswordResetRequest);
+    emailInput.addEventListener('input', validateEmailRealtime);
     sendLinkButton.addEventListener('click', handlePasswordResetRequest);
     emailInput.addEventListener('input', clearAlertsAndErrors);
 
