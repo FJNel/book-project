@@ -221,13 +221,13 @@
                             </li>
                         </ul>
                     </div>
-                    <div class="mb-3" id="addExistingAuthorsContainer">
+                    <div class="mb-3 position-relative" id="addExistingAuthorsContainer">
                         <h5>Add an Existing Author<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for and select the Authors who wrote this book. Once you click to add an author, you'll be able to specify the author's role." tabindex="-1" style="font-size: 17px;">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg></h5><input class="form-control" type="search" id="fourEdtAuthorSearch" placeholder="Search authors..." name="authorSearchInput" autocomplete="off">
                         <small class="form-text" id="fourAuthorSearchHelp"></small>
-                        <div class="position-absolute d-none w-100 list-group" id="authorSearchResults"></div>
+                        <div class="position-absolute d-none w-100 list-group search-results" id="authorSearchResults"></div>
                     </div>
                     <div>
                         <p class="text-muted mb-1">If you can't find the author you're looking for, you can add a new author.</p>
@@ -279,13 +279,13 @@
                             </li>
                         </ul>
                     </div>
-                    <div class="mb-3" id="addExistingSeriesContainer">
+                    <div class="mb-3 position-relative" id="addExistingSeriesContainer">
                         <h5>Add an Existing Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for a series already in your library and link this book to it. Once you click to add a series, you'll be able to specify this book's order in that series." style="font-size: 17px;">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
                                 <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                             </svg></h5><input class="form-control" type="search" id="sixEdtSearchSeries" placeholder="Search series..." name="authorSearchInput" autocomplete="off">
                         <small class="form-text" id="sixSeriesSearchHelp"></small>
-                        <div class="position-absolute d-none w-100 list-group" id="seriesSearchResults"></div>
+                        <div class="position-absolute d-none w-100 list-group search-results" id="seriesSearchResults"></div>
                     </div>
                     <div>
                         <p class="text-muted mb-1">If you can't find the series you're looking for, you can add a new series.</p>

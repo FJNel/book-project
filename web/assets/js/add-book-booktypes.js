@@ -6,6 +6,7 @@
     const {
         byId,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         setHelpText,
         clearHelpText,
@@ -102,8 +103,9 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add book type.';
-                showAlert(errorAlert, errors);
+                const errorDetails = data.errors && data.errors.length ? data.errors : [];
+                const message = data.message || 'Failed to add book type.';
+                showAlertWithDetails(errorAlert, message, errorDetails);
                 return;
             }
 
@@ -121,7 +123,7 @@
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
             log('Book type saved:', created);
         } catch (error) {
-            showAlert(errorAlert, 'Unable to save book type. Please try again.');
+            showAlertWithDetails(errorAlert, 'Unable to save book type. Please try again.');
             log('Failed to save book type:', error);
         } finally {
             setLocked(false);
@@ -134,6 +136,8 @@
         clearHelpText(descHelp);
         hideAlert(errorAlert);
         log('Book type modal reset.');
+        validateName();
+        validateDescription();
     }
 
     modalEl.addEventListener('hidden.bs.modal', () => {

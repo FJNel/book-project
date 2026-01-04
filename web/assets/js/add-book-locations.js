@@ -6,6 +6,7 @@
     const {
         byId,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         attachButtonSpinner,
         setButtonLoading,
@@ -212,7 +213,7 @@
         }
 
         if (errors.length) {
-            showAlert(errorAlert, errors.join(' '));
+            showAlertWithDetails(errorAlert, 'Please fix the following:', errors);
             log('Validation errors:', errors);
             return false;
         }
@@ -254,8 +255,9 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add location.';
-                showAlert(errorAlert, errors);
+                const errorDetails = data.errors && data.errors.length ? data.errors : [];
+                const message = data.message || 'Failed to add location.';
+                showAlertWithDetails(errorAlert, message, errorDetails);
                 return;
             }
 
@@ -283,7 +285,7 @@
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
             log('Location saved:', created);
         } catch (error) {
-            showAlert(errorAlert, 'Unable to save location. Please try again.');
+            showAlertWithDetails(errorAlert, 'Unable to save location. Please try again.');
             log('Failed to save location:', error);
         } finally {
             setLocked(false);
@@ -304,6 +306,7 @@
         applyLocationMode();
         hideAlert(errorAlert);
         log('Location modal reset.');
+        updateInlineHelp();
     }
 
     baseRadio.addEventListener('change', applyLocationMode);

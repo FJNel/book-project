@@ -3,7 +3,7 @@
     const addBook = window.addBook;
     if (!addBook || !addBook.utils) return;
 
-    const { byId, showAlert, hideAlert, setButtonLoading, bindModalLock, setModalLocked } = addBook.utils;
+    const { byId, showAlert, showAlertWithDetails, hideAlert, setButtonLoading, bindModalLock, setModalLocked } = addBook.utils;
     const log = (...args) => console.log('[Add Book][Review]', ...args);
 
     const reviewButton = byId('reviewAddBookBtn');
@@ -59,21 +59,29 @@
             list.className = 'list-group';
             entries.forEach(([label, value]) => {
                 const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between';
+                li.className = 'list-group-item';
+                const row = document.createElement('div');
+                row.className = 'd-flex flex-column flex-md-row justify-content-between gap-2';
                 const name = document.createElement('span');
+                name.className = 'fw-semibold';
                 name.textContent = label;
                 const val = document.createElement('span');
+                val.className = 'text-break';
                 if (Array.isArray(value)) {
                     if (!value.length) {
                         val.textContent = '—';
                     } else {
-                        value.forEach((item) => val.appendChild(createChip(item)));
+                        const chipRow = document.createElement('span');
+                        chipRow.className = 'd-flex flex-wrap gap-1';
+                        value.forEach((item) => chipRow.appendChild(createChip(item)));
+                        val.appendChild(chipRow);
                     }
                 } else {
                     val.textContent = value || '—';
                 }
-                li.appendChild(name);
-                li.appendChild(val);
+                row.appendChild(name);
+                row.appendChild(val);
+                li.appendChild(row);
                 list.appendChild(li);
             });
             section.appendChild(list);
@@ -155,13 +163,13 @@
         confirmButton.disabled = true;
 
         if (typeof addBook.validateMainForm !== 'function') {
-            showAlert(errorAlert, 'Validation is not available yet. Please refresh the page.');
+            showAlertWithDetails(errorAlert, 'Validation is not available yet.', 'Please refresh the page.');
             log('validateMainForm is unavailable.', addBook);
             return;
         }
         const validationErrors = addBook.validateMainForm();
         if (validationErrors.length) {
-            showAlert(errorAlert, validationErrors.join(' '));
+            showAlertWithDetails(errorAlert, 'Please fix the following:', validationErrors);
             log('Dry run blocked by validation errors.');
             return;
         }
@@ -177,17 +185,17 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Validation failed.';
-                showAlert(errorAlert, errors);
+                const errors = data.errors && data.errors.length ? data.errors : [data.message || 'Validation failed.'];
+                showAlertWithDetails(errorAlert, 'We could not validate this book yet:', errors);
                 confirmButton.disabled = true;
                 log('Dry run failed:', errors);
                 return;
             }
-            showAlert(dryRunAlert, data.message || 'Ready to be added.');
+            showAlertWithDetails(dryRunAlert, data.message || 'Ready to be added.');
             confirmButton.disabled = false;
             log('Dry run succeeded.');
         } catch (error) {
-            showAlert(errorAlert, 'Unable to validate the book right now.');
+            showAlertWithDetails(errorAlert, 'Unable to validate the book right now.');
             confirmButton.disabled = true;
             log('Dry run exception:', error);
         }
@@ -207,8 +215,8 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add book.';
-                showAlert(errorAlert, errors);
+                const errors = data.errors && data.errors.length ? data.errors : [data.message || 'Failed to add book.'];
+                showAlertWithDetails(errorAlert, 'Unable to add this book:', errors);
                 log('Submit failed:', errors);
                 return;
             }
@@ -226,7 +234,7 @@
             log('Book created. Redirecting to:', target);
             window.location.href = target;
         } catch (error) {
-            showAlert(errorAlert, 'Unable to add the book right now.');
+            showAlertWithDetails(errorAlert, 'Unable to add the book right now.');
             log('Submit exception:', error);
         } finally {
             setButtonLoading(confirmButton, confirmSpinner, false);
@@ -236,6 +244,20 @@
     }
 
     reviewButton.addEventListener('click', () => {
+        if (typeof addBook.validateMainForm === 'function') {
+            const validationErrors = addBook.validateMainForm();
+            if (validationErrors.length) {
+                const targetField = typeof addBook.focusFirstInvalidField === 'function'
+                    ? addBook.focusFirstInvalidField()
+                    : null;
+                if (targetField && typeof targetField.focus === 'function') {
+                    targetField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetField.focus({ preventScroll: true });
+                }
+                log('Review blocked by validation errors.', validationErrors);
+                return;
+            }
+        }
         const modal = window.bootstrap?.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
         if (!modal) {
             return;

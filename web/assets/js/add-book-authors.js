@@ -6,6 +6,7 @@
     const {
         byId,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         setHelpText,
         clearHelpText,
@@ -198,7 +199,7 @@
         }
 
         if (errors.length) {
-            showAlert(errorAlert, errors.join(' '));
+            showAlertWithDetails(errorAlert, 'Please fix the following:', errors);
             log('Validation errors:', errors);
         }
 
@@ -247,8 +248,9 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add author.';
-                showAlert(errorAlert, errors);
+                const errorDetails = data.errors && data.errors.length ? data.errors : [];
+                const message = data.message || 'Failed to add author.';
+                showAlertWithDetails(errorAlert, message, errorDetails);
                 return;
             }
 
@@ -273,7 +275,7 @@
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
             log('Author saved:', created);
         } catch (error) {
-            showAlert(errorAlert, 'Unable to save author. Please try again.');
+            showAlertWithDetails(errorAlert, 'Unable to save author. Please try again.');
             log('Failed to save author:', error);
         } finally {
             setLocked(false);
@@ -298,6 +300,10 @@
         clearHelpText(bioHelp);
         hideAlert(errorAlert);
         log('Author modal reset.');
+        validateDisplayName();
+        validateFirstName();
+        validateLastName();
+        validateBio();
     }
 
     birthDateInput.addEventListener('input', () => setPartialDateHelp(birthDateInput, birthHelp));

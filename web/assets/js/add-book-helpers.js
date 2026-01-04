@@ -45,6 +45,18 @@
         alertEl.classList.remove('d-none');
     }
 
+    function showAlertWithDetails(alertEl, title, details) {
+        if (!alertEl) return;
+        const safeTitle = title || 'Alert';
+        const detailText = Array.isArray(details)
+            ? details.filter(Boolean).join(' ')
+            : (details || '');
+        const content = detailText
+            ? `<span><strong>${safeTitle}</strong> ${detailText}</span>`
+            : `<span><strong>${safeTitle}</strong></span>`;
+        showAlert(alertEl, content);
+    }
+
     function hideAlert(alertEl) {
         if (!alertEl) return;
         alertEl.classList.add('d-none');
@@ -210,6 +222,7 @@
         setHelpText,
         clearHelpText,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         attachButtonSpinner,
         setButtonLoading,

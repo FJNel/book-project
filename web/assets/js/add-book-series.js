@@ -6,6 +6,7 @@
     const {
         byId,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         attachButtonSpinner,
         setButtonLoading,
@@ -138,7 +139,7 @@
         }
 
         if (errors.length) {
-            showAlert(errorAlert, errors.join(' '));
+            showAlertWithDetails(errorAlert, 'Please fix the following:', errors);
             log('Validation errors:', errors);
         }
         return valid;
@@ -170,8 +171,9 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add series.';
-                showAlert(errorAlert, errors);
+                const errorDetails = data.errors && data.errors.length ? data.errors : [];
+                const message = data.message || 'Failed to add series.';
+                showAlertWithDetails(errorAlert, message, errorDetails);
                 return;
             }
 
@@ -190,7 +192,7 @@
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
             log('Series saved:', created);
         } catch (error) {
-            showAlert(errorAlert, 'Unable to save series. Please try again.');
+            showAlertWithDetails(errorAlert, 'Unable to save series. Please try again.');
             log('Failed to save series:', error);
         } finally {
             setLocked(false);
@@ -204,6 +206,9 @@
         clearHelpText(descHelp);
         hideAlert(errorAlert);
         log('Series modal reset.');
+        validateName();
+        validateWebsite();
+        validateDescription();
     }
 
     modalEl.addEventListener('hidden.bs.modal', () => {

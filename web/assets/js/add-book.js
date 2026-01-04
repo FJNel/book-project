@@ -701,6 +701,98 @@
         return errors;
     };
 
+    addBook.focusFirstInvalidField = function focusFirstInvalidField() {
+        const title = selectors.title.value.trim();
+        if (!title || title.length < 2 || title.length > 255 || !patterns.title.test(title)) {
+            return selectors.title;
+        }
+
+        const subtitle = selectors.subtitle.value.trim();
+        if (subtitle && (subtitle.length > 255 || !patterns.subtitle.test(subtitle))) {
+            return selectors.subtitle;
+        }
+
+        const isbn = selectors.isbn.value.trim();
+        if (isbn && !/^[0-9Xx-]{10,17}$/.test(isbn)) {
+            return selectors.isbn;
+        }
+
+        const coverUrl = selectors.coverUrl.value.trim();
+        if (coverUrl && !isValidUrl(coverUrl)) {
+            return selectors.coverUrl;
+        }
+
+        if (selectors.description.value.trim().length > 2000) {
+            return selectors.description;
+        }
+
+        if (selectors.pages.value) {
+            const value = Number.parseInt(selectors.pages.value, 10);
+            if (!Number.isInteger(value) || value < 1 || value > 10000) {
+                return selectors.pages;
+            }
+        }
+
+        if (selectors.publicationDate.value.trim()) {
+            const parsed = parsePartialDateInput(selectors.publicationDate.value);
+            if (parsed.error) {
+                return selectors.publicationDate;
+            }
+        }
+
+        if (selectors.acquisitionDate.value.trim()) {
+            const parsed = parsePartialDateInput(selectors.acquisitionDate.value);
+            if (parsed.error) {
+                return selectors.acquisitionDate;
+            }
+        }
+
+        if (selectors.acquisitionStory.value.trim().length > 2000) {
+            return selectors.acquisitionStory;
+        }
+
+        const acquiredFrom = selectors.acquiredFrom.value.trim();
+        if (acquiredFrom && (acquiredFrom.length > 255 || !patterns.personText.test(acquiredFrom))) {
+            return selectors.acquiredFrom;
+        }
+
+        const acquisitionTypeValue = selectors.acquisitionType.value.trim();
+        if (acquisitionTypeValue && acquisitionTypeValue !== 'none' &&
+            (acquisitionTypeValue.length > 100 || !patterns.acquisitionType.test(acquisitionTypeValue))) {
+            return selectors.acquisitionType;
+        }
+
+        const acquisitionLocation = selectors.acquisitionLocation.value.trim();
+        if (acquisitionLocation && (acquisitionLocation.length > 255 || !patterns.personText.test(acquisitionLocation))) {
+            return selectors.acquisitionLocation;
+        }
+
+        if (selectors.copyNotes.value.trim().length > 2000) {
+            return selectors.copyNotes;
+        }
+
+        const authorOtherInvalid = addBook.state.selections.authors.find((author) => {
+            return author.customRole && (author.customRole.length > 100 || !patterns.authorRole.test(author.customRole));
+        });
+        if (authorOtherInvalid) {
+            return byId(`authorOtherRole-${authorOtherInvalid.id}`);
+        }
+
+        const seriesOrderInvalid = addBook.state.selections.series.find((series) => {
+            const input = byId(`seriesOrder-${series.id}`);
+            if (!input) return false;
+            const value = input.value.trim();
+            if (!value) return false;
+            const numeric = Number.parseInt(value, 10);
+            return !Number.isInteger(numeric) || numeric < 1 || numeric > 10000;
+        });
+        if (seriesOrderInvalid) {
+            return byId(`seriesOrder-${seriesOrderInvalid.id}`);
+        }
+
+        return null;
+    };
+
     addBook.events.addEventListener('booktype:created', (event) => {
         if (!event.detail) return;
         addBook.state.bookTypes.push(event.detail);

@@ -6,6 +6,7 @@
     const {
         byId,
         showAlert,
+        showAlertWithDetails,
         hideAlert,
         setHelpText,
         clearHelpText,
@@ -151,7 +152,7 @@
         }
 
         if (errors.length) {
-            showAlert(errorAlert, errors.join(' '));
+            showAlertWithDetails(errorAlert, 'Please fix the following:', errors);
             log('Validation errors:', errors);
         }
         return valid;
@@ -184,8 +185,9 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors.join(' ') : data.message || 'Failed to add publisher.';
-                showAlert(errorAlert, errors);
+                const errorDetails = data.errors && data.errors.length ? data.errors : [];
+                const message = data.message || 'Failed to add publisher.';
+                showAlertWithDetails(errorAlert, message, errorDetails);
                 return;
             }
 
@@ -205,7 +207,7 @@
             window.bootstrap?.Modal.getInstance(modalEl)?.hide();
             log('Publisher saved:', created);
         } catch (error) {
-            showAlert(errorAlert, 'Unable to save publisher. Please try again.');
+            showAlertWithDetails(errorAlert, 'Unable to save publisher. Please try again.');
             log('Failed to save publisher:', error);
         } finally {
             setLocked(false);
@@ -220,6 +222,9 @@
         clearHelpText(notesHelp);
         hideAlert(errorAlert);
         log('Publisher modal reset.');
+        validateName();
+        validateWebsite();
+        validateNotes();
     }
 
     foundedInput.addEventListener('input', () => setPartialDateHelp(foundedInput, foundedHelp));
