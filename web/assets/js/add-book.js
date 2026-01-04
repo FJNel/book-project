@@ -1019,6 +1019,9 @@
         if (!allOk) {
             log('One or more data loads failed.', results);
         }
+        if (window.authGuard && typeof window.authGuard.checkSessionAndPrompt === 'function') {
+            await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
+        }
         log('Initialization complete.');
     }
 

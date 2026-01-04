@@ -29,6 +29,37 @@ window.pageContentReady.reset = () => {
 };
 window.pageContentReady.resolve({ success: true, default: true });
 
+window.authGuard = window.authGuard || {};
+window.authGuard.waitForMaintenance = async function waitForMaintenance() {
+	const maintenancePromise = window.maintenanceModalPromise;
+	if (maintenancePromise && typeof maintenancePromise.then === 'function') {
+		try {
+			await maintenancePromise;
+		} catch (error) {
+			console.warn('[Auth Guard] Maintenance promise rejected.', error);
+		}
+	}
+};
+
+window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ waitForMaintenance = true } = {}) {
+	const accessToken = localStorage.getItem('accessToken');
+	const refreshToken = localStorage.getItem('refreshToken');
+	if (accessToken || refreshToken) {
+		return true;
+	}
+	if (waitForMaintenance) {
+		await window.authGuard.waitForMaintenance();
+	}
+	if (typeof window.showSessionExpiredModal === 'function') {
+		console.log('[Auth Guard] No tokens found; showing session expired modal.');
+		window.showSessionExpiredModal();
+		return false;
+	}
+	console.warn('[Auth Guard] Session expired modal unavailable; redirecting to login.');
+	window.location.href = 'https://bookproject.fjnel.co.za?action=login';
+	return false;
+};
+
 // Checks if the API is reachable
 async function checkApiHealth() {
 	console.log('[API Health Check] Checking API health...');

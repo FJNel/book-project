@@ -292,25 +292,29 @@ async function refreshAccessToken() {
 }
 
 // Displays a modal informing the user that their session has expired
-function showSessionExpiredModal() {
-	//Check if modal  exists
-	console.log('[Session Expired Modal] Displaying session expired modal to user.');
+	async function showSessionExpiredModal() {
+		//Check if modal  exists
+		console.log('[Session Expired Modal] Displaying session expired modal to user.');
 
-	const modal = document.getElementById('sessionExpiredModal');
-	if (!modal) {
-		console.error('[Session Expired Modal] Modal element not found in DOM.');
-		//Fallback
-		alert('Your session has expired. Please log in again.');
-		window.location.href = 'https://bookproject.fjnel.co.za?action=login';
-		return;
-	}
+		const modal = document.getElementById('sessionExpiredModal');
+		if (!modal) {
+			console.error('[Session Expired Modal] Modal element not found in DOM.');
+			//Fallback
+			alert('Your session has expired. Please log in again.');
+			window.location.href = 'https://bookproject.fjnel.co.za?action=login';
+			return;
+		}
 
-	if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-		window.modalManager.showModal(modal);
-	} else {
-		const sessionExpiredModal = new bootstrap.Modal(modal);
-		sessionExpiredModal.show();
-	}
+		if (window.authGuard && typeof window.authGuard.waitForMaintenance === 'function') {
+			await window.authGuard.waitForMaintenance();
+		}
+
+		if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+			window.modalManager.showModal(modal);
+		} else {
+			const sessionExpiredModal = new bootstrap.Modal(modal);
+			sessionExpiredModal.show();
+		}
 
 	//Redirect to homepage on modal close
 	modal.addEventListener('hidden.bs.modal', () => {
