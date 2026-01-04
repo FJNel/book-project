@@ -52,8 +52,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /booktype/:id](#get-booktypeid)
     - [GET /booktype/by-name](#get-booktypeby-name)
     - [POST /booktype](#post-booktype)
-    - [PUT /booktype](#put-booktype)
     - [PUT /booktype/:id](#put-booktypeid)
+    - [PUT /booktype](#put-booktype)
     - [DELETE /booktype](#delete-booktype)
     - [DELETE /booktype/:id](#delete-booktypeid)
   - [Authors](#authors)
@@ -72,8 +72,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /bookauthor/stats](#get-bookauthorstats)
   - [Publishers](#publishers)
     - [GET /publisher](#get-publisher)
-    - [GET /publisher/:id](#get-publisherid)
     - [GET /publisher/by-name](#get-publisherby-name)
+    - [GET /publisher/:id](#get-publisherid)
     - [POST /publisher](#post-publisher)
     - [PUT /publisher](#put-publisher)
     - [PUT /publisher/:id](#put-publisherid)
@@ -84,8 +84,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /publisher/stats](#get-publisherstats)
   - [Book Series](#book-series)
     - [GET /bookseries](#get-bookseries)
-    - [GET /bookseries/:id](#get-bookseriesid)
     - [GET /bookseries/by-name](#get-bookseriesby-name)
+    - [GET /bookseries/:id](#get-bookseriesid)
     - [POST /bookseries](#post-bookseries)
     - [PUT /bookseries](#put-bookseries)
     - [PUT /bookseries/:id](#put-bookseriesid)
@@ -122,6 +122,8 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [GET /storagelocation/:id/bookcopies](#get-storagelocationidbookcopies)
     - [GET /storagelocation/bookcopies](#get-storagelocationbookcopies)
     - [GET /storagelocation/stats](#get-storagelocationstats)
+  - [Timeline Buckets](#timeline-buckets)
+    - [POST /timeline/buckets](#post-timelinebuckets)
   - [Book Copies](#book-copies)
     - [GET /bookcopy](#get-bookcopy)
     - [GET /bookcopy/stats](#get-bookcopystats)
@@ -132,20 +134,18 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [DELETE /bookcopy/:id](#delete-bookcopyid)
   - [Tags](#tags)
     - [GET /tags](#get-tags)
+  - [Search](#search)
+    - [GET /search](#get-search)
     - [GET /tags/stats](#get-tagsstats)
   - [Book Tags](#book-tags)
     - [GET /booktags/stats](#get-booktagsstats)
-  - [Timeline Buckets](#timeline-buckets)
-    - [POST /timeline/buckets](#post-timelinebuckets)
-  - [Search](#search)
-    - [GET /search](#get-search)
   - [Import/Export](#importexport)
     - [GET /export](#get-export)
     - [POST /import](#post-import)
   - [Logs](#logs)
     - [GET /logs](#get-logs)
     - [POST /logs/search](#post-logssearch)
-    - [GET /logs/log_types](#get-logslog_types)
+    - [GET /logs/log\_types](#get-logslog_types)
     - [GET /logs/levels](#get-logslevels)
     - [GET /logs/statuses](#get-logsstatuses)
   - [Admin](#admin)
@@ -172,12 +172,10 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /admin/users/:id/force-logout](#post-adminusersidforce-logout)
     - [POST /admin/users/handle-account-deletion](#post-adminusershandle-account-deletion)
     - [POST /admin/users/:id/handle-account-deletion](#post-adminusersidhandle-account-deletion)
-    - [POST /admin/users/disable](#post-adminusersdisable)
-    - [POST /admin/users/:id/disable](#post-adminusersiddisable)
     - [POST /admin/languages](#post-adminlanguages)
     - [PUT /admin/languages](#put-adminlanguages)
-    - [PUT /admin/languages/:id](#put-adminlanguagesid)
     - [DELETE /admin/languages](#delete-adminlanguages)
+    - [PUT /admin/languages/:id](#put-adminlanguagesid)
     - [DELETE /admin/languages/:id](#delete-adminlanguagesid)
     - [GET /status](#get-status)
 
@@ -8894,7 +8892,9 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 Notes:
 - `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
-- `authors` is returned as an array of `{ authorId, authorRole }` objects.
+- `authors` is returned as an array of `{ authorId, authorRole, authorName }` objects so clients can show display names without another lookup.
+- `bookTypeName` and `publisherName` are returned alongside their ids to avoid extra lookups.
+- Each `series` entry includes `seriesName` in addition to `seriesId`.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -9178,13 +9178,16 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
     },
     "pageCount": 423,
     "bookTypeId": 1,
+    "bookTypeName": "Novel",
     "publisherId": 5,
+    "publisherName": "Allen & Unwin",
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "The first volume of The Lord of the Rings.",
     "authors": [
       {
         "authorId": 1,
-        "authorRole": "Primary Author"
+        "authorRole": "Primary Author",
+        "authorName": "J.R.R. Tolkien"
       }
     ],
     "languages": [
@@ -9197,6 +9200,7 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
     "series": [
       {
         "seriesId": 8,
+        "seriesName": "The Lord of the Rings",
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 61,
