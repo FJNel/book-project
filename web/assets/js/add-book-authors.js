@@ -272,6 +272,7 @@
                 bioInput
             ]);
             hideAlert(errorAlert);
+            setLocked(false);
             if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
                 await window.modalManager.hideModal(modalEl);
             } else {
