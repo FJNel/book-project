@@ -190,9 +190,9 @@
             clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
             hideAlert(errorAlert);
             if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
-                window.modalManager.hideModal(modalEl);
+                await window.modalManager.hideModal(modalEl);
             } else {
-                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+                window.bootstrap?.Modal.getOrCreateInstance(modalEl)?.hide();
             }
             log('Series saved:', created);
         } catch (error) {

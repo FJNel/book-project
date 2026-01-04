@@ -128,7 +128,7 @@ window.rateLimitGuard = window.rateLimitGuard || (function createRateLimitGuard(
 		};
 
 		updateProgress();
-		const interval = setInterval(updateProgress, 1000);
+		const interval = setInterval(updateProgress, 250);
 		const delay = Math.max(endTime - Date.now(), 0) + 2000;
 		setTimeout(() => {
 			clearInterval(interval);

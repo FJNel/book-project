@@ -205,9 +205,9 @@
             clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
             hideAlert(errorAlert);
             if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
-                window.modalManager.hideModal(modalEl);
+                await window.modalManager.hideModal(modalEl);
             } else {
-                window.bootstrap?.Modal.getInstance(modalEl)?.hide();
+                window.bootstrap?.Modal.getOrCreateInstance(modalEl)?.hide();
             }
             log('Publisher saved:', created);
         } catch (error) {
