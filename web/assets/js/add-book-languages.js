@@ -52,6 +52,8 @@
             languageSelect.disabled = true;
             addButton.disabled = true;
             setHelpText(helpEl, 'All available languages have been added.', true);
+            helpEl?.classList.remove('attention-hint');
+            addButton.classList.remove('pulse-add');
             return;
         }
 
@@ -72,6 +74,8 @@
             languageSelect.appendChild(option);
         });
         setHelpText(helpEl, 'Select a language and click Add to save it.', false);
+        helpEl?.classList.remove('attention-hint');
+        addButton.classList.remove('pulse-add');
     }
 
     function addLanguage() {
@@ -87,6 +91,9 @@
         addBook.state.languages.selected.push(lang);
         refreshSelectOptions();
         renderSelected();
+        clearHelpText(helpEl);
+        helpEl?.classList.remove('attention-hint');
+        addButton.classList.remove('pulse-add');
         log('Language added:', lang);
     }
 
@@ -106,9 +113,13 @@
     languageSelect.addEventListener('change', () => {
         if (!languageSelect.value || languageSelect.value === 'none') {
             clearHelpText(helpEl);
+            helpEl?.classList.remove('attention-hint');
+            addButton.classList.remove('pulse-add');
             return;
         }
         setHelpText(helpEl, 'Click Add to save this language.', false);
+        helpEl?.classList.add('attention-hint');
+        addButton.classList.add('pulse-add');
     });
     addButton.addEventListener('click', addLanguage);
 })();

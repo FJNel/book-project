@@ -84,7 +84,9 @@
         addBook.state.selections.tags.push(normalized);
         input.value = '';
         renderTags();
-        setHelpText(helpEl, 'Type a tag and click Add to save it.', false);
+        clearHelpText(helpEl);
+        helpEl?.classList.remove('attention-hint');
+        addButton.classList.remove('pulse-add');
         log('Tag added:', normalized);
     }
 
@@ -100,12 +102,18 @@
         const error = validateTag(normalized);
         if (error && normalized) {
             setHelpText(helpEl, error, true);
+            helpEl?.classList.remove('attention-hint');
+            addButton.classList.remove('pulse-add');
             return;
         }
         if (normalized) {
             setHelpText(helpEl, 'Click Add to save this tag.', false);
+            helpEl?.classList.add('attention-hint');
+            addButton.classList.add('pulse-add');
         } else {
             setHelpText(helpEl, 'Type a tag and click Add to save it.', false);
+            helpEl?.classList.remove('attention-hint');
+            addButton.classList.remove('pulse-add');
         }
     });
 

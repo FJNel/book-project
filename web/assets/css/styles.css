@@ -28,3 +28,24 @@ html, body {
   box-sizing: border-box;
   z-index: 1050;
 }
+
+.attention-hint {
+  color: #1e7e34;
+  font-weight: 700;
+}
+
+.pulse-add {
+  animation: pulseAdd 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseAdd {
+  0% {
+    filter: saturate(1);
+  }
+  50% {
+    filter: saturate(1.5) brightness(1.05);
+  }
+  100% {
+    filter: saturate(1);
+  }
+}
