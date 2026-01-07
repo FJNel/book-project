@@ -9,10 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidBookModalMessage');
   const invalidModalClose = document.getElementById('invalidBookModalClose');
   const defaultInvalidBookMessage = "This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.";
-  const pageLoadingModal = bootstrap.Modal.getOrCreateInstance(
-    document.getElementById('pageLoadingModal'),
-    { backdrop: 'static', keyboard: false }
-  );
+  const pageLoadingModalEl = document.getElementById('pageLoadingModal');
+  const pageLoadingModal = pageLoadingModalEl
+    ? bootstrap.Modal.getOrCreateInstance(pageLoadingModalEl, { backdrop: 'static', keyboard: false })
+    : null;
 
   const toggleSubtitle = (text) => {
     const el = document.getElementById('bookSubtitle');
@@ -72,12 +72,32 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Tooltips initialized.', { count: tooltipTriggerList.length });
   };
 
-  const showInvalidModal = (message) => {
+  const showModal = async (target, options) => {
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+      await window.modalManager.showModal(target, options);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+  };
+
+  const hideModal = async (target) => {
+    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+      await window.modalManager.hideModal(target);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    const instance = bootstrap.Modal.getInstance(element);
+    if (instance) instance.hide();
+  };
+
+  const showInvalidModal = async (message) => {
     log('Showing invalid book modal.', { message });
     if (invalidModalMessage) invalidModalMessage.textContent = message || defaultInvalidBookMessage;
-    pageLoadingModal.hide();
-    const modal = bootstrap.Modal.getOrCreateInstance(invalidModal, { backdrop: 'static', keyboard: false });
-    modal.show();
+    await hideModal('pageLoadingModal');
+    await showModal(invalidModal, { backdrop: 'static', keyboard: false });
   };
 
   if (invalidModalClose) {
@@ -125,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('li');
       item.className = 'list-group-item position-relative';
       const name = author.authorName || 'Unknown author';
-      const role = author.authorRole || 'Constributor';
+      const role = author.authorRole || 'Contributor';
       const birthLine = formatPartialDate(author.birthDate);
       const deathLine = author.deceased
         ? `Died: ${formatPartialDate(author.deathDate) || '(date unknown)'}`
@@ -170,10 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (description) {
         details.push(`<div class="mt-1"><span class="fw-semibold">Description:</span> ${description}</div>`);
       }
-      const badgeCompactClass = details.length === 0 ? ' py-1 px-2' : '';
+      const badgeClass = details.length === 0
+        ? 'badge text-bg-light border text-dark px-2 py-1 fs-6 position-absolute top-0 end-0 mt-1 me-1'
+        : 'badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2';
       item.innerHTML = `
         ${bookOrder !== null
-          ? `<span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2${badgeCompactClass}" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
+          ? `<span class="${badgeClass}" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
           : ''
         }
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -499,16 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (response.status === 429 && window.rateLimitGuard) {
       window.rateLimitGuard.record(response);
       pageLoadingModal.hide();
+      await hideModal('pageLoadingModal');
       await window.rateLimitGuard.showModal();
       return;
     }
 
-    showInvalidModal(defaultInvalidBookMessage);
+    await showInvalidModal(defaultInvalidBookMessage);
   };
 
   const loadBook = async () => {
     log('Loading book data from API.');
-    pageLoadingModal.show();
+    await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
     try {
       const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true`, { method: 'GET' });
       log('API response received.', { ok: response.ok, status: response.status });
@@ -519,15 +542,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const payload = await response.json();
       log('API payload parsed.', { status: payload?.status });
       if (!payload || payload.status !== 'success' || !payload.data) {
-        showInvalidModal(defaultInvalidBookMessage);
+        await showInvalidModal(defaultInvalidBookMessage);
         return;
       }
       renderBook(payload.data);
     } catch (error) {
       errorLog('Book load failed with exception.', error);
-      showInvalidModal(defaultInvalidBookMessage);
+      await showInvalidModal(defaultInvalidBookMessage);
     } finally {
-      pageLoadingModal.hide();
+      await hideModal('pageLoadingModal');
     }
   };
 

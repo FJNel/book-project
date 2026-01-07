@@ -260,11 +260,15 @@
                 return;
             }
         }
-        const modal = window.bootstrap?.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
-        if (!modal) {
-            return;
+        if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+            window.modalManager.showModal(modalEl, { backdrop: 'static', keyboard: false });
+        } else {
+            const modal = window.bootstrap?.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
+            if (!modal) {
+                return;
+            }
+            modal.show();
         }
-        modal.show();
         runDryRun();
     });
 
