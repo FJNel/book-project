@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const log = (...args) => console.log('[Book Details]', ...args);
+  const warn = (...args) => console.warn('[Book Details]', ...args);
+  const errorLog = (...args) => console.error('[Book Details]', ...args);
+
+  log('Initializing page.');
   const placeholderCover = 'assets/img/BookCoverPlaceholder.png';
   const invalidModal = document.getElementById('invalidBookModal');
   const invalidModalMessage = document.getElementById('invalidBookModalMessage');
@@ -59,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const showInvalidModal = (message) => {
+    log('Showing invalid book modal.', { message });
     if (invalidModalMessage) invalidModalMessage.textContent = message;
     pageLoadingModal.hide();
     const modal = bootstrap.Modal.getOrCreateInstance(invalidModal, { backdrop: 'static', keyboard: false });
@@ -67,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (invalidModalClose) {
     invalidModalClose.addEventListener('click', () => {
+      log('Invalid book modal closed. Redirecting to books list.');
       window.location.href = 'https://bookproject.fjnel.co.za/books';
     });
   }
@@ -74,9 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const bookIdParam = new URLSearchParams(window.location.search).get('id');
   const bookId = Number.parseInt(bookIdParam, 10);
   if (!Number.isInteger(bookId) || bookId <= 0) {
+    warn('Invalid book id in URL.', { bookIdParam });
     showInvalidModal("This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.");
     return;
   }
+  log('Resolved book id from URL.', { bookId });
 
   const toggleDetails = ({ row, wrap, chevron }) => {
     if (!row || !wrap || !chevron) return;
@@ -93,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderAuthors = (authors) => {
+    log('Rendering authors.', { count: authors ? authors.length : 0 });
     const list = document.getElementById('authorsList');
     clearElement(list);
     if (!authors || authors.length === 0) {
@@ -107,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
       item.className = 'list-group-item position-relative';
       const name = author.authorName || 'Unknown author';
       const role = author.authorRole || 'Constributor';
+      const birthLine = formatPartialDate(author.birthDate);
       const deathLine = author.deceased
         ? `Died: ${formatPartialDate(author.deathDate) || '(date unknown)'}`
         : null;
@@ -116,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div>
             <div class="fw-semibold mb-0">${name}</div>
             <div class="fst-italic text-muted small">${role}</div>
+            ${birthLine ? `<div class="small text-muted mt-1"><span class="fw-semibold">Born:</span> ${birthLine}</div>` : ''}
             ${deathLine ? `<div class="small text-muted mt-1"><span class="fw-semibold">Died:</span> ${deathLine.replace('Died: ', '')}</div>` : ''}
           </div>
         </div>
@@ -125,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderSeries = (series) => {
+    log('Rendering series.', { count: series ? series.length : 0 });
     const list = document.getElementById('seriesList');
     clearElement(list);
     if (!series || series.length === 0) {
@@ -138,16 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('li');
       item.className = 'list-group-item position-relative';
       const name = entry.seriesName || 'Untitled series';
+      const bookOrder = Number.isInteger(entry.bookOrder) ? entry.bookOrder : null;
+      const website = entry.seriesWebsite ? entry.seriesWebsite.trim() : '';
+      const description = entry.seriesDescription ? entry.seriesDescription.trim() : '';
       item.innerHTML = `
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="fw-semibold mb-0">${name}</div>
+          ${bookOrder !== null ? `<span class="badge rounded-pill text-bg-light border">Book #${bookOrder}</span>` : ''}
         </div>
+        ${website ? `<div class="small text-muted mt-1"><span class="fw-semibold">Website:</span> ${website}</div>` : ''}
+        ${description ? `<div class="small text-muted mt-1"><span class="fw-semibold">Description:</span> ${description}</div>` : ''}
       `;
       list.appendChild(item);
     });
   };
 
   const renderCopies = (copies) => {
+    log('Rendering copies.', { count: copies ? copies.length : 0 });
     const accordion = document.getElementById('bookCopiesAccordion');
     clearElement(accordion);
     if (!copies || copies.length === 0) {
@@ -166,6 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const mutedClass = copy.storageLocationPath ? '' : 'text-muted';
       const headingId = `copyHeading${copyId}`;
       const collapseId = `copyCollapse${copyId}`;
+      const acquisitionLocation = copy.acquisitionLocation ? copy.acquisitionLocation.trim() : '';
+      const story = copy.acquisitionStory ? copy.acquisitionStory.trim() : '';
+      const notes = copy.notes ? copy.notes.trim() : '';
 
       const item = document.createElement('div');
       item.className = 'accordion-item';
@@ -195,6 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
               </div>
             </div>
+            <div class="mt-3">
+              ${acquisitionLocation ? `<div class="small text-muted mb-1"><span class="fw-semibold">Acquisition location:</span> ${acquisitionLocation}</div>` : ''}
+              ${story ? `<div class="small text-muted mb-1"><span class="fw-semibold">Story:</span> ${story}</div>` : ''}
+              ${notes ? `<div class="small text-muted mb-0"><span class="fw-semibold">Notes:</span> ${notes}</div>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -221,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderOverviewCounts = (book) => {
+    log('Rendering overview counts.');
     const authorsCount = book.stats?.authorCount ?? (book.authors ? book.authors.length : 0);
     const seriesCount = book.stats?.seriesCount ?? (book.series ? book.series.length : 0);
     const copyCount = book.stats?.copyCount ?? (book.bookCopies ? book.bookCopies.length : 0);
@@ -231,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderOwnership = (book) => {
+    log('Rendering ownership details.');
     const firstAcquired = document.getElementById('overviewFirstAcquired');
     const added = document.getElementById('overviewAdded');
     const updated = document.getElementById('overviewUpdated');
@@ -250,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const selected = withValue.length > 0
         ? withValue.sort((a, b) => a.value - b.value)[0]
         : acquisitionEntries[0];
-      firstAcquired.textContent = `First acquired: ${selected.text}`;
+      firstAcquired.innerHTML = `<span class="fw-semibold">First acquired:</span> ${selected.text}`;
       firstAcquired.classList.remove('d-none');
     }
 
@@ -268,12 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const renderBook = (book) => {
+    log('Rendering book payload.', { bookId: book?.id });
     document.getElementById('bookTitle').textContent = book.title;
     document.getElementById('bookTitleCompact').textContent = book.title;
     toggleSubtitle(book.subtitle ? book.subtitle.trim() : '');
 
     const coverImage = document.getElementById('bookCoverImage');
     coverImage.src = book.coverImageUrl || placeholderCover;
+    coverImage.alt = book.title ? `${book.title} cover` : 'Book cover';
 
     const authorNames = (book.authors || [])
       .map((author) => author.authorName)
@@ -371,9 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAuthors(book.authors || []);
     renderSeries(book.series || []);
     renderCopies(book.bookCopies || []);
+    log('Render complete.');
   };
 
   const handleResponseError = async (response) => {
+    warn('Book request failed.', { status: response.status });
     if (response.status === 429 && window.rateLimitGuard) {
       window.rateLimitGuard.record(response);
       pageLoadingModal.hide();
@@ -394,20 +428,24 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadBook = async () => {
+    log('Loading book data from API.');
     pageLoadingModal.show();
     try {
       const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true`, { method: 'GET' });
+      log('API response received.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         await handleResponseError(response);
         return;
       }
       const payload = await response.json();
+      log('API payload parsed.', { status: payload?.status });
       if (!payload || payload.status !== 'success' || !payload.data) {
         showInvalidModal('The book could not be loaded.');
         return;
       }
       renderBook(payload.data);
     } catch (error) {
+      errorLog('Book load failed with exception.', error);
       showInvalidModal('The book could not be loaded.');
     } finally {
       pageLoadingModal.hide();
@@ -420,4 +458,5 @@ document.addEventListener('DOMContentLoaded', () => {
   tooltipTriggerList.forEach((tooltipTriggerEl) => {
     new bootstrap.Tooltip(tooltipTriggerEl);
   });
+  log('Tooltips initialized.');
 });
