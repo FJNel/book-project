@@ -56,6 +56,22 @@
     </div>
   </nav>
 
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main class="container py-3">
     <!-- Breadcrumb + actions -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
@@ -68,15 +84,15 @@
           </ol>
         </nav>
 
-        <h1 class="mb-1">The Fellowship of the Ring</h1>
-        <p class="lead mb-1">Being the First Part of The Lord of the Rings</p>
+        <h1 class="mb-1" id="bookTitle"></h1>
+        <p class="lead mb-1 d-none" id="bookSubtitle"></p>
       </div>
 
       <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-outline-secondary" href="books.html">Back to Books</a>
-        <button class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
-        <button class="btn btn-outline-secondary btn-sm" type="button">Share</button>
-        <button class="btn btn-primary d-flex align-items-center gap-2" type="button">
+        <button class="btn btn-outline-secondary btn-sm" type="button" disabled aria-disabled="true">Refresh</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" disabled aria-disabled="true">Share</button>
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" disabled aria-disabled="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
           </svg>
@@ -95,14 +111,15 @@
               <img
                 class="img-fluid rounded w-100"
                 alt="Book Cover"
-                src="https://ia800505.us.archive.org/view_archive.php?archive=/35/items/l_covers_0014/l_covers_0014_61.zip&file=0014617433-L.jpg"
+                id="bookCoverImage"
+                src="assets/img/BookCoverPlaceholder.png"
               />
             </div>
 
             <div class="mt-3">
-              <div class="h5 fw-bold mb-1">The Fellowship of the Ring</div>
-              <div class="text-muted mb-1">J.R.R. Tolkien</div>
-              <div class="text-muted">Format: Paperback</div>
+              <div class="h5 fw-bold mb-1" id="bookTitleCompact"></div>
+              <div class="text-muted mb-1" id="bookAuthorsLine"></div>
+              <div class="text-muted" id="bookFormatLine"></div>
               <hr class="my-2 d-none d-md-block" />
             </div>
           </div>
@@ -115,16 +132,7 @@
                   <div class="card-body ps-0 pe-0">
                     <div class="fw-semibold mb-2">Description</div>
                     <div class="small" style="line-height: 1.35;">
-                      <p class="mb-0">
-                        One Ring to rule them all, One Ring to find them, One Ring to bring them all and in the darkness bind them. “A unique, wholly
-                        realized other world, evoked from deep in the well of Time, massively detailed, absorbingly entertaining, profound in meaning.”—The
-                        New York Times. In ancient times the Rings of Power were crafted by the Elven-smiths, and Sauron, the Dark Lord, forged the One Ring,
-                        filling it with his own power so that he could rule all others. But the One Ring was taken from him, and though he sought it
-                        throughout Middle-earth, it remained lost to him. After many ages it fell into the hands of Bilbo Baggins, as told in The Hobbit. In a
-                        sleepy village in the Shire, young Frodo Baggins finds himself faced with an immense task, as his elderly cousin Bilbo entrusts the
-                        Ring to his care. Frodo must leave his home and make a perilous journey across Middle-earth to the Cracks of Doom, there to destroy
-                        the Ring and foil the Dark Lord in his evil purpose.
-                      </p>
+                      <p class="mb-0" id="bookDescription"></p>
                     </div>
                   </div>
                 </div>
@@ -133,24 +141,24 @@
                   <div class="card-body p-0">
                     <div class="px-3 pt-3 pb-2 fw-bold text-muted">Core facts</div>
                     <ul class="list-group list-group-flush">
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <li class="list-group-item d-flex justify-content-between align-items-center" id="corePublicationRow">
                         <div class="text-muted">Publication Date</div>
-                        <div class="fw-semibold">3 March 2005</div>
+                        <div class="fw-semibold" id="corePublicationValue"></div>
                       </li>
 
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <li class="list-group-item d-flex justify-content-between align-items-center" id="coreLanguagesRow">
                         <div class="text-muted">Language(s)</div>
-                        <div class="fw-semibold">English</div>
+                        <div class="fw-semibold" id="coreLanguagesValue"></div>
                       </li>
 
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <li class="list-group-item d-flex justify-content-between align-items-center" id="corePagesRow">
                         <div class="text-muted">Pages</div>
-                        <div class="fw-semibold">576</div>
+                        <div class="fw-semibold" id="corePagesValue"></div>
                       </li>
 
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <li class="list-group-item d-flex justify-content-between align-items-center" id="coreIsbnRow">
                         <div class="text-muted">ISBN</div>
-                        <div class="fw-semibold">9780007203581</div>
+                        <div class="fw-semibold" id="coreIsbnValue"></div>
                       </li>
                     </ul>
                   </div>
@@ -160,31 +168,31 @@
                   <div class="card-body p-0">
                     <div class="px-3 pt-3 pb-2 fw-bold text-muted">Edition details</div>
                     <ul class="list-group list-group-flush">
-                      <li class="list-group-item clickable-row d-flex align-items-start justify-content-between gap-2">
+                      <li class="list-group-item d-flex align-items-start justify-content-between gap-2" id="bookTypeRow">
                         <div>
                           <div class="text-muted">Book Type</div>
-                          <div class="fw-semibold">Paperback</div>
-                          <div class="small text-muted mt-1">
+                          <div class="fw-semibold" id="bookTypeName"></div>
+                          <div class="small text-muted mt-1 d-none" id="bookTypeDescriptionWrap">
                             <span class="fw-semibold">Description:</span>
-                            Paperback is a flexible-cover format (placeholder description — you’ll fetch this from your API later).
+                            <span id="bookTypeDescription"></span>
                           </div>
                         </div>
-                        <div class="text-muted opacity-50 d-flex align-items-center">
+                        <div class="text-muted opacity-50 d-flex align-items-center d-none" id="bookTypeChevron">
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                             <path d="M6 3.5 10.5 8 6 12.5" />
                           </svg>
                         </div>
                       </li>
 
-                      <li class="list-group-item clickable-row d-flex align-items-start justify-content-between gap-2">
+                      <li class="list-group-item d-flex align-items-start justify-content-between gap-2" id="publisherRow">
                         <div>
                           <div class="text-muted">Publisher</div>
-                          <div class="fw-semibold">Houghton Mifflin</div>
-                          <div class="small text-muted mt-1"><span class="fw-semibold">Date founded:</span> 1880</div>
-                          <div class="small text-muted mt-1"><span class="fw-semibold">Website:</span> (placeholder)</div>
-                          <div class="small text-muted mt-1"><span class="fw-semibold">Notes:</span> (placeholder)</div>
+                          <div class="fw-semibold" id="publisherName"></div>
+                          <div class="small text-muted mt-1 d-none" id="publisherFoundedWrap"><span class="fw-semibold">Date founded:</span> <span id="publisherFounded"></span></div>
+                          <div class="small text-muted mt-1 d-none" id="publisherWebsiteWrap"><span class="fw-semibold">Website:</span> <span id="publisherWebsite"></span></div>
+                          <div class="small text-muted mt-1 d-none" id="publisherNotesWrap"><span class="fw-semibold">Notes:</span> <span id="publisherNotes"></span></div>
                         </div>
-                        <div class="text-muted opacity-50 d-flex align-items-center">
+                        <div class="text-muted opacity-50 d-flex align-items-center d-none" id="publisherChevron">
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                             <path d="M6 3.5 10.5 8 6 12.5" />
                           </svg>
@@ -200,29 +208,20 @@
                   <div class="card-body py-3">
                     <div class="fw-semibold mb-2">Overview</div>
 
-                    <div class="mb-3">
-                      <span class="badge rounded-pill text-bg-light border px-3 py-2 fs-6 me-1 mb-1">Dense</span>
-                      <span class="badge rounded-pill text-bg-light border px-3 py-2 fs-6 me-1 mb-1">Fantasy</span>
-                    </div>
+                    <div class="mb-3" id="overviewTags"></div>
 
                     <div class="small text-muted mb-3">
                       <div class="fw-semibold text-muted">Library</div>
-                      <div class="mb-1"><span class="fw-semibold">Authors:</span> 1</div>
-                      <div class="mb-1"><span class="fw-semibold">Series:</span> 1</div>
-                      <div class="mb-1"><span class="fw-semibold">Copies:</span> 1</div>
+                      <div class="mb-1" id="overviewAuthorsCount"></div>
+                      <div class="mb-1" id="overviewSeriesCount"></div>
+                      <div class="mb-1" id="overviewCopiesCount"></div>
                     </div>
 
-                    <div class="small text-muted">
+                    <div class="small text-muted" id="overviewOwnership">
                       <div class="fw-semibold text-muted">Ownership</div>
-                      <div class="mb-1"><span class="fw-semibold">First acquired:</span> December 2019</div>
-                      <div class="mb-1">
-                        <span class="fw-semibold">Added:</span>
-                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
-                      </div>
-                      <div class="mb-0">
-                        <span class="fw-semibold">Updated:</span>
-                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
-                      </div>
+                      <div class="mb-1 d-none" id="overviewFirstAcquired"></div>
+                      <div class="mb-1 d-none" id="overviewAdded"></div>
+                      <div class="mb-0 d-none" id="overviewUpdated"></div>
                     </div>
                   </div>
                 </div>
@@ -241,36 +240,14 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h4 class="card-title mb-0">Authors</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors" disabled aria-disabled="true">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
               </button>
             </div>
 
-            <ul class="list-group">
-              <li class="list-group-item position-relative">
-                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-                  <div>
-                    <div class="fw-semibold mb-0">J.R.R. Tolkien</div>
-                    <div class="fst-italic text-muted small">Author</div>
-                    <div class="small text-muted mt-1"><span class="fw-semibold">Born:</span> 3 January 1892</div>
-                    <div class="small text-muted"><span class="fw-semibold">Died:</span> 2 September 1973</div>
-                  </div>
-                </div>
-              </li>
-
-              <li class="list-group-item position-relative">
-                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-                  <div>
-                    <div class="fw-semibold mb-0">Jane Smith</div>
-                    <div class="fst-italic text-muted small">Co-author</div>
-                    <div class="small text-muted mt-1"><span class="fw-semibold">Born:</span> 12 July 1978</div>
-                    <div class="small text-muted"><span class="fw-semibold">Died:</span> —</div>
-                  </div>
-                </div>
-              </li>
-            </ul>
+            <ul class="list-group" id="authorsList"></ul>
           </div>
         </div>
       </div>
@@ -280,36 +257,14 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h4 class="card-title mb-0">Series</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series" disabled aria-disabled="true">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
               </button>
             </div>
 
-            <ul class="list-group">
-              <li class="list-group-item position-relative">
-                <span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#1</span>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <div class="fw-semibold mb-0">The Lord of The Rings</div>
-                </div>
-                <div class="small text-muted mt-2">
-                  <div><span class="fw-semibold">Website:</span> (placeholder)</div>
-                  <div class="mt-1"><span class="fw-semibold">Description:</span> Placeholder series description for this entry.</div>
-                </div>
-              </li>
-
-              <li class="list-group-item position-relative">
-                <span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#2</span>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <div class="fw-semibold mb-0">Middle-earth Histories</div>
-                </div>
-                <div class="small text-muted mt-2">
-                  <div><span class="fw-semibold">Website:</span> (placeholder)</div>
-                  <div class="mt-1"><span class="fw-semibold">Description:</span> Placeholder series description for this entry.</div>
-                </div>
-              </li>
-            </ul>
+            <ul class="list-group" id="seriesList"></ul>
           </div>
         </div>
       </div>
@@ -324,190 +279,73 @@
             <div class="text-muted small">These are your physical copies and personal acquisition details.</div>
           </div>
           <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" type="button">Add Copy</button>
-            <button class="btn btn-primary" type="button">Locate</button>
+            <button class="btn btn-outline-secondary" type="button" disabled aria-disabled="true">Add Copy</button>
+            <button class="btn btn-primary" type="button" disabled aria-disabled="true">Locate</button>
           </div>
         </div>
 
-        <div class="accordion mt-3" id="bookCopiesAccordion">
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="copyHeading1">
-              <button class="accordion-button text-dark bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#copyCollapse1" aria-expanded="true" aria-controls="copyCollapse1">
-                Copy #1
-                <span class="ms-2 text-muted small d-none d-sm-inline">• Home → Johan's Room → Cupboard</span>
-              </button>
-            </h2>
-
-            <div id="copyCollapse1" class="accordion-collapse collapse show" aria-labelledby="copyHeading1" data-bs-parent="#bookCopiesAccordion">
-              <div class="accordion-body">
-                <div class="row g-3">
-                  <div class="col-12">
-                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                      <div class="fw-semibold fs-6 mb-0">Stored at</div>
-                      <div class="fw-semibold mb-0">Home → Johan's Room → Cupboard</div>
-                    </div>
-                  </div>
-
-                  <div class="col-12 col-lg-6">
-                    <div class="fw-semibold text-muted mb-2">Acquisition</div>
-                    <ul class="list-group h-100">
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquired on</div>
-                        <div class="fw-semibold text-end">December 2019</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquired from</div>
-                        <div class="fw-semibold text-end">Mother</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquisition type</div>
-                        <div class="fw-semibold text-end">Purchased</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquisition location</div>
-                        <div class="fw-semibold text-end">Secunda</div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div class="col-12 col-lg-6">
-                    <div class="border rounded p-3">
-                      <div class="fw-semibold mb-1">Story</div>
-                      <p class="mb-0">
-                        I got this book series when I was in Grade 8 (just before Covid) for the December holidays.
-                      </p>
-                    </div>
-
-                    <div class="border rounded p-3 mt-3">
-                      <div class="fw-semibold mb-1">Notes</div>
-                      <p class="mb-0">(none)</p>
-                    </div>
-                  </div>
-
-                  <div class="col-12">
-                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                      <div class="text-muted small">
-                        <span class="fw-semibold">Added:</span>
-                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
-                        <span class="mx-1">•</span>
-                        <span class="fw-semibold">Updated:</span>
-                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
-                      </div>
-
-                      <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
-                          </svg>
-                          <span>Edit Copy</span>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" type="button">Remove Copy</button>
-                      </div>
-                    </div>
-                  </div>
-                </div><!-- /row -->
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="copyHeading2">
-              <button class="accordion-button collapsed text-dark bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#copyCollapse2" aria-expanded="false" aria-controls="copyCollapse2">
-                Copy #2
-                <span class="ms-2 text-muted small d-none d-sm-inline">• Office → Shelf A → Row 2</span>
-              </button>
-            </h2>
-
-            <div id="copyCollapse2" class="accordion-collapse collapse" aria-labelledby="copyHeading2" data-bs-parent="#bookCopiesAccordion">
-              <div class="accordion-body">
-                <div class="row g-3">
-                  <div class="col-12">
-                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                      <div class="fw-semibold fs-6 mb-0">Stored at</div>
-                      <div class="fw-semibold mb-0">Office → Shelf A → Row 2</div>
-                    </div>
-                  </div>
-
-                  <div class="col-12 col-lg-6">
-                    <div class="fw-semibold text-muted mb-2">Acquisition</div>
-                    <ul class="list-group h-100">
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquired on</div>
-                        <div class="fw-semibold text-end">June 2021</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquired from</div>
-                        <div class="fw-semibold text-end">Local bookstore</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquisition type</div>
-                        <div class="fw-semibold text-end">Purchased</div>
-                      </li>
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="text-muted">Acquisition location</div>
-                        <div class="fw-semibold text-end">New York</div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div class="col-12 col-lg-6">
-                    <div class="border rounded p-3">
-                      <div class="fw-semibold mb-1">Story</div>
-                      <p class="mb-0">
-                        Picked up as a backup copy for lending to friends without losing the primary.
-                      </p>
-                    </div>
-
-                    <div class="border rounded p-3 mt-3">
-                      <div class="fw-semibold mb-1">Notes</div>
-                      <p class="mb-0">Minor scuff on the spine.</p>
-                    </div>
-                  </div>
-
-                  <div class="col-12">
-                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                      <div class="text-muted small">
-                        <span class="fw-semibold">Added:</span>
-                        <time datetime="2026-01-04T10:00:00.000Z">2026-01-04 10:00:00Z</time>
-                        <span class="mx-1">•</span>
-                        <span class="fw-semibold">Updated:</span>
-                        <time datetime="2026-01-05T08:15:00.000Z">2026-01-05 08:15:00Z</time>
-                      </div>
-
-                      <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
-                          </svg>
-                          <span>Edit Copy</span>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" type="button">Remove Copy</button>
-                      </div>
-                    </div>
-                  </div>
-                </div><!-- /row -->
-              </div>
-            </div>
-          </div>
-        </div><!-- /accordion -->
+        <div class="accordion mt-3" id="bookCopiesAccordion"></div>
       </div>
     </div>
 
     <footer class="pb-4">
-      <div class="text-muted small">
-        Placeholder-only page. You’ll wire up real data + toggling states (icons, text truncation, etc.) in JS later.
-      </div>
+      <div class="text-muted small" id="pageFooterNote"></div>
     </footer>
   </main>
 
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="session_expired_heading">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0" data-lang="session_expired_text">Your session has ended for security reasons. This might happen due to:</p>
+          <ul>
+            <li data-lang="session_expired_li1"><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+            <li data-lang="session_expired_li2"><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+            <li data-lang="session_expired_li3"><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+          </ul>
+          <p class="mb-0" data-lang="session_expired_footer"><em>Close this window to go back to the page where you can log in.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Please Slow Down for a Moment</h4>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information needed to display book details isn't available right now.</p>
+          <p class="mb-3">Nothing is wrong, and there's nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+          <p class="mb-2 text-muted">Preparing to continue...</p>
+          <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="invalidBookModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">This book couldn't be opened</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button" id="invalidBookModalClose"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0" id="invalidBookModalMessage">This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // Enable tooltips for badges (role, book order)
-    document.addEventListener('DOMContentLoaded', () => {
-      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-      tooltipTriggerList.forEach((tooltipTriggerEl) => {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-      });
-    });
-  </script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/book-details.js"></script>
 </body>
 </html>
