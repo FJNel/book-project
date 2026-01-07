@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <title>The Book Project</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <style>
+    .edit-icon-btn {
+      color: #4a4a4a;
+      border-radius: 0.375rem;
+    }
+    .edit-icon-btn:hover,
+    .edit-icon-btn:focus {
+      background-color: #f1f3f5;
+    }
+    .edit-floating {
+      position: absolute;
+      right: 0.5rem;
+      bottom: 0.5rem;
+    }
+    .clickable-row {
+      cursor: pointer;
+    }
+    .clickable-row:hover {
+      background-color: #f8f9fa;
+    }
+    .clickable-row:active {
+      background-color: #f1f3f5;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Top nav (simple Bootstrap-only) -->
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" href="dashboard.html">The Book Project</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link active" aria-current="page" href="books.html">Books</a></li>
+          <li class="nav-item"><a class="nav-link" href="add-book.html">Add Book</a></li>
+        </ul>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" type="button">Account</button>
+          <button class="btn btn-outline-danger btn-sm" type="button">Log out</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-3">
+    <!-- Breadcrumb + actions -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="dashboard.html" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="books.html" class="text-decoration-none">Books</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Book Details</li>
+          </ol>
+        </nav>
+
+        <h1 class="mb-1">The Fellowship of the Ring</h1>
+        <p class="lead mb-1">Being the First Part of The Lord of the Rings</p>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="books.html">Back to Books</a>
+        <button class="btn btn-outline-secondary btn-sm" type="button">Refresh</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button">Share</button>
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+          </svg>
+          <span>Edit Book</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Overview card -->
+    <div class="card shadow mb-3">
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- Cover + tags + created/updated -->
+          <div class="col-12 col-md-4 col-lg-3">
+            <div class="border rounded p-2">
+              <img
+                class="img-fluid rounded w-100"
+                alt="Book Cover"
+                src="https://ia800505.us.archive.org/view_archive.php?archive=/35/items/l_covers_0014/l_covers_0014_61.zip&file=0014617433-L.jpg"
+              />
+            </div>
+
+            <div class="mt-3">
+              <div class="h5 fw-bold mb-1">The Fellowship of the Ring</div>
+              <div class="text-muted mb-1">J.R.R. Tolkien</div>
+              <div class="text-muted">Format: Paperback</div>
+              <hr class="my-2 d-none d-md-block" />
+            </div>
+          </div>
+
+          <!-- Core fields + info callout + description -->
+          <div class="col-12 col-md-8 col-lg-9">
+            <div class="row g-1 g-md-3">
+              <div class="col-12 col-xl-8 d-flex flex-column gap-2 gap-md-3">
+                <div class="card border-0">
+                  <div class="card-body ps-0 pe-0">
+                    <div class="fw-semibold mb-2">Description</div>
+                    <div class="small" style="line-height: 1.35;">
+                      <p class="mb-0">
+                        One Ring to rule them all, One Ring to find them, One Ring to bring them all and in the darkness bind them. “A unique, wholly
+                        realized other world, evoked from deep in the well of Time, massively detailed, absorbingly entertaining, profound in meaning.”—The
+                        New York Times. In ancient times the Rings of Power were crafted by the Elven-smiths, and Sauron, the Dark Lord, forged the One Ring,
+                        filling it with his own power so that he could rule all others. But the One Ring was taken from him, and though he sought it
+                        throughout Middle-earth, it remained lost to him. After many ages it fell into the hands of Bilbo Baggins, as told in The Hobbit. In a
+                        sleepy village in the Shire, young Frodo Baggins finds himself faced with an immense task, as his elderly cousin Bilbo entrusts the
+                        Ring to his care. Frodo must leave his home and make a perilous journey across Middle-earth to the Cracks of Doom, there to destroy
+                        the Ring and foil the Dark Lord in his evil purpose.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card shadow-sm rounded-3 overflow-hidden">
+                  <div class="card-body p-0">
+                    <div class="px-3 pt-3 pb-2 fw-bold text-muted">Core facts</div>
+                    <ul class="list-group list-group-flush">
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Publication Date</div>
+                        <div class="fw-semibold">3 March 2005</div>
+                      </li>
+
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Language(s)</div>
+                        <div class="fw-semibold">English</div>
+                      </li>
+
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Pages</div>
+                        <div class="fw-semibold">576</div>
+                      </li>
+
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">ISBN</div>
+                        <div class="fw-semibold">9780007203581</div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="card shadow-sm rounded-3 overflow-hidden">
+                  <div class="card-body p-0">
+                    <div class="px-3 pt-3 pb-2 fw-bold text-muted">Edition details</div>
+                    <ul class="list-group list-group-flush">
+                      <li class="list-group-item clickable-row d-flex align-items-start justify-content-between gap-2">
+                        <div>
+                          <div class="text-muted">Book Type</div>
+                          <div class="fw-semibold">Paperback</div>
+                          <div class="small text-muted mt-1">
+                            <span class="fw-semibold">Description:</span>
+                            Paperback is a flexible-cover format (placeholder description — you’ll fetch this from your API later).
+                          </div>
+                        </div>
+                        <div class="text-muted opacity-50 d-flex align-items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M6 3.5 10.5 8 6 12.5" />
+                          </svg>
+                        </div>
+                      </li>
+
+                      <li class="list-group-item clickable-row d-flex align-items-start justify-content-between gap-2">
+                        <div>
+                          <div class="text-muted">Publisher</div>
+                          <div class="fw-semibold">Houghton Mifflin</div>
+                          <div class="small text-muted mt-1"><span class="fw-semibold">Date founded:</span> 1880</div>
+                          <div class="small text-muted mt-1"><span class="fw-semibold">Website:</span> (placeholder)</div>
+                          <div class="small text-muted mt-1"><span class="fw-semibold">Notes:</span> (placeholder)</div>
+                        </div>
+                        <div class="text-muted opacity-50 d-flex align-items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M6 3.5 10.5 8 6 12.5" />
+                          </svg>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-xl-4">
+                <div class="card border-0 shadow-sm h-100" style="background-color: #f7f8f9;">
+                  <div class="card-body py-3">
+                    <div class="fw-semibold mb-2">Overview</div>
+
+                    <div class="mb-3">
+                      <span class="badge rounded-pill text-bg-light border px-3 py-2 fs-6 me-1 mb-1">Dense</span>
+                      <span class="badge rounded-pill text-bg-light border px-3 py-2 fs-6 me-1 mb-1">Fantasy</span>
+                    </div>
+
+                    <div class="small text-muted mb-3">
+                      <div class="fw-semibold text-muted">Library</div>
+                      <div class="mb-1"><span class="fw-semibold">Authors:</span> 1</div>
+                      <div class="mb-1"><span class="fw-semibold">Series:</span> 1</div>
+                      <div class="mb-1"><span class="fw-semibold">Copies:</span> 1</div>
+                    </div>
+
+                    <div class="small text-muted">
+                      <div class="fw-semibold text-muted">Ownership</div>
+                      <div class="mb-1"><span class="fw-semibold">First acquired:</span> December 2019</div>
+                      <div class="mb-1">
+                        <span class="fw-semibold">Added:</span>
+                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
+                      </div>
+                      <div class="mb-0">
+                        <span class="fw-semibold">Updated:</span>
+                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /row -->
+          </div>
+        </div><!-- /row -->
+      </div>
+    </div>
+
+    <!-- Authors + Series -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h4 class="card-title mb-0">Authors</h4>
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                </svg>
+              </button>
+            </div>
+
+            <ul class="list-group">
+              <li class="list-group-item position-relative">
+                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                  <div>
+                    <div class="fw-semibold mb-0">J.R.R. Tolkien</div>
+                    <div class="fst-italic text-muted small">Author</div>
+                    <div class="small text-muted mt-1"><span class="fw-semibold">Born:</span> 3 January 1892</div>
+                    <div class="small text-muted"><span class="fw-semibold">Died:</span> 2 September 1973</div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="list-group-item position-relative">
+                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                  <div>
+                    <div class="fw-semibold mb-0">Jane Smith</div>
+                    <div class="fst-italic text-muted small">Co-author</div>
+                    <div class="small text-muted mt-1"><span class="fw-semibold">Born:</span> 12 July 1978</div>
+                    <div class="small text-muted"><span class="fw-semibold">Died:</span> —</div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h4 class="card-title mb-0">Series</h4>
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                </svg>
+              </button>
+            </div>
+
+            <ul class="list-group">
+              <li class="list-group-item position-relative">
+                <span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#1</span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <div class="fw-semibold mb-0">The Lord of The Rings</div>
+                </div>
+                <div class="small text-muted mt-2">
+                  <div><span class="fw-semibold">Website:</span> (placeholder)</div>
+                  <div class="mt-1"><span class="fw-semibold">Description:</span> Placeholder series description for this entry.</div>
+                </div>
+              </li>
+
+              <li class="list-group-item position-relative">
+                <span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#2</span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <div class="fw-semibold mb-0">Middle-earth Histories</div>
+                </div>
+                <div class="small text-muted mt-2">
+                  <div><span class="fw-semibold">Website:</span> (placeholder)</div>
+                  <div class="mt-1"><span class="fw-semibold">Description:</span> Placeholder series description for this entry.</div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Book Copies -->
+    <div class="card shadow mb-4">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
+          <div>
+            <h4 class="card-title mb-0">Book Copies</h4>
+            <div class="text-muted small">These are your physical copies and personal acquisition details.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" type="button">Add Copy</button>
+            <button class="btn btn-primary" type="button">Locate</button>
+          </div>
+        </div>
+
+        <div class="accordion mt-3" id="bookCopiesAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="copyHeading1">
+              <button class="accordion-button text-dark bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#copyCollapse1" aria-expanded="true" aria-controls="copyCollapse1">
+                Copy #1
+                <span class="ms-2 text-muted small d-none d-sm-inline">• Home → Johan's Room → Cupboard</span>
+              </button>
+            </h2>
+
+            <div id="copyCollapse1" class="accordion-collapse collapse show" aria-labelledby="copyHeading1" data-bs-parent="#bookCopiesAccordion">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                      <div class="fw-semibold fs-6 mb-0">Stored at</div>
+                      <div class="fw-semibold mb-0">Home → Johan's Room → Cupboard</div>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-lg-6">
+                    <div class="fw-semibold text-muted mb-2">Acquisition</div>
+                    <ul class="list-group h-100">
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquired on</div>
+                        <div class="fw-semibold text-end">December 2019</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquired from</div>
+                        <div class="fw-semibold text-end">Mother</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquisition type</div>
+                        <div class="fw-semibold text-end">Purchased</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquisition location</div>
+                        <div class="fw-semibold text-end">Secunda</div>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="col-12 col-lg-6">
+                    <div class="border rounded p-3">
+                      <div class="fw-semibold mb-1">Story</div>
+                      <p class="mb-0">
+                        I got this book series when I was in Grade 8 (just before Covid) for the December holidays.
+                      </p>
+                    </div>
+
+                    <div class="border rounded p-3 mt-3">
+                      <div class="fw-semibold mb-1">Notes</div>
+                      <p class="mb-0">(none)</p>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                      <div class="text-muted small">
+                        <span class="fw-semibold">Added:</span>
+                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
+                        <span class="mx-1">•</span>
+                        <span class="fw-semibold">Updated:</span>
+                        <time datetime="2026-01-03T19:04:38.562Z">2026-01-03 19:04:38Z</time>
+                      </div>
+
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                          </svg>
+                          <span>Edit Copy</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" type="button">Remove Copy</button>
+                      </div>
+                    </div>
+                  </div>
+                </div><!-- /row -->
+              </div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="copyHeading2">
+              <button class="accordion-button collapsed text-dark bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#copyCollapse2" aria-expanded="false" aria-controls="copyCollapse2">
+                Copy #2
+                <span class="ms-2 text-muted small d-none d-sm-inline">• Office → Shelf A → Row 2</span>
+              </button>
+            </h2>
+
+            <div id="copyCollapse2" class="accordion-collapse collapse" aria-labelledby="copyHeading2" data-bs-parent="#bookCopiesAccordion">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                      <div class="fw-semibold fs-6 mb-0">Stored at</div>
+                      <div class="fw-semibold mb-0">Office → Shelf A → Row 2</div>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-lg-6">
+                    <div class="fw-semibold text-muted mb-2">Acquisition</div>
+                    <ul class="list-group h-100">
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquired on</div>
+                        <div class="fw-semibold text-end">June 2021</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquired from</div>
+                        <div class="fw-semibold text-end">Local bookstore</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquisition type</div>
+                        <div class="fw-semibold text-end">Purchased</div>
+                      </li>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="text-muted">Acquisition location</div>
+                        <div class="fw-semibold text-end">New York</div>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="col-12 col-lg-6">
+                    <div class="border rounded p-3">
+                      <div class="fw-semibold mb-1">Story</div>
+                      <p class="mb-0">
+                        Picked up as a backup copy for lending to friends without losing the primary.
+                      </p>
+                    </div>
+
+                    <div class="border rounded p-3 mt-3">
+                      <div class="fw-semibold mb-1">Notes</div>
+                      <p class="mb-0">Minor scuff on the spine.</p>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                      <div class="text-muted small">
+                        <span class="fw-semibold">Added:</span>
+                        <time datetime="2026-01-04T10:00:00.000Z">2026-01-04 10:00:00Z</time>
+                        <span class="mx-1">•</span>
+                        <span class="fw-semibold">Updated:</span>
+                        <time datetime="2026-01-05T08:15:00.000Z">2026-01-05 08:15:00Z</time>
+                      </div>
+
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                          </svg>
+                          <span>Edit Copy</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" type="button">Remove Copy</button>
+                      </div>
+                    </div>
+                  </div>
+                </div><!-- /row -->
+              </div>
+            </div>
+          </div>
+        </div><!-- /accordion -->
+      </div>
+    </div>
+
+    <footer class="pb-4">
+      <div class="text-muted small">
+        Placeholder-only page. You’ll wire up real data + toggling states (icons, text truncation, etc.) in JS later.
+      </div>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Enable tooltips for badges (role, book order)
+    document.addEventListener('DOMContentLoaded', () => {
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.forEach((tooltipTriggerEl) => {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    });
+  </script>
+</body>
+</html>

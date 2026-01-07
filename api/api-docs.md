@@ -1897,7 +1897,7 @@ At least one of `fullName` or `preferredName` must be provided.
   "message": "No changes were provided.",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -3928,7 +3928,7 @@ At least one field must be provided.
   "message": "No changes were provided.",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -4068,7 +4068,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
   "message": "No changes were provided.",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -4979,7 +4979,7 @@ Edge cases:
   "message": "No changes were provided.",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -6349,7 +6349,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -7576,7 +7576,7 @@ If both `id` and `targetName` are provided, they must refer to the same record o
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -8892,9 +8892,10 @@ Use the `filter...` parameters for list filtering to avoid conflicts with the si
 
 Notes:
 - `view=all` includes `bookCopies`, `series`, `tags`, `languages`, and `authors`.
-- `authors` is returned as an array of `{ authorId, authorRole, authorName }` objects so clients can show display names without another lookup.
-- `bookTypeName` and `publisherName` are returned alongside their ids to avoid extra lookups.
-- Each `series` entry includes `seriesName` in addition to `seriesId`.
+- `authors` entries include `authorId`, `authorRole`, `authorName`, `birthDate`, `deathDate`, `deceased`, and `bio`.
+- `bookType` and `publisher` objects are included in `view=all` with richer metadata (book type description, publisher founded date, website, notes). Their ids live on `bookType.id` and `publisher.id` (no separate `bookTypeId`/`publisherId` in `view=all`).
+- `view=card` includes `bookTypeId` and `bookTypeName` but omits publisher information.
+- Each `series` entry includes `seriesName`, `seriesDescription`, and `seriesWebsite` in addition to `seriesId`.
 
 <details>
 <summary>Filtering & Sorting Options</summary>
@@ -8961,6 +8962,309 @@ You can provide these list controls via query string or JSON body. If both are p
 #### Example Responses
 
 <details>
+<summary>Success Responses</summary>
+
+- **List (view=nameOnly):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.04",
+  "message": "Books retrieved successfully.",
+  "data": {
+    "books": [
+      { "id": 12, "title": "The Fellowship of the Ring" },
+      { "id": 13, "title": "The Two Towers" }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **List (view=card):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.18",
+  "message": "Books retrieved successfully.",
+  "data": {
+    "books": [
+      {
+        "id": 12,
+        "title": "The Fellowship of the Ring",
+        "subtitle": "Being the First Part of The Lord of the Rings",
+        "coverImageUrl": "https://example.com/fotr.jpg",
+        "publicationDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        },
+        "pageCount": 423,
+        "bookTypeId": 2,
+        "bookTypeName": "Paperback",
+        "languages": [
+          { "id": 2, "name": "English" }
+        ],
+        "tags": [
+          { "id": 7, "name": "Fantasy" }
+        ]
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+- **Single (view=all):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.31",
+  "message": "Book retrieved successfully.",
+  "data": {
+    "id": 22,
+    "title": "The Lord of the Rings",
+    "subtitle": "The Fellowship of the Ring",
+    "isbn": "978-0-261-10235-4",
+    "publicationDate": {
+      "id": 61,
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
+    },
+    "pageCount": 423,
+    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+    "description": "The first volume of The Lord of the Rings.",
+    "bookType": {
+      "id": 2,
+      "name": "Paperback",
+      "description": "Flexible-cover print format."
+    },
+    "publisher": {
+      "id": 5,
+      "name": "Allen & Unwin",
+      "foundedDate": {
+        "id": 14,
+        "day": 1,
+        "month": 1,
+        "year": 1910,
+        "text": "1910"
+      },
+      "website": "https://example.com",
+      "notes": "Classic literature publisher."
+    },
+    "authors": [
+      {
+        "authorId": 1,
+        "authorRole": "Primary Author",
+        "authorName": "J.R.R. Tolkien",
+        "birthDate": {
+          "id": 201,
+          "day": 3,
+          "month": 1,
+          "year": 1892,
+          "text": "3 January 1892"
+        },
+        "deathDate": {
+          "id": 202,
+          "day": 2,
+          "month": 9,
+          "year": 1973,
+          "text": "2 September 1973"
+        },
+        "deceased": true,
+        "bio": "English writer, poet, and academic."
+      }
+    ],
+    "languages": [
+      { "id": 2, "name": "English" }
+    ],
+    "tags": [
+      { "id": 7, "name": "Fantasy" }
+    ],
+    "series": [
+      {
+        "seriesId": 8,
+        "seriesName": "The Lord of the Rings",
+        "seriesDescription": "Epic high-fantasy trilogy.",
+        "seriesWebsite": "https://example.com/lotr",
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        }
+      }
+    ],
+    "bookCopies": [
+      {
+        "id": 502,
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
+      }
+    ],
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z"
+  },
+  "errors": []
+}
+```
+
+- **Single (view=all, returnStats=true):**
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "2.44",
+  "message": "Book retrieved successfully.",
+  "data": {
+    "id": 22,
+    "title": "The Lord of the Rings",
+    "subtitle": "The Fellowship of the Ring",
+    "isbn": "978-0-261-10235-4",
+    "publicationDate": {
+      "id": 61,
+      "day": 29,
+      "month": 7,
+      "year": 1954,
+      "text": "29 July 1954"
+    },
+    "pageCount": 423,
+    "coverImageUrl": "https://example.com/lotr-fotr.jpg",
+    "description": "The first volume of The Lord of the Rings.",
+    "bookType": {
+      "id": 2,
+      "name": "Paperback",
+      "description": "Flexible-cover print format."
+    },
+    "publisher": {
+      "id": 5,
+      "name": "Allen & Unwin",
+      "foundedDate": {
+        "id": 14,
+        "day": 1,
+        "month": 1,
+        "year": 1910,
+        "text": "1910"
+      },
+      "website": "https://example.com",
+      "notes": "Classic literature publisher."
+    },
+    "authors": [
+      {
+        "authorId": 1,
+        "authorRole": "Primary Author",
+        "authorName": "J.R.R. Tolkien",
+        "birthDate": {
+          "id": 201,
+          "day": 3,
+          "month": 1,
+          "year": 1892,
+          "text": "3 January 1892"
+        },
+        "deathDate": {
+          "id": 202,
+          "day": 2,
+          "month": 9,
+          "year": 1973,
+          "text": "2 September 1973"
+        },
+        "deceased": true,
+        "bio": "English writer, poet, and academic."
+      }
+    ],
+    "languages": [
+      { "id": 2, "name": "English" }
+    ],
+    "tags": [
+      { "id": 7, "name": "Fantasy" }
+    ],
+    "series": [
+      {
+        "seriesId": 8,
+        "seriesName": "The Lord of the Rings",
+        "seriesDescription": "Epic high-fantasy trilogy.",
+        "seriesWebsite": "https://example.com/lotr",
+        "bookOrder": 1,
+        "bookPublishedDate": {
+          "id": 61,
+          "day": 29,
+          "month": 7,
+          "year": 1954,
+          "text": "29 July 1954"
+        }
+      }
+    ],
+    "bookCopies": [
+      {
+        "id": 502,
+        "storageLocationId": 12,
+        "storageLocationPath": "Home -> Living Room -> Shelf A",
+        "acquisitionStory": "Gifted for a birthday.",
+        "acquisitionDate": {
+          "id": 71,
+          "day": 21,
+          "month": 12,
+          "year": 2010,
+          "text": "21 December 2010"
+        },
+        "acquiredFrom": "Family",
+        "acquisitionType": "Gift",
+        "acquisitionLocation": "Cape Town",
+        "notes": "Hardcover edition.",
+        "createdAt": "2025-01-17T10:02:11.000Z",
+        "updatedAt": "2025-01-17T10:02:11.000Z"
+      }
+    ],
+    "createdAt": "2025-01-17T10:02:11.000Z",
+    "updatedAt": "2025-01-17T10:02:11.000Z",
+    "stats": {
+      "copyCount": 1,
+      "authorCount": 1,
+      "tagCount": 1,
+      "languageCount": 1,
+      "seriesCount": 1,
+      "hasIsbn": true,
+      "hasPublicationDate": true,
+      "hasCoverImage": true,
+      "hasDescription": true,
+      "hasPublisher": true,
+      "hasBookType": true,
+      "hasPageCount": true
+    }
+  },
+  "errors": []
+}
+```
+
+</details>
+
+<details>
 <summary>Error Responses</summary>
 
 - **Multiple Matches (409):**
@@ -8988,7 +9292,7 @@ You can provide these list controls via query string or JSON body. If both are p
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Please provide at least one field to update."
+    "filterId must be a valid integer."
   ]
 }
 ```
@@ -9177,17 +9481,47 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
       "text": "29 July 1954"
     },
     "pageCount": 423,
-    "bookTypeId": 1,
-    "bookTypeName": "Novel",
-    "publisherId": 5,
-    "publisherName": "Allen & Unwin",
+    "bookType": {
+      "id": 1,
+      "name": "Novel",
+      "description": "Long-form fiction."
+    },
+    "publisher": {
+      "id": 5,
+      "name": "Allen & Unwin",
+      "foundedDate": {
+        "id": 14,
+        "day": 1,
+        "month": 1,
+        "year": 1910,
+        "text": "1910"
+      },
+      "website": "https://example.com",
+      "notes": "Classic literature publisher."
+    },
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "The first volume of The Lord of the Rings.",
     "authors": [
       {
         "authorId": 1,
         "authorRole": "Primary Author",
-        "authorName": "J.R.R. Tolkien"
+        "authorName": "J.R.R. Tolkien",
+        "birthDate": {
+          "id": 201,
+          "day": 3,
+          "month": 1,
+          "year": 1892,
+          "text": "3 January 1892"
+        },
+        "deathDate": {
+          "id": 202,
+          "day": 2,
+          "month": 9,
+          "year": 1973,
+          "text": "2 September 1973"
+        },
+        "deceased": true,
+        "bio": "English writer, poet, and academic."
       }
     ],
     "languages": [
@@ -9201,6 +9535,8 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
       {
         "seriesId": 8,
         "seriesName": "The Lord of the Rings",
+        "seriesDescription": "Epic high-fantasy trilogy.",
+        "seriesWebsite": "https://example.com/lotr",
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 61,
@@ -9382,14 +9718,47 @@ Notes:
       "text": "29 July 1954"
     },
     "pageCount": 423,
-    "bookTypeId": 2,
-    "publisherId": 5,
+    "bookType": {
+      "id": 2,
+      "name": "Paperback",
+      "description": "Flexible-cover print format."
+    },
+    "publisher": {
+      "id": 5,
+      "name": "Allen & Unwin",
+      "foundedDate": {
+        "id": 14,
+        "day": 1,
+        "month": 1,
+        "year": 1910,
+        "text": "1910"
+      },
+      "website": "https://example.com",
+      "notes": "Classic literature publisher."
+    },
     "coverImageUrl": "https://example.com/lotr-fotr.jpg",
     "description": "Updated description.",
     "authors": [
       {
         "authorId": 1,
-        "authorRole": "Primary Author"
+        "authorRole": "Primary Author",
+        "authorName": "J.R.R. Tolkien",
+        "birthDate": {
+          "id": 201,
+          "day": 3,
+          "month": 1,
+          "year": 1892,
+          "text": "3 January 1892"
+        },
+        "deathDate": {
+          "id": 202,
+          "day": 2,
+          "month": 9,
+          "year": 1973,
+          "text": "2 September 1973"
+        },
+        "deceased": true,
+        "bio": "English writer, poet, and academic."
       }
     ],
     "languages": [
@@ -9401,6 +9770,9 @@ Notes:
     "series": [
       {
         "seriesId": 8,
+        "seriesName": "The Lord of the Rings",
+        "seriesDescription": "Epic high-fantasy trilogy.",
+        "seriesWebsite": "https://example.com/lotr",
         "bookOrder": 1,
         "bookPublishedDate": {
           "id": 61,

@@ -13,6 +13,29 @@
 </head>
 
 <body>
+    <!-- Top nav (simple Bootstrap-only) -->
+    <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-semibold" href="dashboard.html">The Book Project</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="books.html">Books</a></li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page" href="add-book.html">Add Book</a></li>
+                </ul>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" type="button">Account</button>
+                    <button class="btn btn-outline-danger btn-sm" type="button">Log out</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
         <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -29,8 +52,20 @@
         </div>
     </div>
     <div class="container">
-        <h1 class="text-center mt-3">Add a Book</h1>
-        <p class="lead text-center">On this page you can add a new book to your book collection.</p>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3 mb-3">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="dashboard.html" class="text-decoration-none">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="books.html" class="text-decoration-none">Books</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Add Book</li>
+                    </ol>
+                </nav>
+
+                <h1 class="mb-1">Add a Book</h1>
+                <p class="lead mb-0">On this page you can add a new book to your book collection.</p>
+            </div>
+        </div>
         <div class="card shadow mb-3" id="lookupByISBNCard">
             <div class="card-body">
                 <h4 class="card-title">Step 1: Lookup by ISBN</h4>

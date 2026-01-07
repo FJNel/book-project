@@ -584,9 +584,13 @@ async function ensureLanguageIdsExist(ids) {
 async function fetchBookRelations(userId, bookId) {
 	const [authors, languages, tags, series, copies] = await Promise.all([
 		pool.query(
-			`SELECT ba.author_id, ba.role, a.display_name
+			`SELECT ba.author_id, ba.role, a.display_name, a.deceased, a.bio,
+			        bd.id AS birth_date_id, bd.day AS birth_day, bd.month AS birth_month, bd.year AS birth_year, bd.text AS birth_text,
+			        dd.id AS death_date_id, dd.day AS death_day, dd.month AS death_month, dd.year AS death_year, dd.text AS death_text
 			 FROM book_authors ba
 			 LEFT JOIN authors a ON a.id = ba.author_id AND a.user_id = ba.user_id
+			 LEFT JOIN dates bd ON a.birth_date_id = bd.id
+			 LEFT JOIN dates dd ON a.death_date_id = dd.id
 			 WHERE ba.user_id = $1 AND ba.book_id = $2
 			 ORDER BY ba.author_id ASC`,
 			[userId, bookId]
@@ -609,7 +613,7 @@ async function fetchBookRelations(userId, bookId) {
 		),
 		pool.query(
 			`SELECT bsb.series_id, bsb.book_order,
-			        bs.name AS series_name,
+			        bs.name AS series_name, bs.description AS series_description, bs.website AS series_website,
 			        d.id AS published_date_id, d.day, d.month, d.year, d.text
 			 FROM book_series_books bsb
 			 JOIN books b ON bsb.book_id = b.id
@@ -626,13 +630,23 @@ async function fetchBookRelations(userId, bookId) {
 		authors: authors.rows.map((row) => ({
 			authorId: row.author_id,
 			authorRole: row.role ?? null,
-			authorName: row.display_name ?? null
+			authorName: row.display_name ?? null,
+			birthDate: row.birth_date_id
+				? { id: row.birth_date_id, day: row.birth_day, month: row.birth_month, year: row.birth_year, text: row.birth_text }
+				: null,
+			deathDate: row.death_date_id
+				? { id: row.death_date_id, day: row.death_day, month: row.death_month, year: row.death_year, text: row.death_text }
+				: null,
+			deceased: row.deceased ?? null,
+			bio: row.bio ?? null
 		})),
 		languages: languages.rows,
 		tags: tags.rows,
 		series: series.rows.map((row) => ({
 			seriesId: row.series_id,
 			seriesName: row.series_name ?? null,
+			seriesDescription: row.series_description ?? null,
+			seriesWebsite: row.series_website ?? null,
 			bookOrder: row.book_order,
 			bookPublishedDate: row.published_date_id
 				? { id: row.published_date_id, day: row.day, month: row.month, year: row.year, text: row.text }
@@ -657,9 +671,7 @@ function buildBookPayload(row, view, relations) {
 			: null,
 		pageCount: row.page_count,
 		bookTypeId: row.book_type_id,
-		bookTypeName: row.book_type_name ?? null,
 		publisherId: row.publisher_id,
-		publisherName: row.publisher_name ?? null,
 		coverImageUrl: row.cover_image_url,
 		description: row.description,
 		createdAt: row.created_at,
@@ -675,16 +687,50 @@ function buildBookPayload(row, view, relations) {
 			publicationDate: base.publicationDate,
 			pageCount: base.pageCount,
 			bookTypeId: base.bookTypeId,
-			bookTypeName: base.bookTypeName,
-			publisherId: base.publisherId,
-			publisherName: base.publisherName,
+			bookTypeName: row.book_type_name ?? null,
 			languages: relations?.languages || [],
 			tags: relations?.tags || []
 		};
 	}
 
+	const publisher = base.publisherId
+		? {
+			id: base.publisherId,
+			name: row.publisher_name ?? null,
+			foundedDate: row.publisher_founded_date_id
+				? {
+					id: row.publisher_founded_date_id,
+					day: row.publisher_founded_day,
+					month: row.publisher_founded_month,
+					year: row.publisher_founded_year,
+					text: row.publisher_founded_text
+				}
+				: null,
+			website: row.publisher_website ?? null,
+			notes: row.publisher_notes ?? null
+		}
+		: null;
+	const bookType = base.bookTypeId
+		? {
+			id: base.bookTypeId,
+			name: row.book_type_name ?? null,
+			description: row.book_type_description ?? null
+		}
+		: null;
+
 	return {
-		...base,
+		id: base.id,
+		title: base.title,
+		subtitle: base.subtitle,
+		isbn: base.isbn,
+		publicationDate: base.publicationDate,
+		pageCount: base.pageCount,
+		coverImageUrl: base.coverImageUrl,
+		description: base.description,
+		createdAt: base.createdAt,
+		updatedAt: base.updatedAt,
+		bookType,
+		publisher,
 		authors: relations?.authors || [],
 		languages: relations?.languages || [],
 		tags: relations?.tags || [],
@@ -739,12 +785,16 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const result = await pool.query(
 				`SELECT b.id, b.title, b.subtitle, b.isbn, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
-				        bt.name AS book_type_name, p.name AS publisher_name,
+				        bt.name AS book_type_name, bt.description AS book_type_description,
+				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
+				        fd.id AS publisher_founded_date_id, fd.day AS publisher_founded_day,
+				        fd.month AS publisher_founded_month, fd.year AS publisher_founded_year, fd.text AS publisher_founded_text,
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
 				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2 AND b.deleted_at IS NULL`,
 				[userId, resolved.id]
 			);
@@ -1017,13 +1067,17 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	let query = `SELECT b.id, b.title, b.subtitle, b.isbn, b.page_count, b.cover_image_url,
 			            b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
-			            bt.name AS book_type_name, p.name AS publisher_name,
+			            bt.name AS book_type_name, bt.description AS book_type_description,
+			            p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
+			            fd.id AS publisher_founded_date_id, fd.day AS publisher_founded_day,
+			            fd.month AS publisher_founded_month, fd.year AS publisher_founded_year, fd.text AS publisher_founded_text,
 			            pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text,
 			            make_date(pd.year, COALESCE(pd.month, 1), COALESCE(pd.day, 1)) AS pub_date_sort
 			 FROM books b
 			 LEFT JOIN dates pd ON b.publication_date_id = pd.id
 			 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 			 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+			 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 			 WHERE b.user_id = $1`;
 	if (filters.length > 0) {
 		query += ` AND ${filters.join(" AND ")}`;
@@ -1356,12 +1410,16 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const full = await pool.query(
 				`SELECT b.id, b.title, b.subtitle, b.isbn, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
-				        bt.name AS book_type_name, p.name AS publisher_name,
+				        bt.name AS book_type_name, bt.description AS book_type_description,
+				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
+				        fd.id AS publisher_founded_date_id, fd.day AS publisher_founded_day,
+				        fd.month AS publisher_founded_month, fd.year AS publisher_founded_year, fd.text AS publisher_founded_text,
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
 				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2`,
 				[userId, row.id]
 			);
@@ -1711,12 +1769,16 @@ async function handleBookUpdate(req, res, bookId) {
 			const full = await pool.query(
 				`SELECT b.id, b.title, b.subtitle, b.isbn, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
-				        bt.name AS book_type_name, p.name AS publisher_name,
+				        bt.name AS book_type_name, bt.description AS book_type_description,
+				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
+				        fd.id AS publisher_founded_date_id, fd.day AS publisher_founded_day,
+				        fd.month AS publisher_founded_month, fd.year AS publisher_founded_year, fd.text AS publisher_founded_text,
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
 				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2`,
 				[userId, bookId]
 			);

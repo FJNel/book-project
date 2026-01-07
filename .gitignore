@@ -30,6 +30,7 @@ Thumbs.db
 **/.env
 *.env.local
 database-info.txt
+copilot-instructions.md
 
 # Database
 *.sqlite3
