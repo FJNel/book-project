@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModal = document.getElementById('invalidBookModal');
   const invalidModalMessage = document.getElementById('invalidBookModalMessage');
   const invalidModalClose = document.getElementById('invalidBookModalClose');
+  const defaultInvalidBookMessage = "This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.";
   const pageLoadingModal = bootstrap.Modal.getOrCreateInstance(
     document.getElementById('pageLoadingModal'),
     { backdrop: 'static', keyboard: false }
@@ -63,9 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.innerHTML = '';
   };
 
+  const initializeTooltips = () => {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach((tooltipTriggerEl) => {
+      if (bootstrap.Tooltip.getInstance(tooltipTriggerEl)) return;
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    log('Tooltips initialized.', { count: tooltipTriggerList.length });
+  };
+
   const showInvalidModal = (message) => {
     log('Showing invalid book modal.', { message });
-    if (invalidModalMessage) invalidModalMessage.textContent = message;
+    if (invalidModalMessage) invalidModalMessage.textContent = message || defaultInvalidBookMessage;
     pageLoadingModal.hide();
     const modal = bootstrap.Modal.getOrCreateInstance(invalidModal, { backdrop: 'static', keyboard: false });
     modal.show();
@@ -82,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const bookId = Number.parseInt(bookIdParam, 10);
   if (!Number.isInteger(bookId) || bookId <= 0) {
     warn('Invalid book id in URL.', { bookIdParam });
-    showInvalidModal("This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.");
+    showInvalidModal(defaultInvalidBookMessage);
     return;
   }
   log('Resolved book id from URL.', { bookId });
@@ -154,13 +164,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const bookOrder = Number.isInteger(entry.bookOrder) ? entry.bookOrder : null;
       const website = entry.seriesWebsite ? entry.seriesWebsite.trim() : '';
       const description = entry.seriesDescription ? entry.seriesDescription.trim() : '';
+      const details = [];
+      if (website) {
+        details.push(`<div><span class="fw-semibold">Website:</span> ${website}</div>`);
+      }
+      if (description) {
+        details.push(`<div class="mt-1"><span class="fw-semibold">Description:</span> ${description}</div>`);
+      }
       item.innerHTML = `
+        ${bookOrder !== null
+          ? `<span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
+          : ''
+        }
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <div class="fw-semibold mb-0">${name}</div>
-          ${bookOrder !== null ? `<span class="badge rounded-pill text-bg-light border">Book #${bookOrder}</span>` : ''}
         </div>
-        ${website ? `<div class="small text-muted mt-1"><span class="fw-semibold">Website:</span> ${website}</div>` : ''}
-        ${description ? `<div class="small text-muted mt-1"><span class="fw-semibold">Description:</span> ${description}</div>` : ''}
+        ${details.length ? `<div class="small text-muted mt-2">${details.join('')}</div>` : ''}
       `;
       list.appendChild(item);
     });
@@ -189,6 +208,44 @@ document.addEventListener('DOMContentLoaded', () => {
       const acquisitionLocation = copy.acquisitionLocation ? copy.acquisitionLocation.trim() : '';
       const story = copy.acquisitionStory ? copy.acquisitionStory.trim() : '';
       const notes = copy.notes ? copy.notes.trim() : '';
+      const acquiredOn = formatPartialDate(copy.acquisitionDate);
+      const acquiredFrom = copy.acquiredFrom ? copy.acquiredFrom.trim() : '';
+      const acquisitionType = copy.acquisitionType ? copy.acquisitionType.trim() : '';
+      const addedText = formatTimestamp(copy.createdAt);
+      const updatedText = formatTimestamp(copy.updatedAt);
+      const acquisitionRows = [];
+      if (acquiredOn) {
+        acquisitionRows.push(`
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="text-muted">Acquired on</div>
+            <div class="fw-semibold text-end">${acquiredOn}</div>
+          </li>
+        `);
+      }
+      if (acquiredFrom) {
+        acquisitionRows.push(`
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="text-muted">Acquired from</div>
+            <div class="fw-semibold text-end">${acquiredFrom}</div>
+          </li>
+        `);
+      }
+      if (acquisitionType) {
+        acquisitionRows.push(`
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="text-muted">Acquisition type</div>
+            <div class="fw-semibold text-end">${acquisitionType}</div>
+          </li>
+        `);
+      }
+      if (acquisitionLocation) {
+        acquisitionRows.push(`
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="text-muted">Acquisition location</div>
+            <div class="fw-semibold text-end">${acquisitionLocation}</div>
+          </li>
+        `);
+      }
 
       const item = document.createElement('div');
       item.className = 'accordion-item';
@@ -201,28 +258,58 @@ document.addEventListener('DOMContentLoaded', () => {
         </h2>
         <div id="${collapseId}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="${headingId}" data-bs-parent="#bookCopiesAccordion">
           <div class="accordion-body">
-            <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <div class="fw-semibold fs-6 mb-0">Stored at</div>
-                <div class="fw-semibold mb-0 ${mutedClass}">${location}</div>
+            <div class="row g-3">
+              <div class="col-12">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                  <div class="fw-semibold fs-6 mb-0">Stored at</div>
+                  <div class="fw-semibold mb-0 ${mutedClass}">${location}</div>
+                </div>
               </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button" disabled aria-disabled="true">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
-                  </svg>
-                  <span>Edit Copy</span>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" type="button" ${disableDelete ? 'disabled aria-disabled="true"' : ''}>
-                  Remove Copy
-                </button>
+
+              ${acquisitionRows.length
+                ? `
+                  <div class="col-12 col-lg-6">
+                    <div class="fw-semibold text-muted mb-2">Acquisition</div>
+                    <ul class="list-group h-100">${acquisitionRows.join('')}</ul>
+                  </div>
+                `
+                : ''
+              }
+
+              <div class="col-12 col-lg-6">
+                <div class="border rounded p-3">
+                  <div class="fw-semibold mb-1">Story</div>
+                  <p class="mb-0">${story || '(none)'}</p>
+                </div>
+
+                <div class="border rounded p-3 mt-3">
+                  <div class="fw-semibold mb-1">Notes</div>
+                  <p class="mb-0">${notes || '(none)'}</p>
+                </div>
               </div>
-            </div>
-            <div class="mt-3">
-              ${acquisitionLocation ? `<div class="small text-muted mb-1"><span class="fw-semibold">Acquisition location:</span> ${acquisitionLocation}</div>` : ''}
-              ${story ? `<div class="small text-muted mb-1"><span class="fw-semibold">Story:</span> ${story}</div>` : ''}
-              ${notes ? `<div class="small text-muted mb-0"><span class="fw-semibold">Notes:</span> ${notes}</div>` : ''}
-            </div>
+
+              <div class="col-12">
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                  <div class="text-muted small">
+                    ${addedText ? `<span class="fw-semibold">Added:</span> <time datetime="${copy.createdAt}">${addedText}</time>` : ''}
+                    ${addedText && updatedText ? '<span class="mx-1">&bull;</span>' : ''}
+                    ${updatedText ? `<span class="fw-semibold">Updated:</span> <time datetime="${copy.updatedAt}">${updatedText}</time>` : ''}
+                  </div>
+
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button" disabled aria-disabled="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                      </svg>
+                      <span>Edit Copy</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" type="button" ${disableDelete ? 'disabled aria-disabled="true"' : ''}>
+                      Remove Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /row -->
           </div>
         </div>
       `;
@@ -403,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAuthors(book.authors || []);
     renderSeries(book.series || []);
     renderCopies(book.bookCopies || []);
+    initializeTooltips();
     log('Render complete.');
   };
 
@@ -415,16 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    let message = 'The book could not be loaded.';
-    try {
-      const payload = await response.json();
-      if (payload?.message) {
-        message = payload.message;
-      }
-    } catch (error) {
-      message = response.status === 404 ? 'Book not found.' : message;
-    }
-    showInvalidModal(message);
+    showInvalidModal(defaultInvalidBookMessage);
   };
 
   const loadBook = async () => {
@@ -440,13 +519,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const payload = await response.json();
       log('API payload parsed.', { status: payload?.status });
       if (!payload || payload.status !== 'success' || !payload.data) {
-        showInvalidModal('The book could not be loaded.');
+        showInvalidModal(defaultInvalidBookMessage);
         return;
       }
       renderBook(payload.data);
     } catch (error) {
       errorLog('Book load failed with exception.', error);
-      showInvalidModal('The book could not be loaded.');
+      showInvalidModal(defaultInvalidBookMessage);
     } finally {
       pageLoadingModal.hide();
     }
@@ -454,9 +533,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadBook();
 
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.forEach((tooltipTriggerEl) => {
-    new bootstrap.Tooltip(tooltipTriggerEl);
-  });
-  log('Tooltips initialized.');
+  initializeTooltips();
 });
