@@ -41,11 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return null;
     return parsed.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
+      weekday: 'short',
       day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+      month: 'long',
+      year: 'numeric'
     });
   };
 
@@ -171,9 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (description) {
         details.push(`<div class="mt-1"><span class="fw-semibold">Description:</span> ${description}</div>`);
       }
+      const badgeCompactClass = details.length === 0 ? ' py-1 px-2' : '';
       item.innerHTML = `
         ${bookOrder !== null
-          ? `<span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
+          ? `<span class="badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2${badgeCompactClass}" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
           : ''
         }
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     tags.forEach((tag) => {
       const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill text-bg-light border px-3 py-2 fs-6 me-1 mb-1';
+      badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1';
       badge.textContent = tag.name;
       tagsWrap.appendChild(badge);
     });
@@ -341,9 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const seriesCount = book.stats?.seriesCount ?? (book.series ? book.series.length : 0);
     const copyCount = book.stats?.copyCount ?? (book.bookCopies ? book.bookCopies.length : 0);
 
-    document.getElementById('overviewAuthorsCount').textContent = `Authors: ${authorsCount || 'none'}`;
-    document.getElementById('overviewSeriesCount').textContent = `Series: ${seriesCount || 'none'}`;
-    document.getElementById('overviewCopiesCount').textContent = `Copies: ${copyCount || 'none'}`;
+    document.getElementById('overviewAuthorsCount').innerHTML = `<span class="fw-semibold">Authors:</span> ${authorsCount || 'none'}`;
+    document.getElementById('overviewSeriesCount').innerHTML = `<span class="fw-semibold">Series:</span> ${seriesCount || 'none'}`;
+    document.getElementById('overviewCopiesCount').innerHTML = `<span class="fw-semibold">Copies:</span> ${copyCount || 'none'}`;
   };
 
   const renderOwnership = (book) => {
