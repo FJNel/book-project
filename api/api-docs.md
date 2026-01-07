@@ -8883,7 +8883,7 @@ When `returnStats` is true, the response includes `stats` with counts and metada
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `id` | integer | No | Book id to fetch. |
-| `isbn` | string | No | Book ISBN to fetch. |
+| `isbn` | string | No | Book ISBN to fetch (ISBN-10 or ISBN-13, digits with optional final `X` for ISBN-10). |
 | `title` | string | No | Book title to fetch. |
 
 If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
@@ -8908,7 +8908,7 @@ Notes:
 | `filterId` | integer | No | Filter by exact id. |
 | `filterTitle` | string | No | Case-insensitive partial match on title. |
 | `filterSubtitle` | string | No | Case-insensitive partial match on subtitle. |
-| `filterIsbn` | string | No | Exact ISBN match. |
+| `filterIsbn` | string | No | Exact ISBN match (normalized digits with optional final `X` for ISBN-10). |
 | `filterBookTypeId` | integer | No | Filter by book type id. |
 | `filterPublisherId` | integer | No | Filter by publisher id. |
 | `filterAuthorId` | integer | No | Filter by author id. |
@@ -9344,10 +9344,10 @@ You can provide these list controls via query string or JSON body. If both are p
 | --- | --- | --- | --- |
 | `title` | string | Yes | 2–255 characters. |
 | `subtitle` | string | No | Optional subtitle (<= 255 characters). |
-| `isbn` | string | No | ISBN (10–17 chars, digits/hyphen/X). Unique per user when provided. |
+| `isbn` | string | No | ISBN-10 or ISBN-13, normalized to digits with optional final `X` for ISBN-10 (no spaces or hyphens). Unique per user when provided. |
 | `publicationDate` | object | No | Partial Date Object. |
 | `pageCount` | integer | No | Number of pages (1–10000). |
-| `coverImageUrl` | string | No | Valid URL for a cover image. |
+| `coverImageUrl` | string | No | Valid URL for a cover image (http/https only, no spaces). |
 | `description` | string | No | Optional description (<= 2000 characters). |
 | `bookTypeId` | integer or array | No | Book type id (single number or array with one number). |
 | `publisherId` | integer or array | No | Publisher id (single number or array with one number). |
@@ -9641,7 +9641,7 @@ Identification (one of):
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | integer | No | Book id to update. |
-| `isbn` | string | No | Book ISBN to update. |
+| `isbn` | string | No | Book ISBN to update (ISBN-10 or ISBN-13, normalized to digits with optional final `X` for ISBN-10). |
 | `title` | string | No | Book title to update (returns 409 if multiple matches). |
 
 If multiple identifiers are provided, they must refer to the same record or the API returns `400 Validation Error`.
@@ -9652,10 +9652,10 @@ Updatable fields (all optional):
 | --- | --- | --- |
 | `title` | string | New title. |
 | `subtitle` | string | New subtitle (use `null` to clear). |
-| `isbn` | string | New ISBN (use `null` to clear). |
+| `isbn` | string | New ISBN (use `null` to clear). Must be normalized ISBN-10/ISBN-13 (digits with optional final `X`). |
 | `publicationDate` | object | Partial Date Object (use `null` to clear). |
 | `pageCount` | integer | New page count. |
-| `coverImageUrl` | string | New cover image URL (use `null` to clear). |
+| `coverImageUrl` | string | New cover image URL (use `null` to clear). Must be http/https and contain no spaces. |
 | `description` | string | New description (use `null` to clear). |
 | `bookTypeId` | integer or array | New book type id (single number or array with one number). |
 | `publisherId` | integer or array | New publisher id (single number or array with one number). |

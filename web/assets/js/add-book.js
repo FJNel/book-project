@@ -10,6 +10,8 @@
         setPartialDateHelp,
         parsePartialDateInput,
         isValidUrl,
+        normalizeUrl,
+        normalizeIsbn,
         ensureHelpText
     } = addBook.utils;
     const log = (...args) => console.log('[Add Book]', ...args);
@@ -95,11 +97,11 @@
     }
 
     const patterns = {
-        title: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
-        subtitle: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
-        acquisitionType: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
-        personText: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/,
-        authorRole: /^[A-Za-z0-9 .,'":;!?()&\/-]+$/
+        title: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u,
+        subtitle: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u,
+        acquisitionType: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u,
+        personText: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u,
+        authorRole: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u
     };
 
     function renderBookTypes() {
@@ -619,13 +621,16 @@
             }
         }
 
+        const normalizedIsbn = normalizeIsbn(selectors.isbn.value.trim());
+        const normalizedCoverUrl = normalizeUrl(selectors.coverUrl.value.trim());
+
         const payload = {
             title: selectors.title.value.trim(),
             subtitle: selectors.subtitle.value.trim() || null,
-            isbn: selectors.isbn.value.trim() || null,
+            isbn: normalizedIsbn || null,
             publicationDate: publicationParsed.value || null,
             pageCount: Number.isInteger(pageCountValue) ? pageCountValue : null,
-            coverImageUrl: selectors.coverUrl.value.trim() || null,
+            coverImageUrl: normalizedCoverUrl || null,
             description: selectors.description.value.trim() || null,
             bookTypeId: addBook.state.selections.bookTypeId || null,
             publisherId: addBook.state.selections.publisherId || null,
@@ -657,14 +662,16 @@
             errors.push('Subtitle contains unsupported characters.');
         }
 
-        if (selectors.isbn.value.trim()) {
-            const isbn = selectors.isbn.value.trim();
-            if (!/^[0-9Xx-]{10,17}$/.test(isbn)) {
-                errors.push('ISBN must be 10-17 characters and contain digits, hyphens, or X.');
+        const rawIsbn = selectors.isbn.value.trim();
+        if (rawIsbn) {
+            const normalizedIsbn = addBook.utils.normalizeIsbn(rawIsbn);
+            if (!normalizedIsbn) {
+                errors.push('ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).');
             }
         }
 
-        if (selectors.coverUrl.value.trim() && !isValidUrl(selectors.coverUrl.value.trim())) {
+        const normalizedCover = selectors.coverUrl.value.trim() ? normalizeUrl(selectors.coverUrl.value.trim()) : null;
+        if (selectors.coverUrl.value.trim() && !normalizedCover) {
             errors.push('Book cover URL must be a valid URL starting with http:// or https://');
         }
 
@@ -926,11 +933,12 @@
                 clearHelpText(selectors.isbnHelp);
                 return;
             }
-            if (!/^[0-9Xx-]{10,17}$/.test(value)) {
-                setHelpText(selectors.isbnHelp, 'ISBN must be 10-17 characters and contain digits, hyphens, or X.', true);
+            const normalized = normalizeIsbn(value);
+            if (!normalized) {
+                setHelpText(selectors.isbnHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
                 return;
             }
-            clearHelpText(selectors.isbnHelp);
+            setHelpText(selectors.isbnHelp, `This ISBN will be stored as: ${normalized}`, false);
         });
         selectors.pages.addEventListener('input', () => {
             const value = selectors.pages.value.trim();
@@ -951,7 +959,7 @@
                 clearHelpText(selectors.coverUrlHelp);
                 return;
             }
-            if (!isValidUrl(value)) {
+            if (!normalizeUrl(value)) {
                 setHelpText(selectors.coverUrlHelp, 'Book cover URL must be a valid URL starting with http:// or https://', true);
                 return;
             }

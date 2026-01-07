@@ -28,9 +28,9 @@
                 }
             }
         } catch (error) {
-            return trimmed;
+            // fall through
         }
-        return trimmed;
+        return addBook.utils.normalizeUrl(trimmed) || trimmed;
     }
 
     function updatePreview() {

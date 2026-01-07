@@ -4,7 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorLog = (...args) => console.error('[Book Details]', ...args);
 
   log('Initializing page.');
-  const placeholderCover = 'assets/img/BookCoverPlaceholder.png';
+  const placeholderCover = (title) => {
+    const text = encodeURIComponent(title || 'Book Cover');
+    return `https://placehold.co/600x900?text=${text}&font=Lora`;
+  };
   const invalidModal = document.getElementById('invalidBookModal');
   const invalidModalMessage = document.getElementById('invalidBookModalMessage');
   const invalidModalClose = document.getElementById('invalidBookModalClose');
@@ -61,6 +64,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearElement = (el) => {
     if (el) el.innerHTML = '';
+  };
+
+  const normalizeUrl = (value) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed || /\s/.test(trimmed)) return null;
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      return url.href;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const renderLink = (url, text) => {
+    const normalized = normalizeUrl(url);
+    if (!normalized) return null;
+    const safeText = text || normalized;
+    return `<a href="${normalized}" target="_blank" rel="noopener">${safeText}</a>`;
   };
 
   const initializeTooltips = () => {
@@ -185,22 +209,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const description = entry.seriesDescription ? entry.seriesDescription.trim() : '';
       const details = [];
       if (website) {
-        details.push(`<div><span class="fw-semibold">Website:</span> ${website}</div>`);
+        const link = renderLink(website, website);
+        details.push(`<div><span class="fw-semibold">Website:</span> ${link || website}</div>`);
       }
       if (description) {
         details.push(`<div class="mt-1"><span class="fw-semibold">Description:</span> ${description}</div>`);
       }
-      const badgeClass = details.length === 0
-        ? 'badge text-bg-light border text-dark px-2 py-1 fs-6 position-absolute top-0 end-0 mt-1 me-1'
+      const inlineBadge = details.length === 0;
+      const badgeClass = inlineBadge
+        ? 'badge text-bg-light border text-dark px-3 py-2 fs-6'
         : 'badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2';
       item.innerHTML = `
-        ${bookOrder !== null
+        <div class="d-flex ${inlineBadge ? 'justify-content-between' : 'align-items-center gap-2 flex-wrap'}">
+          <div class="fw-semibold mb-0">${name}</div>
+          ${inlineBadge && bookOrder !== null
+            ? `<span class="${badgeClass}" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
+            : ''
+          }
+        </div>
+        ${!inlineBadge && bookOrder !== null
           ? `<span class="${badgeClass}" data-bs-toggle="tooltip" title="Book's order in this series">#${bookOrder}</span>`
           : ''
         }
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <div class="fw-semibold mb-0">${name}</div>
-        </div>
         ${details.length ? `<div class="small text-muted mt-2">${details.join('')}</div>` : ''}
       `;
       list.appendChild(item);
@@ -413,8 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleSubtitle(book.subtitle ? book.subtitle.trim() : '');
 
     const coverImage = document.getElementById('bookCoverImage');
-    coverImage.src = book.coverImageUrl || placeholderCover;
+    const normalizedCover = normalizeUrl(book.coverImageUrl);
+    const fallbackCover = placeholderCover(book.title);
+    coverImage.src = normalizedCover || fallbackCover;
     coverImage.alt = book.title ? `${book.title} cover` : 'Book cover';
+    coverImage.onerror = () => {
+      coverImage.onerror = null;
+      coverImage.src = fallbackCover;
+    };
 
     const authorNames = (book.authors || [])
       .map((author) => author.authorName)
@@ -480,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const publisherDetails = [
       { wrap: 'publisherFoundedWrap', value: 'publisherFounded', data: formatPartialDate(book.publisher?.foundedDate) },
-      { wrap: 'publisherWebsiteWrap', value: 'publisherWebsite', data: book.publisher?.website ? book.publisher.website.trim() : '' },
+      { wrap: 'publisherWebsiteWrap', value: 'publisherWebsite', data: book.publisher?.website ? renderLink(book.publisher.website, book.publisher.website) : '' },
       { wrap: 'publisherNotesWrap', value: 'publisherNotes', data: book.publisher?.notes ? book.publisher.notes.trim() : '' }
     ];
     const hasPublisherDetails = publisherDetails.some((detail) => detail.data);
@@ -494,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!detail.data) return;
         const wrap = document.getElementById(detail.wrap);
         const value = document.getElementById(detail.value);
-        value.textContent = detail.data;
+        value.innerHTML = detail.data;
         wrap.classList.add('d-none');
       });
 

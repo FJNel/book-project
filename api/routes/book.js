@@ -229,11 +229,10 @@ function parseSingleIdInput(value, fieldLabel) {
 function normalizeIsbn(value) {
 	if (value === undefined || value === null || value === "") return null;
 	if (typeof value !== "string") return null;
-	const trimmed = value.replace(/\s+/g, "").toUpperCase();
-	if (!/^[0-9X-]{10,17}$/.test(trimmed)) {
-		return null;
-	}
-	return trimmed;
+	const cleaned = value.replace(/[^0-9xX]/g, "").toUpperCase();
+	if (cleaned.length === 10 && /^[0-9]{9}[0-9X]$/.test(cleaned)) return cleaned;
+	if (cleaned.length === 13 && /^[0-9]{13}$/.test(cleaned)) return cleaned;
+	return null;
 }
 
 function validateTitle(title) {
@@ -299,6 +298,10 @@ function validateCoverUrl(value) {
 		return errors;
 	}
 	const trimmed = value.trim();
+	if (/\s/.test(trimmed)) {
+		errors.push("Cover Image URL must not contain spaces.");
+		return errors;
+	}
 	try {
 		const parsed = new URL(trimmed);
 		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {

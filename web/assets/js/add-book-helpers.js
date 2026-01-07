@@ -188,19 +188,35 @@
         setHelpText(helpEl, `Your date will be stored as: ${parsed.value.text}`, false);
     }
 
-    function isValidUrl(value) {
-        if (!value || !value.trim()) return false;
+    function normalizeUrl(value) {
+        if (!value) return null;
+        const raw = value.trim();
+        if (!raw || /\s/.test(raw)) return null;
+        const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
         try {
-            const url = new URL(value);
-            return url.protocol === 'http:' || url.protocol === 'https:';
+            const url = new URL(withScheme);
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+            return url.href;
         } catch (error) {
-            return false;
+            return null;
         }
+    }
+
+    function isValidUrl(value) {
+        return Boolean(normalizeUrl(value));
     }
 
     function normalizeTag(value) {
         if (!value) return '';
         return value.trim().replace(/\s+/g, ' ');
+    }
+
+    function normalizeIsbn(value) {
+        if (!value) return null;
+        const cleaned = value.replace(/[^0-9xX]/g, '').toUpperCase();
+        if (cleaned.length === 10 && /^[0-9]{9}[0-9X]$/.test(cleaned)) return cleaned;
+        if (cleaned.length === 13 && /^[0-9]{13}$/.test(cleaned)) return cleaned;
+        return null;
     }
 
     function ensureHelpText(inputEl, helpId) {
@@ -235,7 +251,9 @@
         parsePartialDateInput,
         setPartialDateHelp,
         isValidUrl,
+        normalizeUrl,
         normalizeTag,
+        normalizeIsbn,
         ensureHelpText
     };
 })();

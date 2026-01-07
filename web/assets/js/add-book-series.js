@@ -78,7 +78,7 @@
         if (value.length > 300) {
             return 'Series Website must be 300 characters or fewer.';
         }
-        if (!isValidUrl(value)) {
+        if (!addBook.utils.normalizeUrl(value)) {
             return 'Series Website must be a valid URL starting with http:// or https://';
         }
         return null;
@@ -160,7 +160,7 @@
 
         const payload = {
             name: nameInput.value.trim(),
-            website: websiteInput.value.trim() || null,
+            website: addBook.utils.normalizeUrl(websiteInput.value.trim()) || null,
             description: descInput.value.trim() || null
         };
 

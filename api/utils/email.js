@@ -52,7 +52,7 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 		<tr>
 		  <td align="center" style="padding: 24px;">
 			<!-- LOGO -->
-			<img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project" style="display: block; height: 50px; margin-bottom: 16px;">
+			<img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project" style="display: block; height: 50px; margin-bottom: 16px;">
 		  </td>
 		</tr>
 		<tr>
@@ -121,7 +121,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 		<tr>
 		  <td align="center" style="padding: 24px;">
 			<!-- LOGO -->
-			<img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project" 
+			<img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project" 
 			  style="display: block; height: 50px; margin-bottom: 16px;">
 		  </td>
 		</tr>
@@ -193,7 +193,7 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 		<tr>
 		  <td align="center" style="padding: 24px;">
 			<!-- LOGO -->
-			<img src="https://via.placeholder.com/150x50?text=Book+Project" 
+			<img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" 
 			  alt="Book Project" 
 			  style="display: block; height: 50px; margin-bottom: 16px;">
 		  </td>
@@ -265,7 +265,7 @@ async function sendAccountDisableVerificationEmail(toEmail, preferredName, token
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -338,7 +338,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -491,7 +491,7 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -559,7 +559,7 @@ async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -619,7 +619,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <tr>
           <td align="center" style="padding: 24px;">
-            <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+            <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
               style="display: block; height: 50px; margin-bottom: 16px;">
           </td>
         </tr>
@@ -685,7 +685,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <tr>
           <td align="center" style="padding: 24px;">
-            <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+            <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
               style="display: block; height: 50px; margin-bottom: 16px;">
           </td>
         </tr>
@@ -755,7 +755,7 @@ async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = [])
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -814,7 +814,7 @@ async function sendAdminAccountDisabledEmail(toEmail, preferredName) {
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -873,7 +873,7 @@ async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -938,7 +938,7 @@ async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -998,7 +998,7 @@ async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
@@ -1059,7 +1059,7 @@ async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationTo
 	    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
 	    <tr>
 	      <td align="center" style="padding: 24px;">
-	        <img src="https://via.placeholder.com/150x50?text=Book+Project" alt="Book Project"
+	        <img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project"
 	          style="display: block; height: 50px; margin-bottom: 16px;">
 	      </td>
 	    </tr>
