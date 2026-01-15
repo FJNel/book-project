@@ -70,6 +70,8 @@ paths:
                       timestamp: '2025-01-14T17:23:51Z'
                       apiDocumentationUrl: https://api.fjnel.co.za/api-docs.html
                     errors: []
+        '404':
+          $ref: '#/components/responses/NotFound'
   /health:
     get:
       tags: [Meta]
@@ -137,6 +139,8 @@ paths:
                       remaining: 54
                       resetTime: 2026-01-02T16:05:00.000Z
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /auth/register:
     post:
       tags: [Auth]
@@ -153,6 +157,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              default:
+                summary: Typical registration
+                value:
+                  captchaToken: "<captcha-token>"
+                  fullName: Jane Doe
+                  preferredName: Jane
+                  email: jane@example.com
+                  password: P@ssw0rd123!
       responses:
         '200':
           description: Registration accepted
@@ -178,6 +191,17 @@ paths:
                     data:
                       disclaimer: If you do not see an email within a few minutes, please check your spam folder or try again later.
                     errors: []
+                captchaFailure:
+                  summary: CAPTCHA failed
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: '5.44'
+                    message: CAPTCHA verification failed
+                    data: {}
+                    errors:
+                      - Please refresh the page and try again.
+                      - Make sure that you provided a captchaToken in your request.
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -205,6 +229,12 @@ paths:
                 email:
                   type: string
                   format: email
+            examples:
+              default:
+                summary: Resend verification
+                value:
+                  captchaToken: "<captcha-token>"
+                  email: jane@example.com
       responses:
         '200':
           description: Accepted
@@ -222,6 +252,16 @@ paths:
                     data:
                       disclaimer: If you did not receive an email when you should have, please check your spam folder or try again later.
                     errors: []
+                captchaFailure:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: '5.27'
+                    message: CAPTCHA verification failed
+                    data: {}
+                    errors:
+                      - Please refresh the page and try again.
+                      - Make sure that you provided a captchaToken in your request.
         '400':
           $ref: '#/components/responses/ValidationError'
   /auth/verify-email:
@@ -270,6 +310,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/authLoginRequest'
       responses:
         '200':
           description: Authenticated
@@ -302,6 +345,16 @@ paths:
                         passwordUpdated: 2024-07-11T10:22:33.000Z
                         lastLogin: 2025-01-17T09:20:11.000Z
                     errors: []
+                invalidCredentials:
+                  summary: Invalid credentials
+                  value:
+                    status: error
+                    httpCode: 401
+                    responseTime: '6.51'
+                    message: Invalid email or password.
+                    data: {}
+                    errors:
+                      - The provided email or password is incorrect
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -322,6 +375,11 @@ paths:
               properties:
                 refreshToken:
                   type: string
+            examples:
+              default:
+                summary: Refresh access token
+                value:
+                  refreshToken: "<refresh-token>"
       responses:
         '200':
           description: Refreshed
@@ -337,6 +395,16 @@ paths:
                         properties:
                           accessToken:
                             type: string
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '7.81'
+                    message: Access token refreshed.
+                    data:
+                      accessToken: "<new-jwt>"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -356,6 +424,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LogoutRequest'
+            examples:
+              singleSession:
+                value:
+                  refreshToken: "<refresh-token>"
+                  allDevices: false
+              allSessions:
+                value:
+                  allDevices: true
       responses:
         '200':
           description: Logged out
@@ -363,6 +439,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                single:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.94"
+                    message: Logged out successfully.
+                    data:
+                      scope: single
+                      revokedSessions: 1
+                    errors: []
+                all:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.12"
+                    message: Logged out successfully.
+                    data:
+                      scope: all
+                      revokedSessions: 5
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -392,6 +489,12 @@ paths:
                 email:
                   type: string
                   format: email
+            examples:
+              default:
+                summary: Request reset
+                value:
+                  captchaToken: "<captcha-token>"
+                  email: jane@example.com
       responses:
         '200':
           description: Accepted
@@ -399,6 +502,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.84"
+                    message: If you have registered an account with this email address, you will receive a password reset email.
+                    data:
+                      disclaimer: If you did not receive an email when you should have, please check your spam folder or try again later.
+                    errors: []
+                captchaFailure:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: "5.09"
+                    message: CAPTCHA verification failed
+                    data: {}
+                    errors:
+                      - Please refresh the page and try again.
+                      - Make sure that you provided a captchaToken in your request.
         '400':
           $ref: '#/components/responses/ValidationError'
   /auth/reset-password:
@@ -417,6 +540,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ResetPasswordRequest'
+            examples:
+              default:
+                summary: Reset password
+                value:
+                  captchaToken: "<captcha-token>"
+                  email: jane@example.com
+                  token: "<reset-token>"
+                  newPassword: NewP@ssw0rd123!
       responses:
         '200':
           description: Reset complete
@@ -424,6 +555,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "9.42"
+                    message: Password reset successfully. You can now log in.
+                    data:
+                      id: 12
+                      email: jane@example.com
+                      passwordUpdated: "2025-01-17T09:02:44.000Z"
+                    errors: []
+                invalidToken:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: "6.74"
+                    message: Token expired or incorrect email address
+                    data: {}
+                    errors:
+                      - The provided token is invalid, has expired, or the email address is incorrect.
+                      - Please request a new password reset email.
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -444,6 +597,11 @@ paths:
               properties:
                 idToken:
                   type: string
+            examples:
+              default:
+                summary: Google sign-in
+                value:
+                  idToken: "<google-id-token>"
       responses:
         '200':
           description: Authenticated
@@ -456,6 +614,26 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/LoginResponseData'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "19.77"
+                    message: Login successful.
+                    data:
+                      accessToken: "<jwt>"
+                      refreshToken: "<jwt>"
+                      user:
+                        id: 12
+                        email: jane@example.com
+                        fullName: Jane Doe
+                        preferredName: Jane
+                        role: user
+                        isVerified: true
+                        passwordUpdated: null
+                        lastLogin: "2025-01-17T09:20:11.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -481,6 +659,28 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/User'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '4.73'
+                    message: User profile retrieved successfully.
+                    data:
+                      id: 12
+                      email: jane@example.com
+                      fullName: Jane Doe
+                      preferredName: Jane
+                      role: user
+                      isVerified: true
+                      isDisabled: false
+                      passwordUpdated: "2025-01-15T11:01:11.000Z"
+                      lastLogin: "2025-01-17T09:20:11.000Z"
+                      oauthProviders:
+                        - google
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
         '404':
           $ref: '#/components/responses/NotFound'
     put:
@@ -496,6 +696,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateUserRequest'
+            examples:
+              updateNames:
+                summary: Update preferred and full name
+                value:
+                  fullName: Jane Q. Doe
+                  preferredName: Jan
       responses:
         '200':
           description: Updated
@@ -503,6 +709,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '6.41'
+                    message: User profile updated successfully.
+                    data:
+                      id: 12
+                      email: jane@example.com
+                      fullName: Jane Q. Doe
+                      preferredName: Jan
+                      role: user
+                      isVerified: true
+                      isDisabled: false
+                      passwordUpdated: "2025-01-15T11:01:11.000Z"
+                      lastLogin: "2025-01-17T09:20:11.000Z"
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-17T08:44:02.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -522,6 +748,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '6.07'
+                    message: Check your email to confirm this action.
+                    data:
+                      disclaimer: Your account will remain active until you confirm the disable request via the link we sent.
+                    errors: []
         '404':
           $ref: '#/components/responses/NotFound'
   /users/me/verify-delete:
@@ -549,6 +785,12 @@ paths:
                   format: email
                 captchaToken:
                   type: string
+            examples:
+              verifyDelete:
+                value:
+                  token: "<verification-token>"
+                  email: jane@example.com
+                  captchaToken: "<captcha-token>"
       responses:
         '200':
           description: Disabled
@@ -556,6 +798,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.01"
+                    message: Account disabled successfully.
+                    data:
+                      revokedSessions: 3
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /users/me/request-email-change:
@@ -638,6 +890,9 @@ paths:
           application/json:
             schema:
               type: object
+            examples:
+              requestDelete:
+                value: {}
       responses:
         '200':
           description: Requested
@@ -645,6 +900,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.07"
+                    message: Check your email to confirm this action.
+                    data:
+                      disclaimer: Your account will remain active until you confirm the deletion request.
+                    errors: []
     delete:
       tags: [Users]
       summary: Request account deletion (DELETE)
@@ -660,6 +925,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.07"
+                    message: Check your email to confirm this action.
+                    data:
+                      disclaimer: Your account will remain active until you confirm the deletion request.
+                    errors: []
   /users/me/verify-account-deletion:
     post:
       tags: [Users]
@@ -900,6 +1175,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookTypeListRequest'
+            examples:
+              listSorted:
+                summary: List book types with filters
+                value:
+                  sortBy: name
+                  order: asc
+                  limit: 20
+                  filterName: cover
+              singleByName:
+                summary: Fetch single by name with stats
+                value:
+                  name: Hardcover
+                  returnStats: true
       responses:
         '200':
           description: Book types
@@ -912,6 +1200,35 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/BookTypeList'
+              examples:
+                successList:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.41"
+                    message: Book types retrieved successfully.
+                    data:
+                      bookTypes:
+                        - id: 1
+                          name: Hardcover
+                          description: Hardback edition with rigid cover.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                        - id: 2
+                          name: Softcover
+                          description: null
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+                notFound:
+                  value:
+                    status: error
+                    httpCode: 404
+                    responseTime: "2.84"
+                    message: Book type not found.
+                    data: {}
+                    errors:
+                      - The requested book type could not be located.
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -928,6 +1245,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookTypeCreate'
+            examples:
+              create:
+                summary: Create a new book type
+                value:
+                  name: Illustrated Edition
+                  description: Special edition with collector illustrations.
       responses:
         '201':
           description: Created
@@ -935,6 +1258,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "4.33"
+                    message: Book type created successfully.
+                    data:
+                      id: 10
+                      name: Illustrated Edition
+                      description: Special edition with collector illustrations.
+                      createdAt: "2025-01-17T10:02:11.000Z"
+                      updatedAt: "2025-01-17T10:02:11.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -951,6 +1288,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookTypeUpdateFlexible'
+            examples:
+              updateById:
+                summary: Update book type by id
+                value:
+                  id: 10
+                  name: Hardcover
+                  description: Updated description.
       responses:
         '200':
           description: Updated
@@ -958,6 +1302,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.92"
+                    message: Book type updated successfully.
+                    data:
+                      id: 10
+                      name: Hardcover
+                      description: Updated description.
+                      createdAt: "2025-01-17T10:02:11.000Z"
+                      updatedAt: "2025-01-17T10:05:48.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -976,6 +1334,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookTypeDeleteFlexible'
+            examples:
+              deleteByName:
+                summary: Delete by name
+                value:
+                  name: Hardcover
       responses:
         '200':
           description: Deleted
@@ -983,6 +1346,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Book type deleted successfully.
+                    data:
+                      id: 10
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1002,6 +1375,17 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookTypeStatsRequest'
+            examples:
+              allFields:
+                summary: Request all stats
+                value:
+                  fields:
+                    - bookTypeBreakdown
+                    - mostCollectedType
+                    - leastCollectedType
+                    - avgPageCountByType
+                    - booksMissingType
+                    - breakdownPerBookType
       responses:
         '200':
           description: Stats
@@ -1014,6 +1398,46 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/BookTypeStatsResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.64"
+                    message: Book type stats retrieved successfully.
+                    data:
+                      stats:
+                        bookTypeBreakdown:
+                          - id: 1
+                            name: Hardcover
+                            bookCount: 12
+                            percentage: 60.0
+                          - id: 2
+                            name: Softcover
+                            bookCount: 8
+                            percentage: 40.0
+                        mostCollectedType:
+                          id: 1
+                          name: Hardcover
+                          bookCount: 12
+                          percentage: 60.0
+                        leastCollectedType:
+                          id: 2
+                          name: Softcover
+                          bookCount: 8
+                          percentage: 40.0
+                        avgPageCountByType:
+                          - id: 1
+                            name: Hardcover
+                            avgPageCount: 510.25
+                        booksMissingType: 3
+                        breakdownPerBookType:
+                          - id: 1
+                            name: Hardcover
+                            bookCount: 12
+                            percentage: 60.0
+                            avgPageCount: 510.25
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /booktype/{id}:
@@ -1035,6 +1459,11 @@ paths:
               properties:
                 returnStats:
                   type: boolean
+            examples:
+              includeStats:
+                summary: Include stats
+                value:
+                  returnStats: true
       responses:
         '200':
           description: Book type
@@ -1042,6 +1471,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.02"
+                    message: Book type retrieved successfully.
+                    data:
+                      id: 2
+                      name: Softcover
+                      description: null
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                      stats:
+                        bookCount: 8
+                        percentageOfBooks: 40.0
+                        avgPageCount: 342.5
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1112,6 +1559,12 @@ paths:
                   type: string
                 returnStats:
                   type: boolean
+            examples:
+              byName:
+                summary: Lookup by name
+                value:
+                  name: Hardcover
+                  returnStats: true
       responses:
         '200':
           description: Book type
@@ -1119,6 +1572,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.78"
+                    message: Book type retrieved successfully.
+                    data:
+                      id: 1
+                      name: Hardcover
+                      description: Hardback edition with rigid cover.
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                      stats:
+                        bookCount: 12
+                        percentageOfBooks: 60.0
+                        avgPageCount: 510.25
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1137,6 +1608,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthorListRequest'
+            examples:
+              listDeceased:
+                summary: List deceased authors sorted by death year
+                value:
+                  filterDeceased: true
+                  sortBy: deathYear
+                  order: desc
+                  limit: 20
+              singleByName:
+                summary: Fetch single by display name with stats
+                value:
+                  displayName: "J.R.R. Tolkien"
+                  returnStats: true
       responses:
         '200':
           description: Authors
@@ -1149,6 +1633,45 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/AuthorList'
+              examples:
+                list:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.78"
+                    message: Authors retrieved successfully.
+                    data:
+                      authors:
+                        - id: 1
+                          displayName: "J.R.R. Tolkien"
+                          firstNames: "John Ronald Reuel"
+                          lastName: Tolkien
+                          birthDate:
+                            id: 12
+                            day: 3
+                            month: 1
+                            year: 1892
+                            text: "3 January 1892"
+                          deceased: true
+                          deathDate:
+                            id: 13
+                            day: 2
+                            month: 9
+                            year: 1973
+                            text: "2 September 1973"
+                          bio: Author of The Lord of the Rings.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+                notFound:
+                  value:
+                    status: error
+                    httpCode: 404
+                    responseTime: "2.84"
+                    message: Author not found.
+                    data: {}
+                    errors:
+                      - The requested author could not be located.
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1165,6 +1688,25 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthorCreate'
+            examples:
+              create:
+                summary: Create author
+                value:
+                  displayName: "J.R.R. Tolkien"
+                  firstNames: "John Ronald Reuel"
+                  lastName: Tolkien
+                  birthDate:
+                    day: 3
+                    month: 1
+                    year: 1892
+                    text: "3 January 1892"
+                  deceased: true
+                  deathDate:
+                    day: 2
+                    month: 9
+                    year: 1973
+                    text: "2 September 1973"
+                  bio: English writer and philologist.
       responses:
         '201':
           description: Created
@@ -1172,6 +1714,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "4.33"
+                    message: Author created successfully.
+                    data:
+                      id: 10
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -1188,6 +1740,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthorUpdateFlexible'
+            examples:
+              updateByName:
+                summary: Update author using displayName
+                value:
+                  displayName: "J.R.R. Tolkien"
+                  bio: Updated bio text.
       responses:
         '200':
           description: Updated
@@ -1195,6 +1753,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.92"
+                    message: Author updated successfully.
+                    data:
+                      id: 10
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1213,6 +1781,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthorDeleteFlexible'
+            examples:
+              deleteById:
+                summary: Delete author by id
+                value:
+                  id: 10
       responses:
         '200':
           description: Deleted
@@ -1220,6 +1793,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Author deleted successfully.
+                    data:
+                      id: 10
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1242,6 +1825,11 @@ paths:
               properties:
                 returnStats:
                   type: boolean
+            examples:
+              includeStats:
+                summary: Include stats
+                value:
+                  returnStats: true
       responses:
         '200':
           description: Author
@@ -1249,6 +1837,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.02"
+                    message: Author retrieved successfully.
+                    data:
+                      id: 1
+                      displayName: "J.R.R. Tolkien"
+                      firstNames: "John Ronald Reuel"
+                      lastName: Tolkien
+                      birthDate:
+                        id: 12
+                        day: 3
+                        month: 1
+                        year: 1892
+                        text: "3 January 1892"
+                      deceased: true
+                      deathDate:
+                        id: 13
+                        day: 2
+                        month: 9
+                        year: 1973
+                        text: "2 September 1973"
+                      bio: Author of The Lord of the Rings.
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                      stats:
+                        bookCount: 6
+                        percentageOfBooks: 30.0
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1319,6 +1939,12 @@ paths:
                   type: string
                 returnStats:
                   type: boolean
+            examples:
+              byName:
+                summary: Lookup by display name
+                value:
+                  displayName: "J.R.R. Tolkien"
+                  returnStats: true
       responses:
         '200':
           description: Author
@@ -1326,6 +1952,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.78"
+                    message: Author retrieved successfully.
+                    data:
+                      id: 1
+                      displayName: "J.R.R. Tolkien"
+                      firstNames: "John Ronald Reuel"
+                      lastName: Tolkien
+                      birthDate:
+                        id: 12
+                        day: 3
+                        month: 1
+                        year: 1892
+                        text: "3 January 1892"
+                      deceased: true
+                      deathDate:
+                        id: 13
+                        day: 2
+                        month: 9
+                        year: 1973
+                        text: "2 September 1973"
+                      bio: Author of The Lord of the Rings.
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                      stats:
+                        bookCount: 6
+                        percentageOfBooks: 30.0
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1345,6 +2003,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.60"
+                    message: Deleted authors retrieved successfully.
+                    data:
+                      authors:
+                        - id: 5
+                          displayName: "Sample Deleted Author"
+                          deletedAt: "2025-02-01T10:00:00.000Z"
+                    errors: []
   /author/restore:
     post:
       tags: [Authors]
@@ -1363,6 +2034,11 @@ paths:
               properties:
                 id:
                   type: integer
+            examples:
+              restore:
+                summary: Restore by id
+                value:
+                  id: 5
       responses:
         '200':
           description: Restored
@@ -1370,6 +2046,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Author restored successfully.
+                    data:
+                      id: 5
+                    errors: []
   /author/stats:
     get:
       tags: [Authors, Stats]
@@ -1384,6 +2070,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthorStatsRequest'
+            examples:
+              default:
+                value:
+                  fields:
+                    - bookCount
+                    - percentageOfBooks
       responses:
         '200':
           description: Stats
@@ -1391,6 +2083,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.50"
+                    message: Author stats retrieved successfully.
+                    data:
+                      stats:
+                        bookCount: 6
+                        percentageOfBooks: 30.0
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /bookauthor/stats:
@@ -1409,6 +2113,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Book-author stats retrieved successfully.
+                    data:
+                      stats:
+                        totalLinks: 14
+                        uniqueAuthors: 7
+                        uniqueBooks: 10
+                    errors: []
   /publisher:
     get:
       tags: [Publishers]
@@ -1423,6 +2140,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PublisherListRequest'
+            examples:
+              listPublishers:
+                summary: List publishers with name filter
+                value:
+                  filterName: press
+                  sortBy: name
+                  order: asc
+                  limit: 10
       responses:
         '200':
           description: Publishers
@@ -1430,6 +2155,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Publishers retrieved successfully.
+                    data:
+                      publishers:
+                        - id: 5
+                          name: Allen & Unwin
+                          foundedDate:
+                            id: 14
+                            year: 1910
+                            text: "1910"
+                          website: https://example.com
+                          notes: Classic literature publisher.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -1446,6 +2191,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PublisherCreate'
+            examples:
+              create:
+                summary: Create publisher
+                value:
+                  name: HarperCollins
+                  foundedDate:
+                    year: 1989
+                    text: "1989"
+                  website: https://harpercollins.example.com
+                  notes: Major publisher.
       responses:
         '201':
           description: Created
@@ -1453,6 +2208,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.90"
+                    message: Publisher created successfully.
+                    data:
+                      id: 11
+                    errors: []
     put:
       tags: [Publishers]
       summary: Update publisher (by id or name)
@@ -1465,6 +2230,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PublisherUpdateFlexible'
+            examples:
+              update:
+                summary: Update by name
+                value:
+                  targetName: Allen & Unwin
+                  website: https://allen-unwin.example.com
+                  notes: Updated notes.
       responses:
         '200':
           description: Updated
@@ -1472,6 +2244,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.20"
+                    message: Publisher updated successfully.
+                    data:
+                      id: 5
+                    errors: []
         '409':
           $ref: '#/components/responses/Conflict'
     delete:
@@ -1486,6 +2268,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PublisherDeleteFlexible'
+            examples:
+              delete:
+                summary: Delete by id
+                value:
+                  id: 5
       responses:
         '200':
           description: Deleted
@@ -1493,6 +2280,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Publisher deleted successfully.
+                    data:
+                      id: 5
+                    errors: []
   /publisher/{id}:
     get:
       tags: [Publishers]
@@ -1602,6 +2399,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Deleted publishers retrieved successfully.
+                    data:
+                      publishers:
+                        - id: 9
+                          name: Old Press
+                          deletedAt: "2025-02-01T10:00:00.000Z"
+                    errors: []
   /publisher/restore:
     post:
       tags: [Publishers]
@@ -1619,6 +2429,10 @@ paths:
               properties:
                 id:
                   type: integer
+            examples:
+              restore:
+                value:
+                  id: 9
       responses:
         '200':
           description: Restored
@@ -1626,6 +2440,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Publisher restored successfully.
+                    data:
+                      id: 9
+                    errors: []
   /publisher/stats:
     get:
       tags: [Publishers, Stats]
@@ -1640,6 +2464,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PublisherStatsRequest'
+            examples:
+              default:
+                value:
+                  fields: ["publisherBreakdown", "mostUsedPublisher"]
       responses:
         '200':
           description: Stats
@@ -1647,6 +2475,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Publisher stats retrieved successfully.
+                    data:
+                      stats:
+                        publisherBreakdown:
+                          - id: 5
+                            name: Allen & Unwin
+                            bookCount: 12
+                            percentage: 30.0
+                        mostUsedPublisher:
+                          id: 5
+                          name: Allen & Unwin
+                          bookCount: 12
+                    errors: []
   /bookseries:
     get:
       tags: [Series]
@@ -1661,6 +2508,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesListRequest'
+            examples:
+              listSeries:
+                summary: List series
+                value:
+                  filterName: Rings
+                  sortBy: name
+                  order: asc
+                  limit: 10
       responses:
         '200':
           description: Series
@@ -1668,6 +2523,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Series retrieved successfully.
+                    data:
+                      series:
+                        - id: 8
+                          name: The Lord of the Rings
+                          description: Epic high-fantasy trilogy.
+                          website: https://example.com/lotr
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
     post:
       tags: [Series]
       summary: Create series
@@ -1680,6 +2551,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesCreate'
+            examples:
+              create:
+                summary: Create series
+                value:
+                  name: The Stormlight Archive
+                  description: Epic fantasy saga.
+                  website: https://example.com/stormlight
       responses:
         '201':
           description: Created
@@ -1687,6 +2565,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.80"
+                    message: Series created successfully.
+                    data:
+                      id: 15
+                    errors: []
     put:
       tags: [Series]
       summary: Update series (by id or name)
@@ -1699,6 +2587,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesUpdateFlexible'
+            examples:
+              update:
+                summary: Update by id
+                value:
+                  id: 8
+                  description: Updated description text.
       responses:
         '200':
           description: Updated
@@ -1706,6 +2600,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.10"
+                    message: Series updated successfully.
+                    data:
+                      id: 8
+                    errors: []
     delete:
       tags: [Series]
       summary: Delete series (by id or name)
@@ -1718,6 +2622,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesDeleteFlexible'
+            examples:
+              delete:
+                summary: Delete by name
+                value:
+                  name: The Lord of the Rings
       responses:
         '200':
           description: Deleted
@@ -1725,6 +2634,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Series deleted successfully.
+                    data:
+                      id: 8
+                    errors: []
   /bookseries/{id}:
     get:
       tags: [Series]
@@ -1813,6 +2732,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesLinkRequest'
+            examples:
+              link:
+                summary: Link book to series
+                value:
+                  seriesId: 8
+                  bookId: 22
+                  bookOrder: 1
       responses:
         '201':
           description: Linked
@@ -1820,6 +2746,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "2.90"
+                    message: Series link created successfully.
+                    data:
+                      id: 44
+                    errors: []
     put:
       tags: [BookSeriesLinks]
       summary: Update series link
@@ -1829,6 +2765,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesLinkRequest'
+            examples:
+              updateOrder:
+                summary: Update book order
+                value:
+                  seriesId: 8
+                  bookId: 22
+                  bookOrder: 2
       responses:
         '200':
           description: Updated
@@ -1836,6 +2779,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.80"
+                    message: Series link updated successfully.
+                    data:
+                      id: 44
+                    errors: []
     delete:
       tags: [BookSeriesLinks]
       summary: Delete series link
@@ -1845,6 +2798,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesLinkDelete'
+            examples:
+              unlink:
+                summary: Unlink book from series
+                value:
+                  seriesId: 8
+                  bookId: 22
       responses:
         '200':
           description: Deleted
@@ -1852,6 +2811,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Series link deleted successfully.
+                    data:
+                      id: 44
+                    errors: []
   /bookseries/trash:
     get:
       tags: [Series]
@@ -1863,6 +2832,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Deleted series retrieved successfully.
+                    data:
+                      series:
+                        - id: 20
+                          name: Old Series
+                          deletedAt: "2025-02-01T10:00:00.000Z"
+                    errors: []
   /bookseries/restore:
     post:
       tags: [Series]
@@ -1877,6 +2859,10 @@ paths:
               properties:
                 id:
                   type: integer
+            examples:
+              restore:
+                value:
+                  id: 20
       responses:
         '200':
           description: Restored
@@ -1884,6 +2870,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.20"
+                    message: Series restored successfully.
+                    data:
+                      id: 20
+                    errors: []
   /bookseries/stats:
     get:
       tags: [Series, Stats]
@@ -1898,6 +2894,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SeriesStatsRequest'
+            examples:
+              default:
+                value:
+                  fields: ["seriesBreakdown", "mostCollectedSeries"]
       responses:
         '200':
           description: Stats
@@ -1905,6 +2905,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Series stats retrieved successfully.
+                    data:
+                      stats:
+                        seriesBreakdown:
+                          - id: 8
+                            name: The Lord of the Rings
+                            bookCount: 3
+                            percentage: 10.0
+                        mostCollectedSeries:
+                          id: 8
+                          name: The Lord of the Rings
+                          bookCount: 3
+                    errors: []
   /bookseriesbooks/stats:
     get:
       tags: [BookSeriesLinks, Stats]
@@ -1920,6 +2939,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.35"
+                    message: Series-book stats retrieved successfully.
+                    data:
+                      stats:
+                        averageBooksPerSeries: 2.4
+                        mostLinkedSeries:
+                          id: 8
+                          name: The Lord of the Rings
+                          bookCount: 3
+                    errors: []
   /languages:
     get:
       tags: [Languages]
@@ -1945,6 +2979,20 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/Language'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.00"
+                    message: Languages retrieved successfully.
+                    data:
+                      languages:
+                        - id: 1
+                          name: English
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
   /languages/stats:
     get:
       tags: [Languages, Stats]
@@ -1960,6 +3008,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.20"
+                    message: Language stats retrieved successfully.
+                    data:
+                      stats:
+                        topLanguages:
+                          - id: 1
+                            name: English
+                            bookCount: 45
+                        languageCoveragePercentage: 92.3
+                    errors: []
   /book:
     get:
       tags: [Books]
@@ -1974,6 +3037,24 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookListRequest'
+            examples:
+              filterAndSort:
+                summary: Filter, sort, and paginate
+                value:
+                  view: card
+                  sortBy: title
+                  order: asc
+                  limit: 20
+                  offset: 0
+                  filterTag: fantasy
+                  filterPublishedAfter: "1950-01-01"
+                  filterLanguage: English
+                  returnStats: false
+              singleByIsbn:
+                summary: Fetch single by ISBN with stats
+                value:
+                  isbn: "9780261102354"
+                  returnStats: true
       responses:
         '200':
           description: Books
@@ -1981,6 +3062,141 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                list:
+                  summary: List (card view)
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.18"
+                    message: Books retrieved successfully.
+                    data:
+                      books:
+                        - id: 12
+                          title: The Fellowship of the Ring
+                          subtitle: Being the First Part of The Lord of the Rings
+                          coverImageUrl: https://example.com/fotr.jpg
+                          publicationDate:
+                            id: 61
+                            day: 29
+                            month: 7
+                            year: 1954
+                            text: "29 July 1954"
+                          pageCount: 423
+                          bookTypeId: 2
+                          bookTypeName: Paperback
+                          languages:
+                            - id: 2
+                              name: English
+                          tags:
+                            - id: 7
+                              name: Fantasy
+                    errors: []
+                single:
+                  summary: Single record with stats
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.44"
+                    message: Book retrieved successfully.
+                    data:
+                      id: 22
+                      title: The Lord of the Rings
+                      subtitle: The Fellowship of the Ring
+                      isbn: "9780261102354"
+                      publicationDate:
+                        id: 61
+                        day: 29
+                        month: 7
+                        year: 1954
+                        text: "29 July 1954"
+                      pageCount: 423
+                      coverImageUrl: https://example.com/lotr-fotr.jpg
+                      description: The first volume of The Lord of the Rings.
+                      bookType:
+                        id: 2
+                        name: Paperback
+                        description: Flexible-cover print format.
+                      publisher:
+                        id: 5
+                        name: Allen & Unwin
+                        foundedDate:
+                          id: 14
+                          year: 1910
+                          text: "1910"
+                        website: https://example.com
+                        notes: Classic literature publisher.
+                      authors:
+                        - authorId: 1
+                          authorRole: Primary Author
+                          authorName: "J.R.R. Tolkien"
+                          birthDate:
+                            id: 201
+                            day: 3
+                            month: 1
+                            year: 1892
+                            text: "3 January 1892"
+                          deathDate:
+                            id: 202
+                            day: 2
+                            month: 9
+                            year: 1973
+                            text: "2 September 1973"
+                          deceased: true
+                          bio: English writer, poet, and academic.
+                      languages:
+                        - id: 2
+                          name: English
+                      tags:
+                        - id: 7
+                          name: Fantasy
+                      series:
+                        - seriesId: 8
+                          seriesName: The Lord of the Rings
+                          bookOrder: 1
+                      bookCopies:
+                        - id: 502
+                          storageLocationId: 12
+                          storageLocationPath: Home -> Living Room -> Shelf A
+                          acquisitionStory: Gifted for a birthday.
+                          acquisitionDate:
+                            id: 71
+                            day: 21
+                            month: 12
+                            year: 2010
+                            text: "21 December 2010"
+                          acquiredFrom: Family
+                          acquisitionType: Gift
+                          acquisitionLocation: Cape Town
+                          notes: Hardcover edition.
+                          createdAt: "2025-01-17T10:02:11.000Z"
+                          updatedAt: "2025-01-17T10:02:11.000Z"
+                      createdAt: "2025-01-17T10:02:11.000Z"
+                      updatedAt: "2025-01-17T10:02:11.000Z"
+                      stats:
+                        copyCount: 1
+                        authorCount: 1
+                        tagCount: 1
+                        languageCount: 1
+                        seriesCount: 1
+                        hasIsbn: true
+                        hasPublicationDate: true
+                        hasCoverImage: true
+                        hasDescription: true
+                        hasPublisher: true
+                        hasBookType: true
+                        hasPageCount: true
+                    errors: []
+                conflict:
+                  summary: Multiple matches
+                  value:
+                    status: error
+                    httpCode: 409
+                    responseTime: "2.18"
+                    message: Multiple books matched.
+                    data: {}
+                    errors:
+                      - Multiple books share this title. Please use id or ISBN.
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -2000,6 +3216,43 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCreate'
+            examples:
+              createWithCopy:
+                summary: Create book with authors, tags, and initial copy
+                value:
+                  title: The Hobbit
+                  subtitle: There and Back Again
+                  isbn: "9780261103344"
+                  publicationDate:
+                    day: 21
+                    month: 9
+                    year: 1937
+                    text: "21 September 1937"
+                  pageCount: 310
+                  coverImageUrl: https://example.com/hobbit.jpg
+                  description: Classic fantasy novel.
+                  bookTypeId: 2
+                  publisherId: 5
+                  authors:
+                    - authorId: 1
+                      authorRole: Primary Author
+                  languageIds: [2]
+                  tags: ["Fantasy", "Adventure"]
+                  series:
+                    - seriesId: 8
+                      bookOrder: 0
+                  bookCopy:
+                    storageLocationPath: Home -> Study -> Shelf 1
+                    acquisitionStory: Gift from a friend.
+                    acquisitionDate:
+                      day: 12
+                      month: 6
+                      year: 2022
+                      text: "12 June 2022"
+                    acquiredFrom: Second-hand fair
+                    acquisitionType: Second-hand
+                    acquisitionLocation: Cape Town
+                    notes: First edition.
       responses:
         '201':
           description: Created
@@ -2007,6 +3260,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "4.33"
+                    message: Book created successfully.
+                    data:
+                      id: 33
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -2024,6 +3287,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookUpdateFlexible'
+            examples:
+              updateTitle:
+                summary: Update by id
+                value:
+                  id: 33
+                  title: The Hobbit (Illustrated)
+                  description: Updated to illustrated edition.
       responses:
         '200':
           description: Updated
@@ -2031,6 +3301,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.92"
+                    message: Book updated successfully.
+                    data:
+                      id: 33
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -2050,6 +3330,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookDeleteFlexible'
+            examples:
+              deleteById:
+                summary: Delete by id
+                value:
+                  id: 33
       responses:
         '200':
           description: Deleted
@@ -2057,6 +3342,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Book deleted successfully.
+                    data:
+                      id: 33
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -2112,6 +3407,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Deleted books retrieved successfully.
+                    data:
+                      books:
+                        - id: 33
+                          title: Old Book
+                          deletedAt: "2025-02-01T10:00:00.000Z"
+                    errors: []
   /book/restore:
     post:
       tags: [Books]
@@ -2129,6 +3437,10 @@ paths:
               properties:
                 id:
                   type: integer
+            examples:
+              restore:
+                value:
+                  id: 33
       responses:
         '200':
           description: Restored
@@ -2136,6 +3448,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Book restored successfully.
+                    data:
+                      id: 33
+                    errors: []
   /book/stats:
     get:
       tags: [Books, Stats]
@@ -2150,6 +3472,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookStatsRequest'
+            examples:
+              default:
+                value:
+                  fields: ["bookTypeBreakdown", "hasIsbnCount"]
       responses:
         '200':
           description: Stats
@@ -2157,6 +3483,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.50"
+                    message: Book stats retrieved successfully.
+                    data:
+                      stats:
+                        totalBooks: 120
+                        hasIsbnCount: 90
+                        bookTypeBreakdown:
+                          - id: 1
+                            name: Hardcover
+                            bookCount: 60
+                            percentage: 50.0
+                    errors: []
   /storagelocation:
     get:
       tags: [StorageLocations]
@@ -2171,6 +3514,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StorageLocationListRequest'
+            examples:
+              listTree:
+                summary: List storage locations under parent
+                value:
+                  parentId: 1
+                  includeNested: true
+                  limit: 50
       responses:
         '200':
           description: Storage locations
@@ -2178,6 +3528,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Storage locations retrieved successfully.
+                    data:
+                      storageLocations:
+                        - id: 3
+                          name: Living Room
+                          parentId: 1
+                          notes: Main shelf
+                          path: Home -> Living Room
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
     post:
       tags: [StorageLocations]
       summary: Create storage location
@@ -2187,6 +3554,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StorageLocationCreate'
+            examples:
+              create:
+                summary: Create nested location
+                value:
+                  name: Shelf A
+                  parentId: 3
+                  notes: Top shelf
       responses:
         '201':
           description: Created
@@ -2194,6 +3568,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.00"
+                    message: Storage location created successfully.
+                    data:
+                      id: 12
+                    errors: []
     put:
       tags: [StorageLocations]
       summary: Update storage location (flexible)
@@ -2203,6 +3587,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StorageLocationUpdateFlexible'
+            examples:
+              update:
+                summary: Update by id
+                value:
+                  id: 12
+                  name: Shelf A (Left)
+                  notes: Moved items left side
       responses:
         '200':
           description: Updated
@@ -2210,6 +3601,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.80"
+                    message: Storage location updated successfully.
+                    data:
+                      id: 12
+                    errors: []
     delete:
       tags: [StorageLocations]
       summary: Delete storage location (flexible)
@@ -2219,6 +3620,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StorageLocationDeleteFlexible'
+            examples:
+              delete:
+                summary: Delete by name
+                value:
+                  name: Shelf A
       responses:
         '200':
           description: Deleted
@@ -2226,6 +3632,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Storage location deleted successfully.
+                    data:
+                      id: 12
+                    errors: []
   /storagelocation/{id}:
     put:
       tags: [StorageLocations]
@@ -2272,6 +3688,10 @@ paths:
               properties:
                 includeNested:
                   type: boolean
+            examples:
+              includeNested:
+                value:
+                  includeNested: true
       responses:
         '200':
           description: Copies
@@ -2279,6 +3699,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Book copies retrieved successfully.
+                    data:
+                      bookCopies:
+                        - id: 503
+                          bookId: 22
+                          storageLocationId: 3
+                    errors: []
   /storagelocation/bookcopies:
     get:
       tags: [StorageLocations, BookCopies]
@@ -2294,6 +3727,11 @@ paths:
                   type: string
                 includeNested:
                   type: boolean
+            examples:
+              filterByPath:
+                value:
+                  storageLocationPath: Home -> Living Room
+                  includeNested: true
       responses:
         '200':
           description: Copies
@@ -2301,6 +3739,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Book copies retrieved successfully.
+                    data:
+                      bookCopies:
+                        - id: 503
+                          bookId: 22
+                    errors: []
   /storagelocation/stats:
     get:
       tags: [StorageLocations, Stats]
@@ -2315,6 +3765,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StorageLocationStatsRequest'
+            examples:
+              default:
+                value:
+                  fields: ["locationBreakdown", "mostUsedLocation"]
       responses:
         '200':
           description: Stats
@@ -2322,6 +3776,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Storage stats retrieved successfully.
+                    data:
+                      stats:
+                        mostUsedLocation:
+                          id: 3
+                          name: Living Room
+                          copyCount: 42
+                        locationBreakdown:
+                          - id: 3
+                            name: Living Room
+                            copyCount: 42
+                    errors: []
   /timeline/buckets:
     post:
       tags: [Timeline, Stats]
@@ -2337,6 +3809,25 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TimelineBucketsRequest'
+            examples:
+              manual:
+                summary: Manual bucket definition
+                value:
+                  entity: books
+                  field: datePublished
+                  start: 1950-01-01
+                  end: 1960-01-01
+                  step: 2
+                  stepUnit: year
+                  hideEmptyBuckets: false
+              auto:
+                summary: Auto mode
+                value:
+                  entity: books
+                  field: datePublished
+                  auto: true
+                  numberOfBuckets: 12
+                  hideEmptyBuckets: false
       responses:
         '200':
           description: Buckets
@@ -2349,6 +3840,35 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/TimelineBucketsResponse'
+              examples:
+                successAuto:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Timeline buckets retrieved successfully.
+                    data:
+                      entity: books
+                      field: datePublished
+                      start: "1937-09-21"
+                      end: "1961-09-21"
+                      step: 2
+                      stepUnit: year
+                      numberOfBuckets: 12
+                      hideEmptyBuckets: false
+                      beforeStart: 0
+                      afterEnd: 0
+                      unknown: 7
+                      buckets:
+                        - start: "1937-09-21"
+                          end: "1939-09-21"
+                          label: "21 September 1937 to 20 September 1939"
+                          count: 1
+                        - start: "1939-09-21"
+                          end: "1941-09-21"
+                          label: "21 September 1939 to 20 September 1941"
+                          count: 0
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /bookcopy:
@@ -2365,6 +3885,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCopyListRequest'
+            examples:
+              listByLocation:
+                summary: List copies under a storage path
+                value:
+                  filterStorageLocationPath: Home -> Living Room
+                  includeNested: true
+                  sortBy: createdAt
+                  order: desc
+                  limit: 50
+              singleById:
+                summary: Fetch single copy
+                value:
+                  id: 503
       responses:
         '200':
           description: Book copies
@@ -2372,6 +3905,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                list:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.52"
+                    message: Book copies retrieved successfully.
+                    data:
+                      bookCopies:
+                        - id: 503
+                          bookId: 22
+                          storageLocationId: 3
+                          storageLocationPath: Home -> Living Room -> Shelf A
+                          acquisitionStory: Found at a local book fair.
+                          acquisitionDate:
+                            day: 12
+                            month: 6
+                            year: 2022
+                            text: "12 June 2022"
+                          acquiredFrom: Second-hand fair
+                          acquisitionType: Second-hand
+                          acquisitionLocation: Cape Town
+                          notes: Signed by the author.
+                          createdAt: "2025-01-17T10:02:11.000Z"
+                          updatedAt: "2025-01-17T10:02:11.000Z"
+                    errors: []
+                notFound:
+                  value:
+                    status: error
+                    httpCode: 404
+                    responseTime: "2.84"
+                    message: Book copy not found.
+                    data: {}
+                    errors:
+                      - The requested book copy could not be located.
     post:
       tags: [BookCopies]
       summary: Create book copy
@@ -2381,6 +3949,22 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCopyCreate'
+            examples:
+              default:
+                summary: Create copy with storage path
+                value:
+                  bookId: 22
+                  storageLocationPath: Home -> Living Room -> Shelf A
+                  acquisitionStory: Found at a local book fair.
+                  acquisitionDate:
+                    day: 12
+                    month: 6
+                    year: 2022
+                    text: "12 June 2022"
+                  acquiredFrom: Second-hand fair
+                  acquisitionType: Second-hand
+                  acquisitionLocation: Cape Town
+                  notes: Signed by the author.
       responses:
         '201':
           description: Created
@@ -2388,6 +3972,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.02"
+                    message: Book copy created successfully.
+                    data:
+                      id: 503
+                    errors: []
     put:
       tags: [BookCopies]
       summary: Update book copy (flexible)
@@ -2397,6 +3991,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCopyUpdateFlexible'
+            examples:
+              updateNotes:
+                summary: Update copy by id
+                value:
+                  id: 503
+                  storageLocationId: 3
+                  acquisitionStory: Gift from a friend.
+                  notes: Dust jacket included.
       responses:
         '200':
           description: Updated
@@ -2404,6 +4006,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.90"
+                    message: Book copy updated successfully.
+                    data:
+                      id: 503
+                    errors: []
     delete:
       tags: [BookCopies]
       summary: Delete book copy (flexible)
@@ -2413,6 +4025,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCopyDeleteFlexible'
+            examples:
+              deleteCopy:
+                summary: Delete copy by id
+                value:
+                  id: 503
       responses:
         '200':
           description: Deleted
@@ -2420,6 +4037,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Book copy deleted successfully.
+                    data:
+                      id: 503
+                    errors: []
   /bookcopy/{id}:
     put:
       tags: [BookCopies]
@@ -2465,6 +4092,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/BookCopyStatsRequest'
+            examples:
+              breakdown:
+                value:
+                  fields:
+                    - totalCopies
+                    - uniqueVsDuplicate
+                    - storageCoverage
+                  breakdownLimit: 10
       responses:
         '200':
           description: Stats
@@ -2472,6 +4107,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.52"
+                    message: Book copy stats retrieved successfully.
+                    data:
+                      stats:
+                        totalCopies: 145
+                        uniqueVsDuplicate:
+                          uniqueBooks: 120
+                          duplicateCopies: 25
+                          uniqueBooksPercentage: 82.8
+                          duplicateCopiesPercentage: 17.2
+                        storageCoverage:
+                          withStorageLocation: 110
+                          totalCopies: 145
+                          percentage: 75.9
+                    errors: []
   /tags:
     get:
       tags: [Tags]
@@ -2493,6 +4148,11 @@ paths:
                   type: integer
                 offset:
                   type: integer
+            examples:
+              list:
+                value:
+                  filterName: fan
+                  limit: 20
       responses:
         '200':
           description: Tags
@@ -2500,6 +4160,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.10"
+                    message: Tags retrieved successfully.
+                    data:
+                      tags:
+                        - id: 7
+                          name: Fantasy
+                    errors: []
   /search:
     get:
       tags: [Search]
@@ -2511,6 +4183,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SearchRequest'
+            examples:
+              multiEntity:
+                value:
+                  query: ring
+                  include: [books, authors, series]
+                  limit: 5
       responses:
         '200':
           description: Search results
@@ -2518,6 +4196,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Search completed.
+                    data:
+                      books:
+                        - id: 22
+                          title: The Lord of the Rings
+                      authors:
+                        - id: 1
+                          displayName: "J.R.R. Tolkien"
+                      series:
+                        - id: 8
+                          name: The Lord of the Rings
+                    errors: []
   /tags/stats:
     get:
       tags: [Tags, Stats]
@@ -2533,6 +4229,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Tag stats retrieved successfully.
+                    data:
+                      stats:
+                        topTags:
+                          - name: Fantasy
+                            count: 34
+                        totalTags: 12
+                    errors: []
   /booktags/stats:
     get:
       tags: [Tags, Stats]
@@ -2548,6 +4258,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.25"
+                    message: Book-tag stats retrieved successfully.
+                    data:
+                      stats:
+                        tagCoveragePercentage: 78.5
+                        mostTaggedBook:
+                          bookId: 22
+                          title: The Lord of the Rings
+                          tagCount: 5
+                    errors: []
   /export:
     get:
       tags: [ImportExport]
@@ -2563,6 +4288,18 @@ paths:
             application/json:
               schema:
                 type: object
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.10"
+                    message: Export completed.
+                    data:
+                      users: []
+                      books: []
+                      authors: []
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /import:
@@ -2584,6 +4321,15 @@ paths:
                   type: boolean
                 data:
                   type: object
+            examples:
+              dryRun:
+                summary: Dry-run import
+                value:
+                  dryRun: true
+                  data:
+                    books:
+                      - title: Sample
+                        isbn: "1234567890"
       responses:
         '200':
           description: Imported
@@ -2591,6 +4337,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.00"
+                    message: Import processed.
+                    data:
+                      dryRun: true
+                      inserted:
+                        books: 1
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
   /logs:
@@ -2607,6 +4365,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LogListRequest'
+            examples:
+              listLogs:
+                summary: List logs for user
+                value:
+                  filterUserId: 12
+                  limit: 20
+                  sortBy: createdAt
+                  order: desc
       responses:
         '200':
           description: Logs
@@ -2614,6 +4380,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Logs retrieved successfully.
+                    data:
+                      logs:
+                        - id: 101
+                          action: LOGIN_ATTEMPT
+                          status: SUCCESS
+                          userId: 12
+                          createdAt: "2025-02-05T10:21:44.000Z"
+                    errors: []
   /logs/search:
     post:
       tags: [Logs]
@@ -2628,6 +4409,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LogListRequest'
+            examples:
+              search:
+                summary: Search logs by status and action
+                value:
+                  filterAction: USER_REGISTERED
+                  filterStatus: FAILURE
+                  limit: 10
       responses:
         '200':
           description: Logs
@@ -2635,6 +4423,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.35"
+                    message: Logs retrieved successfully.
+                    data:
+                      logs: []
+                    errors: []
   /logs/log_types:
     get:
       tags: [Logs]
@@ -2646,6 +4444,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.90"
+                    message: Log types retrieved successfully.
+                    data:
+                      logTypes: ["HTTP_REQUEST", "USER_REGISTERED", "LOGIN_ATTEMPT"]
+                    errors: []
   /logs/levels:
     get:
       tags: [Logs]
@@ -2657,6 +4465,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.90"
+                    message: Log levels retrieved successfully.
+                    data:
+                      levels: ["info", "warn", "error"]
+                    errors: []
   /logs/statuses:
     get:
       tags: [Logs]
@@ -2668,6 +4486,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.90"
+                    message: Log statuses retrieved successfully.
+                    data:
+                      statuses: ["SUCCESS", "FAILURE", "INFO"]
+                    errors: []
   /admin/users:
     get:
       tags: [Admin]
@@ -2682,6 +4510,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserListRequest'
+            examples:
+              listUsers:
+                value:
+                  limit: 20
+                  sortBy: createdAt
+                  order: desc
+                  filterRole: user
       responses:
         '200':
           description: Users
@@ -2689,6 +4524,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.70"
+                    message: Users retrieved successfully.
+                    data:
+                      users:
+                        - id: 7
+                          email: harry@hogwarts.edu
+                          fullName: Harry Potter
+                          preferredName: Harry
+                          role: user
+                          isVerified: true
+                          isDisabled: false
+                          lastLogin: "2025-02-03T18:10:05.000Z"
+                    errors: []
     post:
       tags: [Admin]
       summary: Admin create user
@@ -2702,6 +4555,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserCreate'
+            examples:
+              create:
+                value:
+                  fullName: Samwise Gamgee
+                  preferredName: Sam
+                  email: sam@shire.me
+                  password: P@ssw0rd123!
+                  role: user
       responses:
         '201':
           description: Created
@@ -2709,6 +4570,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.91"
+                    message: User created successfully.
+                    data:
+                      id: 12
+                      email: sam@shire.me
+                      fullName: Samwise Gamgee
+                      preferredName: Sam
+                      role: user
+                      isVerified: false
+                      isDisabled: false
+                      passwordUpdated: "2025-02-05T09:00:00.000Z"
+                      lastLogin: null
+                      createdAt: "2025-02-05T09:00:00.000Z"
+                      updatedAt: "2025-02-05T09:00:00.000Z"
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -2722,6 +4603,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserUpdateFlexible'
+            examples:
+              update:
+                value:
+                  id: 7
+                  fullName: Harry James Potter
+                  role: user
       responses:
         '200':
           description: Updated
@@ -2729,6 +4616,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.01"
+                    message: User updated successfully.
+                    data:
+                      id: 7
+                      email: harry@hogwarts.edu
+                      fullName: Harry James Potter
+                      preferredName: Harry
+                      role: user
+                      isVerified: true
+                      isDisabled: false
+                      updatedAt: "2025-02-05T10:21:44.000Z"
+                    errors: []
     delete:
       tags: [Admin]
       summary: Admin disable user (flexible)
@@ -2739,6 +4643,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserDisableFlexible'
+            examples:
+              disable:
+                value:
+                  id: 12
       responses:
         '200':
           description: Disabled
@@ -2746,6 +4654,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.96"
+                    message: User disabled successfully.
+                    data:
+                      id: 12
+                      wasDisabled: true
+                      revokedSessions: 2
+                    errors: []
   /admin/users/{id}:
     get:
       tags: [Admin]
@@ -2761,6 +4681,10 @@ paths:
               properties:
                 nameOnly:
                   type: boolean
+            examples:
+              withNameOnly:
+                value:
+                  nameOnly: false
       responses:
         '200':
           description: User
@@ -2768,6 +4692,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.77"
+                    message: User retrieved successfully.
+                    data:
+                      id: 7
+                      email: harry@hogwarts.edu
+                      fullName: Harry Potter
+                      preferredName: Harry
+                      role: user
+                      isVerified: true
+                      isDisabled: false
+                      passwordUpdated: "2025-01-12T09:45:00.000Z"
+                      lastLogin: "2025-02-03T18:10:05.000Z"
+                      createdAt: "2025-01-12T09:30:00.000Z"
+                      updatedAt: "2025-02-03T18:10:05.000Z"
+                      oauthProviders:
+                        - google
+                    errors: []
     put:
       tags: [Admin]
       summary: Admin update user by id
@@ -2808,6 +4754,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              enable:
+                value:
+                  email: user@example.com
       responses:
         '200':
           description: Enabled
@@ -2815,6 +4765,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User enabled successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/{id}/enable:
     post:
       tags: [Admin]
@@ -2827,6 +4787,9 @@ paths:
           application/json:
             schema:
               type: object
+            examples:
+              enableById:
+                value: {}
       responses:
         '200':
           description: Enabled
@@ -2834,6 +4797,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User enabled successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/unverify:
     post:
       tags: [Admin]
@@ -2844,6 +4817,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              unverify:
+                value:
+                  id: 12
       responses:
         '200':
           description: Unverified
@@ -2851,6 +4828,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User unverified successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/{id}/unverify:
     post:
       tags: [Admin]
@@ -2864,6 +4851,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User unverified successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/verify:
     post:
       tags: [Admin]
@@ -2874,6 +4871,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              verify:
+                value:
+                  email: user@example.com
       responses:
         '200':
           description: Verified
@@ -2881,6 +4882,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User verified successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/{id}/verify:
     post:
       tags: [Admin]
@@ -2894,6 +4905,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: User verified successfully.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/send-verification:
     post:
       tags: [Admin]
@@ -2908,6 +4929,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              send:
+                value:
+                  email: user@example.com
       responses:
         '200':
           description: Email sent
@@ -2915,6 +4940,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.60"
+                    message: Verification email sent.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/{id}/send-verification:
     post:
       tags: [Admin]
@@ -2945,6 +4980,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              reset:
+                value:
+                  id: 12
       responses:
         '200':
           description: Email sent
@@ -2952,6 +4991,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.60"
+                    message: Password reset email sent.
+                    data:
+                      id: 12
+                    errors: []
   /admin/users/{id}/reset-password:
     post:
       tags: [Admin]
@@ -2978,6 +5027,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              sessions:
+                value:
+                  email: user@example.com
       responses:
         '200':
           description: Sessions
@@ -2985,6 +5038,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.50"
+                    message: Sessions retrieved successfully.
+                    data:
+                      sessions:
+                        - fingerprint: session-abc123
+                          issuedAt: "2025-02-04T10:00:00.000Z"
+                          expiresAt: "2025-02-11T10:00:00.000Z"
+                    errors: []
   /admin/users/{id}/sessions:
     post:
       tags: [Admin]
@@ -3009,6 +5075,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminUserActionFlexible'
+            examples:
+              logout:
+                value:
+                  id: 7
       responses:
         '200':
           description: Logged out
@@ -3016,6 +5086,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.58"
+                    message: Sessions revoked successfully.
+                    data:
+                      id: 7
+                      revokedCount: 1
+                      fingerprints:
+                        - session-abc123
+                    errors: []
   /admin/users/{id}/force-logout:
     post:
       tags: [Admin]
@@ -3043,6 +5126,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminDeletionRequest'
+            examples:
+              delete:
+                value:
+                  id: 9
+                  confirm: true
+                  reason: Account deletion confirmed by user.
+                  userToBeDeletedEmail: gollum@ring.me
       responses:
         '200':
           description: Deleted
@@ -3050,6 +5140,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.88"
+                    message: User account deleted permanently.
+                    data:
+                      id: 9
+                      deletedCounts:
+                        verification_tokens: 1
+                        refresh_tokens: 2
+                        oauth_accounts: 0
+                        book_types: 2
+                        authors: 0
+                        publishers: 0
+                        book_authors: 0
+                        book_series: 0
+                        book_series_books: 0
+                        storage_locations: 1
+                        books: 0
+                        book_copies: 0
+                        book_languages: 0
+                        tags: 0
+                        book_tags: 0
+                      datesCleaned: 1
+                    errors: []
   /admin/users/{id}/handle-account-deletion:
     post:
       tags: [Admin]
@@ -3065,6 +5182,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminDeletionRequest'
+            examples:
+              deleteById:
+                value:
+                  confirm: true
+                  reason: Account deletion confirmed by user.
+                  userToBeDeletedEmail: gollum@ring.me
       responses:
         '200':
           description: Deleted
@@ -3072,6 +5195,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.88"
+                    message: User account deleted permanently.
+                    data:
+                      id: 9
+                    errors: []
   /admin/languages:
     post:
       tags: [Admin, Languages]
@@ -3082,6 +5215,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LanguageCreate'
+            examples:
+              create:
+                value:
+                  name: Zulu
       responses:
         '201':
           description: Created
@@ -3089,6 +5226,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 201
+                    responseTime: "3.10"
+                    message: Language created successfully.
+                    data:
+                      id: 4
+                      name: Zulu
+                      createdAt: "2025-01-17T10:02:11.000Z"
+                      updatedAt: "2025-01-17T10:02:11.000Z"
+                    errors: []
     put:
       tags: [Admin, Languages]
       summary: Admin update language
@@ -3164,6 +5314,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.12"
+                    message: Status retrieved successfully.
+                    data:
+                      status: ok
+                      db:
+                        healthy: true
+                        latencyMs: 7
+                      emailQueue:
+                        pending: 0
+                        processing: 0
+                        failed: 0
+                        lastRunAt: "2026-01-02T16:00:10.000Z"
+                    errors: []
 components:
   securitySchemes:
     bearerAuth:
@@ -3307,140 +5475,234 @@ components:
                 data: {}
                 errors:
                   - An unexpected error occurred while processing the request.
+  examples:
+    authLoginRequest:
+      summary: Login request
+      value:
+        captchaToken: "<captcha-token>"
+        email: jane@example.com
+        password: P@ssw0rd123!
+    authLoginSuccess:
+      summary: Successful login
+      value:
+        status: success
+        httpCode: 200
+        responseTime: "18.02"
+        message: Login successful.
+        data:
+          accessToken: "<jwt>"
+          refreshToken: "<jwt>"
+          user:
+            id: 12
+            email: jane@example.com
+            fullName: Jane Doe
+            preferredName: Jane
+            role: user
+            isVerified: true
+            isDisabled: false
+            passwordUpdated: "2024-07-11T10:22:33.000Z"
+            lastLogin: "2025-01-17T09:20:11.000Z"
+        errors: []
+    validationErrorExample:
+      summary: Validation error
+      value:
+        status: error
+        httpCode: 400
+        responseTime: "2.22"
+        message: Validation Error
+        data: {}
+        errors:
+          - Email must be provided.
+    notFoundExample:
+      summary: Not found
+      value:
+        status: error
+        httpCode: 404
+        responseTime: "2.84"
+        message: Resource not found.
+        data: {}
+        errors:
+          - The requested resource could not be located.
   schemas:
     ApiResponse:
+      description: Standard response envelope used for every endpoint.
       type: object
       properties:
         status:
+          description: Indicates success or error for the request.
           type: string
           enum: [success, error]
         httpCode:
+          description: Mirrors the HTTP status code returned.
           type: integer
         responseTime:
+          description: Duration in milliseconds (string formatted with two decimals).
           type: string
         message:
+          description: Human-readable summary of the outcome.
           type: string
         data:
+          description: Endpoint-specific payload object; empty object on errors unless noted.
           type: object
         errors:
+          description: Array of human-readable error details; empty array on success.
           type: array
           items:
             type: string
       required: [status, httpCode, responseTime, message, data, errors]
     RateLimitStatus:
+      description: Details about the current rate-limit bucket for the caller.
       type: object
       properties:
         limit:
+          description: Maximum requests allowed in the window.
           type: integer
         remaining:
+          description: Requests remaining before throttling.
           type: integer
         resetTime:
+          description: Timestamp when the bucket resets.
           type: string
           format: date-time
     PartialDate:
+      description: Partial date representation allowing missing day/month/year but requiring human-readable text.
       type: object
       properties:
         id:
+          description: Internal identifier for the stored partial date.
           type: integer
         day:
+          description: Day of month (1-31) or null when unknown.
           type: integer
           nullable: true
         month:
+          description: Month (1-12) or null when unknown.
           type: integer
           nullable: true
         year:
+          description: Year (1-9999) or null when unknown.
           type: integer
           nullable: true
         text:
+          description: Human-readable date string matching the provided parts (e.g., \"29 July 1954\", \"October 2005\", \"2005\").
           type: string
       required: [text]
     User:
+      description: Authenticated user profile; all resources are user-scoped unless admin.
       type: object
       properties:
         id:
+          description: User identifier.
           type: integer
         email:
+          description: Unique email address.
           type: string
         fullName:
+          description: Full legal name.
           type: string
         preferredName:
+          description: Optional friendly display name; may be null.
           type: string
           nullable: true
         role:
+          description: Role for authorization checks.
           type: string
           enum: [user, admin]
         isVerified:
+          description: Whether the email has been verified.
           type: boolean
         isDisabled:
+          description: Soft-delete/disabled flag; disabled users cannot authenticate.
           type: boolean
         passwordUpdated:
+          description: Timestamp of last password change; null for OAuth-only accounts.
           type: string
           format: date-time
           nullable: true
         lastLogin:
+          description: Timestamp of the most recent successful login; null if never logged in.
           type: string
           format: date-time
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
           format: date-time
         updatedAt:
+          description: Last update timestamp.
           type: string
           format: date-time
         oauthProviders:
+          description: Connected OAuth providers (e.g., google).
           type: array
           items:
             type: string
     Session:
+      description: Refresh token fingerprint session metadata for a user.
       type: object
       properties:
         fingerprint:
+          description: Unique refresh token fingerprint.
           type: string
         issuedAt:
+          description: Time the refresh token was issued.
           type: string
           format: date-time
         expiresAt:
+          description: Refresh token expiry time.
           type: string
           format: date-time
         ipAddress:
+          description: IP address recorded for the session, if captured.
           type: string
           nullable: true
         userAgent:
+          description: User agent string for the session, if captured.
           type: string
           nullable: true
     ApiKey:
+      description: API key metadata; secrets are only shown on creation.
       type: object
       properties:
         id:
+          description: Identifier for the API key.
           type: integer
         name:
+          description: User-provided label for the key.
           type: string
         keyPrefix:
+          description: Non-sensitive prefix to help identify the key.
           type: string
         lastUsedAt:
+          description: Timestamp of last use; null if never used.
           type: string
           format: date-time
           nullable: true
         expiresAt:
+          description: Expiry timestamp; null if non-expiring.
           type: string
           format: date-time
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
           format: date-time
         revokedAt:
+          description: Revocation timestamp; null if active.
           type: string
           format: date-time
           nullable: true
     ApiKeyCreated:
+      description: Response payload when creating an API key; includes one-time secret.
       type: object
       properties:
         apiKey:
           $ref: '#/components/schemas/ApiKey'
         secret:
+          description: Full API key secret value (only returned once).
           type: string
-          description: Full API key secret value (only returned on creation).
     RegisterRequest:
+      description: Request payload to register a user with email/password and CAPTCHA.
       type: object
       required: [captchaToken, fullName, email, password]
       properties:
@@ -3456,6 +5718,7 @@ components:
         password:
           type: string
     LoginRequest:
+      description: Request payload to authenticate via email/password with CAPTCHA.
       type: object
       required: [captchaToken, email, password]
       properties:
@@ -3467,6 +5730,7 @@ components:
         password:
           type: string
     LoginResponseData:
+      description: Tokens and user profile returned after authentication.
       type: object
       properties:
         accessToken:
@@ -3476,6 +5740,7 @@ components:
         user:
           $ref: '#/components/schemas/User'
     LogoutRequest:
+      description: Revoke a refresh token or all sessions.
       type: object
       properties:
         refreshToken:
@@ -3484,7 +5749,6 @@ components:
           oneOf:
             - type: boolean
             - type: string
-      description: Provide refreshToken unless allDevices is truthy.
     ResetPasswordRequest:
       type: object
       required: [captchaToken, email, token, newPassword]
@@ -3731,25 +5995,34 @@ components:
           items:
             type: string
     Publisher:
+      description: Publisher record scoped to a user; supports soft delete.
       type: object
       properties:
         id:
+          description: Publisher identifier.
           type: integer
         name:
+          description: Publisher name (unique per user).
           type: string
         foundedDate:
+          description: Partial founded date if known.
           $ref: '#/components/schemas/PartialDate'
         website:
+          description: Publisher website URL if provided.
           type: string
           nullable: true
         notes:
+          description: Additional notes about the publisher.
           type: string
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
         updatedAt:
+          description: Last update timestamp.
           type: string
     PublisherListRequest:
+      description: Filters and options for listing or fetching publishers; body overrides query params.
       type: object
       properties:
         id:
@@ -3757,14 +6030,19 @@ components:
         name:
           type: string
         nameOnly:
+          description: When true, return only id/name pairs.
           type: boolean
         limit:
+          description: Page size (1-200).
           type: integer
         offset:
+          description: Offset for pagination.
           type: integer
         returnStats:
+          description: Include stats when a single record is returned.
           type: boolean
     PublisherCreate:
+      description: Payload to create a publisher.
       type: object
       required: [name]
       properties:
@@ -3777,6 +6055,7 @@ components:
         notes:
           type: string
     PublisherUpdate:
+      description: Updatable publisher fields.
       type: object
       properties:
         name:
@@ -3788,6 +6067,7 @@ components:
         notes:
           type: string
     PublisherUpdateFlexible:
+      description: Update publisher by id or current name.
       allOf:
         - $ref: '#/components/schemas/PublisherUpdate'
         - type: object
@@ -3797,6 +6077,7 @@ components:
             targetName:
               type: string
     PublisherDeleteFlexible:
+      description: Delete publisher by id or name.
       type: object
       properties:
         id:
@@ -3804,6 +6085,7 @@ components:
         name:
           type: string
     PublisherStatsRequest:
+      description: Selectable fields for publisher statistics.
       type: object
       properties:
         fields:
@@ -3811,23 +6093,31 @@ components:
           items:
             type: string
     Series:
+      description: Book series owned by a user; supports soft delete and links to books.
       type: object
       properties:
         id:
+          description: Series identifier.
           type: integer
         name:
+          description: Series name (unique per user).
           type: string
         description:
+          description: Optional description of the series.
           type: string
           nullable: true
         website:
+          description: Optional series website.
           type: string
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
         updatedAt:
+          description: Last update timestamp.
           type: string
     SeriesListRequest:
+      description: Filters and pagination for series; body overrides query params.
       type: object
       properties:
         id:
@@ -3841,6 +6131,7 @@ components:
         returnStats:
           type: boolean
     SeriesCreate:
+      description: Payload to create a series.
       type: object
       required: [name]
       properties:
@@ -3851,6 +6142,7 @@ components:
         website:
           type: string
     SeriesUpdate:
+      description: Updatable series fields.
       type: object
       properties:
         name:
@@ -3900,23 +6192,28 @@ components:
           items:
             type: string
     Language:
+      description: Language entry available to users; admin can create/update/delete globally.
       type: object
       properties:
         id:
+          description: Language identifier.
           type: integer
         name:
+          description: Language display name.
           type: string
         createdAt:
           type: string
         updatedAt:
           type: string
     LanguageCreate:
+      description: Payload to create a language.
       type: object
       required: [name]
       properties:
         name:
           type: string
     LanguageUpdate:
+      description: Payload to update a language by id.
       type: object
       required: [id, name]
       properties:
@@ -3925,52 +6222,68 @@ components:
         name:
           type: string
     LanguageDelete:
+      description: Payload to delete a language by id.
       type: object
       required: [id]
       properties:
         id:
           type: integer
     LanguageUpdateById:
+      description: Update a language using the path id.
       type: object
       required: [name]
       properties:
         name:
           type: string
     Book:
+      description: Book record owned by a user; soft deletes may hide entries from default queries.
       type: object
       properties:
         id:
+          description: Book identifier.
           type: integer
         title:
+          description: Primary title of the book.
           type: string
         subtitle:
+          description: Optional subtitle.
           type: string
           nullable: true
         isbn:
+          description: Normalized ISBN-10/13 without spaces/hyphens; may be null.
           type: string
           nullable: true
         publicationDate:
+          description: Partial publication date.
           $ref: '#/components/schemas/PartialDate'
         pageCount:
+          description: Number of pages; may be null if unknown.
           type: integer
           nullable: true
         coverImageUrl:
+          description: Fully-qualified image URL.
           type: string
           nullable: true
         description:
+          description: Free-text description or synopsis.
           type: string
           nullable: true
         bookTypeId:
+          description: Related book type id when using card view.
           type: integer
           nullable: true
         publisherId:
+          description: Related publisher id when using card view.
           type: integer
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
         updatedAt:
+          description: Last update timestamp.
           type: string
     BookListRequest:
+      description: Filters and lookup options for listing or fetching books; body values take precedence over query params.
       type: object
       properties:
         id:
@@ -4125,16 +6438,21 @@ components:
           items:
             type: string
     StorageLocation:
+      description: Storage container for book copies, supporting nesting and optional notes.
       type: object
       properties:
         id:
+          description: Storage location identifier.
           type: integer
         name:
+          description: Display name of the location.
           type: string
         parentId:
+          description: Parent storage location id for nesting; null for root.
           type: integer
           nullable: true
         notes:
+          description: Optional notes about the location.
           type: string
           nullable: true
         createdAt:
@@ -4142,8 +6460,10 @@ components:
         updatedAt:
           type: string
         path:
+          description: Human-readable hierarchical path.
           type: string
     StorageLocationListRequest:
+      description: Filters and pagination for storage locations.
       type: object
       properties:
         id:
@@ -4159,6 +6479,7 @@ components:
         includeNested:
           type: boolean
     StorageLocationCreate:
+      description: Payload to create a storage location.
       type: object
       required: [name]
       properties:
@@ -4169,6 +6490,7 @@ components:
         notes:
           type: string
     StorageLocationUpdate:
+      description: Updatable storage location fields.
       type: object
       properties:
         name:
@@ -4264,38 +6586,51 @@ components:
         unknown:
           type: integer
     BookCopy:
+      description: Individual copy of a book with acquisition and storage metadata.
       type: object
       properties:
         id:
+          description: Copy identifier.
           type: integer
         bookId:
+          description: Owning book id.
           type: integer
         storageLocationId:
+          description: Storage location id; null when not assigned.
           type: integer
           nullable: true
         storageLocationPath:
+          description: Human-readable storage path string.
           type: string
           nullable: true
         acquisitionStory:
+          description: Free-text story about acquisition.
           type: string
           nullable: true
         acquisitionDate:
+          description: Partial date of acquisition.
           $ref: '#/components/schemas/PartialDate'
         acquiredFrom:
+          description: Who the copy was acquired from.
           type: string
           nullable: true
         acquisitionType:
+          description: How the copy was obtained (e.g., Gift, Purchase).
           type: string
           nullable: true
         acquisitionLocation:
+          description: Where the copy was obtained.
           type: string
           nullable: true
         notes:
+          description: Additional notes about the copy.
           type: string
           nullable: true
         createdAt:
+          description: Creation timestamp.
           type: string
         updatedAt:
+          description: Last update timestamp.
           type: string
     BookCopyListRequest:
       type: object
@@ -4389,32 +6724,42 @@ components:
         breakdownLimit:
           type: integer
     SearchRequest:
+      description: Multi-entity search request body.
       type: object
       properties:
         query:
+          description: Search string.
           type: string
         limit:
+          description: Max results per entity.
           type: integer
         include:
+          description: Entities to include in search.
           type: array
           items:
             type: string
             enum: [books, authors, publishers, series, tags]
     LogEntry:
+      description: Structured user action or HTTP log entry.
       type: object
       properties:
         id:
           type: integer
         action:
+          description: Log action code (e.g., LOGIN_ATTEMPT).
           type: string
         status:
+          description: Normalized status (SUCCESS, FAILURE, INFO).
           type: string
         userId:
+          description: Related user id when applicable.
           type: integer
           nullable: true
         metadata:
+          description: Additional structured metadata.
           type: object
         createdAt:
+          description: Timestamp of the log entry.
           type: string
           format: date-time
     LogListRequest:
