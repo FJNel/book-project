@@ -12,27 +12,7 @@
       margin: 0;
     }
   </style>
-  <!-- Prefer local bundle; fall back to CDN if unavailable (e.g., when static hosting path differs). -->
-  <script>
-    (function loadRedoc() {
-      var local = document.createElement('script');
-      local.src = './redoc.standalone.js';
-      local.onload = function () {
-        if (!window.Redoc) {
-          console.warn('Redoc not detected after local load; attempting CDN fallback.');
-          loadCdn();
-        }
-      };
-      local.onerror = loadCdn;
-      document.head.appendChild(local);
-
-      function loadCdn() {
-        var cdn = document.createElement('script');
-        cdn.src = 'https://cdn.redocly.com/redoc/v2.5.1/bundles/redoc.standalone.js';
-        document.head.appendChild(cdn);
-      }
-    })();
-  </script><style data-styled="true" data-styled-version="6.3.6">.kgVncE{width:calc(100% - 40%);padding:0 40px;}/*!sc*/
+  <script src="https://cdn.redocly.com/redoc/v2.5.1/bundles/redoc.standalone.js"></script><style data-styled="true" data-styled-version="6.3.6">.kgVncE{width:calc(100% - 40%);padding:0 40px;}/*!sc*/
 @media print,screen and (max-width: 75rem){.kgVncE{width:100%;padding:40px 40px;}}/*!sc*/
 data-styled.g4[id="sc-hLBbgQ"]{content:"kgVncE,"}/*!sc*/
 .gnfAsZ{padding:40px 0;}/*!sc*/
@@ -361,7 +341,7 @@ data-styled.g111[id="sc-fWQKxQ"]{content:"ciKPKv,"}/*!sc*/
 .dliInS{font-family:Courier,monospace;margin-left:10px;flex:1;overflow-x:hidden;text-overflow:ellipsis;}/*!sc*/
 data-styled.g112[id="sc-EJAjd"]{content:"dliInS,"}/*!sc*/
 .keRCfR{outline:0;color:inherit;width:100%;text-align:left;cursor:pointer;padding:10px 30px 10px 20px;border-radius:4px 4px 0 0;background-color:#11171a;display:flex;white-space:nowrap;align-items:center;border:1px solid transparent;border-bottom:0;transition:border-color 0.25s ease;}/*!sc*/
-.keRCfR .sc-EJAjd{color:#ffffff;}/*!sc*/
+.keRCfR ..sc-EJAjd{color:#ffffff;}/*!sc*/
 .keRCfR:focus{box-shadow:inset 0 2px 2px rgba(0, 0, 0, 0.45),0 2px 0 rgba(128, 128, 128, 0.25);}/*!sc*/
 data-styled.g113[id="sc-jWgTtO"]{content:"keRCfR,"}/*!sc*/
 .eYCZVU{font-size:0.929em;line-height:20px;background-color:#2F8132;color:#ffffff;padding:3px 10px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin:0;}/*!sc*/
