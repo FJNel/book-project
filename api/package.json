@@ -29,6 +29,7 @@
   },
   "description": "",
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "swagger-ui-dist": "^5.31.0"
   }
 }
