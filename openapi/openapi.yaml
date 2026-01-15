@@ -764,7 +764,7 @@ paths:
     post:
       tags: [Users]
       summary: Confirm account disable
-      description: Confirm disable request with email+token and CAPTCHA.
+      description: Confirm disable request with email+token and CAPTCHA. Invalid token/email/captcha are returned as a generic invalid/expired token to avoid enumeration.
       security: []
       x-rateLimit:
         limit: 3
@@ -809,6 +809,24 @@ paths:
                       revokedSessions: 3
                     errors: []
         '400':
+          description: Invalid or expired token, or validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                invalidToken:
+                  $ref: '#/components/examples/invalidTokenExample'
+                validationError:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: "2.22"
+                    message: Validation Error
+                    data: {}
+                    errors:
+                      - Email address is required.
+        '422':
           $ref: '#/components/responses/ValidationError'
   /users/me/request-email-change:
     post:
@@ -819,6 +837,10 @@ paths:
         limit: 60
         window: minute
         note: authenticatedLimiter + emailCostLimiter
+      x-dailyQuota:
+        limit: 1
+        window: day
+        scope: account
       requestBody:
         required: true
         content:
@@ -837,109 +859,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "4.90"
+                    message: Check your email to confirm this action.
+                    data:
+                      disclaimer: If you did not receive an email when you should have, please check your spam folder or try again later.
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/DailyQuotaExceeded429'
   /users/me/verify-email-change:
     post:
       tags: [Users]
       summary: Confirm email change
-      description: Confirm email change via token; CAPTCHA protected.
-      security: []
-      x-rateLimit:
-        limit: 3
-        window: 5m
-        note: sensitiveActionLimiter + captchaLimiter
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token, email, captchaToken]
-              properties:
-                token:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                captchaToken:
-                  type: string
-      responses:
-        '200':
-          description: Email updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '409':
-          $ref: '#/components/responses/Conflict'
-  /users/me/request-account-deletion:
-    post:
-      tags: [Users]
-      summary: Request account deletion (POST)
-      description: Start delete flow (also available as DELETE). Email cost limiter enforced.
-      x-rateLimit:
-        limit: 60
-        window: minute
-        note: authenticatedLimiter + emailCostLimiter
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-            examples:
-              requestDelete:
-                value: {}
-      responses:
-        '200':
-          description: Requested
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-              examples:
-                success:
-                  value:
-                    status: success
-                    httpCode: 200
-                    responseTime: "6.07"
-                    message: Check your email to confirm this action.
-                    data:
-                      disclaimer: Your account will remain active until you confirm the deletion request.
-                    errors: []
-    delete:
-      tags: [Users]
-      summary: Request account deletion (DELETE)
-      description: Start delete flow using DELETE verb. Email cost limiter enforced.
-      x-rateLimit:
-        limit: 60
-        window: minute
-        note: authenticatedLimiter + emailCostLimiter
-      responses:
-        '200':
-          description: Requested
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-              examples:
-                success:
-                  value:
-                    status: success
-                    httpCode: 200
-                    responseTime: "6.07"
-                    message: Check your email to confirm this action.
-                    data:
-                      disclaimer: Your account will remain active until you confirm the deletion request.
-                    errors: []
-  /users/me/verify-account-deletion:
-    post:
-      tags: [Users]
-      summary: Confirm account deletion
-      description: Confirm permanent deletion using email + token + CAPTCHA.
+      description: Confirm email change via token; CAPTCHA protected. Invalid token/email/password/captcha all return the same invalid token response to prevent enumeration.
       security: []
       x-rateLimit:
         limit: 3
@@ -950,16 +888,143 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [token, email, captchaToken]
-              properties:
-                token:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                captchaToken:
-                  type: string
+              $ref: '#/components/schemas/VerifyEmailChangeRequest'
+            examples:
+              confirm:
+                summary: Confirm email change
+                value:
+                  token: "<email-change-token>"
+                  oldEmail: jane@example.com
+                  newEmail: jane.new@example.com
+                  password: P@ssw0rd123!
+                  captchaToken: "<captcha-token>"
+      responses:
+        '200':
+          description: Email updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.10"
+                    message: Your email address has been updated.
+                    data:
+                      disclaimer: Please log in with your new email address. You have been signed out on all devices.
+                    errors: []
+        '400':
+          description: Invalid or expired token, or validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                invalidToken:
+                  $ref: '#/components/examples/invalidTokenExample'
+                validationError:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: "2.22"
+                    message: Validation Error
+                    data: {}
+                    errors:
+                      - Your current email address is required.
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /users/me/request-account-deletion:
+    post:
+      tags: [Users]
+      summary: Request account deletion (POST)
+      description: Start delete flow (also available as DELETE). Email cost limiter enforced. Request body is not used.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      x-dailyQuota:
+        limit: 2
+        window: day
+        scope: account
+        sharedAcrossMethods: [POST, DELETE]
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.07"
+                    message: Check your email to confirm this deletion request.
+                    data:
+                      disclaimer: Our support team will only be notified after you confirm via the email link.
+                    errors: []
+        '429':
+          $ref: '#/components/responses/DailyQuotaExceeded429'
+    delete:
+      tags: [Users]
+      summary: Request account deletion (DELETE)
+      description: Start delete flow using DELETE verb. Email cost limiter enforced. Request body is not used.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      x-dailyQuota:
+        limit: 2
+        window: day
+        scope: account
+        sharedAcrossMethods: [POST, DELETE]
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.07"
+                    message: Check your email to confirm this deletion request.
+                    data:
+                      disclaimer: Our support team will only be notified after you confirm via the email link.
+                    errors: []
+        '429':
+          $ref: '#/components/responses/DailyQuotaExceeded429'
+  /users/me/verify-account-deletion:
+    post:
+      tags: [Users]
+      summary: Confirm account deletion
+      description: Confirm permanent deletion using email + token + password + explicit confirmation + CAPTCHA. Invalid token/email/password/captcha return the same invalid token response to prevent enumeration.
+      security: []
+      x-rateLimit:
+        limit: 3
+        window: 5m
+        note: sensitiveActionLimiter + captchaLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyAccountDeletionRequest'
+            examples:
+              confirmDeletion:
+                summary: Confirm deletion
+                value:
+                  token: "<verification-token>"
+                  email: jane@example.com
+                  password: P@ssw0rd123!
+                  confirm: true
+                  captchaToken: "<captcha-token>"
       responses:
         '200':
           description: Confirmed
@@ -967,6 +1032,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.01"
+                    message: Your request has been forwarded to our support team.
+                    data:
+                      disclaimer: A member of our team will contact you on the confirmed email address to finalize the deletion.
+                    errors: []
+        '400':
+          description: Invalid or expired token, or validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                invalidToken:
+                  $ref: '#/components/examples/invalidTokenExample'
+                validationError:
+                  value:
+                    status: error
+                    httpCode: 400
+                    responseTime: "2.22"
+                    message: Validation Error
+                    data: {}
+                    errors:
+                      - Email address is required.
   /users/me/sessions:
     get:
       tags: [Users]
@@ -5475,6 +5568,38 @@ components:
                 data: {}
                 errors:
                   - An unexpected error occurred while processing the request.
+    InvalidOrExpiredToken:
+      description: Token invalid, expired, or details mismatch
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            invalidToken:
+              value:
+                status: error
+                httpCode: 400
+                responseTime: "2.10"
+                message: Invalid or expired token
+                data: {}
+                errors:
+                  - The confirmation token is invalid, has expired, or the supplied information does not match this request.
+    DailyQuotaExceeded429:
+      description: Daily quota exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            quotaExceeded:
+              value:
+                status: error
+                httpCode: 429
+                responseTime: "2.20"
+                message: Daily quota exceeded
+                data: {}
+                errors:
+                  - You have reached the daily limit for this action. Please try again tomorrow.
   examples:
     authLoginRequest:
       summary: Login request
@@ -5523,6 +5648,16 @@ components:
         data: {}
         errors:
           - The requested resource could not be located.
+    invalidTokenExample:
+      summary: Invalid or expired token
+      value:
+        status: error
+        httpCode: 400
+        responseTime: "2.10"
+        message: Invalid or expired token
+        data: {}
+        errors:
+          - The confirmation token is invalid, has expired, or the supplied information does not match this request.
   schemas:
     ApiResponse:
       description: Standard response envelope used for every endpoint.
@@ -5750,6 +5885,7 @@ components:
             - type: boolean
             - type: string
     ResetPasswordRequest:
+      description: Payload to reset password with emailed token and CAPTCHA.
       type: object
       required: [captchaToken, email, token, newPassword]
       properties:
@@ -5763,6 +5899,7 @@ components:
         newPassword:
           type: string
     UpdateUserRequest:
+      description: Updatable user profile fields for self-update.
       type: object
       properties:
         fullName:
@@ -5771,12 +5908,56 @@ components:
           type: string
           nullable: true
     ChangePasswordRequest:
+      description: Change password for the authenticated user.
       type: object
       required: [currentPassword, newPassword]
       properties:
         currentPassword:
           type: string
         newPassword:
+          type: string
+    VerifyEmailChangeRequest:
+      description: Confirm an email change using token, old/new email, password, and CAPTCHA. All errors for mismatched token/email/password/captcha are generic to prevent enumeration.
+      type: object
+      required: [token, oldEmail, newEmail, password, captchaToken]
+      properties:
+        token:
+          description: Confirmation token from the email.
+          type: string
+        oldEmail:
+          description: Current email address on the account.
+          type: string
+          format: email
+        newEmail:
+          description: New email address that was requested.
+          type: string
+          format: email
+        password:
+          description: Current account password for verification.
+          type: string
+        captchaToken:
+          description: CAPTCHA token for action `verify_email_change`.
+          type: string
+    VerifyAccountDeletionRequest:
+      description: Confirm permanent account deletion using token, email, password, explicit confirmation flag, and CAPTCHA. Invalid token/email/password/captcha return a generic invalid/expired token error.
+      type: object
+      required: [token, email, password, confirm, captchaToken]
+      properties:
+        token:
+          description: Confirmation token from the deletion email.
+          type: string
+        email:
+          description: Account email; must match the pending request.
+          type: string
+          format: email
+        password:
+          description: Current account password.
+          type: string
+        confirm:
+          description: Must be true to confirm deletion.
+          type: boolean
+        captchaToken:
+          description: CAPTCHA token for action `verify_account_deletion`.
           type: string
     BookType:
       type: object
