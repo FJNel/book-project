@@ -1,0 +1,4531 @@
+openapi: 3.1.0
+info:
+  title: The Book Project API
+  version: 1.0.0
+  description: |
+    Source-of-truth OpenAPI specification for the Book Project REST API. All endpoints return
+    a consistent JSON envelope and support either Bearer access tokens or API keys unless
+    explicitly marked public. See `docs/api-overview.md` for a short primer; this file is the
+    authoritative reference.
+servers:
+  - url: https://api.fjnel.co.za
+    description: Production server
+security:
+  - bearerAuth: []
+  - apiKeyHeader: []
+  - apiKeyAuthHeader: []
+tags:
+  - name: Meta
+  - name: Auth
+  - name: Users
+  - name: BookTypes
+  - name: Authors
+  - name: Publishers
+  - name: Series
+  - name: BookSeriesLinks
+  - name: Languages
+  - name: Books
+  - name: StorageLocations
+  - name: BookCopies
+  - name: Tags
+  - name: Search
+  - name: ImportExport
+  - name: Logs
+  - name: Timeline
+  - name: Admin
+  - name: Stats
+paths:
+  /:
+    get:
+      tags: [Meta]
+      summary: API base
+      description: Health check that confirms the API is reachable and returns the docs URL.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timestamp:
+                            type: string
+                          apiDocumentationUrl:
+                            type: string
+              examples:
+                success:
+                  summary: Base check
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '1.08'
+                    message: The API is working!
+                    data:
+                      timestamp: '2025-01-14T17:23:51Z'
+                      apiDocumentationUrl: https://api.fjnel.co.za/api-docs.html
+                    errors: []
+  /health:
+    get:
+      tags: [Meta]
+      summary: Health check
+      description: Simple uptime monitor endpoint.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          timestamp:
+                            type: string
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '1.12'
+                    message: OK
+                    data:
+                      status: ok
+                      timestamp: 2026-01-02T15:59:12.921Z
+                    errors: []
+  /rate-limits:
+    get:
+      tags: [Meta]
+      summary: Rate limit status
+      description: Return current rate-limit window for the authenticated user.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter (shared bucket across authenticated endpoints)
+      responses:
+        '200':
+          description: Current bucket
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RateLimitStatus'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '1.74'
+                    message: Rate limit status retrieved successfully.
+                    data:
+                      limit: 60
+                      remaining: 54
+                      resetTime: 2026-01-02T16:05:00.000Z
+                    errors: []
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register
+      description: Create a new user account. CAPTCHA required for the `register` action.
+      security: []
+      x-rateLimit:
+        limit: 5
+        window: 10m
+        note: captchaLimiter action=register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Registration accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          disclaimer:
+                            type: string
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '2.58'
+                    message: If this email can be registered, you will receive an email with the next steps shortly.
+                    data:
+                      disclaimer: If you do not see an email within a few minutes, please check your spam folder or try again later.
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend verification email
+      description: Resend verification email for an unverified account. CAPTCHA action `resend_verification`.
+      security: []
+      x-rateLimit:
+        limit: 1
+        window: 5m
+        note: captchaLimiter action=resend_verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [captchaToken, email]
+              properties:
+                captchaToken:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '3.12'
+                    message: If you have registered an account with this email address and it is unverified, you will receive a verification email.
+                    data:
+                      disclaimer: If you did not receive an email when you should have, please check your spam folder or try again later.
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email
+      description: Verify user email using token sent during registration. CAPTCHA action `verify_email`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [captchaToken, email, token]
+              properties:
+                captchaToken:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email/password
+      description: Authenticate and issue access/refresh tokens. CAPTCHA action `login`.
+      security: []
+      x-rateLimit:
+        limit: 10
+        window: 10m
+        note: captchaLimiter action=login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponseData'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: '18.02'
+                    message: Login successful.
+                    data:
+                      accessToken: <jwt>
+                      refreshToken: <jwt>
+                      user:
+                        id: 12
+                        email: jane@example.com
+                        fullName: Jane Doe
+                        preferredName: Jane
+                        role: user
+                        isVerified: true
+                        passwordUpdated: 2024-07-11T10:22:33.000Z
+                        lastLogin: 2025-01-17T09:20:11.000Z
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Exchange a refresh token for a new access token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      description: Revoke a single refresh token or all sessions for the authenticated user.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /auth/request-password-reset:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      description: Send password reset email if account exists. CAPTCHA action `request_password_reset`.
+      security: []
+      x-rateLimit:
+        limit: 1
+        window: 5m
+        note: captchaLimiter action=request_password_reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [captchaToken, email]
+              properties:
+                captchaToken:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      description: Reset password using emailed token. CAPTCHA action `reset_password`.
+      security: []
+      x-rateLimit:
+        limit: 1
+        window: 5m
+        note: captchaLimiter action=reset_password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Reset complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Login with Google
+      description: Sign up or sign in using a verified Google ID token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponseData'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get my profile
+      description: Retrieve authenticated user's profile and connected OAuth providers.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Users]
+      summary: Update my profile
+      description: Update fullName and/or preferredName.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      summary: Request account disable
+      description: Initiate soft-delete and send confirmation email. Daily quota enforced plus email cost limiter.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/me/verify-delete:
+    post:
+      tags: [Users]
+      summary: Confirm account disable
+      description: Confirm disable request with email+token and CAPTCHA.
+      security: []
+      x-rateLimit:
+        limit: 3
+        window: 5m
+        note: sensitiveActionLimiter + captchaLimiter action=verify_delete + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, captchaToken]
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                captchaToken:
+                  type: string
+      responses:
+        '200':
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /users/me/request-email-change:
+    post:
+      tags: [Users]
+      summary: Request email change
+      description: Send verification link to change account email. Email cost limiter enforced.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newEmail]
+              properties:
+                newEmail:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /users/me/verify-email-change:
+    post:
+      tags: [Users]
+      summary: Confirm email change
+      description: Confirm email change via token; CAPTCHA protected.
+      security: []
+      x-rateLimit:
+        limit: 3
+        window: 5m
+        note: sensitiveActionLimiter + captchaLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, captchaToken]
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                captchaToken:
+                  type: string
+      responses:
+        '200':
+          description: Email updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /users/me/request-account-deletion:
+    post:
+      tags: [Users]
+      summary: Request account deletion (POST)
+      description: Start delete flow (also available as DELETE). Email cost limiter enforced.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Users]
+      summary: Request account deletion (DELETE)
+      description: Start delete flow using DELETE verb. Email cost limiter enforced.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + emailCostLimiter
+      responses:
+        '200':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /users/me/verify-account-deletion:
+    post:
+      tags: [Users]
+      summary: Confirm account deletion
+      description: Confirm permanent deletion using email + token + CAPTCHA.
+      security: []
+      x-rateLimit:
+        limit: 3
+        window: 5m
+        note: sensitiveActionLimiter + captchaLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, captchaToken]
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                captchaToken:
+                  type: string
+      responses:
+        '200':
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /users/me/sessions:
+    get:
+      tags: [Users]
+      summary: List my sessions
+      description: List active refresh token fingerprints for the authenticated user.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          sessions:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Session'
+    delete:
+      tags: [Users]
+      summary: Revoke all sessions
+      description: Revoke all refresh tokens for current user.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /users/me/sessions/{fingerprint}:
+    delete:
+      tags: [Users]
+      summary: Revoke session by fingerprint
+      description: Revoke a single session fingerprint.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/fingerprint'
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/me/change-password:
+    post:
+      tags: [Users]
+      summary: Change password
+      description: Change password with current password, protected by sensitive limiter and email cost.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: authenticatedLimiter + sensitiveActionLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /users/me/api-keys:
+    get:
+      tags: [Users]
+      summary: List API keys
+      description: List API keys for the authenticated user.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Keys
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          apiKeys:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ApiKey'
+    post:
+      tags: [Users]
+      summary: Create API key
+      description: Create a new API key.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                expiresAt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ApiKeyCreated'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Users]
+      summary: Revoke API keys
+      description: Revoke an API key by name or id; when neither is supplied, revokes all keys.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /users/me/stats:
+    get:
+      tags: [Users, Stats]
+      summary: User stats
+      description: Retrieve per-user statistics (sessions, api keys, books summary). Uses statsLimiter.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter keyed by user.id
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+        '429':
+          $ref: '#/components/responses/RateLimit'
+  /booktype:
+    get:
+      tags: [BookTypes]
+      summary: List or fetch book types
+      description: List book types with filtering or fetch a single record by id/name. JSON body and query fields are both accepted; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeListRequest'
+      responses:
+        '200':
+          description: Book types
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookTypeList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [BookTypes]
+      summary: Create book type
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    put:
+      tags: [BookTypes]
+      summary: Update book type (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [BookTypes]
+      summary: Delete book type (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /booktype/stats:
+    get:
+      tags: [BookTypes, Stats]
+      summary: Book type statistics
+      description: Aggregate counts and averages for book types. Body fields may also be provided via query.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookTypeStatsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /booktype/{id}:
+    get:
+      tags: [BookTypes]
+      summary: Get book type by id
+      description: Retrieve a book type and optionally include stats.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Book type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [BookTypes]
+      summary: Update book type by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [BookTypes]
+      summary: Delete book type by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /booktype/by-name:
+    get:
+      tags: [BookTypes]
+      summary: Get book type by name
+      description: Retrieve a book type by name, optionally include stats. Body and query accepted; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Book type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /author:
+    get:
+      tags: [Authors]
+      summary: List or fetch authors
+      description: List authors with filtering or fetch single by id/name. Body fields also allowed via query; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorListRequest'
+      responses:
+        '200':
+          description: Authors
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthorList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Authors]
+      summary: Create author
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    put:
+      tags: [Authors]
+      summary: Update author by body (id or displayName)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Authors]
+      summary: Delete author (by id or displayName)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /author/{id}:
+    get:
+      tags: [Authors]
+      summary: Get author by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Author
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Authors]
+      summary: Update author by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Authors]
+      summary: Delete author by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /author/by-name:
+    get:
+      tags: [Authors]
+      summary: Get author by name
+      description: Retrieve author by displayName. Body and query accepted; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName]
+              properties:
+                id:
+                  type: integer
+                displayName:
+                  type: string
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Author
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /author/trash:
+    get:
+      tags: [Authors]
+      summary: List deleted authors
+      description: List authors with deleted_at set.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Deleted authors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /author/restore:
+    post:
+      tags: [Authors]
+      summary: Restore deleted author
+      description: Restore soft-deleted author by id.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /author/stats:
+    get:
+      tags: [Authors, Stats]
+      summary: Author stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /bookauthor/stats:
+    get:
+      tags: [Authors, Stats]
+      summary: Book-author link stats
+      description: Stats on book-author relationships.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /publisher:
+    get:
+      tags: [Publishers]
+      summary: List or fetch publishers
+      description: List publishers with filtering or fetch single by id/name. Body accepted for filters and overrides query.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherListRequest'
+      responses:
+        '200':
+          description: Publishers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Publishers]
+      summary: Create publisher
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [Publishers]
+      summary: Update publisher (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Publishers]
+      summary: Delete publisher (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /publisher/{id}:
+    get:
+      tags: [Publishers]
+      summary: Get publisher by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Publisher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Publishers]
+      summary: Update publisher by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Publishers]
+      summary: Delete publisher by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /publisher/by-name:
+    get:
+      tags: [Publishers]
+      summary: Get publisher by name
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                returnStats:
+                  type: boolean
+      responses:
+        '200':
+          description: Publisher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /publisher/trash:
+    get:
+      tags: [Publishers]
+      summary: List deleted publishers
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Deleted publishers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /publisher/restore:
+    post:
+      tags: [Publishers]
+      summary: Restore deleted publisher
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /publisher/stats:
+    get:
+      tags: [Publishers, Stats]
+      summary: Publisher stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries:
+    get:
+      tags: [Series]
+      summary: List or fetch book series
+      description: List series with filters or fetch single by id/name. Body accepted; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesListRequest'
+      responses:
+        '200':
+          description: Series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      tags: [Series]
+      summary: Create series
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [Series]
+      summary: Update series (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Series]
+      summary: Delete series (by id or name)
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/{id}:
+    get:
+      tags: [Series]
+      summary: Get series by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Series]
+      summary: Update series by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Series]
+      summary: Delete series by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/by-name:
+    get:
+      tags: [Series]
+      summary: Get series by name
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/link:
+    post:
+      tags: [BookSeriesLinks]
+      summary: Link book to series
+      description: Create series-book link with optional bookOrder.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesLinkRequest'
+      responses:
+        '201':
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [BookSeriesLinks]
+      summary: Update series link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesLinkRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [BookSeriesLinks]
+      summary: Delete series link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesLinkDelete'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/trash:
+    get:
+      tags: [Series]
+      summary: List deleted series
+      responses:
+        '200':
+          description: Deleted series list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/restore:
+    post:
+      tags: [Series]
+      summary: Restore deleted series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseries/stats:
+    get:
+      tags: [Series, Stats]
+      summary: Series stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookseriesbooks/stats:
+    get:
+      tags: [BookSeriesLinks, Stats]
+      summary: Series-book stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /languages:
+    get:
+      tags: [Languages]
+      summary: List languages
+      description: Return active languages. Auth required.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Languages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          languages:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Language'
+  /languages/stats:
+    get:
+      tags: [Languages, Stats]
+      summary: Language stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /book:
+    get:
+      tags: [Books]
+      summary: List or fetch books
+      description: Retrieve books with filters or fetch single by id/isbn/title. Supports optional JSON body; body wins over query. Use `view` to control projection and `returnStats` for a single record.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookListRequest'
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    post:
+      tags: [Books]
+      summary: Create book
+      description: Create book with authors, languages, tags, series, and optional initial copy.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    put:
+      tags: [Books]
+      summary: Update book (by id or title/isbn)
+      description: Update book fields using flexible identifiers.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Books]
+      summary: Delete book (by id or title/isbn)
+      description: Soft-delete a book.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /book/{id}:
+    put:
+      tags: [Books]
+      summary: Update book by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Books]
+      summary: Delete book by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /book/trash:
+    get:
+      tags: [Books]
+      summary: List deleted books
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Deleted books list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /book/restore:
+    post:
+      tags: [Books]
+      summary: Restore deleted book
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /book/stats:
+    get:
+      tags: [Books, Stats]
+      summary: Book stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /storagelocation:
+    get:
+      tags: [StorageLocations]
+      summary: List or fetch storage locations
+      description: List storage locations with tree paths; filter by id/name/parent. Body overrides query.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationListRequest'
+      responses:
+        '200':
+          description: Storage locations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      tags: [StorageLocations]
+      summary: Create storage location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [StorageLocations]
+      summary: Update storage location (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [StorageLocations]
+      summary: Delete storage location (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /storagelocation/{id}:
+    put:
+      tags: [StorageLocations]
+      summary: Update storage location by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [StorageLocations]
+      summary: Delete storage location by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /storagelocation/{id}/bookcopies:
+    get:
+      tags: [StorageLocations, BookCopies]
+      summary: List book copies in storage location
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                includeNested:
+                  type: boolean
+      responses:
+        '200':
+          description: Copies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /storagelocation/bookcopies:
+    get:
+      tags: [StorageLocations, BookCopies]
+      summary: List book copies by storage path filter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storageLocationPath:
+                  type: string
+                includeNested:
+                  type: boolean
+      responses:
+        '200':
+          description: Copies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /storagelocation/stats:
+    get:
+      tags: [StorageLocations, Stats]
+      summary: Storage stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /timeline/buckets:
+    post:
+      tags: [Timeline, Stats]
+      summary: Timeline buckets
+      description: Build histogram buckets for books or acquisitions. Uses statsLimiter and accepts manual or auto bucket configuration.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimelineBucketsRequest'
+      responses:
+        '200':
+          description: Buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TimelineBucketsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /bookcopy:
+    get:
+      tags: [BookCopies]
+      summary: List or fetch book copies
+      description: Retrieve copies with filters or single by id. Body accepted; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyListRequest'
+      responses:
+        '200':
+          description: Book copies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      tags: [BookCopies]
+      summary: Create book copy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [BookCopies]
+      summary: Update book copy (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [BookCopies]
+      summary: Delete book copy (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyDeleteFlexible'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookcopy/{id}:
+    put:
+      tags: [BookCopies]
+      summary: Update book copy by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [BookCopies]
+      summary: Delete book copy by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /bookcopy/stats:
+    get:
+      tags: [BookCopies, Stats]
+      summary: Book copy stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /tags:
+    get:
+      tags: [Tags]
+      summary: List tags
+      description: List tags with optional filters.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filterName:
+                  type: string
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /search:
+    get:
+      tags: [Search]
+      summary: Search entities
+      description: Multi-entity search across books, authors, publishers, series, tags. Accepts query or JSON body; body wins.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /tags/stats:
+    get:
+      tags: [Tags, Stats]
+      summary: Tag stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /booktags/stats:
+    get:
+      tags: [Tags, Stats]
+      summary: Book-tag stats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /export:
+    get:
+      tags: [ImportExport]
+      summary: Export data
+      description: Export full dataset as JSON. Auth required.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Export payload
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /import:
+    post:
+      tags: [ImportExport]
+      summary: Import data
+      description: Import dataset; may overwrite/merge.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dryRun:
+                  type: boolean
+                data:
+                  type: object
+      responses:
+        '200':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /logs:
+    get:
+      tags: [Logs]
+      summary: List logs
+      description: Retrieve logs with filters. Body allowed; body wins.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogListRequest'
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /logs/search:
+    post:
+      tags: [Logs]
+      summary: Search logs
+      description: Advanced log search with filters/sorting and JSON body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogListRequest'
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /logs/log_types:
+    get:
+      tags: [Logs]
+      summary: Log types
+      responses:
+        '200':
+          description: Types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /logs/levels:
+    get:
+      tags: [Logs]
+      summary: Log levels
+      responses:
+        '200':
+          description: Levels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /logs/statuses:
+    get:
+      tags: [Logs]
+      summary: Log statuses
+      responses:
+        '200':
+          description: Statuses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Admin list users
+      description: Admin-only list with filtering and optional JSON body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserListRequest'
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      tags: [Admin]
+      summary: Admin create user
+      description: Create user as admin; can omit password to send setup email.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    put:
+      tags: [Admin]
+      summary: Admin update user (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdateFlexible'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Admin]
+      summary: Admin disable user (flexible)
+      description: Soft-disable user by id or email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserDisableFlexible'
+      responses:
+        '200':
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Admin get user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nameOnly:
+                  type: boolean
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [Admin]
+      summary: Admin update user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Admin]
+      summary: Admin disable user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/enable:
+    post:
+      tags: [Admin]
+      summary: Enable user (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/enable:
+    post:
+      tags: [Admin]
+      summary: Enable user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/unverify:
+    post:
+      tags: [Admin]
+      summary: Unverify user (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Unverified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/unverify:
+    post:
+      tags: [Admin]
+      summary: Unverify user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Unverified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/verify:
+    post:
+      tags: [Admin]
+      summary: Verify user (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/verify:
+    post:
+      tags: [Admin]
+      summary: Verify user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/send-verification:
+    post:
+      tags: [Admin]
+      summary: Send verification email (flexible)
+      x-rateLimit:
+        limit: 1
+        window: 5m
+        note: adminEmailLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/send-verification:
+    post:
+      tags: [Admin]
+      summary: Send verification email by id
+      x-rateLimit:
+        limit: 1
+        window: 5m
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/reset-password:
+    post:
+      tags: [Admin]
+      summary: Send password reset email (flexible)
+      x-rateLimit:
+        limit: 1
+        window: 5m
+        note: adminEmailLimiter + emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/reset-password:
+    post:
+      tags: [Admin]
+      summary: Send password reset email by id
+      x-rateLimit:
+        limit: 1
+        window: 5m
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/sessions:
+    post:
+      tags: [Admin]
+      summary: List sessions for user (flexible)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/sessions:
+    post:
+      tags: [Admin]
+      summary: List sessions for user by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/force-logout:
+    post:
+      tags: [Admin]
+      summary: Force logout (flexible)
+      description: Revoke all sessions for a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserActionFlexible'
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/force-logout:
+    post:
+      tags: [Admin]
+      summary: Force logout by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/handle-account-deletion:
+    post:
+      tags: [Admin]
+      summary: Delete account permanently (flexible)
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: adminDeletionLimiter + sensitiveActionLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDeletionRequest'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/users/{id}/handle-account-deletion:
+    post:
+      tags: [Admin]
+      summary: Delete account permanently by id
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDeletionRequest'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/languages:
+    post:
+      tags: [Admin, Languages]
+      summary: Admin create language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      tags: [Admin, Languages]
+      summary: Admin update language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Admin, Languages]
+      summary: Admin delete language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageDelete'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /admin/languages/{id}:
+    put:
+      tags: [Admin, Languages]
+      summary: Admin update language by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageUpdateById'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags: [Admin, Languages]
+      summary: Admin delete language by id
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /status:
+    get:
+      tags: [Admin]
+      summary: Admin status check
+      description: Check database and email queue health.
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    apiKeyAuthHeader:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Use value `ApiKey <apiKey>`.
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Numeric identifier.
+    fingerprint:
+      name: fingerprint
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Refresh token fingerprint.
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 400
+                responseTime: '2.10'
+                message: Validation Error
+                data: {}
+                errors:
+                  - Example validation message
+    AuthError:
+      description: Authentication required or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 401
+                responseTime: '2.18'
+                message: Authentication required for this action.
+                data: {}
+                errors:
+                  - Missing or invalid Authorization header.
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 403
+                responseTime: '2.41'
+                message: "Forbidden: Insufficient permissions."
+                data: {}
+                errors:
+                  - You do not have permission to perform this action.
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 404
+                responseTime: '2.84'
+                message: Resource not found.
+                data: {}
+                errors:
+                  - The requested resource could not be located.
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 409
+                responseTime: '2.18'
+                message: Conflict
+                data: {}
+                errors:
+                  - Duplicate or conflicting record.
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 429
+                responseTime: '2.12'
+                message: Too many requests
+                data: {}
+                errors:
+                  - You have exceeded the maximum number of requests. Please try again later.
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          examples:
+            error:
+              value:
+                status: error
+                httpCode: 500
+                responseTime: '6.02'
+                message: Internal Server Error
+                data: {}
+                errors:
+                  - An unexpected error occurred while processing the request.
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        httpCode:
+          type: integer
+        responseTime:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+        errors:
+          type: array
+          items:
+            type: string
+      required: [status, httpCode, responseTime, message, data, errors]
+    RateLimitStatus:
+      type: object
+      properties:
+        limit:
+          type: integer
+        remaining:
+          type: integer
+        resetTime:
+          type: string
+          format: date-time
+    PartialDate:
+      type: object
+      properties:
+        id:
+          type: integer
+        day:
+          type: integer
+          nullable: true
+        month:
+          type: integer
+          nullable: true
+        year:
+          type: integer
+          nullable: true
+        text:
+          type: string
+      required: [text]
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        fullName:
+          type: string
+        preferredName:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+        isVerified:
+          type: boolean
+        isDisabled:
+          type: boolean
+        passwordUpdated:
+          type: string
+          format: date-time
+          nullable: true
+        lastLogin:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        oauthProviders:
+          type: array
+          items:
+            type: string
+    Session:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        ipAddress:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ApiKeyCreated:
+      type: object
+      properties:
+        apiKey:
+          $ref: '#/components/schemas/ApiKey'
+        secret:
+          type: string
+          description: Full API key secret value (only returned on creation).
+    RegisterRequest:
+      type: object
+      required: [captchaToken, fullName, email, password]
+      properties:
+        captchaToken:
+          type: string
+        fullName:
+          type: string
+        preferredName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginRequest:
+      type: object
+      required: [captchaToken, email, password]
+      properties:
+        captchaToken:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginResponseData:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+        allDevices:
+          oneOf:
+            - type: boolean
+            - type: string
+      description: Provide refreshToken unless allDevices is truthy.
+    ResetPasswordRequest:
+      type: object
+      required: [captchaToken, email, token, newPassword]
+      properties:
+        captchaToken:
+          type: string
+        email:
+          type: string
+          format: email
+        token:
+          type: string
+        newPassword:
+          type: string
+    UpdateUserRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        preferredName:
+          type: string
+          nullable: true
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+    BookType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BookTypeListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameOnly:
+          type: boolean
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returnStats:
+          type: boolean
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterId:
+          type: integer
+        filterName:
+          type: string
+        filterDescription:
+          type: string
+    BookTypeList:
+      type: object
+      properties:
+        bookTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookType'
+    BookTypeCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    BookTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    BookTypeUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/BookTypeUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            targetName:
+              type: string
+    BookTypeDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    BookTypeStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    BookTypeStatsResponse:
+      type: object
+      properties:
+        stats:
+          type: object
+    Author:
+      type: object
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        firstNames:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        birthDate:
+          $ref: '#/components/schemas/PartialDate'
+        deceased:
+          type: boolean
+        deathDate:
+          $ref: '#/components/schemas/PartialDate'
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AuthorListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        nameOnly:
+          type: boolean
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returnStats:
+          type: boolean
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterDisplayName:
+          type: string
+        filterFirstNames:
+          type: string
+        filterLastName:
+          type: string
+        filterDeceased:
+          type: boolean
+        filterBio:
+          type: string
+    AuthorList:
+      type: object
+      properties:
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+    AuthorCreate:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+        firstNames:
+          type: string
+        lastName:
+          type: string
+        birthDate:
+          $ref: '#/components/schemas/PartialDate'
+        deceased:
+          type: boolean
+        deathDate:
+          $ref: '#/components/schemas/PartialDate'
+        bio:
+          type: string
+    AuthorUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        firstNames:
+          type: string
+        lastName:
+          type: string
+        birthDate:
+          $ref: '#/components/schemas/PartialDate'
+        deceased:
+          type: boolean
+        deathDate:
+          $ref: '#/components/schemas/PartialDate'
+        bio:
+          type: string
+    AuthorUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/AuthorUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            displayName:
+              type: string
+    AuthorDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+    AuthorStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    Publisher:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        foundedDate:
+          $ref: '#/components/schemas/PartialDate'
+        website:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    PublisherListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameOnly:
+          type: boolean
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returnStats:
+          type: boolean
+    PublisherCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        foundedDate:
+          $ref: '#/components/schemas/PartialDate'
+        website:
+          type: string
+        notes:
+          type: string
+    PublisherUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        foundedDate:
+          $ref: '#/components/schemas/PartialDate'
+        website:
+          type: string
+        notes:
+          type: string
+    PublisherUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/PublisherUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            targetName:
+              type: string
+    PublisherDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    PublisherStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    Series:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    SeriesListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returnStats:
+          type: boolean
+    SeriesCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        website:
+          type: string
+    SeriesUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        website:
+          type: string
+    SeriesUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/SeriesUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            targetName:
+              type: string
+    SeriesDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    SeriesLinkRequest:
+      type: object
+      required: [seriesId, bookId]
+      properties:
+        seriesId:
+          type: integer
+        bookId:
+          type: integer
+        bookOrder:
+          type: integer
+    SeriesLinkDelete:
+      type: object
+      properties:
+        seriesId:
+          type: integer
+        bookId:
+          type: integer
+    SeriesStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    Language:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    LanguageCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    LanguageUpdate:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    LanguageDelete:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+    LanguageUpdateById:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+        isbn:
+          type: string
+          nullable: true
+        publicationDate:
+          $ref: '#/components/schemas/PartialDate'
+        pageCount:
+          type: integer
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        bookTypeId:
+          type: integer
+          nullable: true
+        publisherId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    BookListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        isbn:
+          type: string
+        title:
+          type: string
+        view:
+          type: string
+          enum: [all, card, nameOnly]
+        nameOnly:
+          type: boolean
+        limit:
+          type: integer
+        offset:
+          type: integer
+        returnStats:
+          type: boolean
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterTitle:
+          type: string
+        filterIsbn:
+          type: string
+        filterBookTypeId:
+          type: integer
+        filterPublisherId:
+          type: integer
+        filterAuthorId:
+          type: integer
+        filterSeriesId:
+          type: integer
+        filterTag:
+          type: string
+        filterLanguageId:
+          type: integer
+        filterPageMin:
+          type: integer
+        filterPageMax:
+          type: integer
+        filterPublishedBefore:
+          type: string
+        filterPublishedAfter:
+          type: string
+    BookCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        isbn:
+          type: string
+        publicationDate:
+          $ref: '#/components/schemas/PartialDate'
+        pageCount:
+          type: integer
+        coverImageUrl:
+          type: string
+        description:
+          type: string
+        bookTypeId:
+          oneOf:
+            - type: integer
+            - type: array
+              items:
+                type: integer
+        publisherId:
+          oneOf:
+            - type: integer
+            - type: array
+              items:
+                type: integer
+        authors:
+          type: array
+          items:
+            oneOf:
+              - type: integer
+              - type: object
+                properties:
+                  authorId:
+                    type: integer
+                  authorRole:
+                    type: string
+        languageIds:
+          type: array
+          items:
+            type: integer
+        languageNames:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        series:
+          type: array
+          items:
+            oneOf:
+              - type: integer
+              - type: object
+                properties:
+                  seriesId:
+                    type: integer
+                  bookOrder:
+                    type: integer
+        bookCopy:
+          $ref: '#/components/schemas/BookCopyCreate'
+        bookCopies:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookCopyCreate'
+        dryRun:
+          type: boolean
+    BookUpdate:
+      allOf:
+        - $ref: '#/components/schemas/BookCreate'
+        - type: object
+          properties:
+            title:
+              type: string
+    BookUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/BookUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            isbn:
+              type: string
+            targetTitle:
+              type: string
+    BookDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        isbn:
+          type: string
+        title:
+          type: string
+    BookStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    StorageLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        path:
+          type: string
+    StorageLocationListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parentId:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        includeNested:
+          type: boolean
+    StorageLocationCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        parentId:
+          type: integer
+        notes:
+          type: string
+    StorageLocationUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: integer
+        notes:
+          type: string
+    StorageLocationUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/StorageLocationUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+    StorageLocationDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    StorageLocationStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    TimelineBucketsRequest:
+      type: object
+      properties:
+        entity:
+          type: string
+          enum: [books, acquisitions]
+        field:
+          type: string
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        step:
+          type: integer
+        stepUnit:
+          type: string
+          enum: [day, month, year]
+        numberOfBuckets:
+          type: integer
+        auto:
+          type: boolean
+        hideEmptyBuckets:
+          type: boolean
+    TimelineBucketsResponse:
+      type: object
+      properties:
+        entity:
+          type: string
+        field:
+          type: string
+        start:
+          type: string
+        end:
+          type: string
+        step:
+          type: integer
+        stepUnit:
+          type: string
+        numberOfBuckets:
+          type: integer
+        hideEmptyBuckets:
+          type: boolean
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              start:
+                type: string
+              end:
+                type: string
+              label:
+                type: string
+              count:
+                type: integer
+        beforeStart:
+          type: integer
+        afterEnd:
+          type: integer
+        unknown:
+          type: integer
+    BookCopy:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookId:
+          type: integer
+        storageLocationId:
+          type: integer
+          nullable: true
+        storageLocationPath:
+          type: string
+          nullable: true
+        acquisitionStory:
+          type: string
+          nullable: true
+        acquisitionDate:
+          $ref: '#/components/schemas/PartialDate'
+        acquiredFrom:
+          type: string
+          nullable: true
+        acquisitionType:
+          type: string
+          nullable: true
+        acquisitionLocation:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    BookCopyListRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        includeNested:
+          type: boolean
+        returnStats:
+          type: boolean
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterBookId:
+          type: integer
+        filterStorageLocationId:
+          type: integer
+        filterStorageLocationPath:
+          type: string
+        filterAcquiredAfter:
+          type: string
+        filterAcquiredBefore:
+          type: string
+    BookCopyCreate:
+      type: object
+      required: [bookId]
+      properties:
+        bookId:
+          type: integer
+        storageLocationId:
+          type: integer
+        storageLocationPath:
+          type: string
+        acquisitionStory:
+          type: string
+        acquisitionDate:
+          $ref: '#/components/schemas/PartialDate'
+        acquiredFrom:
+          type: string
+        acquisitionType:
+          type: string
+        acquisitionLocation:
+          type: string
+        notes:
+          type: string
+    BookCopyUpdate:
+      type: object
+      properties:
+        storageLocationId:
+          type: integer
+        storageLocationPath:
+          type: string
+        acquisitionStory:
+          type: string
+        acquisitionDate:
+          oneOf:
+            - $ref: '#/components/schemas/PartialDate'
+            - type: 'null'
+        acquiredFrom:
+          type: string
+        acquisitionType:
+          type: string
+        acquisitionLocation:
+          type: string
+        notes:
+          type: string
+    BookCopyUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/BookCopyUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+    BookCopyDeleteFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+    BookCopyStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        breakdownLimit:
+          type: integer
+    SearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        limit:
+          type: integer
+        include:
+          type: array
+          items:
+            type: string
+            enum: [books, authors, publishers, series, tags]
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        status:
+          type: string
+        userId:
+          type: integer
+          nullable: true
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+    LogListRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterAction:
+          type: string
+        filterStatus:
+          type: string
+        filterUserId:
+          type: integer
+        filterCreatedAfter:
+          type: string
+        filterCreatedBefore:
+          type: string
+    AdminUserListRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        sortBy:
+          type: string
+        order:
+          type: string
+        filterEmail:
+          type: string
+        filterRole:
+          type: string
+        filterVerified:
+          type: boolean
+        filterDisabled:
+          type: boolean
+    AdminUserCreate:
+      type: object
+      required: [fullName, email]
+      properties:
+        fullName:
+          type: string
+        preferredName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        noPassword:
+          type: boolean
+        duration:
+          type: integer
+        role:
+          type: string
+          enum: [user, admin]
+    AdminUserUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+        preferredName:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        duration:
+          type: integer
+        role:
+          type: string
+          enum: [user, admin]
+    AdminUserUpdateFlexible:
+      allOf:
+        - $ref: '#/components/schemas/AdminUserUpdate'
+        - type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+    AdminUserDisableFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+    AdminUserActionFlexible:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+    AdminDeletionRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        confirm:
+          type: boolean
+        reason:
+          type: string
+        userToBeDeletedEmail:
+          type: string

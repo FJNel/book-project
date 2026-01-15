@@ -9,13 +9,14 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [Error Response](#error-response)
     - [Envelope Fields](#envelope-fields)
   - [Rate Limiting](#rate-limiting)
-  - [Shared Behaviours](#shared-behaviours)
-    - [Common Authentication Response (401)](#common-authentication-response-401)
-    - [Common Forbidden Response (403)](#common-forbidden-response-403)
-    - [Common Server Error Response (500)](#common-server-error-response-500)
-    - [Common Rate Limit Response (429)](#common-rate-limit-response-429)
-    - [Partial Date Object](#partial-date-object)
-  - [Endpoints](#endpoints)
+- [Shared Behaviours](#shared-behaviours)
+  - [Common Authentication Response (401)](#common-authentication-response-401)
+  - [Common Forbidden Response (403)](#common-forbidden-response-403)
+  - [Common Server Error Response (500)](#common-server-error-response-500)
+  - [Common Rate Limit Response (429)](#common-rate-limit-response-429)
+  - [Partial Date Object](#partial-date-object)
+- [Data Conventions](#data-conventions)
+- [Endpoints](#endpoints)
     - [GET /](#get-)
     - [GET /health](#get-health)
     - [GET /rate-limits](#get-rate-limits)
@@ -345,6 +346,12 @@ Rules:
 - If `day` is provided, `month` and `year` must also be provided.
 - If `month` is provided, `year` must also be provided.
 - `text` must match the provided values in English (`"23 October 2005"`, `"October 2005"`, or `"2005"`).
+
+## Data Conventions
+
+- **ISBN normalisation:** The API stores ISBN-10/ISBN-13 as digits only with an optional final `X` for ISBN-10. Hyphens/spaces are stripped; any invalid format returns a validation error.
+- **URLs:** All URL fields must be valid `http://` or `https://` URLs with no spaces. Bare domains are rejected.
+- **Unicode text:** Book, author, publisher, and series names accept accented characters and common punctuation. Length limits remain unchanged.
 
 ## Endpoints
 
@@ -8840,6 +8847,8 @@ Available fields:
 </details>
 
 ## Books
+
+**Quick links:** [GET /book](#get-book) · [POST /book](#post-book) · [PUT /book](#put-book) · [DELETE /book](#delete-book) · [GET /book/trash](#get-booktrash) · [POST /book/restore](#post-bookrestore) · [GET /book/stats](#get-bookstats)
 
 ### GET /book
 
