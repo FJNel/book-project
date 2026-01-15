@@ -7,38 +7,63 @@ info:
     a consistent JSON envelope and support either Bearer access tokens or API keys unless
     explicitly marked public. See `docs/api-overview.md` for a short primer; this file is the
     authoritative reference.
+  license:
+    name: The Book Project Source-Available Proprietary License
+    url: https://bookproject.fjnel.co.za
 servers:
   - url: https://api.fjnel.co.za
     description: Production server
+  - url: http://127.0.0.1:4000
+    description: Local development
 security:
   - bearerAuth: []
   - apiKeyHeader: []
   - apiKeyAuthHeader: []
 tags:
   - name: Meta
+    description: Service metadata and health endpoints.
   - name: Auth
+    description: Registration, login, tokens, and account security flows.
   - name: Users
+    description: Authenticated user self-service actions.
   - name: BookTypes
+    description: Manage book format/type taxonomy for a user.
   - name: Authors
+    description: Author records and related maintenance.
   - name: Publishers
+    description: Publisher records and related maintenance.
   - name: Series
+    description: Series records and related maintenance.
   - name: BookSeriesLinks
+    description: Linking books to series and ordering within a series.
   - name: Languages
+    description: Language catalogue (admin-controlled).
   - name: Books
+    description: Book records, filtering, and stats.
   - name: StorageLocations
+    description: Storage locations/shelves for physical copies.
   - name: BookCopies
+    description: Individual physical copies and acquisition metadata.
   - name: Tags
+    description: Tag catalogue and book-tag links.
   - name: Search
+    description: Cross-entity search endpoints.
   - name: ImportExport
+    description: Import/export utilities.
   - name: Logs
+    description: Audit and HTTP logs.
   - name: Timeline
+    description: Time-based aggregations for books and acquisitions.
   - name: Admin
+    description: Admin-only endpoints and elevated user management.
   - name: Stats
+    description: Statistics and aggregates across entities.
 paths:
   /:
     get:
       tags: [Meta]
       summary: API base
+      operationId: getApiBase
       description: Health check that confirms the API is reachable and returns the docs URL.
       security: []
       responses:
@@ -76,6 +101,7 @@ paths:
     get:
       tags: [Meta]
       summary: Health check
+      operationId: getHealth
       description: Simple uptime monitor endpoint.
       security: []
       responses:
@@ -106,10 +132,13 @@ paths:
                       status: ok
                       timestamp: 2026-01-02T15:59:12.921Z
                     errors: []
+        '429':
+          $ref: '#/components/responses/RateLimit'
   /rate-limits:
     get:
       tags: [Meta]
       summary: Rate limit status
+      operationId: getRateLimits
       description: Return current rate-limit window for the authenticated user.
       x-rateLimit:
         limit: 60
@@ -145,6 +174,7 @@ paths:
     post:
       tags: [Auth]
       summary: Register
+      operationId: registerUser
       description: Create a new user account. CAPTCHA required for the `register` action.
       security: []
       x-rateLimit:
@@ -210,6 +240,7 @@ paths:
     post:
       tags: [Auth]
       summary: Resend verification email
+      operationId: resendVerificationEmail
       description: Resend verification email for an unverified account. CAPTCHA action `resend_verification`.
       security: []
       x-rateLimit:
@@ -268,6 +299,7 @@ paths:
     post:
       tags: [Auth]
       summary: Verify email
+      operationId: verifyEmail
       description: Verify user email using token sent during registration. CAPTCHA action `verify_email`.
       security: []
       requestBody:
@@ -298,6 +330,7 @@ paths:
     post:
       tags: [Auth]
       summary: Login with email/password
+      operationId: loginWithEmail
       description: Authenticate and issue access/refresh tokens. CAPTCHA action `login`.
       security: []
       x-rateLimit:
@@ -363,6 +396,7 @@ paths:
     post:
       tags: [Auth]
       summary: Refresh access token
+      operationId: refreshAccessToken
       description: Exchange a refresh token for a new access token.
       security: []
       requestBody:
@@ -413,6 +447,7 @@ paths:
     post:
       tags: [Auth]
       summary: Logout
+      operationId: logout
       description: Revoke a single refresh token or all sessions for the authenticated user.
       x-rateLimit:
         limit: 60
@@ -470,6 +505,7 @@ paths:
     post:
       tags: [Auth]
       summary: Request password reset
+      operationId: requestPasswordReset
       description: Send password reset email if account exists. CAPTCHA action `request_password_reset`.
       security: []
       x-rateLimit:
@@ -528,6 +564,7 @@ paths:
     post:
       tags: [Auth]
       summary: Reset password
+      operationId: resetPassword
       description: Reset password using emailed token. CAPTCHA action `reset_password`.
       security: []
       x-rateLimit:
@@ -585,6 +622,7 @@ paths:
     post:
       tags: [Auth]
       summary: Login with Google
+      operationId: loginWithGoogle
       description: Sign up or sign in using a verified Google ID token.
       security: []
       requestBody:
@@ -642,6 +680,7 @@ paths:
     get:
       tags: [Users]
       summary: Get my profile
+      operationId: getMyProfile
       description: Retrieve authenticated user's profile and connected OAuth providers.
       x-rateLimit:
         limit: 60
@@ -686,6 +725,7 @@ paths:
     put:
       tags: [Users]
       summary: Update my profile
+      operationId: updateMyProfile
       description: Update fullName and/or preferredName.
       x-rateLimit:
         limit: 60
@@ -733,9 +773,12 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Users]
       summary: Request account disable
+      operationId: requestAccountDisable
       description: Initiate soft-delete and send confirmation email. Daily quota enforced plus email cost limiter.
       x-rateLimit:
         limit: 60
@@ -764,6 +807,7 @@ paths:
     post:
       tags: [Users]
       summary: Confirm account disable
+      operationId: verifyAccountDisable
       description: Confirm disable request with email+token and CAPTCHA. Invalid token/email/captcha are returned as a generic invalid/expired token to avoid enumeration.
       security: []
       x-rateLimit:
@@ -832,6 +876,7 @@ paths:
     post:
       tags: [Users]
       summary: Request email change
+      operationId: requestEmailChange
       description: Send verification link to change account email. Email cost limiter enforced.
       x-rateLimit:
         limit: 60
@@ -877,6 +922,7 @@ paths:
     post:
       tags: [Users]
       summary: Confirm email change
+      operationId: confirmEmailChange
       description: Confirm email change via token; CAPTCHA protected. Invalid token/email/password/captcha all return the same invalid token response to prevent enumeration.
       security: []
       x-rateLimit:
@@ -939,6 +985,7 @@ paths:
     post:
       tags: [Users]
       summary: Request account deletion (POST)
+      operationId: requestAccountDeletionPost
       description: Start delete flow (also available as DELETE). Email cost limiter enforced. Request body is not used.
       x-rateLimit:
         limit: 60
@@ -971,6 +1018,7 @@ paths:
     delete:
       tags: [Users]
       summary: Request account deletion (DELETE)
+      operationId: requestAccountDeletionDelete
       description: Start delete flow using DELETE verb. Email cost limiter enforced. Request body is not used.
       x-rateLimit:
         limit: 60
@@ -1004,6 +1052,7 @@ paths:
     post:
       tags: [Users]
       summary: Confirm account deletion
+      operationId: verifyAccountDeletion
       description: Confirm permanent deletion using email + token + password + explicit confirmation + CAPTCHA. Invalid token/email/password/captcha return the same invalid token response to prevent enumeration.
       security: []
       x-rateLimit:
@@ -1064,6 +1113,7 @@ paths:
     get:
       tags: [Users]
       summary: List my sessions
+      operationId: listMySessions
       description: List active refresh token fingerprints for the authenticated user.
       x-rateLimit:
         limit: 60
@@ -1085,9 +1135,12 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Users]
       summary: Revoke all sessions
+      operationId: revokeAllSessions
       description: Revoke all refresh tokens for current user.
       x-rateLimit:
         limit: 60
@@ -1099,10 +1152,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /users/me/sessions/{fingerprint}:
     delete:
       tags: [Users]
       summary: Revoke session by fingerprint
+      operationId: revokeSessionByFingerprint
       description: Revoke a single session fingerprint.
       x-rateLimit:
         limit: 60
@@ -1118,10 +1174,13 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /users/me/change-password:
     post:
       tags: [Users]
       summary: Change password
+      operationId: changeMyPassword
       description: Change password with current password, protected by sensitive limiter and email cost.
       x-rateLimit:
         limit: 60
@@ -1146,6 +1205,7 @@ paths:
     get:
       tags: [Users]
       summary: List API keys
+      operationId: listApiKeys
       description: List API keys for the authenticated user.
       x-rateLimit:
         limit: 60
@@ -1167,9 +1227,12 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/AuthError'
     post:
       tags: [Users]
       summary: Create API key
+      operationId: createApiKey
       description: Create a new API key.
       x-rateLimit:
         limit: 60
@@ -1203,9 +1266,12 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '409':
           $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Users]
       summary: Revoke API keys
+      operationId: revokeApiKeys
       description: Revoke an API key by name or id; when neither is supplied, revokes all keys.
       x-rateLimit:
         limit: 60
@@ -1228,10 +1294,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /users/me/stats:
     get:
       tags: [Users, Stats]
       summary: User stats
+      operationId: getMyStats
       description: Retrieve per-user statistics (sessions, api keys, books summary). Uses statsLimiter.
       x-rateLimit:
         limit: 20
@@ -1258,6 +1327,7 @@ paths:
     get:
       tags: [BookTypes]
       summary: List or fetch book types
+      operationId: listBookTypes
       description: List book types with filtering or fetch a single record by id/name. JSON body and query fields are both accepted; body wins.
       x-rateLimit:
         limit: 60
@@ -1329,6 +1399,7 @@ paths:
     post:
       tags: [BookTypes]
       summary: Create book type
+      operationId: createBookType
       x-rateLimit:
         limit: 60
         window: minute
@@ -1372,6 +1443,7 @@ paths:
     put:
       tags: [BookTypes]
       summary: Update book type (by id or name)
+      operationId: updateBookType
       x-rateLimit:
         limit: 60
         window: minute
@@ -1418,6 +1490,7 @@ paths:
     delete:
       tags: [BookTypes]
       summary: Delete book type (by id or name)
+      operationId: deleteBookType
       x-rateLimit:
         limit: 60
         window: minute
@@ -1453,10 +1526,13 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /booktype/stats:
     get:
       tags: [BookTypes, Stats]
       summary: Book type statistics
+      operationId: getBookTypeStats
       description: Aggregate counts and averages for book types. Body fields may also be provided via query.
       x-rateLimit:
         limit: 20
@@ -1537,6 +1613,7 @@ paths:
     get:
       tags: [BookTypes]
       summary: Get book type by id
+      operationId: getBookTypeById
       description: Retrieve a book type and optionally include stats.
       x-rateLimit:
         limit: 60
@@ -1589,6 +1666,7 @@ paths:
     put:
       tags: [BookTypes]
       summary: Update book type by id
+      operationId: updateBookTypeById
       x-rateLimit:
         limit: 60
         window: minute
@@ -1616,6 +1694,7 @@ paths:
     delete:
       tags: [BookTypes]
       summary: Delete book type by id
+      operationId: deleteBookTypeById
       x-rateLimit:
         limit: 60
         window: minute
@@ -1634,6 +1713,7 @@ paths:
     get:
       tags: [BookTypes]
       summary: Get book type by name
+      operationId: getBookTypeByName
       description: Retrieve a book type by name, optionally include stats. Body and query accepted; body wins.
       x-rateLimit:
         limit: 60
@@ -1691,6 +1771,7 @@ paths:
     get:
       tags: [Authors]
       summary: List or fetch authors
+      operationId: listAuthors
       description: List authors with filtering or fetch single by id/name. Body fields also allowed via query; body wins.
       x-rateLimit:
         limit: 60
@@ -1772,6 +1853,7 @@ paths:
     post:
       tags: [Authors]
       summary: Create author
+      operationId: createAuthor
       x-rateLimit:
         limit: 60
         window: minute
@@ -1824,6 +1906,7 @@ paths:
     put:
       tags: [Authors]
       summary: Update author by body (id or displayName)
+      operationId: updateAuthor
       x-rateLimit:
         limit: 60
         window: minute
@@ -1865,6 +1948,7 @@ paths:
     delete:
       tags: [Authors]
       summary: Delete author (by id or displayName)
+      operationId: deleteAuthor
       x-rateLimit:
         limit: 60
         window: minute
@@ -1904,6 +1988,7 @@ paths:
     get:
       tags: [Authors]
       summary: Get author by id
+      operationId: getAuthorById
       x-rateLimit:
         limit: 60
         window: minute
@@ -1969,6 +2054,7 @@ paths:
     put:
       tags: [Authors]
       summary: Update author by id
+      operationId: updateAuthorById
       x-rateLimit:
         limit: 60
         window: minute
@@ -1996,6 +2082,7 @@ paths:
     delete:
       tags: [Authors]
       summary: Delete author by id
+      operationId: deleteAuthorById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2014,6 +2101,7 @@ paths:
     get:
       tags: [Authors]
       summary: Get author by name
+      operationId: getAuthorByName
       description: Retrieve author by displayName. Body and query accepted; body wins.
       x-rateLimit:
         limit: 60
@@ -2085,6 +2173,7 @@ paths:
     get:
       tags: [Authors]
       summary: List deleted authors
+      operationId: listDeletedAuthors
       description: List authors with deleted_at set.
       x-rateLimit:
         limit: 60
@@ -2109,10 +2198,13 @@ paths:
                           displayName: "Sample Deleted Author"
                           deletedAt: "2025-02-01T10:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /author/restore:
     post:
       tags: [Authors]
       summary: Restore deleted author
+      operationId: restoreAuthor
       description: Restore soft-deleted author by id.
       x-rateLimit:
         limit: 60
@@ -2149,10 +2241,13 @@ paths:
                     data:
                       id: 5
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /author/stats:
     get:
       tags: [Authors, Stats]
       summary: Author stats
+      operationId: getAuthorStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -2194,6 +2289,7 @@ paths:
     get:
       tags: [Authors, Stats]
       summary: Book-author link stats
+      operationId: getBookAuthorStats
       description: Stats on book-author relationships.
       x-rateLimit:
         limit: 20
@@ -2219,10 +2315,13 @@ paths:
                         uniqueAuthors: 7
                         uniqueBooks: 10
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /publisher:
     get:
       tags: [Publishers]
       summary: List or fetch publishers
+      operationId: listPublishers
       description: List publishers with filtering or fetch single by id/name. Body accepted for filters and overrides query.
       x-rateLimit:
         limit: 60
@@ -2247,7 +2346,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                        - $ref: '#/components/schemas/PublisherList'
+                        - $ref: '#/components/schemas/Publisher'
               examples:
                 success:
                   value:
@@ -2268,6 +2374,8 @@ paths:
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -2275,6 +2383,7 @@ paths:
     post:
       tags: [Publishers]
       summary: Create publisher
+      operationId: createPublisher
       x-rateLimit:
         limit: 60
         window: minute
@@ -2311,9 +2420,14 @@ paths:
                     data:
                       id: 11
                     errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [Publishers]
       summary: Update publisher (by id or name)
+      operationId: updatePublisher
       x-rateLimit:
         limit: 60
         window: minute
@@ -2347,11 +2461,14 @@ paths:
                     data:
                       id: 5
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
         '409':
           $ref: '#/components/responses/Conflict'
     delete:
       tags: [Publishers]
       summary: Delete publisher (by id or name)
+      operationId: deletePublisher
       x-rateLimit:
         limit: 60
         window: minute
@@ -2383,10 +2500,13 @@ paths:
                     data:
                       id: 5
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /publisher/{id}:
     get:
       tags: [Publishers]
       summary: Get publisher by id
+      operationId: getPublisherById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2407,12 +2527,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Publisher'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [Publishers]
       summary: Update publisher by id
+      operationId: updatePublisherById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2433,9 +2561,12 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '409':
           $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Publishers]
       summary: Delete publisher by id
+      operationId: deletePublisherById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2448,10 +2579,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /publisher/by-name:
     get:
       tags: [Publishers]
       summary: Get publisher by name
+      operationId: getPublisherByName
       x-rateLimit:
         limit: 60
         window: minute
@@ -2475,13 +2609,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Publisher'
         '404':
           $ref: '#/components/responses/NotFound'
   /publisher/trash:
     get:
       tags: [Publishers]
       summary: List deleted publishers
+      operationId: listDeletedPublishers
       x-rateLimit:
         limit: 60
         window: minute
@@ -2491,7 +2631,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PublisherList'
               examples:
                 success:
                   value:
@@ -2505,10 +2650,13 @@ paths:
                           name: Old Press
                           deletedAt: "2025-02-01T10:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /publisher/restore:
     post:
       tags: [Publishers]
       summary: Restore deleted publisher
+      operationId: restorePublisher
       x-rateLimit:
         limit: 60
         window: minute
@@ -2543,10 +2691,13 @@ paths:
                     data:
                       id: 9
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /publisher/stats:
     get:
       tags: [Publishers, Stats]
       summary: Publisher stats
+      operationId: getPublisherStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -2587,10 +2738,13 @@ paths:
                           name: Allen & Unwin
                           bookCount: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries:
     get:
       tags: [Series]
       summary: List or fetch book series
+      operationId: listSeries
       description: List series with filters or fetch single by id/name. Body accepted; body wins.
       x-rateLimit:
         limit: 60
@@ -2615,7 +2769,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                        - $ref: '#/components/schemas/SeriesList'
+                        - $ref: '#/components/schemas/Series'
               examples:
                 success:
                   value:
@@ -2632,9 +2793,12 @@ paths:
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     post:
       tags: [Series]
       summary: Create series
+      operationId: createSeries
       x-rateLimit:
         limit: 60
         window: minute
@@ -2668,9 +2832,12 @@ paths:
                     data:
                       id: 15
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [Series]
       summary: Update series (by id or name)
+      operationId: updateSeries
       x-rateLimit:
         limit: 60
         window: minute
@@ -2703,9 +2870,12 @@ paths:
                     data:
                       id: 8
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Series]
       summary: Delete series (by id or name)
+      operationId: deleteSeries
       x-rateLimit:
         limit: 60
         window: minute
@@ -2737,10 +2907,13 @@ paths:
                     data:
                       id: 8
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/{id}:
     get:
       tags: [Series]
       summary: Get series by id
+      operationId: getSeriesById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2752,12 +2925,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Series'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [Series]
       summary: Update series by id
+      operationId: updateSeriesById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2776,9 +2957,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Series]
       summary: Delete series by id
+      operationId: deleteSeriesById
       x-rateLimit:
         limit: 60
         window: minute
@@ -2791,10 +2975,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/by-name:
     get:
       tags: [Series]
       summary: Get series by name
+      operationId: getSeriesByName
       requestBody:
         required: false
         content:
@@ -2813,11 +3000,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Series'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/link:
     post:
       tags: [BookSeriesLinks]
       summary: Link book to series
+      operationId: createSeriesLink
       description: Create series-book link with optional bookOrder.
       requestBody:
         required: true
@@ -2849,9 +3046,12 @@ paths:
                     data:
                       id: 44
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [BookSeriesLinks]
       summary: Update series link
+      operationId: updateSeriesLink
       requestBody:
         required: true
         content:
@@ -2882,9 +3082,12 @@ paths:
                     data:
                       id: 44
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [BookSeriesLinks]
       summary: Delete series link
+      operationId: deleteSeriesLink
       requestBody:
         required: true
         content:
@@ -2914,17 +3117,25 @@ paths:
                     data:
                       id: 44
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/trash:
     get:
       tags: [Series]
       summary: List deleted series
+      operationId: listDeletedSeries
       responses:
         '200':
           description: Deleted series list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SeriesList'
               examples:
                 success:
                   value:
@@ -2938,10 +3149,13 @@ paths:
                           name: Old Series
                           deletedAt: "2025-02-01T10:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/restore:
     post:
       tags: [Series]
       summary: Restore deleted series
+      operationId: restoreSeries
       requestBody:
         required: true
         content:
@@ -2973,10 +3187,13 @@ paths:
                     data:
                       id: 20
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseries/stats:
     get:
       tags: [Series, Stats]
       summary: Series stats
+      operationId: getSeriesStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -3017,10 +3234,13 @@ paths:
                           name: The Lord of the Rings
                           bookCount: 3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseriesbooks/stats:
     get:
       tags: [BookSeriesLinks, Stats]
       summary: Series-book stats
+      operationId: getSeriesBookStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -3047,10 +3267,13 @@ paths:
                           name: The Lord of the Rings
                           bookCount: 3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /languages:
     get:
       tags: [Languages]
       summary: List languages
+      operationId: listLanguages
       description: Return active languages. Auth required.
       x-rateLimit:
         limit: 60
@@ -3086,10 +3309,13 @@ paths:
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /languages/stats:
     get:
       tags: [Languages, Stats]
       summary: Language stats
+      operationId: getLanguageStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -3116,10 +3342,13 @@ paths:
                             bookCount: 45
                         languageCoveragePercentage: 92.3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /book:
     get:
       tags: [Books]
       summary: List or fetch books
+      operationId: listBooks
       description: Retrieve books with filters or fetch single by id/isbn/title. Supports optional JSON body; body wins over query. Use `view` to control projection and `returnStats` for a single record.
       x-rateLimit:
         limit: 60
@@ -3154,7 +3383,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/BookList'
+                          - $ref: '#/components/schemas/Book'
               examples:
                 list:
                   summary: List (card view)
@@ -3163,6 +3399,7 @@ paths:
                     httpCode: 200
                     responseTime: "2.18"
                     message: Books retrieved successfully.
+                    errors: []
                     data:
                       books:
                         - id: 12
@@ -3179,12 +3416,11 @@ paths:
                           bookTypeId: 2
                           bookTypeName: Paperback
                           languages:
-                            - id: 2
-                              name: English
+                           - id: 2
+                             name: English
                           tags:
                             - id: 7
                               name: Fantasy
-                    errors: []
                 single:
                   summary: Single record with stats
                   value:
@@ -3192,6 +3428,7 @@ paths:
                     httpCode: 200
                     responseTime: "2.44"
                     message: Book retrieved successfully.
+                    errors: []
                     data:
                       id: 22
                       title: The Lord of the Rings
@@ -3279,17 +3516,6 @@ paths:
                         hasPublisher: true
                         hasBookType: true
                         hasPageCount: true
-                    errors: []
-                conflict:
-                  summary: Multiple matches
-                  value:
-                    status: error
-                    httpCode: 409
-                    responseTime: "2.18"
-                    message: Multiple books matched.
-                    data: {}
-                    errors:
-                      - Multiple books share this title. Please use id or ISBN.
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -3299,6 +3525,7 @@ paths:
     post:
       tags: [Books]
       summary: Create book
+      operationId: createBook
       description: Create book with authors, languages, tags, series, and optional initial copy.
       x-rateLimit:
         limit: 60
@@ -3370,6 +3597,7 @@ paths:
     put:
       tags: [Books]
       summary: Update book (by id or title/isbn)
+      operationId: updateBook
       description: Update book fields using flexible identifiers.
       x-rateLimit:
         limit: 60
@@ -3413,6 +3641,7 @@ paths:
     delete:
       tags: [Books]
       summary: Delete book (by id or title/isbn)
+      operationId: deleteBook
       description: Soft-delete a book.
       x-rateLimit:
         limit: 60
@@ -3453,6 +3682,7 @@ paths:
     put:
       tags: [Books]
       summary: Update book by id
+      operationId: updateBookById
       x-rateLimit:
         limit: 60
         window: minute
@@ -3471,9 +3701,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [Books]
       summary: Delete book by id
+      operationId: deleteBookById
       x-rateLimit:
         limit: 60
         window: minute
@@ -3486,10 +3721,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /book/trash:
     get:
       tags: [Books]
       summary: List deleted books
+      operationId: listDeletedBooks
       x-rateLimit:
         limit: 60
         window: minute
@@ -3499,7 +3739,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookList'
               examples:
                 success:
                   value:
@@ -3513,10 +3758,13 @@ paths:
                           title: Old Book
                           deletedAt: "2025-02-01T10:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /book/restore:
     post:
       tags: [Books]
       summary: Restore deleted book
+      operationId: restoreBook
       x-rateLimit:
         limit: 60
         window: minute
@@ -3551,10 +3799,13 @@ paths:
                     data:
                       id: 33
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /book/stats:
     get:
       tags: [Books, Stats]
       summary: Book stats
+      operationId: getBookStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -3593,10 +3844,13 @@ paths:
                             bookCount: 60
                             percentage: 50.0
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /storagelocation:
     get:
       tags: [StorageLocations]
       summary: List or fetch storage locations
+      operationId: listStorageLocations
       description: List storage locations with tree paths; filter by id/name/parent. Body overrides query.
       x-rateLimit:
         limit: 60
@@ -3620,7 +3874,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StorageLocationList'
               examples:
                 success:
                   value:
@@ -3638,9 +3897,12 @@ paths:
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     post:
       tags: [StorageLocations]
       summary: Create storage location
+      operationId: createStorageLocation
       requestBody:
         required: true
         content:
@@ -3671,9 +3933,12 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [StorageLocations]
       summary: Update storage location (flexible)
+      operationId: updateStorageLocation
       requestBody:
         required: true
         content:
@@ -3704,9 +3969,12 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [StorageLocations]
       summary: Delete storage location (flexible)
+      operationId: deleteStorageLocation
       requestBody:
         required: true
         content:
@@ -3735,10 +4003,13 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /storagelocation/{id}:
     put:
       tags: [StorageLocations]
       summary: Update storage location by id
+      operationId: updateStorageLocationById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -3754,9 +4025,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [StorageLocations]
       summary: Delete storage location by id
+      operationId: deleteStorageLocationById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -3766,10 +4040,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /storagelocation/{id}/bookcopies:
     get:
       tags: [StorageLocations, BookCopies]
       summary: List book copies in storage location
+      operationId: listBookCopiesByLocation
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -3805,10 +4082,13 @@ paths:
                           bookId: 22
                           storageLocationId: 3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /storagelocation/bookcopies:
     get:
       tags: [StorageLocations, BookCopies]
       summary: List book copies by storage path filter
+      operationId: listBookCopiesWithLocations
       requestBody:
         required: false
         content:
@@ -3844,10 +4124,13 @@ paths:
                         - id: 503
                           bookId: 22
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /storagelocation/stats:
     get:
       tags: [StorageLocations, Stats]
       summary: Storage stats
+      operationId: getStorageLocationStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -3887,10 +4170,13 @@ paths:
                             name: Living Room
                             copyCount: 42
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /timeline/buckets:
     post:
       tags: [Timeline, Stats]
       summary: Timeline buckets
+      operationId: getTimelineBuckets
       description: Build histogram buckets for books or acquisitions. Uses statsLimiter and accepts manual or auto bucket configuration.
       x-rateLimit:
         limit: 20
@@ -3968,6 +4254,7 @@ paths:
     get:
       tags: [BookCopies]
       summary: List or fetch book copies
+      operationId: listBookCopies
       description: Retrieve copies with filters or single by id. Body accepted; body wins.
       x-rateLimit:
         limit: 60
@@ -3997,7 +4284,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/BookCopyList'
+                          - $ref: '#/components/schemas/BookCopy'
               examples:
                 list:
                   value:
@@ -4024,24 +4318,21 @@ paths:
                           createdAt: "2025-01-17T10:02:11.000Z"
                           updatedAt: "2025-01-17T10:02:11.000Z"
                     errors: []
-                notFound:
-                  value:
-                    status: error
-                    httpCode: 404
-                    responseTime: "2.84"
-                    message: Book copy not found.
-                    data: {}
-                    errors:
-                      - The requested book copy could not be located.
+        '401':
+          $ref: '#/components/responses/AuthError'
     post:
       tags: [BookCopies]
       summary: Create book copy
+      operationId: createBookCopy
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BookCopyCreate'
+              allOf:
+                - $ref: '#/components/schemas/BookCopyCreate'
+                - type: object
+                  required: [bookId]
             examples:
               default:
                 summary: Create copy with storage path
@@ -4075,9 +4366,12 @@ paths:
                     data:
                       id: 503
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     put:
       tags: [BookCopies]
       summary: Update book copy (flexible)
+      operationId: updateBookCopy
       requestBody:
         required: true
         content:
@@ -4109,9 +4403,12 @@ paths:
                     data:
                       id: 503
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [BookCopies]
       summary: Delete book copy (flexible)
+      operationId: deleteBookCopy
       requestBody:
         required: true
         content:
@@ -4140,10 +4437,13 @@ paths:
                     data:
                       id: 503
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookcopy/{id}:
     put:
       tags: [BookCopies]
       summary: Update book copy by id
+      operationId: updateBookCopyById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -4159,9 +4459,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
     delete:
       tags: [BookCopies]
       summary: Delete book copy by id
+      operationId: deleteBookCopyById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -4171,10 +4478,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookcopy/stats:
     get:
       tags: [BookCopies, Stats]
       summary: Book copy stats
+      operationId: getBookCopyStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -4220,10 +4532,13 @@ paths:
                           totalCopies: 145
                           percentage: 75.9
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /tags:
     get:
       tags: [Tags]
       summary: List tags
+      operationId: listTags
       description: List tags with optional filters.
       x-rateLimit:
         limit: 60
@@ -4265,10 +4580,13 @@ paths:
                         - id: 7
                           name: Fantasy
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /search:
     get:
       tags: [Search]
       summary: Search entities
+      operationId: searchEntities
       description: Multi-entity search across books, authors, publishers, series, tags. Accepts query or JSON body; body wins.
       requestBody:
         required: false
@@ -4307,10 +4625,13 @@ paths:
                         - id: 8
                           name: The Lord of the Rings
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /tags/stats:
     get:
       tags: [Tags, Stats]
       summary: Tag stats
+      operationId: getTagStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -4336,10 +4657,13 @@ paths:
                             count: 34
                         totalTags: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /booktags/stats:
     get:
       tags: [Tags, Stats]
       summary: Book-tag stats
+      operationId: getBookTagStats
       x-rateLimit:
         limit: 20
         window: minute
@@ -4366,10 +4690,13 @@ paths:
                           title: The Lord of the Rings
                           tagCount: 5
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /export:
     get:
       tags: [ImportExport]
       summary: Export data
+      operationId: exportData
       description: Export full dataset as JSON. Auth required.
       x-rateLimit:
         limit: 60
@@ -4399,6 +4726,7 @@ paths:
     post:
       tags: [ImportExport]
       summary: Import data
+      operationId: importData
       description: Import dataset; may overwrite/merge.
       x-rateLimit:
         limit: 60
@@ -4448,6 +4776,7 @@ paths:
     get:
       tags: [Logs]
       summary: List logs
+      operationId: listLogs
       description: Retrieve logs with filters. Body allowed; body wins.
       x-rateLimit:
         limit: 60
@@ -4472,7 +4801,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/LogEntry'
               examples:
                 success:
                   value:
@@ -4488,10 +4827,13 @@ paths:
                           userId: 12
                           createdAt: "2025-02-05T10:21:44.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /logs/search:
     post:
       tags: [Logs]
       summary: Search logs
+      operationId: searchLogs
       description: Advanced log search with filters/sorting and JSON body.
       x-rateLimit:
         limit: 60
@@ -4515,7 +4857,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/LogEntry'
               examples:
                 success:
                   value:
@@ -4526,10 +4878,13 @@ paths:
                     data:
                       logs: []
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /logs/log_types:
     get:
       tags: [Logs]
       summary: Log types
+      operationId: listLogTypes
       responses:
         '200':
           description: Types
@@ -4547,10 +4902,13 @@ paths:
                     data:
                       logTypes: ["HTTP_REQUEST", "USER_REGISTERED", "LOGIN_ATTEMPT"]
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /logs/levels:
     get:
       tags: [Logs]
       summary: Log levels
+      operationId: listLogLevels
       responses:
         '200':
           description: Levels
@@ -4568,10 +4926,13 @@ paths:
                     data:
                       levels: ["info", "warn", "error"]
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /logs/statuses:
     get:
       tags: [Logs]
       summary: Log statuses
+      operationId: listLogStatuses
       responses:
         '200':
           description: Statuses
@@ -4589,10 +4950,13 @@ paths:
                     data:
                       statuses: ["SUCCESS", "FAILURE", "INFO"]
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /admin/users:
     get:
       tags: [Admin]
       summary: Admin list users
+      operationId: adminListUsers
       description: Admin-only list with filtering and optional JSON body.
       x-rateLimit:
         limit: 60
@@ -4635,9 +4999,14 @@ paths:
                           isDisabled: false
                           lastLogin: "2025-02-03T18:10:05.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     post:
       tags: [Admin]
       summary: Admin create user
+      operationId: adminCreateUser
       description: Create user as admin; can omit password to send setup email.
       x-rateLimit:
         limit: 60
@@ -4683,6 +5052,10 @@ paths:
                       createdAt: "2025-02-05T09:00:00.000Z"
                       updatedAt: "2025-02-05T09:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -4690,6 +5063,7 @@ paths:
     put:
       tags: [Admin]
       summary: Admin update user (flexible)
+      operationId: adminUpdateUser
       requestBody:
         required: true
         content:
@@ -4726,9 +5100,14 @@ paths:
                       isDisabled: false
                       updatedAt: "2025-02-05T10:21:44.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     delete:
       tags: [Admin]
       summary: Admin disable user (flexible)
+      operationId: adminDeleteUser
       description: Soft-disable user by id or email.
       requestBody:
         required: true
@@ -4759,10 +5138,15 @@ paths:
                       wasDisabled: true
                       revokedSessions: 2
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}:
     get:
       tags: [Admin]
       summary: Admin get user by id
+      operationId: adminGetUserById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -4807,9 +5191,14 @@ paths:
                       oauthProviders:
                         - google
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     put:
       tags: [Admin]
       summary: Admin update user by id
+      operationId: adminUpdateUserById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -4825,9 +5214,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     delete:
       tags: [Admin]
       summary: Admin disable user by id
+      operationId: adminDeleteUserById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -4837,10 +5231,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/enable:
     post:
       tags: [Admin]
       summary: Enable user (flexible)
+      operationId: adminEnableUser
       requestBody:
         required: true
         content:
@@ -4868,10 +5267,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/enable:
     post:
       tags: [Admin]
       summary: Enable user by id
+      operationId: adminEnableUserById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -4900,10 +5304,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/unverify:
     post:
       tags: [Admin]
       summary: Unverify user (flexible)
+      operationId: adminUnverifyUser
       requestBody:
         required: true
         content:
@@ -4931,10 +5340,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/unverify:
     post:
       tags: [Admin]
       summary: Unverify user by id
+      operationId: adminUnverifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -4954,10 +5368,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/verify:
     post:
       tags: [Admin]
       summary: Verify user (flexible)
+      operationId: adminVerifyUser
       requestBody:
         required: true
         content:
@@ -4985,10 +5404,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/verify:
     post:
       tags: [Admin]
       summary: Verify user by id
+      operationId: adminVerifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -5008,10 +5432,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/send-verification:
     post:
       tags: [Admin]
       summary: Send verification email (flexible)
+      operationId: adminSendVerification
       x-rateLimit:
         limit: 1
         window: 5m
@@ -5043,10 +5472,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/send-verification:
     post:
       tags: [Admin]
       summary: Send verification email by id
+      operationId: adminSendVerificationById
       x-rateLimit:
         limit: 1
         window: 5m
@@ -5059,10 +5493,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/reset-password:
     post:
       tags: [Admin]
       summary: Send password reset email (flexible)
+      operationId: adminResetPassword
       x-rateLimit:
         limit: 1
         window: 5m
@@ -5094,10 +5533,15 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/reset-password:
     post:
       tags: [Admin]
       summary: Send password reset email by id
+      operationId: adminResetPasswordById
       x-rateLimit:
         limit: 1
         window: 5m
@@ -5110,10 +5554,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/sessions:
     post:
       tags: [Admin]
       summary: List sessions for user (flexible)
+      operationId: adminListUserSessions
       requestBody:
         required: true
         content:
@@ -5144,10 +5593,15 @@ paths:
                           issuedAt: "2025-02-04T10:00:00.000Z"
                           expiresAt: "2025-02-11T10:00:00.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/sessions:
     post:
       tags: [Admin]
       summary: List sessions for user by id
+      operationId: adminListUserSessionsById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -5157,10 +5611,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/force-logout:
     post:
       tags: [Admin]
       summary: Force logout (flexible)
+      operationId: adminForceLogout
       description: Revoke all sessions for a user.
       requestBody:
         required: true
@@ -5192,10 +5651,15 @@ paths:
                       fingerprints:
                         - session-abc123
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/force-logout:
     post:
       tags: [Admin]
       summary: Force logout by id
+      operationId: adminForceLogoutById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -5205,10 +5669,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/handle-account-deletion:
     post:
       tags: [Admin]
       summary: Delete account permanently (flexible)
+      operationId: adminHandleAccountDeletion
       x-rateLimit:
         limit: 60
         window: minute
@@ -5260,10 +5729,15 @@ paths:
                         book_tags: 0
                       datesCleaned: 1
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/handle-account-deletion:
     post:
       tags: [Admin]
       summary: Delete account permanently by id
+      operationId: adminHandleAccountDeletionById
       x-rateLimit:
         limit: 60
         window: minute
@@ -5298,10 +5772,15 @@ paths:
                     data:
                       id: 9
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/languages:
     post:
       tags: [Admin, Languages]
       summary: Admin create language
+      operationId: adminCreateLanguage
       requestBody:
         required: true
         content:
@@ -5332,9 +5811,14 @@ paths:
                       createdAt: "2025-01-17T10:02:11.000Z"
                       updatedAt: "2025-01-17T10:02:11.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     put:
       tags: [Admin, Languages]
       summary: Admin update language
+      operationId: adminUpdateLanguage
       requestBody:
         required: true
         content:
@@ -5348,9 +5832,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     delete:
       tags: [Admin, Languages]
       summary: Admin delete language
+      operationId: adminDeleteLanguage
       requestBody:
         required: true
         content:
@@ -5364,10 +5853,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/languages/{id}:
     put:
       tags: [Admin, Languages]
       summary: Admin update language by id
+      operationId: adminUpdateLanguageById
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -5383,9 +5877,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
     delete:
       tags: [Admin, Languages]
       summary: Admin delete language by id
+      operationId: adminDeleteLanguageById
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -5395,10 +5894,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /status:
     get:
       tags: [Admin]
       summary: Admin status check
+      operationId: getAdminStatus
       description: Check database and email queue health.
       responses:
         '200':
@@ -5425,6 +5929,10 @@ paths:
                         failed: 0
                         lastRunAt: "2026-01-02T16:00:10.000Z"
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 components:
   securitySchemes:
     bearerAuth:
@@ -5568,22 +6076,6 @@ components:
                 data: {}
                 errors:
                   - An unexpected error occurred while processing the request.
-    InvalidOrExpiredToken:
-      description: Token invalid, expired, or details mismatch
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ApiResponse'
-          examples:
-            invalidToken:
-              value:
-                status: error
-                httpCode: 400
-                responseTime: "2.10"
-                message: Invalid or expired token
-                data: {}
-                errors:
-                  - The confirmation token is invalid, has expired, or the supplied information does not match this request.
     DailyQuotaExceeded429:
       description: Daily quota exceeded
       content:
@@ -5607,47 +6099,6 @@ components:
         captchaToken: "<captcha-token>"
         email: jane@example.com
         password: P@ssw0rd123!
-    authLoginSuccess:
-      summary: Successful login
-      value:
-        status: success
-        httpCode: 200
-        responseTime: "18.02"
-        message: Login successful.
-        data:
-          accessToken: "<jwt>"
-          refreshToken: "<jwt>"
-          user:
-            id: 12
-            email: jane@example.com
-            fullName: Jane Doe
-            preferredName: Jane
-            role: user
-            isVerified: true
-            isDisabled: false
-            passwordUpdated: "2024-07-11T10:22:33.000Z"
-            lastLogin: "2025-01-17T09:20:11.000Z"
-        errors: []
-    validationErrorExample:
-      summary: Validation error
-      value:
-        status: error
-        httpCode: 400
-        responseTime: "2.22"
-        message: Validation Error
-        data: {}
-        errors:
-          - Email must be provided.
-    notFoundExample:
-      summary: Not found
-      value:
-        status: error
-        httpCode: 404
-        responseTime: "2.84"
-        message: Resource not found.
-        data: {}
-        errors:
-          - The requested resource could not be located.
     invalidTokenExample:
       summary: Invalid or expired token
       value:
@@ -5708,16 +6159,19 @@ components:
           type: integer
         day:
           description: Day of month (1-31) or null when unknown.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         month:
           description: Month (1-12) or null when unknown.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         year:
           description: Year (1-9999) or null when unknown.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         text:
           description: Human-readable date string matching the provided parts (e.g., \"29 July 1954\", \"October 2005\", \"2005\").
           type: string
@@ -5737,8 +6191,9 @@ components:
           type: string
         preferredName:
           description: Optional friendly display name; may be null.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         role:
           description: Role for authorization checks.
           type: string
@@ -5751,14 +6206,16 @@ components:
           type: boolean
         passwordUpdated:
           description: Timestamp of last password change; null for OAuth-only accounts.
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
-          nullable: true
         lastLogin:
           description: Timestamp of the most recent successful login; null if never logged in.
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
-          nullable: true
         createdAt:
           description: Creation timestamp.
           type: string
@@ -5789,12 +6246,14 @@ components:
           format: date-time
         ipAddress:
           description: IP address recorded for the session, if captured.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         userAgent:
           description: User agent string for the session, if captured.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
     ApiKey:
       description: API key metadata; secrets are only shown on creation.
       type: object
@@ -5810,23 +6269,26 @@ components:
           type: string
         lastUsedAt:
           description: Timestamp of last use; null if never used.
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
-          nullable: true
         expiresAt:
           description: Expiry timestamp; null if non-expiring.
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
-          nullable: true
         createdAt:
           description: Creation timestamp.
           type: string
           format: date-time
         revokedAt:
           description: Revocation timestamp; null if active.
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
-          nullable: true
     ApiKeyCreated:
       description: Response payload when creating an API key; includes one-time secret.
       type: object
@@ -5905,8 +6367,9 @@ components:
         fullName:
           type: string
         preferredName:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
     ChangePasswordRequest:
       description: Change password for the authenticated user.
       type: object
@@ -5967,8 +6430,9 @@ components:
         name:
           type: string
         description:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         createdAt:
           type: string
           format: date-time
@@ -6014,16 +6478,18 @@ components:
         name:
           type: string
         description:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
     BookTypeUpdate:
       type: object
       properties:
         name:
           type: string
         description:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
     BookTypeUpdateFlexible:
       allOf:
         - $ref: '#/components/schemas/BookTypeUpdate'
@@ -6060,21 +6526,25 @@ components:
         displayName:
           type: string
         firstNames:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         lastName:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         birthDate:
           $ref: '#/components/schemas/PartialDate'
         deceased:
           type: boolean
         deathDate:
-          $ref: '#/components/schemas/PartialDate'
-          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/PartialDate'
+            - type: "null"
         bio:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         createdAt:
           type: string
           format: date-time
@@ -6190,18 +6660,26 @@ components:
           $ref: '#/components/schemas/PartialDate'
         website:
           description: Publisher website URL if provided.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         notes:
           description: Additional notes about the publisher.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         createdAt:
           description: Creation timestamp.
           type: string
         updatedAt:
           description: Last update timestamp.
           type: string
+        deletedAt:
+          description: Soft-delete timestamp when applicable.
+          type:
+            - string
+            - "null"
+          format: date-time
     PublisherListRequest:
       description: Filters and options for listing or fetching publishers; body overrides query params.
       type: object
@@ -6213,6 +6691,9 @@ components:
         nameOnly:
           description: When true, return only id/name pairs.
           type: boolean
+        includeDeleted:
+          description: Include soft-deleted records when true.
+          type: boolean
         limit:
           description: Page size (1-200).
           type: integer
@@ -6222,6 +6703,63 @@ components:
         returnStats:
           description: Include stats when a single record is returned.
           type: boolean
+        sortBy:
+          description: Sort field (id, name, website, notes, createdAt, updatedAt, foundedDateId, foundedDay, foundedMonth, foundedYear, foundedText).
+          type: string
+        order:
+          description: Sort order, asc or desc.
+          type: string
+          enum: [asc, desc]
+        filterId:
+          type: integer
+        filterName:
+          type: string
+        filterWebsite:
+          type: string
+        filterNotes:
+          type: string
+        filterFoundedDateId:
+          type: integer
+        filterFoundedDay:
+          type: integer
+        filterFoundedMonth:
+          type: integer
+        filterFoundedYear:
+          type: integer
+        filterFoundedText:
+          type: string
+        filterCreatedAt:
+          type: string
+        filterUpdatedAt:
+          type: string
+        filterCreatedAfter:
+          type: string
+        filterCreatedBefore:
+          type: string
+        filterUpdatedAfter:
+          type: string
+        filterUpdatedBefore:
+          type: string
+    BookList:
+      description: Collection of books for list endpoints.
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+        filterFoundedBefore:
+          type: string
+        filterFoundedAfter:
+          type: string
+    PublisherList:
+      description: Collection of publishers in list responses.
+      type: object
+      properties:
+        publishers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Publisher'
     PublisherCreate:
       description: Payload to create a publisher.
       type: object
@@ -6285,12 +6823,19 @@ components:
           type: string
         description:
           description: Optional description of the series.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         website:
           description: Optional series website.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
+        deletedAt:
+          description: Deletion timestamp when soft-deleted.
+          type:
+            - string
+            - "null"
         createdAt:
           description: Creation timestamp.
           type: string
@@ -6305,12 +6850,78 @@ components:
           type: integer
         name:
           type: string
+        nameOnly:
+          type: boolean
+        includeDeleted:
+          type: boolean
         limit:
           type: integer
         offset:
           type: integer
         returnStats:
           type: boolean
+        sortBy:
+          description: Sort field (id, name, description, website, createdAt, updatedAt, startDate*, endDate* variants).
+          type: string
+        order:
+          type: string
+          enum: [asc, desc]
+        filterId:
+          type: integer
+        filterName:
+          type: string
+        filterDescription:
+          type: string
+        filterWebsite:
+          type: string
+        filterStartDateId:
+          type: integer
+        filterStartDay:
+          type: integer
+        filterStartMonth:
+          type: integer
+        filterStartYear:
+          type: integer
+        filterStartText:
+          type: string
+        filterEndDateId:
+          type: integer
+        filterEndDay:
+          type: integer
+        filterEndMonth:
+          type: integer
+        filterEndYear:
+          type: integer
+        filterEndText:
+          type: string
+        filterCreatedAt:
+          type: string
+        filterUpdatedAt:
+          type: string
+        filterCreatedAfter:
+          type: string
+        filterCreatedBefore:
+          type: string
+        filterUpdatedAfter:
+          type: string
+        filterUpdatedBefore:
+          type: string
+        filterStartedBefore:
+          type: string
+        filterStartedAfter:
+          type: string
+        filterEndedBefore:
+          type: string
+        filterEndedAfter:
+          type: string
+    SeriesList:
+      description: Collection of series for list endpoints.
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/Series'
     SeriesCreate:
       description: Payload to create a series.
       type: object
@@ -6428,41 +7039,218 @@ components:
           type: string
         subtitle:
           description: Optional subtitle.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         isbn:
           description: Normalized ISBN-10/13 without spaces/hyphens; may be null.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         publicationDate:
           description: Partial publication date.
           $ref: '#/components/schemas/PartialDate'
         pageCount:
           description: Number of pages; may be null if unknown.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         coverImageUrl:
           description: Fully-qualified image URL.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         description:
           description: Free-text description or synopsis.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         bookTypeId:
           description: Related book type id when using card view.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         publisherId:
           description: Related publisher id when using card view.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
+        bookTypeName:
+          description: Denormalized book type name when included in card view.
+          type:
+            - string
+            - "null"
+        bookType:
+          description: Embedded book type details when requested.
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            description:
+              type:
+                - string
+                - "null"
+        languages:
+          description: Languages attached to the book when included.
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        tags:
+          description: Tags attached to the book when included.
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        publisher:
+          description: Publisher details when included.
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            foundedDate:
+              $ref: '#/components/schemas/PartialDate'
+            website:
+              type:
+                - string
+                - "null"
+            notes:
+              type:
+                - string
+                - "null"
+        authors:
+          description: Linked authors and their roles.
+          type: array
+          items:
+            type: object
+            properties:
+              authorId:
+                type: integer
+              authorRole:
+                type:
+                  - string
+                  - "null"
+              authorName:
+                type: string
+              birthDate:
+                $ref: '#/components/schemas/PartialDate'
+              deathDate:
+                $ref: '#/components/schemas/PartialDate'
+              deceased:
+                type:
+                  - boolean
+                  - "null"
+              bio:
+                type:
+                  - string
+                  - "null"
+        series:
+          description: Series membership when requested.
+          type: array
+          items:
+            type: object
+            properties:
+              seriesId:
+                type: integer
+              seriesName:
+                type: string
+              bookOrder:
+                type:
+                  - integer
+                  - "null"
+        bookCopies:
+          description: Copies of the book including storage info.
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              storageLocationId:
+                type:
+                  - integer
+                  - "null"
+              storageLocationPath:
+                type:
+                  - string
+                  - "null"
+              acquisitionStory:
+                type:
+                  - string
+                  - "null"
+              acquisitionDate:
+                $ref: '#/components/schemas/PartialDate'
+              acquiredFrom:
+                type:
+                  - string
+                  - "null"
+              acquisitionType:
+                type:
+                  - string
+                  - "null"
+              acquisitionLocation:
+                type:
+                  - string
+                  - "null"
+              notes:
+                type:
+                  - string
+                  - "null"
+              createdAt:
+                type: string
+              updatedAt:
+                type: string
+        stats:
+          description: Aggregated stats for the book.
+          type: object
+          properties:
+            copyCount:
+              type: integer
+            authorCount:
+              type: integer
+            tagCount:
+              type: integer
+            languageCount:
+              type: integer
+            seriesCount:
+              type: integer
+            hasIsbn:
+              type: boolean
+            hasPublicationDate:
+              type: boolean
+            hasCoverImage:
+              type: boolean
+            hasDescription:
+              type: boolean
+            hasPublisher:
+              type: boolean
+            hasBookType:
+              type: boolean
+            hasPageCount:
+              type: boolean
         createdAt:
           description: Creation timestamp.
           type: string
         updatedAt:
           description: Last update timestamp.
           type: string
+        deletedAt:
+          description: Deletion timestamp when soft-deleted.
+          type:
+            - string
+            - "null"
     BookListRequest:
       description: Filters and lookup options for listing or fetching books; body values take precedence over query params.
       type: object
@@ -6478,17 +7266,31 @@ components:
           enum: [all, card, nameOnly]
         nameOnly:
           type: boolean
+        includeDeleted:
+          type: boolean
         limit:
           type: integer
         offset:
           type: integer
         returnStats:
           type: boolean
+        sort:
+          description: Array-based sort specification (each with field/order).
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              order:
+                type: string
         sortBy:
           type: string
         order:
           type: string
         filterTitle:
+          type: string
+        filterSubtitle:
           type: string
         filterIsbn:
           type: string
@@ -6504,6 +7306,8 @@ components:
           type: string
         filterLanguageId:
           type: integer
+        filterLanguage:
+          type: string
         filterPageMin:
           type: integer
         filterPageMax:
@@ -6511,6 +7315,24 @@ components:
         filterPublishedBefore:
           type: string
         filterPublishedAfter:
+          type: string
+        filterPublishedYear:
+          type: integer
+        filterPublishedMonth:
+          type: integer
+        filterPublishedDay:
+          type: integer
+        filterCreatedAt:
+          type: string
+        filterUpdatedAt:
+          type: string
+        filterCreatedAfter:
+          type: string
+        filterCreatedBefore:
+          type: string
+        filterUpdatedAfter:
+          type: string
+        filterUpdatedBefore:
           type: string
     BookCreate:
       type: object
@@ -6630,12 +7452,14 @@ components:
           type: string
         parentId:
           description: Parent storage location id for nesting; null for root.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         notes:
           description: Optional notes about the location.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         createdAt:
           type: string
         updatedAt:
@@ -6703,6 +7527,14 @@ components:
           type: array
           items:
             type: string
+    StorageLocationList:
+      description: Collection of storage locations.
+      type: object
+      properties:
+        storageLocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageLocation'
     TimelineBucketsRequest:
       type: object
       properties:
@@ -6778,35 +7610,42 @@ components:
           type: integer
         storageLocationId:
           description: Storage location id; null when not assigned.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         storageLocationPath:
           description: Human-readable storage path string.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         acquisitionStory:
           description: Free-text story about acquisition.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         acquisitionDate:
           description: Partial date of acquisition.
           $ref: '#/components/schemas/PartialDate'
         acquiredFrom:
           description: Who the copy was acquired from.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         acquisitionType:
           description: How the copy was obtained (e.g., Gift, Purchase).
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         acquisitionLocation:
           description: Where the copy was obtained.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         notes:
           description: Additional notes about the copy.
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         createdAt:
           description: Creation timestamp.
           type: string
@@ -6836,13 +7675,36 @@ components:
           type: integer
         filterStorageLocationPath:
           type: string
+        filterAcquisitionStory:
+          type: string
+        filterAcquiredFrom:
+          type: string
+        filterAcquisitionType:
+          type: string
+        filterAcquisitionLocation:
+          type: string
+        filterNotes:
+          type: string
+        filterAcquisitionDateId:
+          type: integer
+        filterAcquisitionDay:
+          type: integer
+        filterAcquisitionMonth:
+          type: integer
+        filterAcquisitionYear:
+          type: integer
+        filterAcquisitionText:
+          type: string
         filterAcquiredAfter:
           type: string
         filterAcquiredBefore:
           type: string
+        filterCreatedAfter:
+          type: string
+        filterCreatedBefore:
+          type: string
     BookCopyCreate:
       type: object
-      required: [bookId]
       properties:
         bookId:
           type: integer
@@ -6904,6 +7766,14 @@ components:
             type: string
         breakdownLimit:
           type: integer
+    BookCopyList:
+      description: Collection of book copies.
+      type: object
+      properties:
+        bookCopies:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookCopy'
     SearchRequest:
       description: Multi-entity search request body.
       type: object
@@ -6934,8 +7804,9 @@ components:
           type: string
         userId:
           description: Related user id when applicable.
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - "null"
         metadata:
           description: Additional structured metadata.
           type: object
@@ -7009,8 +7880,9 @@ components:
         fullName:
           type: string
         preferredName:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
         email:
           type: string
           format: email
