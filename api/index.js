@@ -3,6 +3,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 require("dotenv").config();
 const config = require("./config");
+const fs = require("fs");
+const path = require("path");
+const swaggerUi = require("swagger-ui-express");
+const yaml = require("yaml");
 
 //Import standard response handlers
 const { successResponse, errorResponse } = require("./utils/response");
@@ -78,6 +82,41 @@ app.use(cors(corsOptions));
 
 //Serve static documentation in the "public" folder
 app.use(express.static("public"));
+
+// OpenAPI single source of truth: load YAML once (cached in prod) and serve via /openapi.yaml and /docs
+const isProduction = process.env.NODE_ENV === "production";
+const openApiPath = path.join(__dirname, "docs", "openapi.yaml");
+let cachedOpenApiYaml = "";
+let parsedOpenApiObject = null;
+
+const loadOpenApiSpec = () => {
+	cachedOpenApiYaml = fs.readFileSync(openApiPath, "utf8");
+	parsedOpenApiObject = yaml.parse(cachedOpenApiYaml);
+};
+
+// Initial load; in production we keep it cached until restart
+loadOpenApiSpec();
+
+app.get("/openapi.yaml", (req, res, next) => {
+	try {
+		if (!isProduction) {
+			loadOpenApiSpec(); // keep hot-reloading in development
+		}
+		res.type("text/yaml").send(cachedOpenApiYaml);
+	} catch (err) {
+		next(err);
+	}
+});
+
+const swaggerUiOptions = {
+	swaggerOptions: {
+		url: "/openapi.yaml",
+		persistAuthorization: true
+	},
+	customSiteTitle: "Book Project API Docs"
+};
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 
 
