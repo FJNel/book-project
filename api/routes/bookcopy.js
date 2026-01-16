@@ -405,28 +405,29 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	if (offsetError) errors.push(offsetError);
 
 	let locationIds = null;
-	const filterLocationId = parseId(listParams.filterStorageLocationId);
+	const { ids: filterLocationIds, error: locIdErr } = parseIdArray(listParams.filterStorageLocationId, "filterStorageLocationId");
+	if (locIdErr) errors.push(locIdErr);
 	const filterLocationPath = normalizeText(listParams.filterStorageLocationPath);
-	if (listParams.filterStorageLocationId !== undefined || filterLocationPath) {
-		if (listParams.filterStorageLocationId !== undefined && !Number.isInteger(filterLocationId)) {
-			errors.push("filterStorageLocationId must be a valid integer.");
-		} else if (filterLocationPath && !filterLocationId) {
-			const includeNested = parseBooleanFlag(listParams.includeNested);
+	if ((filterLocationIds && filterLocationIds.length) || filterLocationPath) {
+		const includeNested = parseBooleanFlag(listParams.includeNested);
+		if (filterLocationIds && filterLocationIds.length) {
+			locationIds = [];
+			for (const locId of filterLocationIds) {
+				const resolved = await resolveLocationFilterIds(userId, {
+					locationId: locId,
+					locationPath: filterLocationPath || null,
+					includeNested: includeNested === null ? true : includeNested
+				});
+				if (resolved.error) {
+					errors.push(resolved.error);
+					break;
+				}
+				locationIds.push(...resolved.ids);
+			}
+		} else {
 			const resolved = await resolveLocationFilterIds(userId, {
 				locationId: null,
 				locationPath: filterLocationPath,
-				includeNested: includeNested === null ? true : includeNested
-			});
-			if (resolved.error) {
-				errors.push(resolved.error);
-			} else {
-				locationIds = resolved.ids;
-			}
-		} else if (Number.isInteger(filterLocationId)) {
-			const includeNested = parseBooleanFlag(listParams.includeNested);
-			const resolved = await resolveLocationFilterIds(userId, {
-				locationId: filterLocationId,
-				locationPath: filterLocationPath || null,
 				includeNested: includeNested === null ? true : includeNested
 			});
 			if (resolved.error) {
@@ -442,28 +443,52 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	let paramIndex = 2;
 
 	if (listParams.filterId !== undefined) {
-		const filterId = parseId(listParams.filterId);
-		if (!Number.isInteger(filterId)) {
-			errors.push("filterId must be a valid integer.");
-		} else {
-			filters.push(`bc.id = $${paramIndex++}`);
-			values.push(filterId);
+		const { ids, error } = parseIdArray(listParams.filterId, "filterId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`bc.id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`bc.id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
 	if (listParams.filterBookId !== undefined) {
-		const filterBookId = parseId(listParams.filterBookId);
-		if (!Number.isInteger(filterBookId)) {
-			errors.push("filterBookId must be a valid integer.");
-		} else {
-			filters.push(`bc.book_id = $${paramIndex++}`);
-			values.push(filterBookId);
+		const { ids, error } = parseIdArray(listParams.filterBookId, "filterBookId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterBookIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`bc.book_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`bc.book_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
 	if (locationIds && locationIds.length > 0) {
-		filters.push(`bc.storage_location_id = ANY($${paramIndex++}::int[])`);
-		values.push(locationIds);
+		const mode = String(listParams.filterStorageLocationMode || "or").toLowerCase() === "and" ? "and" : "or";
+		if (mode === "or") {
+			filters.push(`bc.storage_location_id = ANY($${paramIndex++}::int[])`);
+			values.push(locationIds);
+		} else {
+			locationIds.forEach((locId) => {
+				filters.push(`bc.storage_location_id = $${paramIndex++}`);
+				values.push(locId);
+			});
+		}
 	}
 
 	const filterStory = normalizeText(listParams.filterAcquisitionStory);
@@ -497,12 +522,20 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	if (listParams.filterAcquisitionDateId !== undefined) {
-		const filterDateId = parseId(listParams.filterAcquisitionDateId);
-		if (!Number.isInteger(filterDateId)) {
-			errors.push("filterAcquisitionDateId must be a valid integer.");
-		} else {
-			filters.push(`bc.acquisition_date_id = $${paramIndex++}`);
-			values.push(filterDateId);
+		const { ids, error } = parseIdArray(listParams.filterAcquisitionDateId, "filterAcquisitionDateId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterAcquisitionDateMode || "or").toLowerCase() === "and" ? "and" : "or";
+			if (mode === "or") {
+				filters.push(`bc.acquisition_date_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`bc.acquisition_date_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 

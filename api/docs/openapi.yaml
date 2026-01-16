@@ -6946,7 +6946,15 @@ components:
         order:
           type: string
         filterId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single book type id or an array of ids.
+        filterIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple ids are provided, choose AND (default) or OR matching.
         filterName:
           type: string
         filterDescription:
@@ -7074,6 +7082,16 @@ components:
           type: string
         order:
           type: string
+        filterId:
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single author id or an array of ids.
+        filterIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple ids are provided, choose AND (default) or OR matching.
         filterDisplayName:
           type: string
         filterFirstNames:
@@ -7084,6 +7102,24 @@ components:
           type: boolean
         filterBio:
           type: string
+        filterBirthDateId:
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single birth date id or an array of ids.
+        filterBirthDateMode:
+          type: string
+          enum: [and, or]
+        filterDeathDateId:
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single death date id or an array of ids.
+        filterDeathDateMode:
+          type: string
+          enum: [and, or]
     AuthorList:
       type: object
       properties:
@@ -7238,7 +7274,15 @@ components:
           type: string
           enum: [asc, desc]
         filterId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single publisher id or an array of ids.
+        filterIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple publisher ids are provided, choose AND (default) or OR matching.
         filterName:
           type: string
         filterWebsite:
@@ -7246,7 +7290,14 @@ components:
         filterNotes:
           type: string
         filterFoundedDateId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single founded date id or an array of ids.
+        filterFoundedDateMode:
+          type: string
+          enum: [and, or]
         filterFoundedDay:
           type: integer
         filterFoundedMonth:
@@ -7394,7 +7445,15 @@ components:
           type: string
           enum: [asc, desc]
         filterId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single series id or an array of ids.
+        filterIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple series ids are provided, choose AND (default) or OR matching.
         filterName:
           type: string
         filterDescription:
@@ -7402,7 +7461,14 @@ components:
         filterWebsite:
           type: string
         filterStartDateId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single start date id or an array of ids.
+        filterStartDateMode:
+          type: string
+          enum: [and, or]
         filterStartDay:
           type: integer
         filterStartMonth:
@@ -7412,7 +7478,14 @@ components:
         filterStartText:
           type: string
         filterEndDateId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single end date id or an array of ids.
+        filterEndDateMode:
+          type: string
+          enum: [and, or]
         filterEndDay:
           type: integer
         filterEndMonth:
@@ -7822,19 +7895,75 @@ components:
         filterIsbn:
           type: string
         filterBookTypeId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single book type id or an array of ids.
+        filterBookTypeMode:
+          type: string
+          enum: [and, or]
+          description: When multiple book type ids are provided, choose AND (default) or OR matching.
         filterPublisherId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single publisher id or an array of ids.
+        filterPublisherMode:
+          type: string
+          enum: [and, or]
+          description: When multiple publisher ids are provided, choose AND (default) or OR matching.
         filterAuthorId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single author id or an array of ids.
+        filterAuthorMode:
+          type: string
+          enum: [and, or]
+          description: When multiple author ids are provided, choose AND (default) or OR matching.
         filterSeriesId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single series id or an array of ids.
+        filterSeriesMode:
+          type: string
+          enum: [and, or]
+          description: When multiple series ids are provided, choose AND (default) or OR matching.
         filterTag:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+          description: Single tag name or an array of tag names.
+        filterTagMode:
           type: string
+          enum: [and, or]
+          description: When multiple tags are provided, choose AND (default) or OR matching.
         filterLanguageId:
-          type: integer
-        filterLanguage:
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single language id or an array of ids.
+        filterLanguageIdMode:
           type: string
+          enum: [and, or]
+          description: When multiple language ids are provided, choose AND (default) or OR matching.
+        filterLanguage:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+          description: Single language name or an array of language names (normalized, case-insensitive).
+        filterLanguageMode:
+          type: string
+          enum: [and, or]
+          description: When multiple language names are provided, choose AND (default) or OR matching.
         filterPageMin:
           type: integer
         filterPageMax:
@@ -7999,11 +8128,27 @@ components:
       type: object
       properties:
         id:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single storage location id or an array of ids.
+        filterIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple ids are provided, choose AND (default) or OR matching.
         name:
           type: string
         parentId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single parent id or an array of ids.
+        filterParentMode:
+          type: string
+          enum: [and, or]
+          description: When multiple parent ids are provided, choose AND (default) or OR matching.
         limit:
           type: integer
         offset:
@@ -8197,9 +8342,25 @@ components:
         order:
           type: string
         filterBookId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single book id or an array of book ids.
+        filterBookIdMode:
+          type: string
+          enum: [and, or]
+          description: When multiple book ids are provided, choose AND (default) or OR matching.
         filterStorageLocationId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single storage location id or an array of ids.
+        filterStorageLocationMode:
+          type: string
+          enum: [and, or]
+          description: When multiple storage location ids are provided, choose AND (default) or OR matching.
         filterStorageLocationPath:
           type: string
         filterAcquisitionStory:
@@ -8213,7 +8374,15 @@ components:
         filterNotes:
           type: string
         filterAcquisitionDateId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Single acquisition date id or an array of ids.
+        filterAcquisitionDateMode:
+          type: string
+          enum: [and, or]
+          description: When multiple acquisition date ids are provided, choose AND (default) or OR matching.
         filterAcquisitionDay:
           type: integer
         filterAcquisitionMonth:

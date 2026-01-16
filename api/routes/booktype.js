@@ -273,12 +273,20 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		let paramIndex = 2;
 
 		if (listParams.filterId !== undefined) {
-			const filterId = parseId(listParams.filterId);
-			if (!Number.isInteger(filterId)) {
-				errors.push("filterId must be a valid integer.");
-			} else {
-				filters.push(`id = $${paramIndex++}`);
-				values.push(filterId);
+			const { ids, error } = parseIdArray(listParams.filterId, "filterId");
+			if (error) {
+				errors.push(error);
+			} else if (ids.length > 0) {
+				const mode = String(listParams.filterIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+				if (mode === "or") {
+					filters.push(`id = ANY($${paramIndex++}::int[])`);
+					values.push(ids);
+				} else {
+					ids.forEach((id) => {
+						filters.push(`id = $${paramIndex++}`);
+						values.push(id);
+					});
+				}
 			}
 		}
 

@@ -401,22 +401,38 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	if (listParams.filterBirthDateId !== undefined) {
-		const filterBirthDateId = parseId(listParams.filterBirthDateId);
-		if (!Number.isInteger(filterBirthDateId)) {
-			errors.push("filterBirthDateId must be a valid integer.");
-		} else {
-			filters.push(`a.birth_date_id = $${paramIndex++}`);
-			values.push(filterBirthDateId);
+		const { ids, error } = parseIdArray(listParams.filterBirthDateId, "filterBirthDateId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterBirthDateMode || "or").toLowerCase() === "and" ? "and" : "or";
+			if (mode === "or") {
+				filters.push(`a.birth_date_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`a.birth_date_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
 	if (listParams.filterDeathDateId !== undefined) {
-		const filterDeathDateId = parseId(listParams.filterDeathDateId);
-		if (!Number.isInteger(filterDeathDateId)) {
-			errors.push("filterDeathDateId must be a valid integer.");
-		} else {
-			filters.push(`a.death_date_id = $${paramIndex++}`);
-			values.push(filterDeathDateId);
+		const { ids, error } = parseIdArray(listParams.filterDeathDateId, "filterDeathDateId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterDeathDateMode || "or").toLowerCase() === "and" ? "and" : "or";
+			if (mode === "or") {
+				filters.push(`a.death_date_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`a.death_date_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 

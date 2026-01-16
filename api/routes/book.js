@@ -80,6 +80,34 @@ function parseId(value) {
 	return parsed;
 }
 
+function parseIdArray(input, label) {
+	if (input === undefined || input === null) return { ids: [], error: null };
+	const raw = Array.isArray(input) ? input : [input];
+	const ids = [];
+	for (const item of raw) {
+		const parsed = parseId(item);
+		if (!Number.isInteger(parsed)) {
+			return { ids: [], error: `${label} must be an integer or array of integers.` };
+		}
+		ids.push(parsed);
+	}
+	return { ids, error: null };
+}
+
+function parseStringArray(input, label) {
+	if (input === undefined || input === null) return { values: [], error: null };
+	const raw = Array.isArray(input) ? input : [input];
+	const values = [];
+	for (const item of raw) {
+		const normalized = normalizeText(item);
+		if (!normalized) {
+			return { values: [], error: `${label} must be a non-empty string or array of strings.` };
+		}
+		values.push(normalized.toLowerCase());
+	}
+	return { values, error: null };
+}
+
 function validateOptionalText(value, fieldLabel, maxLength) {
 	const errors = [];
 	if (value === undefined || value === null || value === "") {
@@ -913,22 +941,38 @@ async function listBooksHandler(req, res) {
 	}
 
 	if (listParams.filterBookTypeId !== undefined) {
-		const parsed = parseId(listParams.filterBookTypeId);
-		if (!Number.isInteger(parsed)) {
-			errors.push("filterBookTypeId must be a valid integer.");
-		} else {
-			filters.push(`b.book_type_id = $${paramIndex++}`);
-			values.push(parsed);
+		const { ids, error } = parseIdArray(listParams.filterBookTypeId, "filterBookTypeId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterBookTypeMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`b.book_type_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`b.book_type_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
 	if (listParams.filterPublisherId !== undefined) {
-		const parsed = parseId(listParams.filterPublisherId);
-		if (!Number.isInteger(parsed)) {
-			errors.push("filterPublisherId must be a valid integer.");
-		} else {
-			filters.push(`b.publisher_id = $${paramIndex++}`);
-			values.push(parsed);
+		const { ids, error } = parseIdArray(listParams.filterPublisherId, "filterPublisherId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterPublisherMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`b.publisher_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`b.publisher_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
@@ -953,61 +997,116 @@ async function listBooksHandler(req, res) {
 	}
 
 	if (listParams.filterAuthorId !== undefined) {
-		const authorId = parseId(listParams.filterAuthorId);
-		if (!Number.isInteger(authorId)) {
-			errors.push("filterAuthorId must be a valid integer.");
-		} else {
-			filters.push(`EXISTS (SELECT 1 FROM book_authors ba WHERE ba.user_id = $1 AND ba.book_id = b.id AND ba.author_id = $${paramIndex++})`);
-			values.push(authorId);
+		const { ids, error } = parseIdArray(listParams.filterAuthorId, "filterAuthorId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterAuthorMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`EXISTS (SELECT 1 FROM book_authors ba WHERE ba.user_id = $1 AND ba.book_id = b.id AND ba.author_id = ANY($${paramIndex++}::int[]))`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`EXISTS (SELECT 1 FROM book_authors ba WHERE ba.user_id = $1 AND ba.book_id = b.id AND ba.author_id = $${paramIndex++})`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
 	if (listParams.filterSeriesId !== undefined) {
-		const seriesId = parseId(listParams.filterSeriesId);
-		if (!Number.isInteger(seriesId)) {
-			errors.push("filterSeriesId must be a valid integer.");
-		} else {
-			filters.push(`EXISTS (SELECT 1 FROM book_series_books bsb WHERE bsb.user_id = $1 AND bsb.book_id = b.id AND bsb.series_id = $${paramIndex++})`);
-			values.push(seriesId);
+		const { ids, error } = parseIdArray(listParams.filterSeriesId, "filterSeriesId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterSeriesMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`EXISTS (SELECT 1 FROM book_series_books bsb WHERE bsb.user_id = $1 AND bsb.book_id = b.id AND bsb.series_id = ANY($${paramIndex++}::int[]))`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`EXISTS (SELECT 1 FROM book_series_books bsb WHERE bsb.user_id = $1 AND bsb.book_id = b.id AND bsb.series_id = $${paramIndex++})`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
-	const filterTag = normalizeText(listParams.filterTag);
-	if (filterTag) {
-		const normalizedTag = normalizeTagName(filterTag);
-		if (!normalizedTag) {
-			errors.push("filterTag must be a valid tag.");
+	const { values: tagNames, error: tagError } = parseStringArray(listParams.filterTag, "filterTag");
+	if (tagError) {
+		errors.push(tagError);
+	} else if (tagNames.length > 0) {
+		const normalizedTags = tagNames.map(normalizeTagName).filter(Boolean);
+		if (normalizedTags.length !== tagNames.length) {
+			errors.push("filterTag must contain valid tag names.");
 		} else {
-			filters.push(`EXISTS (
-				SELECT 1 FROM book_tags bt
-				JOIN tags t ON bt.tag_id = t.id
-				WHERE bt.user_id = $1 AND bt.book_id = b.id AND t.name_normalized = $${paramIndex++}
-			)`);
-			values.push(normalizedTag);
+			const mode = String(listParams.filterTagMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`EXISTS (
+					SELECT 1 FROM book_tags bt
+					JOIN tags t ON bt.tag_id = t.id
+					WHERE bt.user_id = $1 AND bt.book_id = b.id AND t.name_normalized = ANY($${paramIndex++}::text[])
+				)`);
+				values.push(normalizedTags);
+			} else {
+				normalizedTags.forEach((tag) => {
+					filters.push(`EXISTS (
+						SELECT 1 FROM book_tags bt
+						JOIN tags t ON bt.tag_id = t.id
+						WHERE bt.user_id = $1 AND bt.book_id = b.id AND t.name_normalized = $${paramIndex++}
+					)`);
+					values.push(tag);
+				});
+			}
 		}
 	}
 
 	if (listParams.filterLanguageId !== undefined) {
-		const languageId = parseId(listParams.filterLanguageId);
-		if (!Number.isInteger(languageId)) {
-			errors.push("filterLanguageId must be a valid integer.");
-		} else {
-			filters.push(`EXISTS (
-				SELECT 1 FROM book_languages bl
-				WHERE bl.user_id = $1 AND bl.book_id = b.id AND bl.language_id = $${paramIndex++}
-			)`);
-			values.push(languageId);
+		const { ids, error } = parseIdArray(listParams.filterLanguageId, "filterLanguageId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterLanguageIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`EXISTS (
+					SELECT 1 FROM book_languages bl
+					WHERE bl.user_id = $1 AND bl.book_id = b.id AND bl.language_id = ANY($${paramIndex++}::int[])
+				)`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`EXISTS (
+						SELECT 1 FROM book_languages bl
+						WHERE bl.user_id = $1 AND bl.book_id = b.id AND bl.language_id = $${paramIndex++}
+					)`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
-	const filterLanguage = normalizeText(listParams.filterLanguage);
-	if (filterLanguage) {
-		filters.push(`EXISTS (
-			SELECT 1 FROM book_languages bl
-			JOIN languages l ON bl.language_id = l.id
-			WHERE bl.user_id = $1 AND bl.book_id = b.id AND l.name_normalized = $${paramIndex++}
-		)`);
-		values.push(filterLanguage.toLowerCase());
+	const { values: languageNames, error: languageError } = parseStringArray(listParams.filterLanguage, "filterLanguage");
+	if (languageError) {
+		errors.push(languageError);
+	} else if (languageNames.length > 0) {
+		const mode = String(listParams.filterLanguageMode || "and").toLowerCase() === "or" ? "or" : "and";
+		if (mode === "or") {
+			filters.push(`EXISTS (
+				SELECT 1 FROM book_languages bl
+				JOIN languages l ON bl.language_id = l.id
+				WHERE bl.user_id = $1 AND bl.book_id = b.id AND l.name_normalized = ANY($${paramIndex++}::text[])
+			)`);
+			values.push(languageNames);
+		} else {
+			languageNames.forEach((lang) => {
+				filters.push(`EXISTS (
+					SELECT 1 FROM book_languages bl
+					JOIN languages l ON bl.language_id = l.id
+					WHERE bl.user_id = $1 AND bl.book_id = b.id AND l.name_normalized = $${paramIndex++}
+				)`);
+				values.push(lang);
+			});
+		}
 	}
 
 	const dateFilters = [

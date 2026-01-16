@@ -440,12 +440,20 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	if (listParams.filterId !== undefined) {
-		const filterId = parseId(listParams.filterId);
-		if (!Number.isInteger(filterId)) {
-			errors.push("filterId must be a valid integer.");
-		} else {
-			filters.push(`s.id = $${paramIndex++}`);
-			values.push(filterId);
+		const { ids, error } = parseIdArray(listParams.filterId, "filterId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`s.id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`s.id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
@@ -480,12 +488,20 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	if (listParams.filterStartDateId !== undefined) {
-		const filterStartDateId = parseId(listParams.filterStartDateId);
-		if (!Number.isInteger(filterStartDateId)) {
-			errors.push("filterStartDateId must be a valid integer.");
-		} else {
-			filters.push(`start_date.id = $${paramIndex++}`);
-			values.push(filterStartDateId);
+		const { ids, error } = parseIdArray(listParams.filterStartDateId, "filterStartDateId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterStartDateMode || "or").toLowerCase() === "and" ? "and" : "or";
+			if (mode === "or") {
+				filters.push(`start_date.id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`start_date.id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
@@ -517,12 +533,20 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	if (listParams.filterEndDateId !== undefined) {
-		const filterEndDateId = parseId(listParams.filterEndDateId);
-		if (!Number.isInteger(filterEndDateId)) {
-			errors.push("filterEndDateId must be a valid integer.");
-		} else {
-			filters.push(`end_date.id = $${paramIndex++}`);
-			values.push(filterEndDateId);
+		const { ids, error } = parseIdArray(listParams.filterEndDateId, "filterEndDateId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterEndDateMode || "or").toLowerCase() === "and" ? "and" : "or";
+			if (mode === "or") {
+				filters.push(`end_date.id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`end_date.id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
 		}
 	}
 
