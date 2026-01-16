@@ -27,11 +27,6 @@
       height: 44px;
     }
 
-    .toolbar-subtext {
-      font-size: 0.9rem;
-      color: #6c757d;
-    }
-
     .view-toggle .btn {
       border-radius: 999px;
     }
@@ -127,6 +122,129 @@
     </div>
   </div>
 
+  <!-- Advanced Filters Offcanvas -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersOffcanvas" aria-labelledby="filtersOffcanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="filtersOffcanvasLabel">Advanced filters</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6 col-lg-6">
+          <div class="fw-semibold mb-1">Title & ISBN</div>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterTitle">Title contains</label>
+              <input class="form-control" id="filterTitle" type="text" placeholder="Title contains…" autocomplete="off" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterSubtitle">Subtitle contains</label>
+              <input class="form-control" id="filterSubtitle" type="text" placeholder="Subtitle contains…" autocomplete="off" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterIsbn">ISBN</label>
+              <input class="form-control" id="filterIsbn" type="text" placeholder="ISBN" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-6">
+          <div class="fw-semibold mb-1">Entities</div>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterBookType">Filter by Book Type</label>
+              <select class="form-select" id="filterBookType">
+                <option value="">Any book type</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterPublisher">Filter by Publisher</label>
+              <select class="form-select" id="filterPublisher">
+                <option value="">Any publisher</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterAuthor">Filter by Author</label>
+              <select class="form-select" id="filterAuthor">
+                <option value="">Any author</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="filterSeries">Filter by Series</label>
+              <select class="form-select" id="filterSeries">
+                <option value="">Any series</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-6">
+          <div class="fw-semibold mb-1">Dates & pages</div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small mb-1" for="filterPageMin">Pages min</label>
+              <input class="form-control" id="filterPageMin" type="number" min="1" placeholder="Pages min" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small mb-1" for="filterPageMax">Pages max</label>
+              <input class="form-control" id="filterPageMax" type="number" min="1" placeholder="Pages max" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small mb-1" for="filterPublishedAfter">Published after</label>
+              <input class="form-control" id="filterPublishedAfter" type="date" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small mb-1" for="filterPublishedBefore">Published before</label>
+              <input class="form-control" id="filterPublishedBefore" type="date" />
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-6">
+          <div class="fw-semibold mb-1">Tags & language</div>
+          <div class="row g-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label small mb-1" for="filterTag">Filter by Tag</label>
+              <input class="form-control" id="filterTag" type="text" list="tagOptions" placeholder="Tag name" autocomplete="off" />
+              <datalist id="tagOptions"></datalist>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label small mb-1" for="filterLanguages">Filter by Language(s)</label>
+              <div class="d-flex flex-column gap-1">
+                <div class="d-flex flex-wrap gap-2" id="selectedLanguagesPills"></div>
+                <select class="form-select" id="filterLanguages" multiple size="4">
+                  <option disabled>Loading languages…</option>
+                </select>
+                <button class="btn btn-link btn-sm p-0 align-self-start" type="button" id="clearLanguagesBtn">Clear languages</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-6">
+          <div class="fw-semibold mb-1">Other</div>
+          <div class="d-flex flex-column gap-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="" id="includeDeletedCheck">
+              <label class="form-check-label" for="includeDeletedCheck">Include deleted</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="" id="onlyWithCoverCheck">
+              <label class="form-check-label" for="onlyWithCoverCheck">Only books with covers</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="resetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" data-bs-dismiss="offcanvas">Apply & close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
+      </div>
+    </div>
+  </div>
+
   <main class="container py-3">
     <!-- Breadcrumb + actions -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
@@ -172,7 +290,6 @@
                   <input class="form-control" id="searchInput" type="text" placeholder="Title, subtitle, ISBN, tag..." autocomplete="off" />
                   <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
                 </div>
-                <div class="toolbar-subtext">Find by title, subtitle, ISBN, or tag.</div>
               </div>
 
               <div class="col-12 col-lg-3">
@@ -193,131 +310,12 @@
                 <div class="d-flex justify-content-lg-end gap-2">
                   <div class="btn-group view-toggle" role="group" aria-label="View">
                     <button class="btn btn-primary btn-sm" type="button" id="viewCardBtn" aria-pressed="true">Cards</button>
-                    <button class="btn btn-outline-primary btn-sm d-none d-md-inline-flex" type="button" id="viewListBtn" aria-pressed="false">List</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="viewListBtn" aria-pressed="false">List</button>
                   </div>
-                  <button class="btn btn-outline-secondary btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#filtersPanel" aria-expanded="false" aria-controls="filtersPanel">
-                    Advanced filters
-                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
                 </div>
               </div>
             </div>
-
-            <div class="collapse mt-3" id="filtersPanel">
-              <div class="card subtle-panel border-0 rounded-3">
-                <div class="card-body">
-                  <div class="row g-3">
-                    <div class="col-12 col-md-6 col-lg-4">
-                      <div class="fw-semibold mb-1">Title & ISBN</div>
-                      <div class="row g-2">
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterTitle">Title contains</label>
-                          <input class="form-control" id="filterTitle" type="text" placeholder="Title contains…" autocomplete="off" />
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterSubtitle">Subtitle contains</label>
-                          <input class="form-control" id="filterSubtitle" type="text" placeholder="Subtitle contains…" autocomplete="off" />
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterIsbn">ISBN</label>
-                          <input class="form-control" id="filterIsbn" type="text" placeholder="ISBN" autocomplete="off" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-lg-4">
-                      <div class="fw-semibold mb-1">Entities</div>
-                      <div class="row g-2">
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterBookType">Filter by Book Type</label>
-                          <select class="form-select" id="filterBookType">
-                            <option value="">Any book type</option>
-                          </select>
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterPublisher">Filter by Publisher</label>
-                          <select class="form-select" id="filterPublisher">
-                            <option value="">Any publisher</option>
-                          </select>
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterAuthor">Filter by Author</label>
-                          <select class="form-select" id="filterAuthor">
-                            <option value="">Any author</option>
-                          </select>
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label small mb-1" for="filterSeries">Filter by Series</label>
-                          <select class="form-select" id="filterSeries">
-                            <option value="">Any series</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-lg-4">
-                      <div class="fw-semibold mb-1">Dates & pages</div>
-                      <div class="row g-2">
-                        <div class="col-6">
-                          <label class="form-label small mb-1" for="filterPageMin">Pages min</label>
-                          <input class="form-control" id="filterPageMin" type="number" min="1" placeholder="Pages min" />
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label small mb-1" for="filterPageMax">Pages max</label>
-                          <input class="form-control" id="filterPageMax" type="number" min="1" placeholder="Pages max" />
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label small mb-1" for="filterPublishedAfter">Published after</label>
-                          <input class="form-control" id="filterPublishedAfter" type="date" />
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label small mb-1" for="filterPublishedBefore">Published before</label>
-                          <input class="form-control" id="filterPublishedBefore" type="date" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-lg-8">
-                      <div class="fw-semibold mb-1">Tags & language</div>
-                      <div class="row g-2">
-                        <div class="col-12 col-md-6">
-                          <label class="form-label small mb-1" for="filterTag">Filter by Tag</label>
-                          <input class="form-control" id="filterTag" type="text" list="tagOptions" placeholder="Tag name" autocomplete="off" />
-                          <datalist id="tagOptions"></datalist>
-                        </div>
-                        <div class="col-12 col-md-6">
-                          <label class="form-label small mb-1" for="filterLanguages">Filter by Language(s)</label>
-                          <div class="d-flex flex-column gap-1">
-                            <div class="d-flex flex-wrap gap-2" id="selectedLanguagesPills"></div>
-                            <select class="form-select" id="filterLanguages" multiple size="4">
-                              <option disabled>Loading languages…</option>
-                            </select>
-                            <button class="btn btn-link btn-sm p-0 align-self-start" type="button" id="clearLanguagesBtn">Clear languages</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-lg-4">
-                      <div class="fw-semibold mb-1">Other</div>
-                      <div class="d-flex flex-column gap-2">
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="" id="includeDeletedCheck">
-                          <label class="form-check-label" for="includeDeletedCheck">Include deleted</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="" id="onlyWithCoverCheck">
-                          <label class="form-check-label" for="onlyWithCoverCheck">Only books with covers</label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 d-flex justify-content-end">
-                      <button class="btn btn-sm btn-outline-secondary" type="button" id="resetFiltersBtn">Reset all</button>
-                    </div>
-                  </div><!-- /row -->
-                </div>
-              </div>
-            </div><!-- /collapse -->
           </div>
         </div>
       </div>
@@ -331,14 +329,14 @@
 
     <!-- Results summary + stats strip -->
     <div class="card shadow-sm mb-3">
-      <div class="card-body">
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div class="card-body py-3">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
           <div>
             <div class="fw-semibold" id="resultsSummary">Loading books…</div>
-            <div class="text-muted small" id="resultsMeta">Filters and view are saved in the URL.</div>
+            <div class="text-muted small" id="resultsMeta">Sorted by — • Page 1</div>
           </div>
-          <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="text-muted small d-flex flex-wrap gap-3" id="statsContainer">
+          <div class="d-flex align-items-center gap-2">
+            <div class="text-muted small d-flex flex-wrap gap-3 d-none" id="statsContainer">
               <span class="d-none" id="statTotalWrap"><span class="fw-semibold" id="statTotal">–</span> total</span>
               <span class="d-none" id="statCoversWrap"><span class="fw-semibold" id="statCovers">–</span> with covers</span>
               <span class="d-none" id="statIsbnWrap"><span class="fw-semibold" id="statIsbn">–</span> with ISBN</span>

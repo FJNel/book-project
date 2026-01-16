@@ -8,6 +8,11 @@
     window.pageContentReady.reset();
   }
 
+  const DEBUG = window.location.search.includes('booksDebug=true') || localStorage.getItem('booksDebug') === 'true';
+  const debugLog = (...args) => {
+    if (DEBUG) console.log('[Books][debug]', ...args);
+  };
+
   const state = {
     view: 'card',
     sort: { field: 'title', order: 'asc' },
@@ -122,10 +127,14 @@
     return parts.length ? parts.join(' ') : null;
   };
 
-  const scrollFiltersIntoView = () => {
-    const panel = document.getElementById('filtersPanel');
-    if (panel && panel.classList.contains('show')) {
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const updateOffcanvasPlacement = () => {
+    const offcanvasEl = document.getElementById('filtersOffcanvas');
+    if (!offcanvasEl) return;
+    offcanvasEl.classList.remove('offcanvas-end', 'offcanvas-bottom');
+    if (isMobile()) {
+      offcanvasEl.classList.add('offcanvas-bottom');
+    } else {
+      offcanvasEl.classList.add('offcanvas-end');
     }
   };
 
@@ -288,16 +297,12 @@
     const pushChip = (label, value, onRemove) => {
       const chip = document.createElement('span');
       chip.className = 'filter-chip';
-      chip.innerHTML = `<span class="badge text-bg-secondary">${label}</span> ${value} <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-muted" aria-label="Remove filter">×</button>`;
+      chip.innerHTML = `<span class="badge text-bg-secondary">${label}</span> ${value} <button type="button" class="btn-close btn-close-sm ms-1" aria-label="Remove filter"></button>`;
       const closeBtn = chip.querySelector('button');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          onRemove();
-        });
-      } else {
-        chip.addEventListener('click', onRemove);
-      }
+      closeBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onRemove();
+      });
       chips.push(chip);
     };
 
@@ -398,16 +403,19 @@
   };
 
   const enforceMobileView = () => {
-    if (isMobile()) {
+    const mobile = isMobile();
+    if (mobile) {
       state.view = 'card';
       if (dom.viewListBtn) {
-        dom.viewListBtn.classList.add('disabled', 'd-none');
+        dom.viewListBtn.classList.add('disabled');
         dom.viewListBtn.setAttribute('aria-disabled', 'true');
+        dom.viewListBtn.title = 'List view available on desktop';
       }
       if (dom.listContainer) dom.listContainer.classList.add('d-none');
     } else if (dom.viewListBtn) {
-      dom.viewListBtn.classList.remove('disabled', 'd-none');
+      dom.viewListBtn.classList.remove('disabled');
       dom.viewListBtn.setAttribute('aria-disabled', 'false');
+      dom.viewListBtn.title = '';
     }
   };
 
@@ -420,41 +428,47 @@
     return false;
   };
 
-  const buildBookParams = () => {
-    const params = new URLSearchParams();
-    params.set('limit', String(state.limit));
-    params.set('offset', String((state.page - 1) * state.limit));
-    params.set('view', state.view === 'card' ? 'card' : 'all');
-    params.set('sortBy', state.sort.field);
-    params.set('order', state.sort.order);
+  const buildBookBody = () => {
+    const body = {
+      limit: state.limit,
+      offset: (state.page - 1) * state.limit,
+      view: state.view === 'card' ? 'card' : 'all',
+      sortBy: state.sort.field,
+      order: state.sort.order
+    };
 
     const f = state.filters;
     if (state.search) {
-      params.set('filterTitle', state.search);
-      params.set('filterSubtitle', state.search);
+      body.filterTitle = state.search;
+      body.filterSubtitle = state.search;
       const isbn = normalizeIsbn(state.search);
-      if (isbn) params.set('filterIsbn', isbn);
-      params.set('filterTag', state.search);
+      if (isbn) body.filterIsbn = isbn;
+      body.filterTag = state.search;
     }
-    if (f.title) params.set('filterTitle', f.title);
-    if (f.subtitle) params.set('filterSubtitle', f.subtitle);
+    if (f.title) body.filterTitle = f.title;
+    if (f.subtitle) body.filterSubtitle = f.subtitle;
     if (f.isbn) {
       const cleanIsbn = normalizeIsbn(f.isbn);
-      if (cleanIsbn) params.set('filterIsbn', cleanIsbn);
+      if (cleanIsbn) body.filterIsbn = cleanIsbn;
     }
-    if (f.tag) params.set('filterTag', f.tag);
-    if (f.bookTypeId) params.set('filterBookTypeId', f.bookTypeId);
-    if (f.publisherId) params.set('filterPublisherId', f.publisherId);
-    if (f.authorId) params.set('filterAuthorId', f.authorId);
-    if (f.seriesId) params.set('filterSeriesId', f.seriesId);
-    if (f.pageMin) params.set('filterPageMin', f.pageMin);
-    if (f.pageMax) params.set('filterPageMax', f.pageMax);
-    if (isIsoDate(f.publishedAfter)) params.set('filterPublishedAfter', f.publishedAfter);
-    if (isIsoDate(f.publishedBefore)) params.set('filterPublishedBefore', f.publishedBefore);
-    if (f.languageIds.length > 0) params.set('filterLanguageId', f.languageIds[0]);
-    if (f.includeDeleted) params.set('includeDeleted', 'true');
+    if (f.tag) body.filterTag = f.tag;
+    if (f.bookTypeId) body.filterBookTypeId = f.bookTypeId;
+    if (f.publisherId) body.filterPublisherId = f.publisherId;
+    if (f.authorId) body.filterAuthorId = f.authorId;
+    if (f.seriesId) body.filterSeriesId = f.seriesId;
+    if (f.pageMin) body.filterPageMin = f.pageMin;
+    if (f.pageMax) body.filterPageMax = f.pageMax;
+    if (isIsoDate(f.publishedAfter)) body.filterPublishedAfter = f.publishedAfter;
+    if (isIsoDate(f.publishedBefore)) body.filterPublishedBefore = f.publishedBefore;
+    if (f.languageIds.length > 0) {
+      body.filterLanguageId = f.languageIds[0];
+      const languageOptions = Array.from(dom.filterLanguages?.options || []);
+      const name = languageOptions.find((opt) => parseNumber(opt.value) === f.languageIds[0])?.textContent?.trim();
+      if (name) body.filterLanguage = name.toLowerCase();
+    }
+    if (f.includeDeleted) body.includeDeleted = true;
 
-    return params;
+    return body;
   };
 
   let currentRequestId = 0;
@@ -750,9 +764,13 @@
     clearAlerts();
     showLoading();
 
-    const params = buildBookParams();
+    const body = buildBookBody();
+    debugLog('Requesting /book with body', body);
     try {
-      const response = await apiFetch(`/book?${params.toString()}`, { method: 'GET' });
+      const response = await apiFetch('/book', {
+        method: 'GET',
+        body: JSON.stringify(body)
+      });
       if (await handleRateLimit(response)) {
         hideLoading();
         return;
@@ -769,6 +787,7 @@
       const filtered = applyClientSideFilters(books);
       const hasNextPage = books.length === state.limit;
       lastHasNextPage = hasNextPage;
+      debugLog('Response status', response.status, 'books returned', books.length, 'filtered', filtered.length);
 
       if (requestId !== currentRequestId) return;
 
@@ -972,19 +991,17 @@
       });
     }
 
-    const filtersPanel = document.getElementById('filtersPanel');
-    if (filtersPanel) {
-      filtersPanel.addEventListener('shown.bs.collapse', () => {
-        scrollFiltersIntoView();
-      });
-    }
-
-    window.addEventListener('resize', enforceMobileView);
+    window.addEventListener('resize', () => {
+      enforceMobileView();
+      updateOffcanvasPlacement();
+    });
   };
 
   const init = async () => {
+    log('Initializing books page');
     hydrateStateFromUrl();
     enforceMobileView();
+    updateOffcanvasPlacement();
     syncControlsFromState();
     renderActiveFilters();
     attachListeners();
