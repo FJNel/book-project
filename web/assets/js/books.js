@@ -18,8 +18,10 @@
     isbn: '',
     tagIds: [],
     tagMode: 'and',
-    bookTypeId: '',
-    publisherId: '',
+    bookTypeIds: [],
+    bookTypeMode: 'or',
+    publisherIds: [],
+    publisherMode: 'or',
     authorIds: [],
     authorMode: 'and',
     seriesIds: [],
@@ -240,9 +242,11 @@
       : [];
     state.filters.tagMode = params.get('filterTagMode') === 'or' ? 'or' : 'and';
     const bookTypeParam = params.get('filterBookTypeId');
-    state.filters.bookTypeId = bookTypeParam || '';
+    state.filters.bookTypeIds = bookTypeParam ? bookTypeParam.split(',').map(parseNumber).filter(Number.isInteger) : [];
+    state.filters.bookTypeMode = params.get('filterBookTypeMode') === 'and' ? 'and' : 'or';
     const publisherParam = params.get('filterPublisherId');
-    state.filters.publisherId = publisherParam || '';
+    state.filters.publisherIds = publisherParam ? publisherParam.split(',').map(parseNumber).filter(Number.isInteger) : [];
+    state.filters.publisherMode = params.get('filterPublisherMode') === 'and' ? 'and' : 'or';
     const authorParam = params.get('filterAuthorId');
     state.filters.authorIds = authorParam ? authorParam.split(',').map(parseNumber).filter(Number.isInteger) : [];
     state.filters.authorMode = params.get('filterAuthorMode') === 'or' ? 'or' : 'and';
@@ -289,8 +293,10 @@
     if (f.isbn) params.set('filterIsbn', f.isbn);
     if (f.tagIds.length) params.set('tags', f.tagIds.join(','));
     if (f.tagMode) params.set('filterTagMode', f.tagMode);
-    if (f.bookTypeId) params.set('filterBookTypeId', f.bookTypeId);
-    if (f.publisherId) params.set('filterPublisherId', f.publisherId);
+    if (f.bookTypeIds.length) params.set('filterBookTypeId', f.bookTypeIds.join(','));
+    if (f.bookTypeMode) params.set('filterBookTypeMode', f.bookTypeMode);
+    if (f.publisherIds.length) params.set('filterPublisherId', f.publisherIds.join(','));
+    if (f.publisherMode) params.set('filterPublisherMode', f.publisherMode);
     if (f.pageMin) params.set('filterPageMin', f.pageMin);
     if (f.pageMax) params.set('filterPageMax', f.pageMax);
     if (isIsoDate(f.publishedAfter)) params.set('filterPublishedAfter', f.publishedAfter);
@@ -353,13 +359,13 @@
     if (dom.bookTypeCheckboxes) {
       Array.from(dom.bookTypeCheckboxes.querySelectorAll('input[type="checkbox"]')).forEach((cb) => {
         const id = parseNumber(cb.value);
-        cb.checked = id !== null && f.bookTypeId === id;
+        cb.checked = id !== null && f.bookTypeIds.includes(id);
       });
     }
     if (dom.publisherCheckboxes) {
       Array.from(dom.publisherCheckboxes.querySelectorAll('input[type="checkbox"]')).forEach((cb) => {
         const id = parseNumber(cb.value);
-        cb.checked = id !== null && f.publisherId === id;
+        cb.checked = id !== null && f.publisherIds.includes(id);
       });
     }
     if (dom.authorCheckboxes) {
@@ -406,7 +412,6 @@
       chips.push(chip);
     };
 
-    if (state.search) pushChip('search', state.search, () => { state.search = ''; syncControlsFromState(); triggerFetch(); });
     const f = state.filters;
     if (f.title) pushChip('title', f.title, () => { f.title = ''; syncControlsFromState(); triggerFetch(); });
     if (f.subtitle) pushChip('subtitle', f.subtitle, () => { f.subtitle = ''; syncControlsFromState(); triggerFetch(); });
@@ -419,13 +424,13 @@
       const label = `${names || f.tagIds.join(',')} (${f.tagMode === 'or' ? 'OR' : 'AND'})`;
       pushChip('tags', label, () => { f.tagIds = []; syncControlsFromState(); triggerFetch(); });
     }
-    if (f.bookTypeId) {
-      const name = bookTypeMap.get(parseNumber(f.bookTypeId));
-      pushChip('type', name || f.bookTypeId, () => { f.bookTypeId = ''; syncControlsFromState(); triggerFetch(); });
+    if (f.bookTypeIds.length) {
+      const names = f.bookTypeIds.map((id) => bookTypeMap.get(id)).filter(Boolean).join(', ');
+      pushChip('type', names || f.bookTypeIds.join(','), () => { f.bookTypeIds = []; syncControlsFromState(); triggerFetch(); });
     }
-    if (f.publisherId) {
-      const name = publisherMap.get(parseNumber(f.publisherId));
-      pushChip('publisher', name || f.publisherId, () => { f.publisherId = ''; syncControlsFromState(); triggerFetch(); });
+    if (f.publisherIds.length) {
+      const names = f.publisherIds.map((id) => publisherMap.get(id)).filter(Boolean).join(', ');
+      pushChip('publisher', names || f.publisherIds.join(','), () => { f.publisherIds = []; syncControlsFromState(); triggerFetch(); });
     }
     if (f.authorIds.length) {
       const names = f.authorIds.map((id) => authorMap.get(id)).filter(Boolean).join(', ');
@@ -477,10 +482,8 @@
     next.title = dom.filterTitle?.value.trim() || '';
     next.subtitle = dom.filterSubtitle?.value.trim() || '';
     next.isbn = dom.filterIsbn?.value.trim() || '';
-    const btIds = getCheckedIds(dom.bookTypeCheckboxes);
-    next.bookTypeId = btIds[0] || '';
-    const pubIds = getCheckedIds(dom.publisherCheckboxes);
-    next.publisherId = pubIds[0] || '';
+    next.bookTypeIds = getCheckedIds(dom.bookTypeCheckboxes);
+    next.publisherIds = getCheckedIds(dom.publisherCheckboxes);
     next.authorIds = getCheckedIds(dom.authorCheckboxes);
     const authorModeRadio = document.querySelector('input[name="authorMode"]:checked');
     next.authorMode = authorModeRadio?.value === 'or' ? 'or' : 'and';
@@ -571,8 +574,14 @@
       body.filterTag = names.length ? names : f.tagIds.map(String);
       body.filterTagMode = f.tagMode || 'and';
     }
-    if (f.bookTypeId) body.filterBookTypeId = f.bookTypeId;
-    if (f.publisherId) body.filterPublisherId = f.publisherId;
+    if (f.bookTypeIds.length) {
+      body.filterBookTypeId = f.bookTypeIds;
+      body.filterBookTypeMode = f.bookTypeMode || 'or';
+    }
+    if (f.publisherIds.length) {
+      body.filterPublisherId = f.publisherIds;
+      body.filterPublisherMode = f.publisherMode || 'or';
+    }
     if (f.authorIds.length) {
       body.filterAuthorId = f.authorIds;
       body.filterAuthorMode = f.authorMode || 'and';
@@ -647,7 +656,7 @@
       return li;
     };
 
-    dom.paginationNav.appendChild(createItem('Previous', state.page <= 1, () => {
+    dom.paginationNav.appendChild(createItem('← Previous', state.page <= 1, () => {
       state.page = Math.max(1, state.page - 1);
       updateUrl();
       triggerFetch();
@@ -677,7 +686,7 @@
       }));
     }
 
-    dom.paginationNav.appendChild(createItem('Next', !hasNextPage, () => {
+    dom.paginationNav.appendChild(createItem('Next →', !hasNextPage, () => {
       state.page += 1;
       updateUrl();
       triggerFetch();
@@ -730,6 +739,7 @@
           <div class="card-body d-flex flex-column">
             <div class="fw-bold meta-line">${book.title || 'Untitled'}</div>
             <div class="text-muted small meta-line ${subtitle ? '' : 'd-none'}">${subtitle}</div>
+            <div class="text-muted small meta-line ${authorsText ? '' : 'd-none'}">${authorsText || ''}</div>
             <div class="mt-2 small text-muted">
               ${metaRows.map((row) => `<div class="d-flex justify-content-between"><span class="meta-label">${row.label}</span><span class="meta-value">${row.value}</span></div>`).join('')}
             </div>
@@ -804,12 +814,12 @@
             </div>
           </div>
         </td>
+        <td>${authorsText}</td>
         <td>${bookType || ''}</td>
         <td>${language}</td>
         <td>${pageCount}</td>
         <td>${publication}</td>
         <td>${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${tag.name}</span>`).join(' ')}${remaining > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remaining}</span>` : ''}</td>
-        <td>${authorsText}</td>
       `;
       dom.listTableBody.appendChild(row);
     });
