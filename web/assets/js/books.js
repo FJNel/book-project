@@ -17,6 +17,7 @@
     subtitle: '',
     isbn: '',
     tagIds: [],
+    tagMode: 'and',
     bookTypeId: '',
     publisherId: '',
     authorId: '',
@@ -26,6 +27,7 @@
     publishedAfter: '',
     publishedBefore: '',
     languageIds: [],
+    languageMode: 'and',
     includeDeleted: false,
     onlyWithCover: false
   });
@@ -55,6 +57,8 @@
     filterSeries: document.getElementById('filterSeries'),
     tagCheckboxes: document.getElementById('tagCheckboxes'),
     languageCheckboxes: document.getElementById('languageCheckboxes'),
+    tagModeSelect: document.getElementById('tagModeSelect'),
+    languageModeSelect: document.getElementById('languageModeSelect'),
     filterPageMin: document.getElementById('filterPageMin'),
     filterPageMax: document.getElementById('filterPageMax'),
     filterPublishedAfter: document.getElementById('filterPublishedAfter'),
@@ -226,6 +230,7 @@
           .map((id) => parseNumber(id))
           .filter((id) => Number.isInteger(id))
       : [];
+    state.filters.tagMode = params.get('filterTagMode') === 'or' ? 'or' : 'and';
     state.filters.bookTypeId = params.get('filterBookTypeId') || '';
     state.filters.publisherId = params.get('filterPublisherId') || '';
     state.filters.authorId = params.get('filterAuthorId') || '';
@@ -244,6 +249,8 @@
         .map((id) => parseNumber(id))
         .filter((id) => Number.isInteger(id));
     }
+    const langMode = params.get('filterLanguageMode');
+    state.filters.languageMode = langMode === 'or' ? 'or' : 'and';
 
     if (isMobile() && state.view === 'list') {
       state.view = 'card';
@@ -259,14 +266,11 @@
     if (state.search) params.set('q', state.search);
 
     const f = state.filters;
-
-  const getBooksSignature = () => JSON.stringify(buildBookBody());
-
-  const getBooksSignature = () => JSON.stringify(buildBookBody());
     if (f.title) params.set('filterTitle', f.title);
     if (f.subtitle) params.set('filterSubtitle', f.subtitle);
     if (f.isbn) params.set('filterIsbn', f.isbn);
     if (f.tagIds.length) params.set('tags', f.tagIds.join(','));
+    if (f.tagMode) params.set('filterTagMode', f.tagMode);
     if (f.bookTypeId) params.set('filterBookTypeId', f.bookTypeId);
     if (f.publisherId) params.set('filterPublisherId', f.publisherId);
     if (f.authorId) params.set('filterAuthorId', f.authorId);
@@ -278,6 +282,7 @@
     if (f.includeDeleted) params.set('includeDeleted', 'true');
     if (f.onlyWithCover) params.set('onlyWithCover', 'true');
     if (f.languageIds.length > 0) params.set('languages', f.languageIds.join(','));
+    if (f.languageMode) params.set('filterLanguageMode', f.languageMode);
 
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
@@ -318,6 +323,8 @@
     if (dom.filterPublishedBefore) dom.filterPublishedBefore.value = f.publishedBefore;
     if (dom.includeDeletedCheck) dom.includeDeletedCheck.checked = f.includeDeleted;
     if (dom.onlyWithCoverCheck) dom.onlyWithCoverCheck.checked = f.onlyWithCover;
+    if (dom.tagModeSelect) dom.tagModeSelect.value = f.tagMode;
+    if (dom.languageModeSelect) dom.languageModeSelect.value = f.languageMode;
 
     if (dom.languageCheckboxes) {
       Array.from(dom.languageCheckboxes.querySelectorAll('input[type="checkbox"]')).forEach((cb) => {
@@ -361,7 +368,7 @@
         .map((id) => tagMap.get(id))
         .filter(Boolean)
         .join(', ');
-      const label = names || f.tagIds.join(',');
+      const label = `${names || f.tagIds.join(',')} (${f.tagMode === 'or' ? 'OR' : 'AND'})`;
       pushChip('tags', label, () => { f.tagIds = []; syncControlsFromState(); triggerFetch(); });
     }
     if (f.bookTypeId && dom.filterBookType) {
@@ -388,7 +395,8 @@
     if (f.onlyWithCover) pushChip('with cover', 'required', () => { f.onlyWithCover = false; syncControlsFromState(); triggerFetch(); });
     if (f.languageIds.length) {
       const names = f.languageIds.map((id) => languageMap.get(id)).filter(Boolean).join(', ');
-      pushChip('languages', names || f.languageIds.join(','), () => { f.languageIds = []; syncControlsFromState(); triggerFetch(); });
+      const label = `${names || f.languageIds.join(',')} (${f.languageMode === 'or' ? 'OR' : 'AND'})`;
+      pushChip('languages', label, () => { f.languageIds = []; syncControlsFromState(); triggerFetch(); });
     }
 
     if (chips.length === 0) {
@@ -433,6 +441,8 @@
     next.onlyWithCover = Boolean(dom.onlyWithCoverCheck?.checked);
     next.languageIds = getCheckedIds(dom.languageCheckboxes);
     next.tagIds = getCheckedIds(dom.tagCheckboxes);
+    next.tagMode = dom.tagModeSelect?.value === 'or' ? 'or' : 'and';
+    next.languageMode = dom.languageModeSelect?.value === 'or' ? 'or' : 'and';
     return next;
   };
 
@@ -501,8 +511,9 @@
       if (cleanIsbn) body.filterIsbn = cleanIsbn;
     }
     if (f.tagIds.length) {
-      const firstTagName = tagMap.get(f.tagIds[0]);
-      if (firstTagName) body.filterTag = firstTagName;
+      const names = f.tagIds.map((id) => tagMap.get(id)).filter(Boolean);
+      body.filterTag = names.length ? names : f.tagIds.map(String);
+      body.filterTagMode = f.tagMode || 'and';
     }
     if (f.bookTypeId) body.filterBookTypeId = f.bookTypeId;
     if (f.publisherId) body.filterPublisherId = f.publisherId;
@@ -513,9 +524,13 @@
     if (isIsoDate(f.publishedAfter)) body.filterPublishedAfter = f.publishedAfter;
     if (isIsoDate(f.publishedBefore)) body.filterPublishedBefore = f.publishedBefore;
     if (f.languageIds.length > 0) {
-      body.filterLanguageId = f.languageIds[0];
-      const langName = languageMap.get(f.languageIds[0]);
-      if (langName) body.filterLanguage = langName.toLowerCase();
+      body.filterLanguageId = f.languageIds;
+      body.filterLanguageIdMode = f.languageMode || 'and';
+      const langNames = f.languageIds.map((id) => languageMap.get(id)).filter(Boolean);
+      if (langNames.length) {
+        body.filterLanguage = langNames.map((n) => n.toLowerCase());
+        body.filterLanguageMode = f.languageMode || 'and';
+      }
     }
     if (f.includeDeleted) body.includeDeleted = true;
 
@@ -530,11 +545,19 @@
     let filtered = books;
     if (state.filters.languageIds.length > 0) {
       const languageSet = new Set(state.filters.languageIds);
-      filtered = filtered.filter((book) => Array.isArray(book.languages) && book.languages.some((lang) => languageSet.has(lang.id)));
+      filtered = filtered.filter((book) => {
+        if (!Array.isArray(book.languages)) return false;
+        const matches = book.languages.filter((lang) => languageSet.has(lang.id)).length;
+        return state.filters.languageMode === 'or' ? matches > 0 : matches === languageSet.size;
+      });
     }
     if (state.filters.tagIds.length > 0) {
       const tagSet = new Set(state.filters.tagIds);
-      filtered = filtered.filter((book) => Array.isArray(book.tags) && book.tags.some((tag) => tagSet.has(tag.id)));
+      filtered = filtered.filter((book) => {
+        if (!Array.isArray(book.tags)) return false;
+        const matches = book.tags.filter((tag) => tagSet.has(tag.id)).length;
+        return state.filters.tagMode === 'or' ? matches > 0 : matches === tagSet.size;
+      });
     }
     if (state.filters.onlyWithCover) {
       filtered = filtered.filter((book) => Boolean(book.coverImageUrl));

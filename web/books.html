@@ -238,6 +238,13 @@
 
         <div>
           <div class="fw-semibold mb-1">Tags</div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted">Match tags with</span>
+            <select class="form-select form-select-sm w-auto" id="tagModeSelect" aria-label="Tag matching mode">
+              <option value="and">AND</option>
+              <option value="or">OR</option>
+            </select>
+          </div>
           <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="tagCheckboxes">
             <div class="text-muted small">Loading tags…</div>
           </div>
@@ -245,6 +252,13 @@
 
         <div>
           <div class="fw-semibold mb-1">Languages</div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted">Match languages with</span>
+            <select class="form-select form-select-sm w-auto" id="languageModeSelect" aria-label="Language matching mode">
+              <option value="and">AND</option>
+              <option value="or">OR</option>
+            </select>
+          </div>
           <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="languageCheckboxes">
             <div class="text-muted small">Loading languages…</div>
           </div>
