@@ -58,6 +58,8 @@
     onlyWithCoverCheck: document.getElementById('onlyWithCoverCheck'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     refreshButton: document.getElementById('refreshButton'),
+    toggleAdvancedFilters: document.getElementById('toggleAdvancedFilters'),
+    openRawData: document.getElementById('openRawData'),
     feedbackContainer: document.getElementById('feedbackContainer'),
     activeFilters: document.getElementById('activeFilters'),
     resultsSummary: document.getElementById('resultsSummary'),
@@ -72,9 +74,11 @@
     statTotal: document.getElementById('statTotal'),
     statCovers: document.getElementById('statCovers'),
     statIsbn: document.getElementById('statIsbn'),
-    statDescription: document.getElementById('statDescription'),
-    statsNote: document.getElementById('statsNote')
+    statDescription: document.getElementById('statDescription')
   };
+  const advancedFields = Array.from(document.querySelectorAll('[data-advanced="true"]'));
+  let advancedOpen = false;
+  let lastHasNextPage = false;
 
   const debounce = (fn, delay = 350) => {
     let timer;
@@ -109,6 +113,16 @@
     }
     if (date.year) parts.push(String(date.year));
     return parts.length ? parts.join(' ') : null;
+  };
+
+  const setAdvancedVisibility = (forceOpen = null) => {
+    if (forceOpen !== null) {
+      advancedOpen = forceOpen;
+    }
+    advancedFields.forEach((field) => field.classList.toggle('d-none', !advancedOpen));
+    if (dom.toggleAdvancedFilters) {
+      dom.toggleAdvancedFilters.textContent = advancedOpen ? 'Hide options' : 'More options';
+    }
   };
 
   const clearAlerts = () => {
@@ -256,6 +270,8 @@
     }
 
     setViewButtons();
+    const usesAdvanced = Boolean(f.subtitle || f.isbn || f.seriesId || f.publishedAfter || f.publishedBefore || f.pageMin || f.pageMax);
+    setAdvancedVisibility(usesAdvanced ? true : advancedOpen);
   };
 
   const renderActiveFilters = () => {
@@ -265,8 +281,16 @@
     const pushChip = (label, value, onRemove) => {
       const chip = document.createElement('span');
       chip.className = 'filter-chip';
-      chip.innerHTML = `<span class="badge text-bg-secondary">${label}</span> ${value}`;
-      chip.addEventListener('click', onRemove);
+      chip.innerHTML = `<span class="badge text-bg-secondary">${label}</span> ${value} <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-muted" aria-label="Remove filter">×</button>`;
+      const closeBtn = chip.querySelector('button');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          onRemove();
+        });
+      } else {
+        chip.addEventListener('click', onRemove);
+      }
       chips.push(chip);
     };
 
@@ -303,7 +327,25 @@
       pushChip('languages', names || f.languageIds.join(','), () => { f.languageIds = []; syncControlsFromState(); triggerFetch(); });
     }
 
-    chips.forEach((chip) => dom.activeFilters.appendChild(chip));
+    if (chips.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'text-muted small';
+      empty.textContent = 'None';
+      dom.activeFilters.appendChild(empty);
+      return;
+    }
+
+    if (chips.length > 6) {
+      const visible = chips.slice(0, 5);
+      const moreCount = chips.length - visible.length;
+      visible.forEach((chip) => dom.activeFilters.appendChild(chip));
+      const more = document.createElement('span');
+      more.className = 'filter-chip';
+      more.textContent = `+${moreCount} more`;
+      dom.activeFilters.appendChild(more);
+    } else {
+      chips.forEach((chip) => dom.activeFilters.appendChild(chip));
+    }
   };
 
   const showLoading = () => {
@@ -436,6 +478,10 @@
       const pageCount = Number.isFinite(book.pageCount) ? book.pageCount : '—';
       const bookType = book.bookTypeName || 'Unspecified';
       const language = Array.isArray(book.languages) && book.languages.length > 0 ? book.languages[0].name : '—';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const primaryTag = tags[0];
+      const extraTags = tags.slice(1, 3);
+      const remaining = Math.max(tags.length - 3, 0);
 
       col.innerHTML = `
         <div class="card shadow h-100">
@@ -446,17 +492,19 @@
             <div class="fw-bold meta-line">${book.title || 'Untitled'}</div>
             <div class="text-muted small meta-line">${book.subtitle || ''}</div>
             <div class="mt-2 small text-muted">
-              <div class="d-flex justify-content-between"><span>Published</span><span class="fw-semibold">${publication}</span></div>
-              <div class="d-flex justify-content-between"><span>Pages</span><span class="fw-semibold">${pageCount}</span></div>
-              <div class="d-flex justify-content-between"><span>Type</span><span class="fw-semibold">${bookType}</span></div>
-              <div class="d-flex justify-content-between"><span>Language</span><span class="fw-semibold">${language}</span></div>
+              <div class="d-flex justify-content-between"><span class="meta-label">Published</span><span class="meta-value">${publication}</span></div>
+              <div class="d-flex justify-content-between"><span class="meta-label">Pages</span><span class="meta-value">${pageCount}</span></div>
+              <div class="d-flex justify-content-between"><span class="meta-label">Type</span><span class="meta-value">${bookType}</span></div>
+              <div class="d-flex justify-content-between"><span class="meta-label">Language</span><span class="meta-value">${language}</span></div>
             </div>
             <div class="mt-3 d-flex flex-wrap gap-1">
-              ${(Array.isArray(book.tags) ? book.tags : []).map((tag) => `<span class="badge rounded-pill text-bg-primary">${tag.name}</span>`).join('')}
+              ${primaryTag ? `<span class="badge rounded-pill text-bg-primary">${primaryTag.name}</span>` : ''}
+              ${extraTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${tag.name}</span>`).join('')}
+              ${remaining > 0 ? `<span class="badge rounded-pill text-bg-light text-dark border">+${remaining} more</span>` : ''}
             </div>
             <div class="mt-auto pt-3 d-flex gap-2">
-              <a class="btn btn-outline-secondary btn-sm w-100" href="book-details.html?id=${book.id}">Open</a>
-              <button class="btn btn-primary btn-sm w-100" type="button" disabled aria-disabled="true">Edit</button>
+              <a class="btn btn-primary btn-sm w-100" href="book-details.html?id=${book.id}">Open</a>
+              <button class="btn btn-outline-secondary btn-sm w-100" type="button" disabled aria-disabled="true">Edit</button>
             </div>
           </div>
         </div>
@@ -494,6 +542,11 @@
       const bookType = book.bookTypeName || book.bookType?.name || '—';
       const language = Array.isArray(book.languages) && book.languages.length > 0 ? book.languages[0].name : '—';
       const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remaining = Math.max(tags.length - visibleTags.length, 0);
+      const infoLineParts = [];
+      if (book.subtitle) infoLineParts.push(book.subtitle);
+      if (book.isbn) infoLineParts.push(`ISBN: ${book.isbn}`);
 
       row.innerHTML = `
         <td>
@@ -501,8 +554,7 @@
             <img class="cover-thumb rounded border" alt="Cover" src="${coverSrc}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
             <div style="min-width: 220px;">
               <div class="fw-semibold meta-line">${book.title || 'Untitled'}</div>
-              <div class="text-muted small meta-line">${book.subtitle || ''}</div>
-              <div class="text-muted small">ID: ${book.id}${book.isbn ? ` • ISBN: ${book.isbn}` : ''}</div>
+              <div class="text-muted small meta-line">${infoLineParts.join(' • ') || '—'}</div>
             </div>
           </div>
         </td>
@@ -510,7 +562,7 @@
         <td>${language}</td>
         <td>${pageCount}</td>
         <td>${publication}</td>
-        <td>${tags.map((tag) => `<span class="badge rounded-pill text-bg-primary">${tag.name}</span>`).join(' ')}</td>
+        <td>${visibleTags.map((tag, index) => `<span class="badge rounded-pill ${index === 0 ? 'text-bg-primary' : 'text-bg-light text-dark border'}">${tag.name}</span>`).join(' ')}${remaining > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remaining}</span>` : ''}</td>
       `;
       dom.listTableBody.appendChild(row);
     });
@@ -528,8 +580,9 @@
   };
 
   const updateSummary = (count) => {
-    if (dom.resultsSummary) dom.resultsSummary.textContent = `Showing ${count} book${count === 1 ? '' : 's'}`;
-    if (dom.resultsMeta) dom.resultsMeta.textContent = 'State is synced to the URL for refresh and sharing.';
+    const sortLabel = dom.sortSelect ? dom.sortSelect.selectedOptions[0]?.textContent : '';
+    if (dom.resultsSummary) dom.resultsSummary.textContent = `${count} book${count === 1 ? '' : 's'} found`;
+    if (dom.resultsMeta) dom.resultsMeta.textContent = `${sortLabel ? `Sorted by ${sortLabel}` : 'Sorted'} · Page ${state.page}${lastHasNextPage ? ' (more available)' : ''}`;
   };
 
   const loadStats = async () => {
@@ -539,7 +592,6 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         warn('Stats response not ok', payload);
-        if (dom.statsNote) dom.statsNote.textContent = 'Stats unavailable right now.';
         return;
       }
       const data = payload.data || {};
@@ -547,10 +599,8 @@
       if (dom.statCovers) dom.statCovers.textContent = data.withCoverImage ?? '0';
       if (dom.statIsbn) dom.statIsbn.textContent = data.withIsbn ?? '0';
       if (dom.statDescription) dom.statDescription.textContent = data.withDescription ?? '0';
-      if (dom.statsNote) dom.statsNote.textContent = 'Stats are based on your entire library.';
     } catch (error) {
       warn('Failed to load stats', error);
-      if (dom.statsNote) dom.statsNote.textContent = 'Stats unavailable right now.';
     }
   };
 
@@ -641,6 +691,7 @@
       const books = (payload.data && payload.data.books) || [];
       const filtered = applyClientSideFilters(books);
       const hasNextPage = books.length === state.limit;
+      lastHasNextPage = hasNextPage;
 
       if (requestId !== currentRequestId) return;
 
@@ -816,10 +867,22 @@
       dom.resetFiltersBtn.addEventListener('click', resetFilters);
     }
 
+    if (dom.toggleAdvancedFilters) {
+      dom.toggleAdvancedFilters.addEventListener('click', () => {
+        setAdvancedVisibility(!advancedOpen);
+      });
+    }
+
     if (dom.refreshButton) {
       dom.refreshButton.addEventListener('click', () => {
         triggerFetch();
         loadStats();
+      });
+    }
+
+    if (dom.openRawData) {
+      dom.openRawData.addEventListener('click', () => {
+        window.open('temp/books.html', '_blank', 'noopener');
       });
     }
   };
