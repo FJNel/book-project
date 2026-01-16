@@ -249,8 +249,8 @@ function checkViewport() {
 
     const path = window.location.pathname;
     if (
-        path === '/verify-email.html' || path === '/verify-email' ||
-        path === '/reset-password.html' || path === '/reset-password'
+        path === '/verify-email' ||
+        path === '/reset-password'
     ) {
         //Check for token in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -293,11 +293,8 @@ function checkLoginStatus() {
         console.warn('[Login Check] User is not logged in.');
         //If not homepage, redirect
         if (window.location.pathname !== '/' 
-            && window.location.pathname !== '/index.html' 
             && window.location.pathname !== '/index'
-            && window.location.pathname !== '/reset-password.html'
             && window.location.pathname !== '/reset-password'
-            && window.location.pathname !== '/verify-email.html'
             && window.location.pathname !== '/verify-email'
         ) {
             console.log('[Login Check] Redirecting to homepage.');

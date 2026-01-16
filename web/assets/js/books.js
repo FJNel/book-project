@@ -652,7 +652,7 @@
               ${remaining > 0 ? `<span class="badge rounded-pill text-bg-light text-dark border">+${remaining} more</span>` : ''}
             </div>
             <div class="mt-auto pt-3 d-flex gap-2">
-              <a class="btn btn-primary btn-sm w-100" href="book-details.html?id=${book.id}">Open</a>
+              <a class="btn btn-primary btn-sm w-100" href="book-details?id=${book.id}">Open</a>
               <button class="btn btn-outline-secondary btn-sm w-100" type="button" disabled aria-disabled="true">Edit</button>
             </div>
           </div>
@@ -682,7 +682,7 @@
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       row.addEventListener('click', () => {
-        window.location.href = `book-details.html?id=${book.id}`;
+        window.location.href = `book-details?id=${book.id}`;
       });
 
       const coverSrc = book.coverImageUrl || placeholderCover(book.title, '600x900', 'No cover');
@@ -1011,7 +1011,7 @@
 
     if (dom.openRawData) {
       dom.openRawData.addEventListener('click', () => {
-        window.open('temp/books.html', '_blank', 'noopener');
+        window.open('temp/books', '_blank', 'noopener');
       });
     }
 
