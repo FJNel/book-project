@@ -3844,6 +3844,39 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /book/list:
+    post:
+      tags: [Books]
+      summary: List books (JSON body)
+      operationId: listBooksPost
+      description: Browser-safe listing endpoint that accepts the same filters as GET /book via JSON body (no reliance on query strings or GET bodies).
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookListRequest'
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     post:
       tags: [Books]
       summary: Create book

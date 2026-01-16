@@ -751,7 +751,7 @@ function parseView(listParams) {
 }
 
 // GET /book - List or fetch a specific book
-router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function listBooksHandler(req, res) {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const view = parseView(listParams);
@@ -1121,9 +1121,15 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving books."]);
+			return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving books."]);
 	}
-});
+}
+
+// GET /book - List or fetch a specific book
+router.get("/", requiresAuth, authenticatedLimiter, listBooksHandler);
+
+// POST /book/list - List books with JSON body (browser-safe)
+router.post("/list", requiresAuth, authenticatedLimiter, listBooksHandler);
 
 // POST /book - Create a new book
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
