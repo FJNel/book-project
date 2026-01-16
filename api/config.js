@@ -45,7 +45,7 @@ const resetPath = env('FRONTEND_RESET_PATH', '/reset-password');
 
 // API base and docs (for root route response)
 const apiBaseUrl = env('API_BASE_URL', nodeEnv === 'production' ? 'https://api.fjnel.co.za' : `http://localhost:${port}`);
-const apiDocsUrl = env('API_DOCS_URL', `${apiBaseUrl}/api-docs.html`);
+const apiDocsUrl = `${apiBaseUrl}/docs/`; //TODO: Update path in ENV and then make this configurable
 
 // JWT
 // Prefer ACCESS_TOKEN_SECRET / REFRESH_TOKEN_SECRET, but fall back to old names if provided

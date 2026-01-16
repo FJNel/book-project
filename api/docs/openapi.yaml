@@ -5,8 +5,7 @@ info:
   description: |
     Source-of-truth OpenAPI specification for the Book Project REST API. All endpoints return
     a consistent JSON envelope and support either Bearer access tokens or API keys unless
-    explicitly marked public. See `docs/api-overview.md` for a short primer; this file is the
-    authoritative reference.
+    explicitly marked public.
   license:
     name: The Book Project Source-Available Proprietary License
     url: https://bookproject.fjnel.co.za
@@ -93,7 +92,7 @@ paths:
                     message: The API is working!
                     data:
                       timestamp: '2025-01-14T17:23:51Z'
-                      apiDocumentationUrl: https://api.fjnel.co.za/api-docs.html
+                      apiDocumentationUrl: https://api.fjnel.co.za/docs/
                     errors: []
         '404':
           $ref: '#/components/responses/NotFound'
@@ -1321,6 +1320,36 @@ paths:
                         properties:
                           stats:
                             type: object
+              examples:
+                stats:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.12"
+                    message: User stats retrieved successfully.
+                    data:
+                      stats:
+                        accountAgeDays: 320
+                        activityRecencyDays: 2
+                        isVerified: true
+                        passwordSet: true
+                        passwordFreshnessDays: 45
+                        profileCompletenessScore: 100
+                        books: 48
+                        deletedBooks: 2
+                        authors: 20
+                        deletedAuthors: 1
+                        publishers: 8
+                        deletedPublishers: 0
+                        series: 6
+                        deletedSeries: 1
+                        bookTypes: 5
+                        tags: 12
+                        languages: 4
+                        storageLocations: 6
+                        bookCopies: 70
+                        apiKeys: 2
+                    errors: []
         '429':
           $ref: '#/components/responses/RateLimit'
   /booktype:
@@ -1382,6 +1411,25 @@ paths:
                           description: null
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+                statsIncluded:
+                  summary: Single result with stats
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.58"
+                    message: Book type retrieved successfully.
+                    data:
+                      bookTypes:
+                        - id: 1
+                          name: Hardcover
+                          description: Hardback edition with rigid cover.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                          stats:
+                            bookCount: 12
+                            percentageOfBooks: 60.0
+                            avgPageCount: 510.25
                     errors: []
                 notFound:
                   value:
@@ -1599,7 +1647,7 @@ paths:
                           - id: 1
                             name: Hardcover
                             avgPageCount: 510.25
-                        booksMissingType: 3
+                        booksMissingType: 0
                         breakdownPerBookType:
                           - id: 1
                             name: Hardcover
@@ -1836,6 +1884,41 @@ paths:
                           bio: Author of The Lord of the Rings.
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+                stats:
+                  summary: Single author with stats
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.90"
+                    message: Author retrieved successfully.
+                    data:
+                      authors:
+                        - id: 1
+                          displayName: "J.R.R. Tolkien"
+                          firstNames: "John Ronald Reuel"
+                          lastName: Tolkien
+                          birthDate:
+                            id: 12
+                            day: 3
+                            month: 1
+                            year: 1892
+                            text: "3 January 1892"
+                          deceased: true
+                          deathDate:
+                            id: 13
+                            day: 2
+                            month: 9
+                            year: 1973
+                            text: "2 September 1973"
+                          bio: Author of The Lord of the Rings.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                          stats:
+                            bookCount: 6
+                            percentageOfBooks: 12.5
+                            firstPublicationYear: 1937
+                            lastPublicationYear: 1973
                     errors: []
                 notFound:
                   value:
@@ -2280,8 +2363,68 @@ paths:
                     message: Author stats retrieved successfully.
                     data:
                       stats:
-                        bookCount: 6
-                        percentageOfBooks: 30.0
+                        total: 12
+                        deleted: 1
+                        deceased: 7
+                        alive: 5
+                        withBirthDate: 10
+                        withDeathDate: 6
+                        withBio: 9
+                        earliestBirthYear: 1819
+                        latestBirthYear: 1995
+                        earliestDeathYear: 1892
+                        latestDeathYear: 2020
+                        aliveDeceasedRatio:
+                          alive: 5
+                          deceased: 7
+                          deceasedToAliveRatio: 1.4
+                        mostRepresentedAuthor:
+                          id: 1
+                          displayName: "J.R.R. Tolkien"
+                          bookCount: 6
+                          percentageOfBooks: 30.0
+                        authorsWithNoBooks:
+                          - id: 9
+                            displayName: "New Author"
+                            createdAt: "2025-02-01T10:10:00.000Z"
+                        oldestAuthor:
+                          id: 2
+                          displayName: "George Eliot"
+                          birthYear: 1819
+                        youngestAuthor:
+                          id: 11
+                          displayName: "Contemporary Writer"
+                          birthYear: 1995
+                        authorDiscoveryTimeline:
+                          - id: 1
+                            displayName: "J.R.R. Tolkien"
+                            createdAt: "2025-01-05T09:00:00.000Z"
+                          - id: 2
+                            displayName: "George Eliot"
+                            createdAt: "2025-01-12T11:00:00.000Z"
+                        breakdownPerAuthor:
+                          - id: 1
+                            displayName: "J.R.R. Tolkien"
+                            bookCount: 6
+                            percentageOfBooks: 30.0
+                          - id: 3
+                            displayName: "C.S. Lewis"
+                            bookCount: 4
+                            percentageOfBooks: 20.0
+                        breakdownPerBirthDecade:
+                          - decade: 1890
+                            authorCount: 3
+                            percentageOfAuthors: 25.0
+                          - decade: 1950
+                            authorCount: 6
+                            percentageOfAuthors: 50.0
+                        breakdownPerAliveDeceased:
+                          - deceased: false
+                            authorCount: 5
+                            percentageOfAuthors: 41.7
+                          - deceased: true
+                            authorCount: 7
+                            percentageOfAuthors: 58.3
                     errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2311,9 +2454,44 @@ paths:
                     message: Book-author stats retrieved successfully.
                     data:
                       stats:
-                        totalLinks: 14
-                        uniqueAuthors: 7
-                        uniqueBooks: 10
+                        averageAuthorsPerBook: 1.6
+                        singleVsMultiBreakdown:
+                          totalBooks: 10
+                          singleAuthorBooks: 6
+                          multiAuthorBooks: 3
+                          noAuthorBooks: 1
+                          singleAuthorPercentage: 60.0
+                          multiAuthorPercentage: 30.0
+                          noAuthorPercentage: 10.0
+                        contributorDiversity:
+                          distinctAuthors: 8
+                          totalBooks: 10
+                          score: 0.8
+                        authorRoleBreakdown:
+                          - role: Primary Author
+                            count: 7
+                            percentage: 58.3
+                          - role: Editor
+                            count: 3
+                            percentage: 25.0
+                          - role: Illustrator
+                            count: 2
+                            percentage: 16.7
+                        collaborationPairs:
+                          - authors:
+                              - id: 1
+                                displayName: "J.R.R. Tolkien"
+                              - id: 2
+                                displayName: "C.S. Lewis"
+                            bookCount: 2
+                            percentageOfCoauthoredBooks: 66.7
+                          - authors:
+                              - id: 3
+                                displayName: "Neil Gaiman"
+                              - id: 4
+                                displayName: "Terry Pratchett"
+                            bookCount: 1
+                            percentageOfCoauthoredBooks: 33.3
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -2533,6 +2711,29 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/Publisher'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.90"
+                    message: Publisher retrieved successfully.
+                    data:
+                      id: 5
+                      name: Allen & Unwin
+                      foundedDate:
+                        id: 14
+                        year: 1910
+                        text: "1910"
+                      website: https://example.com
+                      notes: Classic literature publisher.
+                      createdAt: "2025-01-10T09:15:23.000Z"
+                      updatedAt: "2025-01-14T16:58:41.000Z"
+                      stats:
+                        bookCount: 30
+                        percentageOfBooks: 25.0
+                        avgPageCount: 420.5
+                    errors: []
         '404':
           $ref: '#/components/responses/NotFound'
         '401':
@@ -2615,6 +2816,29 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/Publisher'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.70"
+                    message: Publisher retrieved successfully.
+                    data:
+                      id: 6
+                      name: HarperCollins
+                      foundedDate:
+                        id: 21
+                        year: 1989
+                        text: "1989"
+                      website: https://harpercollins.example.com
+                      notes: Global publishing house.
+                      createdAt: "2025-01-11T10:00:00.000Z"
+                      updatedAt: "2025-01-15T16:00:00.000Z"
+                      stats:
+                        bookCount: 18
+                        percentageOfBooks: 15.0
+                        avgPageCount: 380.0
+                    errors: []
         '404':
           $ref: '#/components/responses/NotFound'
   /publisher/trash:
@@ -2728,15 +2952,31 @@ paths:
                     message: Publisher stats retrieved successfully.
                     data:
                       stats:
+                        total: 12
+                        deleted: 1
+                        withWebsite: 8
+                        publishersWithNoBooks:
+                          - id: 9
+                            name: Small Indie Press
+                            bookCount: 0
+                        oldestFoundedPublisher:
+                          id: 5
+                          name: Allen & Unwin
+                          foundedYear: 1910
                         publisherBreakdown:
                           - id: 5
                             name: Allen & Unwin
                             bookCount: 12
-                            percentage: 30.0
+                            percentageOfBooks: 30.0
+                          - id: 6
+                            name: HarperCollins
+                            bookCount: 18
+                            percentageOfBooks: 45.0
                         mostUsedPublisher:
-                          id: 5
-                          name: Allen & Unwin
-                          bookCount: 12
+                          id: 6
+                          name: HarperCollins
+                          bookCount: 18
+                          percentageOfBooks: 45.0
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -3224,15 +3464,47 @@ paths:
                     message: Series stats retrieved successfully.
                     data:
                       stats:
+                        newestSeriesAdded:
+                          id: 12
+                          name: The Cosmere
+                          createdAt: "2025-02-01T12:00:00.000Z"
+                        oldestSeriesAdded:
+                          id: 8
+                          name: The Lord of the Rings
+                          createdAt: "2025-01-02T10:00:00.000Z"
                         seriesBreakdown:
                           - id: 8
                             name: The Lord of the Rings
                             bookCount: 3
-                            percentage: 10.0
+                            percentage: 12.0
+                          - id: 12
+                            name: The Cosmere
+                            bookCount: 5
+                            percentage: 20.0
                         mostCollectedSeries:
-                          id: 8
-                          name: The Lord of the Rings
-                          bookCount: 3
+                          id: 12
+                          name: The Cosmere
+                          bookCount: 5
+                          percentage: 20.0
+                        breakdownPerSeries:
+                          - id: 8
+                            name: The Lord of the Rings
+                            bookCount: 3
+                            percentageOfBooks: 12.0
+                            totalPages: 1230
+                            avgPages: 410.0
+                            nullBookOrderCount: 0
+                            duplicateOrderNumbers: 0
+                            gapCount: 0
+                          - id: 12
+                            name: The Cosmere
+                            bookCount: 5
+                            percentageOfBooks: 20.0
+                            totalPages: 2750
+                            avgPages: 550.0
+                            nullBookOrderCount: 1
+                            duplicateOrderNumbers: 1
+                            gapCount: 2
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -3261,11 +3533,39 @@ paths:
                     message: Series-book stats retrieved successfully.
                     data:
                       stats:
-                        averageBooksPerSeries: 2.4
-                        mostLinkedSeries:
-                          id: 8
-                          name: The Lord of the Rings
-                          bookCount: 3
+                        booksInSeries:
+                          count: 18
+                          percentageOfBooks: 72.0
+                        standalones:
+                          count: 7
+                          percentageOfBooks: 28.0
+                        averageSeriesLengthBooks: 4.2
+                        averageSeriesLengthPages: 1850.5
+                        outOfOrderEntries:
+                          nullBookOrderCount: 1
+                          gapCount: 3
+                        booksInMultipleSeries:
+                          count: 4
+                          percentageOfBooks: 16.0
+                        breakdownPerSeries:
+                          - id: 8
+                            name: The Lord of the Rings
+                            bookCount: 3
+                            percentageOfBooks: 12.0
+                            totalPages: 1230
+                            avgPages: 410.0
+                            nullBookOrderCount: 0
+                            duplicateOrderNumbers: 0
+                            gapCount: 0
+                          - id: 12
+                            name: The Cosmere
+                            bookCount: 5
+                            percentageOfBooks: 20.0
+                            totalPages: 2750
+                            avgPages: 550.0
+                            nullBookOrderCount: 1
+                            duplicateOrderNumbers: 1
+                            gapCount: 2
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -3340,6 +3640,28 @@ paths:
                           - id: 1
                             name: English
                             bookCount: 45
+                            percentage: 45.0
+                          - id: 2
+                            name: Afrikaans
+                            bookCount: 20
+                            percentage: 20.0
+                        mostCommonLanguages:
+                          - id: 1
+                            name: English
+                            bookCount: 45
+                            percentage: 45.0
+                        rarestLanguage:
+                          id: 5
+                          name: Latin
+                          bookCount: 2
+                          percentage: 2.0
+                        languageCombinations:
+                          - languages: ["English", "Afrikaans"]
+                            bookCount: 6
+                            percentage: 6.0
+                          - languages: ["English", "French"]
+                            bookCount: 3
+                            percentage: 3.0
                         languageCoveragePercentage: 92.3
                     errors: []
         '401':
@@ -3837,12 +4159,40 @@ paths:
                     data:
                       stats:
                         totalBooks: 120
+                        deleted: 5
                         hasIsbnCount: 90
+                        missingIsbnCount: 30
+                        withCoverImage: 80
+                        withDescription: 95
+                        withPublisher: 70
+                        withSeries: 35
+                        totalCopies: 145
+                        publicationYearHistogram:
+                          - year: 1954
+                            bookCount: 3
+                            percentageOfBooks: 2.5
+                          - year: 2020
+                            bookCount: 12
+                            percentageOfBooks: 10.0
+                        oldestPublicationYear: 1890
+                        newestPublicationYear: 2024
+                        longestBook:
+                          id: 80
+                          title: "The Stand"
+                          pageCount: 1152
+                        shortestBook:
+                          id: 34
+                          title: "The Little Prince"
+                          pageCount: 96
                         bookTypeBreakdown:
                           - id: 1
                             name: Hardcover
                             bookCount: 60
                             percentage: 50.0
+                          - id: 2
+                            name: Paperback
+                            bookCount: 40
+                            percentage: 33.3
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -4165,10 +4515,28 @@ paths:
                           id: 3
                           name: Living Room
                           copyCount: 42
+                          directCopyCount: 30
+                          nestedCopyCount: 12
+                          percentageOfCopies: 35.0
                         locationBreakdown:
                           - id: 3
                             name: Living Room
                             copyCount: 42
+                            directCopyCount: 30
+                            nestedCopyCount: 12
+                            percentageOfCopies: 35.0
+                          - id: 7
+                            name: Study
+                            copyCount: 25
+                            directCopyCount: 18
+                            nestedCopyCount: 7
+                            percentageOfCopies: 20.8
+                          - id: 10
+                            name: Archive Boxes
+                            copyCount: 12
+                            directCopyCount: 12
+                            nestedCopyCount: 0
+                            percentageOfCopies: 10.0
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -4531,6 +4899,21 @@ paths:
                           withStorageLocation: 110
                           totalCopies: 145
                           percentage: 75.9
+                        acquiredFromBreakdown:
+                          - value: Purchased New
+                            count: 60
+                            percentage: 41.4
+                          - value: Gift
+                            count: 35
+                            percentage: 24.1
+                        topAcquisitionType:
+                          value: Purchased New
+                          count: 60
+                          percentage: 41.4
+                        topAcquisitionLocation:
+                          value: Cape Town
+                          count: 22
+                          percentage: 15.2
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -4655,6 +5038,18 @@ paths:
                         topTags:
                           - name: Fantasy
                             count: 34
+                            percentageOfBooks: 28.3
+                          - name: Sci-Fi
+                            count: 20
+                            percentageOfBooks: 16.7
+                        leastUsedTags:
+                          - id: 9
+                            name: Essays
+                            bookCount: 1
+                            percentageOfBooks: 0.8
+                        unusedTags:
+                          - id: 12
+                            name: Wishlist
                         totalTags: 12
                     errors: []
         '401':
@@ -4684,11 +5079,32 @@ paths:
                     message: Book-tag stats retrieved successfully.
                     data:
                       stats:
+                        averageTagsPerBook: 2.4
+                        untaggedBooks:
+                          count: 5
+                          percentageOfBooks: 4.2
                         tagCoveragePercentage: 78.5
                         mostTaggedBook:
                           bookId: 22
                           title: The Lord of the Rings
                           tagCount: 5
+                        coOccurringTags:
+                          - tags: ["Fantasy", "Adventure"]
+                            bookCount: 12
+                            percentageOfBooks: 10.0
+                          - tags: ["Fantasy", "Magic"]
+                            bookCount: 9
+                            percentageOfBooks: 7.5
+                        tagEntropy: 1.85
+                        tagBreakdown:
+                          - id: 7
+                            name: Fantasy
+                            bookCount: 34
+                            percentageOfBooks: 28.3
+                          - id: 8
+                            name: Adventure
+                            bookCount: 26
+                            percentageOfBooks: 21.7
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -6439,6 +6855,19 @@ components:
         updatedAt:
           type: string
           format: date-time
+        stats:
+          description: Optional stats when returnStats is true.
+          type: object
+          properties:
+            bookCount:
+              type: integer
+            percentageOfBooks:
+              type: number
+              format: float
+            avgPageCount:
+              type:
+                - number
+                - "null"
     BookTypeListRequest:
       type: object
       properties:
@@ -6551,6 +6980,23 @@ components:
         updatedAt:
           type: string
           format: date-time
+        stats:
+          description: Optional stats included when returnStats=true.
+          type: object
+          properties:
+            bookCount:
+              type: integer
+            percentageOfBooks:
+              type: number
+              format: float
+            firstPublicationYear:
+              type:
+                - integer
+                - "null"
+            lastPublicationYear:
+              type:
+                - integer
+                - "null"
     AuthorListRequest:
       type: object
       properties:
@@ -6671,9 +7117,32 @@ components:
         createdAt:
           description: Creation timestamp.
           type: string
+          format: date-time
         updatedAt:
           description: Last update timestamp.
           type: string
+          format: date-time
+        stats:
+          description: Optional stats when returnStats is true.
+          type: object
+          properties:
+            bookCount:
+              type: integer
+            percentageOfBooks:
+              type: number
+              format: float
+            avgPageCount:
+              type:
+                - number
+                - "null"
+            firstPublicationYear:
+              type:
+                - integer
+                - "null"
+            lastPublicationYear:
+              type:
+                - integer
+                - "null"
         deletedAt:
           description: Soft-delete timestamp when applicable.
           type:
