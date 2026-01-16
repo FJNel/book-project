@@ -53,6 +53,7 @@
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .meta-label { color: #6c757d; font-size: 0.85rem; }
     .meta-value { font-weight: 600; font-size: 0.95rem; }
+    .book-card-link { cursor: pointer; }
 
     .filter-chip {
       display: inline-flex;
@@ -68,6 +69,13 @@
     .subtle-panel { background-color: #f7f8f9; }
 
     .list-table th { white-space: nowrap; }
+
+    .toolbar-row .btn,
+    .toolbar-row .btn-group .btn {
+      height: 38px;
+      display: flex;
+      align-items: center;
+    }
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
 
@@ -159,7 +167,7 @@
   </div>
 
   <!-- Advanced Filters Offcanvas -->
-  <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersOffcanvas" aria-labelledby="filtersOffcanvasLabel">
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersOffcanvas" aria-labelledby="filtersOffcanvasLabel" data-bs-backdrop="static" data-bs-scroll="true">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title" id="filtersOffcanvasLabel">Advanced filters</h5>
       <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -185,57 +193,50 @@
         </div>
 
         <div>
-          <div class="fw-semibold mb-1">Entities</div>
-          <div class="small text-muted mb-2">Filter by relationships to other records</div>
-          <div class="d-flex flex-column gap-3">
-            <div>
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label small mb-0" for="bookTypeModeSelect">Book Type</label>
-                <select class="form-select form-select-sm w-auto" id="bookTypeModeSelect" aria-label="Book type match mode">
-                  <option value="and">All selected</option>
-                  <option value="or">Any selected</option>
-                </select>
-              </div>
-              <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="bookTypeCheckboxes">
-                <div class="text-muted small">Loading book types…</div>
-              </div>
+          <div class="fw-semibold mb-1">Book Type</div>
+          <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="bookTypeCheckboxes">
+            <div class="text-muted small">Loading book types…</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="fw-semibold mb-1">Publisher</div>
+          <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="publisherCheckboxes">
+            <div class="text-muted small">Loading publishers…</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="fw-semibold mb-1">Authors</div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted">Match authors with</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Author match mode">
+              <input type="radio" class="btn-check" name="authorMode" id="authorModeAny" value="or" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="authorModeAny">OR</label>
+              <input type="radio" class="btn-check" name="authorMode" id="authorModeAll" value="and" autocomplete="off" checked>
+              <label class="btn btn-outline-secondary" for="authorModeAll">AND</label>
             </div>
-            <div>
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label small mb-0" for="publisherModeSelect">Publisher</label>
-                <select class="form-select form-select-sm w-auto" id="publisherModeSelect" aria-label="Publisher match mode">
-                  <option value="and">All selected</option>
-                  <option value="or">Any selected</option>
-                </select>
-              </div>
-              <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="publisherCheckboxes">
-                <div class="text-muted small">Loading publishers…</div>
-              </div>
+            <input type="hidden" id="authorModeSelect" value="and" />
+          </div>
+          <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="authorCheckboxes">
+            <div class="text-muted small">Loading authors…</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="fw-semibold mb-1">Series</div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted">Match series with</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Series match mode">
+              <input type="radio" class="btn-check" name="seriesMode" id="seriesModeAny" value="or" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="seriesModeAny">OR</label>
+              <input type="radio" class="btn-check" name="seriesMode" id="seriesModeAll" value="and" autocomplete="off" checked>
+              <label class="btn btn-outline-secondary" for="seriesModeAll">AND</label>
             </div>
-            <div>
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label small mb-0" for="authorModeSelect">Author</label>
-                <select class="form-select form-select-sm w-auto" id="authorModeSelect" aria-label="Author match mode">
-                  <option value="and">All selected</option>
-                  <option value="or">Any selected</option>
-                </select>
-              </div>
-              <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="authorCheckboxes">
-                <div class="text-muted small">Loading authors…</div>
-              </div>
-            </div>
-            <div>
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label small mb-0" for="seriesModeSelect">Series</label>
-                <select class="form-select form-select-sm w-auto" id="seriesModeSelect" aria-label="Series match mode">
-                  <option value="and">All selected</option>
-                  <option value="or">Any selected</option>
-                </select>
-              </div>
-              <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="seriesCheckboxes">
-                <div class="text-muted small">Loading series…</div>
-              </div>
-            </div>
+            <input type="hidden" id="seriesModeSelect" value="and" />
+          </div>
+          <div class="border rounded p-2" style="max-height: 160px; overflow:auto" id="seriesCheckboxes">
+            <div class="text-muted small">Loading series…</div>
           </div>
         </div>
 
@@ -265,10 +266,13 @@
           <div class="fw-semibold mb-1">Tags</div>
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted">Match tags with</span>
-            <select class="form-select form-select-sm w-auto" id="tagModeSelect" aria-label="Tag matching mode">
-              <option value="and">AND</option>
-              <option value="or">OR</option>
-            </select>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Tag match mode">
+              <input type="radio" class="btn-check" name="tagMode" id="tagModeAny" value="or" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="tagModeAny">OR</label>
+              <input type="radio" class="btn-check" name="tagMode" id="tagModeAll" value="and" autocomplete="off" checked>
+              <label class="btn btn-outline-secondary" for="tagModeAll">AND</label>
+            </div>
+            <input type="hidden" id="tagModeSelect" value="and" />
           </div>
           <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="tagCheckboxes">
             <div class="text-muted small">Loading tags…</div>
@@ -279,10 +283,13 @@
           <div class="fw-semibold mb-1">Languages</div>
           <div class="d-flex align-items-center justify-content-between mb-2">
             <span class="small text-muted">Match languages with</span>
-            <select class="form-select form-select-sm w-auto" id="languageModeSelect" aria-label="Language matching mode">
-              <option value="and">AND</option>
-              <option value="or">OR</option>
-            </select>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Language match mode">
+              <input type="radio" class="btn-check" name="languageMode" id="languageModeAny" value="or" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="languageModeAny">OR</label>
+              <input type="radio" class="btn-check" name="languageMode" id="languageModeAll" value="and" autocomplete="off" checked>
+              <label class="btn btn-outline-secondary" for="languageModeAll">AND</label>
+            </div>
+            <input type="hidden" id="languageModeSelect" value="and" />
           </div>
           <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="languageCheckboxes">
             <div class="text-muted small">Loading languages…</div>
@@ -447,6 +454,7 @@
                 <th>Pages</th>
                 <th>Published</th>
                 <th>Tags</th>
+                <th>Authors</th>
               </tr>
             </thead>
             <tbody id="listTableBody"></tbody>
@@ -471,7 +479,7 @@
       <div class="d-flex align-items-center gap-2">
         <div>
           <label class="form-label mb-0 text-muted small" for="perPageInput">Per page</label>
-          <input type="number" class="form-control form-control-sm" id="perPageInput" value="12" step="10" min="2" max="200" style="width: 90px;" aria-describedby="perPageHelp" />
+          <input type="number" class="form-control form-control-sm" id="perPageInput" value="20" step="10" min="2" max="200" style="width: 90px;" aria-describedby="perPageHelp" />
           <small id="perPageHelp" class="text-muted d-none">Enter a value between 2 and 200.</small>
         </div>
       </div>
