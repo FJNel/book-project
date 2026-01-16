@@ -323,8 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            console.log('[Redirect] Redirecting to add-book...');
-            window.location.href = 'add-book';
+            console.log('[Redirect] Redirecting to books...');
+            window.location.href = 'books';
         }, 3000);
     }
 
