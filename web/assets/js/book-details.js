@@ -4,6 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const errorLog = (...args) => console.error('[Book Details]', ...args);
 
   log('Initializing page.');
+  if (window.rateLimitGuard?.hasReset && window.rateLimitGuard.hasReset()) {
+    window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+    return;
+  }
   const placeholderCover = (title) => {
     const text = encodeURIComponent(title || 'Book Cover');
     return `https://placehold.co/600x900?text=${text}&font=Lora`;

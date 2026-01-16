@@ -1005,6 +1005,15 @@
     hydrateStateFromUrl();
     enforceMobileView();
     updateOffcanvasPlacement();
+
+    if (window.rateLimitGuard?.hasReset()) {
+      await window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: false, rateLimited: true });
+      }
+      return;
+    }
+
     syncControlsFromState();
     renderActiveFilters();
     attachListeners();

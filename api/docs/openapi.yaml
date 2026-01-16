@@ -3738,8 +3738,8 @@ paths:
                           bookTypeId: 2
                           bookTypeName: Paperback
                           languages:
-                           - id: 2
-                             name: English
+                            - id: 2
+                              name: English
                           tags:
                             - id: 7
                               name: Fantasy
@@ -3821,8 +3821,6 @@ paths:
                           acquisitionType: Gift
                           acquisitionLocation: Cape Town
                           notes: Hardcover edition.
-                          createdAt: "2025-01-17T10:02:11.000Z"
-                          updatedAt: "2025-01-17T10:02:11.000Z"
                       createdAt: "2025-01-17T10:02:11.000Z"
                       updatedAt: "2025-01-17T10:02:11.000Z"
                       stats:
@@ -3838,39 +3836,6 @@ paths:
                         hasPublisher: true
                         hasBookType: true
                         hasPageCount: true
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-  /book/list:
-    post:
-      tags: [Books]
-      summary: List books (JSON body)
-      operationId: listBooksPost
-      description: Browser-safe listing endpoint that accepts the same filters as GET /book via JSON body (no reliance on query strings or GET bodies).
-      x-rateLimit:
-        limit: 60
-        window: minute
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BookListRequest'
-      responses:
-        '200':
-          description: Books
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/BookList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '404':
@@ -3940,7 +3905,6 @@ paths:
                   value:
                     status: success
                     httpCode: 201
-                    responseTime: "4.33"
                     message: Book created successfully.
                     data:
                       id: 33
@@ -3982,7 +3946,6 @@ paths:
                   value:
                     status: success
                     httpCode: 200
-                    responseTime: "3.92"
                     message: Book updated successfully.
                     data:
                       id: 33
@@ -4024,7 +3987,6 @@ paths:
                   value:
                     status: success
                     httpCode: 200
-                    responseTime: "2.48"
                     message: Book deleted successfully.
                     data:
                       id: 33
@@ -4033,6 +3995,69 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /book/list:
+    post:
+      tags: [Books]
+      summary: List books (JSON body)
+      operationId: listBooksPost
+      description: Browser-safe listing endpoint that accepts the same filters as GET /book via JSON body (no reliance on query strings or GET bodies).
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookListRequest'
+            examples:
+              filterAndSort:
+                summary: Filter, sort, and paginate
+                value:
+                  view: card
+                  sortBy: title
+                  order: asc
+                  limit: 20
+                  offset: 0
+                  filterTag: fantasy
+                  filterLanguage: English
+              searchTitle:
+                summary: Search by title (body only)
+                value:
+                  title: fellowship
+                  limit: 10
+                  offset: 0
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookList'
+              examples:
+                list:
+                  summary: List response
+                  value:
+                    status: success
+                    httpCode: 200
+                    message: Books retrieved successfully.
+                    data:
+                      books: []
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /book/{id}:
     put:
       tags: [Books]
