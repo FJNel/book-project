@@ -1029,7 +1029,7 @@
         state.search = event.target.value.trim();
         state.page = 1;
         triggerFetch();
-      }, 250));
+      }, 500));
       dom.searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
