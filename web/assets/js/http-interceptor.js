@@ -32,6 +32,13 @@
 	}
 
 	const modalState = { active: null };
+	const modalPriority = {
+		sessionExpiredModal: 100,
+		rateLimitModal: 90,
+		apiErrorModal: 80,
+		invalidBookModal: 70,
+		pageLoadingModal: 20
+	};
 
 	function resolveElement(target) {
 		if (!target) return null;
@@ -42,6 +49,12 @@
 			return target;
 		}
 		return null;
+	}
+
+	function getPriority(target) {
+		const element = resolveElement(target);
+		const id = element?.id || (typeof target === 'string' ? target : null);
+		return modalPriority[id] ?? 10;
 	}
 
 	function ensureBackdropExists() {
@@ -115,6 +128,12 @@
 		}
 
 		if (modalState.active && modalState.active.element !== element) {
+			const activePriority = getPriority(modalState.active.element);
+			const nextPriority = getPriority(element);
+			if (activePriority > nextPriority) {
+				console.log('[Modal Manager] Skipping modal due to higher-priority modal:', modalState.active.element.id, '->', element.id);
+				return modalState.active.instance;
+			}
 			await hideModal(modalState.active.element);
 		}
 
@@ -133,6 +152,15 @@
 	// Ensure only one modal is visible even if triggered via data attributes.
 	document.addEventListener('show.bs.modal', (event) => {
 		const activeElement = modalState.active && modalState.active.element;
+		if (activeElement && activeElement !== event.target) {
+			const activePriority = getPriority(activeElement);
+			const nextPriority = getPriority(event.target);
+			if (activePriority > nextPriority) {
+				event.preventDefault();
+				console.log('[Modal Manager] Prevented lower-priority modal from showing:', event.target.id);
+				return;
+			}
+		}
 		if (activeElement && activeElement !== event.target && activeElement.classList.contains('show')) {
 			const activeInstance = Modal.getInstance(activeElement);
 			if (activeInstance) {
