@@ -52,6 +52,11 @@
     @media (max-width: 576px) {
       .cover-card { max-width: 85%; margin: 0 auto; }
     }
+    @media (max-width: 576px) {
+      #filtersOffcanvas.offcanvas-bottom { height: 92vh; }
+      #filtersOffcanvas.offcanvas-bottom .offcanvas-body { padding-bottom: 1.5rem; }
+      .filters-toggle { font-size: 0.875rem; padding: 0.35rem 0.5rem; }
+    }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .meta-label { color: #6c757d; font-size: 0.85rem; }
@@ -363,7 +368,6 @@
 
             <div class="row g-2 align-items-end toolbar-grid">
               <div class="col-12 col-lg-6">
-                <label class="form-label fw-semibold mb-1 d-lg-none" for="searchInput">Search by Title</label>
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
@@ -376,7 +380,6 @@
               </div>
 
               <div class="col-12 col-lg-2">
-                <label class="form-label fw-semibold mb-1 d-lg-none" for="sortSelect">Sort</label>
                 <select class="form-select" id="sortSelect" aria-label="Sort books">
                   <option value="title:asc">Title (A to Z)</option>
                   <option value="title:desc">Title (Z to A)</option>
@@ -389,7 +392,7 @@
                 </select>
               </div>
 
-              <div class="col-12 col-lg-2">
+              <div class="col-12 col-lg-2 d-none d-lg-block">
                 <div class="btn-group view-toggle w-100" role="group" aria-label="View">
                   <button class="btn btn-primary" type="button" id="viewCardBtn" aria-pressed="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-grid-3x3-gap me-1" viewBox="0 0 16 16">
@@ -407,7 +410,7 @@
               </div>
 
               <div class="col-12 col-lg-2">
-                <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
+                <button class="btn btn-outline-secondary w-100 filters-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
               </div>
             </div>
           </div>
