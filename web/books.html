@@ -165,8 +165,8 @@
       <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-      <div class="row g-3">
-        <div class="col-12 col-md-6 col-lg-6">
+      <div class="d-flex flex-column gap-3">
+        <div>
           <div class="fw-semibold mb-1">Title & ISBN</div>
           <div class="row g-2">
             <div class="col-12">
@@ -184,28 +184,28 @@
           </div>
         </div>
 
-        <div class="col-12 col-md-6 col-lg-6">
+        <div>
           <div class="fw-semibold mb-1">Entities</div>
-          <div class="row g-2">
-            <div class="col-12">
+          <div class="d-flex flex-column gap-2">
+            <div>
               <label class="form-label small mb-1" for="filterBookType">Filter by Book Type</label>
               <select class="form-select" id="filterBookType">
                 <option value="">Any book type</option>
               </select>
             </div>
-            <div class="col-12">
+            <div>
               <label class="form-label small mb-1" for="filterPublisher">Filter by Publisher</label>
               <select class="form-select" id="filterPublisher">
                 <option value="">Any publisher</option>
               </select>
             </div>
-            <div class="col-12">
+            <div>
               <label class="form-label small mb-1" for="filterAuthor">Filter by Author</label>
               <select class="form-select" id="filterAuthor">
                 <option value="">Any author</option>
               </select>
             </div>
-            <div class="col-12">
+            <div>
               <label class="form-label small mb-1" for="filterSeries">Filter by Series</label>
               <select class="form-select" id="filterSeries">
                 <option value="">Any series</option>
@@ -214,7 +214,7 @@
           </div>
         </div>
 
-        <div class="col-12 col-md-6 col-lg-6">
+        <div>
           <div class="fw-semibold mb-1">Dates & pages</div>
           <div class="row g-2">
             <div class="col-6">
@@ -236,28 +236,21 @@
           </div>
         </div>
 
-        <div class="col-12 col-md-6 col-lg-6">
-          <div class="fw-semibold mb-1">Tags & language</div>
-          <div class="row g-2">
-            <div class="col-12 col-md-6">
-              <label class="form-label small mb-1" for="filterTag">Filter by Tag</label>
-              <input class="form-control" id="filterTag" type="text" list="tagOptions" placeholder="Tag name" autocomplete="off" />
-              <datalist id="tagOptions"></datalist>
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label small mb-1" for="filterLanguages">Filter by Language(s)</label>
-              <div class="d-flex flex-column gap-1">
-                <div class="d-flex flex-wrap gap-2" id="selectedLanguagesPills"></div>
-                <select class="form-select" id="filterLanguages" multiple size="4">
-                  <option disabled>Loading languages…</option>
-                </select>
-                <button class="btn btn-link btn-sm p-0 align-self-start" type="button" id="clearLanguagesBtn">Clear languages</button>
-              </div>
-            </div>
+        <div>
+          <div class="fw-semibold mb-1">Tags</div>
+          <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="tagCheckboxes">
+            <div class="text-muted small">Loading tags…</div>
           </div>
         </div>
 
-        <div class="col-12 col-md-6 col-lg-6">
+        <div>
+          <div class="fw-semibold mb-1">Languages</div>
+          <div class="border rounded p-2" style="max-height: 200px; overflow:auto" id="languageCheckboxes">
+            <div class="text-muted small">Loading languages…</div>
+          </div>
+        </div>
+
+        <div>
           <div class="fw-semibold mb-1">Other</div>
           <div class="d-flex flex-column gap-2">
             <div class="form-check">
@@ -275,7 +268,7 @@
     <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
       <button class="btn btn-outline-secondary btn-sm" type="button" id="resetFiltersBtn">Reset filters</button>
       <div class="d-flex gap-2">
-        <button class="btn btn-primary btn-sm" type="button" data-bs-dismiss="offcanvas">Apply & close</button>
+        <button class="btn btn-primary btn-sm" type="button" id="applyFiltersBtn" data-bs-dismiss="offcanvas">Apply & close</button>
         <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
       </div>
     </div>

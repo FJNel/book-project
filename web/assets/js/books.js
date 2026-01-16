@@ -12,29 +12,31 @@
     console.log('[Books][debug]', ...args);
   };
 
+  const defaultFilters = () => ({
+    title: '',
+    subtitle: '',
+    isbn: '',
+    tagIds: [],
+    bookTypeId: '',
+    publisherId: '',
+    authorId: '',
+    seriesId: '',
+    pageMin: '',
+    pageMax: '',
+    publishedAfter: '',
+    publishedBefore: '',
+    languageIds: [],
+    includeDeleted: false,
+    onlyWithCover: false
+  });
+
   const state = {
     view: 'card',
     sort: { field: 'title', order: 'asc' },
     limit: 12,
     page: 1,
     search: '',
-    filters: {
-      title: '',
-      subtitle: '',
-      isbn: '',
-      tag: '',
-      bookTypeId: '',
-      publisherId: '',
-      authorId: '',
-      seriesId: '',
-      pageMin: '',
-      pageMax: '',
-      publishedAfter: '',
-      publishedBefore: '',
-      languageIds: [],
-      includeDeleted: false,
-      onlyWithCover: false
-    }
+    filters: defaultFilters()
   };
 
   const dom = {
@@ -51,17 +53,15 @@
     filterPublisher: document.getElementById('filterPublisher'),
     filterAuthor: document.getElementById('filterAuthor'),
     filterSeries: document.getElementById('filterSeries'),
-    filterTag: document.getElementById('filterTag'),
-    tagOptions: document.getElementById('tagOptions'),
-    filterLanguages: document.getElementById('filterLanguages'),
-    selectedLanguagesPills: document.getElementById('selectedLanguagesPills'),
-    clearLanguagesBtn: document.getElementById('clearLanguagesBtn'),
+    tagCheckboxes: document.getElementById('tagCheckboxes'),
+    languageCheckboxes: document.getElementById('languageCheckboxes'),
     filterPageMin: document.getElementById('filterPageMin'),
     filterPageMax: document.getElementById('filterPageMax'),
     filterPublishedAfter: document.getElementById('filterPublishedAfter'),
     filterPublishedBefore: document.getElementById('filterPublishedBefore'),
     includeDeletedCheck: document.getElementById('includeDeletedCheck'),
     onlyWithCoverCheck: document.getElementById('onlyWithCoverCheck'),
+    applyFiltersBtn: document.getElementById('applyFiltersBtn'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     refreshButton: document.getElementById('refreshButton'),
     clearAllFiltersBtn: document.getElementById('clearAllFiltersBtn'),
@@ -88,6 +88,8 @@
     statDescriptionWrap: document.getElementById('statDescriptionWrap')
   };
   let lastHasNextPage = false;
+  let tagMap = new Map();
+  let languageMap = new Map();
 
   const debounce = (fn, delay = 350) => {
     let timer;
@@ -107,6 +109,35 @@
     if (cleaned.length === 10 && /^[0-9]{9}[0-9X]$/.test(cleaned)) return cleaned;
     if (cleaned.length === 13 && /^[0-9]{13}$/.test(cleaned)) return cleaned;
     return '';
+  };
+
+  const getCheckedIds = (container) => {
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+      .map((cb) => parseNumber(cb.value))
+      .filter((id) => Number.isInteger(id));
+  };
+
+  const renderCheckboxGroup = ({ container, items, selectedIds = [], namePrefix = 'opt' }) => {
+    if (!container) return;
+    container.innerHTML = '';
+    if (!items.length) {
+      container.innerHTML = '<div class="text-muted small">No options available.</div>';
+      return;
+    }
+    items.forEach((item, index) => {
+      const id = item.id ?? index;
+      const inputId = `${namePrefix}-${id}`;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'form-check';
+      wrapper.innerHTML = `
+        <input class="form-check-input" type="checkbox" id="${inputId}" value="${id}">
+        <label class="form-check-label" for="${inputId}">${item.name || item.label || id}</label>
+      `;
+      const cb = wrapper.querySelector('input');
+      cb.checked = selectedIds.includes(id);
+      container.appendChild(wrapper);
+    });
   };
 
   const placeholderCover = (title, size = '600x900', text = null) => {
@@ -161,6 +192,7 @@
   };
 
   const hydrateStateFromUrl = () => {
+    state.filters = defaultFilters();
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
     if (viewParam === 'list') {
@@ -187,7 +219,13 @@
     state.filters.title = params.get('filterTitle') || '';
     state.filters.subtitle = params.get('filterSubtitle') || '';
     state.filters.isbn = params.get('filterIsbn') || '';
-    state.filters.tag = params.get('filterTag') || '';
+    const tagsParam = params.get('tags');
+    state.filters.tagIds = tagsParam
+      ? tagsParam
+          .split(',')
+          .map((id) => parseNumber(id))
+          .filter((id) => Number.isInteger(id))
+      : [];
     state.filters.bookTypeId = params.get('filterBookTypeId') || '';
     state.filters.publisherId = params.get('filterPublisherId') || '';
     state.filters.authorId = params.get('filterAuthorId') || '';
@@ -221,10 +259,14 @@
     if (state.search) params.set('q', state.search);
 
     const f = state.filters;
+
+  const getBooksSignature = () => JSON.stringify(buildBookBody());
+
+  const getBooksSignature = () => JSON.stringify(buildBookBody());
     if (f.title) params.set('filterTitle', f.title);
     if (f.subtitle) params.set('filterSubtitle', f.subtitle);
     if (f.isbn) params.set('filterIsbn', f.isbn);
-    if (f.tag) params.set('filterTag', f.tag);
+    if (f.tagIds.length) params.set('tags', f.tagIds.join(','));
     if (f.bookTypeId) params.set('filterBookTypeId', f.bookTypeId);
     if (f.publisherId) params.set('filterPublisherId', f.publisherId);
     if (f.authorId) params.set('filterAuthorId', f.authorId);
@@ -266,7 +308,6 @@
     if (dom.filterTitle) dom.filterTitle.value = f.title;
     if (dom.filterSubtitle) dom.filterSubtitle.value = f.subtitle;
     if (dom.filterIsbn) dom.filterIsbn.value = f.isbn;
-    if (dom.filterTag) dom.filterTag.value = f.tag;
     if (dom.filterBookType) dom.filterBookType.value = f.bookTypeId || '';
     if (dom.filterPublisher) dom.filterPublisher.value = f.publisherId || '';
     if (dom.filterAuthor) dom.filterAuthor.value = f.authorId || '';
@@ -278,15 +319,20 @@
     if (dom.includeDeletedCheck) dom.includeDeletedCheck.checked = f.includeDeleted;
     if (dom.onlyWithCoverCheck) dom.onlyWithCoverCheck.checked = f.onlyWithCover;
 
-    if (dom.filterLanguages && dom.filterLanguages.options) {
-      Array.from(dom.filterLanguages.options).forEach((opt) => {
-        const id = parseNumber(opt.value);
-        opt.selected = id !== null && f.languageIds.includes(id);
+    if (dom.languageCheckboxes) {
+      Array.from(dom.languageCheckboxes.querySelectorAll('input[type="checkbox"]')).forEach((cb) => {
+        const id = parseNumber(cb.value);
+        cb.checked = id !== null && f.languageIds.includes(id);
+      });
+    }
+    if (dom.tagCheckboxes) {
+      Array.from(dom.tagCheckboxes.querySelectorAll('input[type="checkbox"]')).forEach((cb) => {
+        const id = parseNumber(cb.value);
+        cb.checked = id !== null && f.tagIds.includes(id);
       });
     }
 
     setViewButtons();
-    renderLanguagePills();
   };
 
   const renderActiveFilters = () => {
@@ -295,8 +341,8 @@
     const chips = [];
     const pushChip = (label, value, onRemove) => {
       const chip = document.createElement('span');
-      chip.className = 'filter-chip';
-      chip.innerHTML = `<span class="badge text-bg-secondary">${label}</span> ${value} <button type="button" class="btn-close btn-close-sm ms-1" aria-label="Remove filter"></button>`;
+      chip.className = 'filter-chip d-inline-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-body-secondary text-body';
+      chip.innerHTML = `<span class="text-muted text-uppercase fw-semibold small">${label}</span><span class="fw-semibold">${value}</span><button type="button" class="btn-close btn-close-sm ms-1" aria-label="Remove filter"></button>`;
       const closeBtn = chip.querySelector('button');
       closeBtn.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -310,7 +356,14 @@
     if (f.title) pushChip('title', f.title, () => { f.title = ''; syncControlsFromState(); triggerFetch(); });
     if (f.subtitle) pushChip('subtitle', f.subtitle, () => { f.subtitle = ''; syncControlsFromState(); triggerFetch(); });
     if (f.isbn) pushChip('isbn', f.isbn, () => { f.isbn = ''; syncControlsFromState(); triggerFetch(); });
-    if (f.tag) pushChip('tag', f.tag, () => { f.tag = ''; syncControlsFromState(); triggerFetch(); });
+    if (f.tagIds.length) {
+      const names = f.tagIds
+        .map((id) => tagMap.get(id))
+        .filter(Boolean)
+        .join(', ');
+      const label = names || f.tagIds.join(',');
+      pushChip('tags', label, () => { f.tagIds = []; syncControlsFromState(); triggerFetch(); });
+    }
     if (f.bookTypeId && dom.filterBookType) {
       const text = dom.filterBookType.selectedOptions[0]?.textContent || f.bookTypeId;
       pushChip('type', text, () => { f.bookTypeId = ''; syncControlsFromState(); triggerFetch(); });
@@ -333,8 +386,8 @@
     if (isIsoDate(f.publishedBefore)) pushChip('published before', f.publishedBefore, () => { f.publishedBefore = ''; syncControlsFromState(); triggerFetch(); });
     if (f.includeDeleted) pushChip('include deleted', 'on', () => { f.includeDeleted = false; syncControlsFromState(); triggerFetch(); });
     if (f.onlyWithCover) pushChip('with cover', 'required', () => { f.onlyWithCover = false; syncControlsFromState(); triggerFetch(); });
-    if (f.languageIds.length && dom.filterLanguages) {
-      const names = Array.from(dom.filterLanguages.selectedOptions).map((opt) => opt.textContent.trim()).join(', ');
+    if (f.languageIds.length) {
+      const names = f.languageIds.map((id) => languageMap.get(id)).filter(Boolean).join(', ');
       pushChip('languages', names || f.languageIds.join(','), () => { f.languageIds = []; syncControlsFromState(); triggerFetch(); });
     }
 
@@ -351,7 +404,7 @@
       const moreCount = chips.length - visible.length;
       visible.forEach((chip) => dom.activeFilters.appendChild(chip));
       const more = document.createElement('span');
-      more.className = 'filter-chip';
+      more.className = 'filter-chip d-inline-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-body-secondary text-body';
       more.textContent = `+${moreCount} more`;
       dom.activeFilters.appendChild(more);
     } else {
@@ -363,32 +416,31 @@
     }
   };
 
-  const renderLanguagePills = () => {
-    if (!dom.selectedLanguagesPills) return;
-    dom.selectedLanguagesPills.innerHTML = '';
-    if (!state.filters.languageIds.length) {
-      const muted = document.createElement('span');
-      muted.className = 'text-muted small';
-      muted.textContent = 'No languages selected';
-      dom.selectedLanguagesPills.appendChild(muted);
-      return;
-    }
-    const languageOptions = Array.from(dom.filterLanguages?.options || []);
-      state.filters.languageIds.forEach((id) => {
-        const match = languageOptions.find((opt) => parseNumber(opt.value) === id);
-        const pill = document.createElement('span');
-        pill.className = 'filter-chip';
-        pill.innerHTML = `<span class="badge text-bg-secondary">language</span> ${match ? match.textContent.trim() : id} <button type="button" class="btn-close btn-close-sm" aria-label="Remove language"></button>`;
-      const btn = pill.querySelector('button');
-      if (btn) {
-        btn.addEventListener('click', () => {
-          state.filters.languageIds = state.filters.languageIds.filter((langId) => langId !== id);
-          syncControlsFromState();
-          triggerFetch();
-        });
-      }
-      dom.selectedLanguagesPills.appendChild(pill);
-    });
+  const readFiltersFromControls = () => {
+    const next = defaultFilters();
+    next.title = dom.filterTitle?.value.trim() || '';
+    next.subtitle = dom.filterSubtitle?.value.trim() || '';
+    next.isbn = dom.filterIsbn?.value.trim() || '';
+    next.bookTypeId = dom.filterBookType?.value || '';
+    next.publisherId = dom.filterPublisher?.value || '';
+    next.authorId = dom.filterAuthor?.value || '';
+    next.seriesId = dom.filterSeries?.value || '';
+    next.pageMin = dom.filterPageMin?.value || '';
+    next.pageMax = dom.filterPageMax?.value || '';
+    next.publishedAfter = dom.filterPublishedAfter?.value || '';
+    next.publishedBefore = dom.filterPublishedBefore?.value || '';
+    next.includeDeleted = Boolean(dom.includeDeletedCheck?.checked);
+    next.onlyWithCover = Boolean(dom.onlyWithCoverCheck?.checked);
+    next.languageIds = getCheckedIds(dom.languageCheckboxes);
+    next.tagIds = getCheckedIds(dom.tagCheckboxes);
+    return next;
+  };
+
+  const applyFiltersFromControls = () => {
+    state.filters = readFiltersFromControls();
+    state.page = 1;
+    renderActiveFilters();
+    triggerFetch();
   };
 
   const showLoading = () => {
@@ -427,6 +479,8 @@
     return false;
   };
 
+  let lastBooksSignature = null;
+
   const buildBookBody = () => {
     const body = {
       limit: state.limit,
@@ -439,10 +493,6 @@
     const f = state.filters;
     if (state.search) {
       body.filterTitle = state.search;
-      body.filterSubtitle = state.search;
-      const isbn = normalizeIsbn(state.search);
-      if (isbn) body.filterIsbn = isbn;
-      body.filterTag = state.search;
     }
     if (f.title) body.filterTitle = f.title;
     if (f.subtitle) body.filterSubtitle = f.subtitle;
@@ -450,7 +500,10 @@
       const cleanIsbn = normalizeIsbn(f.isbn);
       if (cleanIsbn) body.filterIsbn = cleanIsbn;
     }
-    if (f.tag) body.filterTag = f.tag;
+    if (f.tagIds.length) {
+      const firstTagName = tagMap.get(f.tagIds[0]);
+      if (firstTagName) body.filterTag = firstTagName;
+    }
     if (f.bookTypeId) body.filterBookTypeId = f.bookTypeId;
     if (f.publisherId) body.filterPublisherId = f.publisherId;
     if (f.authorId) body.filterAuthorId = f.authorId;
@@ -461,14 +514,15 @@
     if (isIsoDate(f.publishedBefore)) body.filterPublishedBefore = f.publishedBefore;
     if (f.languageIds.length > 0) {
       body.filterLanguageId = f.languageIds[0];
-      const languageOptions = Array.from(dom.filterLanguages?.options || []);
-      const name = languageOptions.find((opt) => parseNumber(opt.value) === f.languageIds[0])?.textContent?.trim();
-      if (name) body.filterLanguage = name.toLowerCase();
+      const langName = languageMap.get(f.languageIds[0]);
+      if (langName) body.filterLanguage = langName.toLowerCase();
     }
     if (f.includeDeleted) body.includeDeleted = true;
 
     return body;
   };
+
+  const getBooksSignature = () => JSON.stringify(buildBookBody());
 
   let currentRequestId = 0;
 
@@ -477,6 +531,10 @@
     if (state.filters.languageIds.length > 0) {
       const languageSet = new Set(state.filters.languageIds);
       filtered = filtered.filter((book) => Array.isArray(book.languages) && book.languages.some((lang) => languageSet.has(lang.id)));
+    }
+    if (state.filters.tagIds.length > 0) {
+      const tagSet = new Set(state.filters.tagIds);
+      filtered = filtered.filter((book) => Array.isArray(book.tags) && book.tags.some((tag) => tagSet.has(tag.id)));
     }
     if (state.filters.onlyWithCover) {
       filtered = filtered.filter((book) => Boolean(book.coverImageUrl));
@@ -721,21 +779,42 @@
   };
 
   const loadTags = async () => {
-    if (!dom.tagOptions) return;
+    if (!dom.tagCheckboxes) return;
     try {
       const response = await apiFetch('/tags', { method: 'GET' });
       if (await handleRateLimit(response)) return;
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) return;
       const tags = (payload.data && payload.data.tags) || [];
-      dom.tagOptions.innerHTML = '';
-      tags.forEach((tag) => {
-        const option = document.createElement('option');
-        option.value = tag.name;
-        dom.tagOptions.appendChild(option);
+      tagMap = new Map(tags.map((tag) => [tag.id, tag.name]));
+      renderCheckboxGroup({
+        container: dom.tagCheckboxes,
+        items: tags.map((tag) => ({ id: tag.id, name: tag.name })),
+        selectedIds: state.filters.tagIds,
+        namePrefix: 'tag'
       });
     } catch (error) {
       warn('Failed to load tags', error);
+    }
+  };
+
+  const loadLanguages = async () => {
+    if (!dom.languageCheckboxes) return;
+    try {
+      const response = await apiFetch('/languages', { method: 'GET' });
+      if (await handleRateLimit(response)) return;
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      const languages = (payload.data && payload.data.languages) || [];
+      languageMap = new Map(languages.map((lang) => [lang.id, lang.name]));
+      renderCheckboxGroup({
+        container: dom.languageCheckboxes,
+        items: languages.map((lang) => ({ id: lang.id, name: lang.name })),
+        selectedIds: state.filters.languageIds,
+        namePrefix: 'lang'
+      });
+    } catch (error) {
+      warn('Failed to load languages', error);
     }
   };
 
@@ -745,11 +824,10 @@
       loadSelectOptions({ url: '/publisher?nameOnly=true&sortBy=name&order=asc&limit=200', target: dom.filterPublisher }),
       loadSelectOptions({ url: '/author?nameOnly=true&sortBy=displayName&order=asc&limit=200', target: dom.filterAuthor, labelKey: 'displayName' }),
       loadSelectOptions({ url: '/bookseries?nameOnly=true&sortBy=name&order=asc&limit=200', target: dom.filterSeries }),
-      loadSelectOptions({ url: '/languages', target: dom.filterLanguages }),
+      loadLanguages(),
       loadTags()
     ];
     await Promise.allSettled(tasks);
-    renderLanguagePills();
   };
 
   const triggerFetch = debounce(() => {
@@ -759,6 +837,13 @@
   }, 150);
 
   const loadBooks = async () => {
+    const signature = getBooksSignature();
+    if (signature === lastBooksSignature) {
+      debugLog('Skipping book fetch; state unchanged.');
+      return;
+    }
+    lastBooksSignature = signature;
+
     const requestId = ++currentRequestId;
     clearAlerts();
     showLoading();
@@ -805,26 +890,10 @@
   };
 
   const resetFilters = () => {
-    state.search = '';
+    state.filters = defaultFilters();
     state.page = 1;
-    Object.assign(state.filters, {
-      title: '',
-      subtitle: '',
-      isbn: '',
-      tag: '',
-      bookTypeId: '',
-      publisherId: '',
-      authorId: '',
-      seriesId: '',
-      pageMin: '',
-      pageMax: '',
-      publishedAfter: '',
-      publishedBefore: '',
-      languageIds: [],
-      includeDeleted: false,
-      onlyWithCover: false
-    });
     syncControlsFromState();
+    renderActiveFilters();
     triggerFetch();
   };
 
@@ -896,80 +965,9 @@
       });
     }
 
-    const filterInputs = [
-      dom.filterTitle,
-      dom.filterSubtitle,
-      dom.filterIsbn,
-      dom.filterTag,
-      dom.filterPageMin,
-      dom.filterPageMax,
-      dom.filterPublishedAfter,
-      dom.filterPublishedBefore
-    ];
-    filterInputs.forEach((input) => {
-      if (!input) return;
-      input.addEventListener('input', debounce(() => {
-        state.filters.title = dom.filterTitle?.value.trim() || '';
-        state.filters.subtitle = dom.filterSubtitle?.value.trim() || '';
-        state.filters.isbn = dom.filterIsbn?.value.trim() || '';
-        state.filters.tag = dom.filterTag?.value.trim() || '';
-        state.filters.pageMin = dom.filterPageMin?.value.trim() || '';
-        state.filters.pageMax = dom.filterPageMax?.value.trim() || '';
-        state.filters.publishedAfter = dom.filterPublishedAfter?.value || '';
-        state.filters.publishedBefore = dom.filterPublishedBefore?.value || '';
-        state.page = 1;
-        triggerFetch();
-      }, 300));
-    });
-
-    const selectFilters = [
-      { element: dom.filterBookType, key: 'bookTypeId' },
-      { element: dom.filterPublisher, key: 'publisherId' },
-      { element: dom.filterAuthor, key: 'authorId' },
-      { element: dom.filterSeries, key: 'seriesId' }
-    ];
-    selectFilters.forEach(({ element, key }) => {
-      if (!element) return;
-      element.addEventListener('change', (event) => {
-        state.filters[key] = event.target.value;
-        state.page = 1;
-        triggerFetch();
-      });
-    });
-
-    if (dom.filterLanguages) {
-      dom.filterLanguages.addEventListener('change', () => {
-        const selected = Array.from(dom.filterLanguages.selectedOptions)
-          .map((opt) => parseNumber(opt.value))
-          .filter((id) => Number.isInteger(id));
-        state.filters.languageIds = selected;
-        state.page = 1;
-        triggerFetch();
-        renderLanguagePills();
-      });
-    }
-
-    if (dom.clearLanguagesBtn) {
-      dom.clearLanguagesBtn.addEventListener('click', () => {
-        state.filters.languageIds = [];
-        syncControlsFromState();
-        triggerFetch();
-      });
-    }
-
-    if (dom.includeDeletedCheck) {
-      dom.includeDeletedCheck.addEventListener('change', (event) => {
-        state.filters.includeDeleted = event.target.checked;
-        state.page = 1;
-        triggerFetch();
-      });
-    }
-
-    if (dom.onlyWithCoverCheck) {
-      dom.onlyWithCoverCheck.addEventListener('change', (event) => {
-        state.filters.onlyWithCover = event.target.checked;
-        state.page = 1;
-        triggerFetch();
+    if (dom.applyFiltersBtn) {
+      dom.applyFiltersBtn.addEventListener('click', () => {
+        applyFiltersFromControls();
       });
     }
 
