@@ -978,7 +978,7 @@ async function listBooksHandler(req, res) {
 	}
 
 	if (listParams.filterPageMin !== undefined) {
-		const { value: pageMin, error } = parseOptionalInt(listParams.filterPageMin, "filterPageMin", { min: 1 });
+		const { value: pageMin, error } = parseOptionalInt(listParams.filterPageMin, "filterPageMin", { min: 0 });
 		if (error) {
 			errors.push(error);
 		} else if (pageMin !== null) {

@@ -53,9 +53,11 @@
       .cover-card { max-width: 85%; margin: 0 auto; }
     }
     @media (max-width: 576px) {
-      #filtersOffcanvas.offcanvas-bottom { height: 92vh; }
+      #filtersOffcanvas.offcanvas-bottom { height: 100vh; }
       #filtersOffcanvas.offcanvas-bottom .offcanvas-body { padding-bottom: 1.5rem; }
       .filters-toggle { font-size: 0.875rem; padding: 0.35rem 0.5rem; }
+      .cover-card-wrap { padding: 0.5rem; }
+      .cover-card { border-radius: 0.5rem; }
     }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -247,7 +249,7 @@
           <div class="row g-2">
             <div class="col-6">
               <label class="form-label small mb-1" for="filterPageMin">Pages min</label>
-              <input class="form-control" id="filterPageMin" type="number" min="1" placeholder="Pages min" />
+              <input class="form-control" id="filterPageMin" type="number" min="0" placeholder="Pages min" />
             </div>
             <div class="col-6">
               <label class="form-label small mb-1" for="filterPageMax">Pages max</label>

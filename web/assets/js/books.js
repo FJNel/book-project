@@ -197,8 +197,10 @@
     offcanvasEl.classList.remove('offcanvas-end', 'offcanvas-bottom');
     if (isMobile()) {
       offcanvasEl.classList.add('offcanvas-bottom');
+      offcanvasEl.setAttribute('data-bs-scroll', 'false');
     } else {
       offcanvasEl.classList.add('offcanvas-end');
+      offcanvasEl.setAttribute('data-bs-scroll', 'true');
     }
   };
 
@@ -776,8 +778,8 @@
       const subtitle = book.subtitle ? book.subtitle : '';
       col.innerHTML = `
         <div class="card shadow h-100 book-card-link" role="button" tabindex="0">
-          <div class="position-relative">
-            <img class="cover-card rounded-top" alt="Book cover" src="${coverSrc}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
+          <div class="cover-card-wrap">
+            <img class="cover-card" alt="Book cover" src="${coverSrc}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
           </div>
           <div class="card-body d-flex flex-column">
             <div class="fw-bold meta-line">${book.title || 'Untitled'}</div>

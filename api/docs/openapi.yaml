@@ -7967,6 +7967,7 @@ components:
           description: When multiple language names are provided, choose AND (default) or OR matching.
         filterPageMin:
           type: integer
+          minimum: 0
         filterPageMax:
           type: integer
         filterPublishedBefore:
