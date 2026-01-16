@@ -21,14 +21,12 @@
       border-bottom: 1px solid rgba(0,0,0,0.06);
     }
 
-    .toolbar-row .form-control,
-    .toolbar-row .form-select,
-    .toolbar-row .btn {
+    .toolbar-grid .form-control,
+    .toolbar-grid .form-select,
+    .toolbar-grid .btn,
+    .toolbar-grid .btn-group .btn,
+    .toolbar-grid .input-group-text {
       height: 44px;
-    }
-
-    .view-toggle .btn {
-      border-radius: 999px;
     }
 
     .loading-dots span { animation: blink 1s infinite ease-in-out; }
@@ -73,12 +71,6 @@
 
     .list-table th { white-space: nowrap; }
 
-    .toolbar-grid .form-control,
-    .toolbar-grid .btn,
-    .toolbar-grid .btn-group .btn,
-    .toolbar-grid .form-select {
-      min-height: 42px;
-    }
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
 
@@ -356,22 +348,31 @@
       <div class="container px-0">
         <div class="card border-0 shadow-sm rounded-3">
           <div class="card-body pb-3">
-            <div class="row g-2 align-items-center toolbar-row">
-              <div class="col-12 col-lg-6">
+            <div class="row g-2 toolbar-grid">
+              <div class="col-12 col-lg-3">
                 <label class="form-label fw-semibold mb-1" for="searchInput">Search</label>
+              </div>
+              <div class="col-12 col-lg-3">
+                <label class="form-label fw-semibold mb-1" for="sortSelect">Sort</label>
+              </div>
+              <div class="col-12 col-lg-3 d-none d-lg-block"></div>
+              <div class="col-12 col-lg-3 d-none d-lg-block"></div>
+            </div>
+
+            <div class="row g-2 align-items-end toolbar-grid">
+              <div class="col-12 col-lg-3">
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
                       <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
                     </svg>
                   </span>
-                  <input class="form-control" id="searchInput" type="text" placeholder="Title, subtitle, ISBN, tag..." autocomplete="off" />
+                  <input class="form-control" id="searchInput" type="text" placeholder="Title..." autocomplete="off" />
                   <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
                 </div>
               </div>
 
               <div class="col-12 col-lg-3">
-                <label class="form-label fw-semibold mb-1" for="sortSelect">Sort</label>
                 <select class="form-select" id="sortSelect" aria-label="Sort books">
                   <option value="title:asc">Title (A to Z)</option>
                   <option value="title:desc">Title (Z to A)</option>
@@ -385,13 +386,24 @@
               </div>
 
               <div class="col-12 col-lg-3">
-                <div class="d-flex justify-content-lg-end gap-2">
-                  <div class="btn-group view-toggle" role="group" aria-label="View">
-                    <button class="btn btn-primary btn-sm" type="button" id="viewCardBtn" aria-pressed="true">Cards</button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" id="viewListBtn" aria-pressed="false">List</button>
-                  </div>
-                  <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
+                <div class="btn-group view-toggle w-100" role="group" aria-label="View">
+                  <button class="btn btn-primary" type="button" id="viewCardBtn" aria-pressed="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-grid-3x3-gap me-1" viewBox="0 0 16 16">
+                      <path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zM6 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM6 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zM11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM11 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM11 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/>
+                    </svg>
+                    Cards
+                  </button>
+                  <button class="btn btn-outline-primary" type="button" id="viewListBtn" aria-pressed="false">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list me-1" viewBox="0 0 16 16">
+                      <path fill-rule="evenodd" d="M2.5 12.5a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+                    </svg>
+                    List
+                  </button>
                 </div>
+              </div>
+
+              <div class="col-12 col-lg-3">
+                <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
               </div>
             </div>
           </div>
@@ -402,7 +414,7 @@
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2" id="activeFiltersBar">
       <span class="text-muted small">Active filters:</span>
       <div id="activeFilters" class="d-flex flex-wrap gap-2"></div>
-      <button class="btn btn-link btn-sm p-0 d-none" type="button" id="clearAllFiltersBtn">Clear all</button>
+      <button class="btn btn-link btn-sm p-0 d-none" type="button" id="clearAllFiltersBtn">Clear all filters</button>
     </div>
 
     <!-- Results summary + stats strip -->
@@ -452,12 +464,12 @@
             <thead>
               <tr class="text-muted">
                 <th>Book</th>
+                <th>Authors</th>
                 <th>Type</th>
                 <th>Language</th>
                 <th>Pages</th>
                 <th>Published</th>
                 <th>Tags</th>
-                <th>Authors</th>
               </tr>
             </thead>
             <tbody id="listTableBody"></tbody>

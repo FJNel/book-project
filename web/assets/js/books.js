@@ -125,6 +125,13 @@
     return '';
   };
 
+  const escapeHtml = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
   const getCheckedIds = (container) => {
     if (!container) return [];
     return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
@@ -253,10 +260,6 @@
     const seriesParam = params.get('filterSeriesId');
     state.filters.seriesIds = seriesParam ? seriesParam.split(',').map(parseNumber).filter(Number.isInteger) : [];
     state.filters.seriesMode = params.get('filterSeriesMode') === 'or' ? 'or' : 'and';
-    state.filters.bookTypeId = params.get('filterBookTypeId') || '';
-    state.filters.publisherId = params.get('filterPublisherId') || '';
-    state.filters.authorId = params.get('filterAuthorId') || '';
-    state.filters.seriesId = params.get('filterSeriesId') || '';
     state.filters.pageMin = params.get('filterPageMin') || '';
     state.filters.pageMax = params.get('filterPageMax') || '';
     state.filters.publishedAfter = params.get('filterPublishedAfter') || '';
@@ -647,7 +650,7 @@
       const a = document.createElement('a');
       a.className = 'page-link';
       a.href = '#';
-      a.textContent = label;
+      a.innerHTML = label;
       a.addEventListener('click', (event) => {
         event.preventDefault();
         if (!disabled && typeof onClick === 'function') onClick();
@@ -656,11 +659,17 @@
       return li;
     };
 
-    dom.paginationNav.appendChild(createItem('← Previous', state.page <= 1, () => {
+    dom.paginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left me-1" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
+      </svg>Previous`,
+      state.page <= 1,
+      () => {
       state.page = Math.max(1, state.page - 1);
       updateUrl();
       triggerFetch();
-    }));
+      }
+    ));
 
     if (state.page > 1) {
       dom.paginationNav.appendChild(createItem(String(state.page - 1), false, () => {
@@ -686,11 +695,17 @@
       }));
     }
 
-    dom.paginationNav.appendChild(createItem('Next →', !hasNextPage, () => {
+    dom.paginationNav.appendChild(createItem(
+      `Next<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right ms-1" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+      </svg>`,
+      !hasNextPage,
+      () => {
       state.page += 1;
       updateUrl();
       triggerFetch();
-    }));
+      }
+    ));
   };
 
   const renderCards = (books) => {
@@ -795,7 +810,10 @@
         : [];
       const language = languageNames.slice(0, 2).join(', ') + (languageNames.length > 2 ? `, +${languageNames.length - 2} more` : '');
       const authorNames = Array.isArray(book.authors) ? book.authors.map((a) => a.authorName || a.name).filter(Boolean) : [];
-      const authorsText = authorNames.slice(0, 2).join(', ') + (authorNames.length > 2 ? `, +${authorNames.length - 2} more` : '');
+      const authorsText = authorNames.length
+        ? authorNames.slice(0, 2).join(', ') + (authorNames.length > 2 ? `, +${authorNames.length - 2} more` : '')
+        : '';
+      const authorsTitle = authorNames.length > 2 ? ` title="${escapeHtml(authorNames.join(', '))}"` : '';
       const tags = Array.isArray(book.tags) ? book.tags : [];
       const visibleTags = tags.slice(0, 3);
       const remaining = Math.max(tags.length - visibleTags.length, 0);
@@ -814,7 +832,7 @@
             </div>
           </div>
         </td>
-        <td>${authorsText}</td>
+        <td${authorsTitle}>${authorsText}</td>
         <td>${bookType || ''}</td>
         <td>${language}</td>
         <td>${pageCount}</td>
@@ -898,8 +916,8 @@
         items: list.map((item) => ({ id: item.id, name: item.name || item.displayName })),
         selectedIds: (() => {
           switch (target) {
-            case dom.bookTypeCheckboxes: return state.filters.bookTypeId ? [parseNumber(state.filters.bookTypeId)] : [];
-            case dom.publisherCheckboxes: return state.filters.publisherId ? [parseNumber(state.filters.publisherId)] : [];
+            case dom.bookTypeCheckboxes: return state.filters.bookTypeIds;
+            case dom.publisherCheckboxes: return state.filters.publisherIds;
             case dom.authorCheckboxes: return state.filters.authorIds;
             case dom.seriesCheckboxes: return state.filters.seriesIds;
             default: return getCheckedIds(target);
