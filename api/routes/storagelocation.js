@@ -11,6 +11,7 @@ const MAX_LOCATION_NAME_LENGTH = 150;
 const MAX_NOTES_LENGTH = 2000;
 const MAX_LIST_LIMIT = 200;
 
+//TODO: Base storage locations should not be able to have the same name.
 router.use((req, res, next) => {
 	logToFile("STORAGELOCATION_REQUEST", {
 		user_id: req.user ? req.user.id : null,

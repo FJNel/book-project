@@ -719,6 +719,7 @@ function buildBookPayload(row, view, relations) {
 			pageCount: base.pageCount,
 			bookTypeId: base.bookTypeId,
 			bookTypeName: row.book_type_name ?? null,
+			authors: relations?.authors || [],
 			languages: relations?.languages || [],
 			tags: relations?.tags || []
 		};

@@ -43,12 +43,10 @@
 
     .cover-card {
       width: 100%;
-      height: 260px;
+      aspect-ratio: 2 / 3;
+      height: auto;
       object-fit: cover;
       background: #f1f3f5;
-    }
-    @media (max-width: 576px) {
-      .cover-card { height: 200px; }
     }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -349,18 +347,18 @@
         <div class="card border-0 shadow-sm rounded-3">
           <div class="card-body pb-3">
             <div class="row g-2 toolbar-grid">
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-6">
                 <label class="form-label fw-semibold mb-1" for="searchInput">Search</label>
               </div>
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-2">
                 <label class="form-label fw-semibold mb-1" for="sortSelect">Sort</label>
               </div>
-              <div class="col-12 col-lg-3 d-none d-lg-block"></div>
-              <div class="col-12 col-lg-3 d-none d-lg-block"></div>
+              <div class="col-12 col-lg-2 d-none d-lg-block"></div>
+              <div class="col-12 col-lg-2 d-none d-lg-block"></div>
             </div>
 
             <div class="row g-2 align-items-end toolbar-grid">
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-6">
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
@@ -372,7 +370,7 @@
                 </div>
               </div>
 
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-2">
                 <select class="form-select" id="sortSelect" aria-label="Sort books">
                   <option value="title:asc">Title (A to Z)</option>
                   <option value="title:desc">Title (Z to A)</option>
@@ -385,7 +383,7 @@
                 </select>
               </div>
 
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-2">
                 <div class="btn-group view-toggle w-100" role="group" aria-label="View">
                   <button class="btn btn-primary" type="button" id="viewCardBtn" aria-pressed="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-grid-3x3-gap me-1" viewBox="0 0 16 16">
@@ -402,7 +400,7 @@
                 </div>
               </div>
 
-              <div class="col-12 col-lg-3">
+              <div class="col-12 col-lg-2">
                 <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" aria-controls="filtersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
               </div>
             </div>

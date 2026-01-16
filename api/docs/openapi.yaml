@@ -7731,7 +7731,7 @@ components:
                 - string
                 - "null"
         authors:
-          description: Linked authors and their roles.
+          description: Linked authors and their roles (included for view=all and view=card).
           type: array
           items:
             type: object
@@ -7864,6 +7864,7 @@ components:
         view:
           type: string
           enum: [all, card, nameOnly]
+          description: When set to card, responses include cover, tags, languages, and authors for fast card rendering.
         nameOnly:
           type: boolean
         includeDeleted:

@@ -132,6 +132,19 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const extractAuthorNames = (book) => {
+    if (!book) return [];
+    if (Array.isArray(book.authors)) {
+      return book.authors
+        .map((author) => author?.authorName || author?.displayName || author?.name || author?.fullName)
+        .filter(Boolean);
+    }
+    if (Array.isArray(book.authorNames)) return book.authorNames.filter(Boolean);
+    if (typeof book.authorName === 'string') return [book.authorName];
+    if (typeof book.author === 'string') return [book.author];
+    return [];
+  };
+
   const getCheckedIds = (container) => {
     if (!container) return [];
     return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
@@ -644,13 +657,14 @@
     dom.paginationNav.innerHTML = '';
     dom.paginationInfo.textContent = `Page ${state.page}`;
 
-    const createItem = (label, disabled, onClick) => {
+    const createItem = (label, disabled, onClick, ariaLabel) => {
       const li = document.createElement('li');
       li.className = `page-item${disabled ? ' disabled' : ''}`;
       const a = document.createElement('a');
       a.className = 'page-link';
       a.href = '#';
       a.innerHTML = label;
+      if (ariaLabel) a.setAttribute('aria-label', ariaLabel);
       a.addEventListener('click', (event) => {
         event.preventDefault();
         if (!disabled && typeof onClick === 'function') onClick();
@@ -660,15 +674,16 @@
     };
 
     dom.paginationNav.appendChild(createItem(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left me-1" viewBox="0 0 16 16">
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
         <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
-      </svg>Previous`,
+      </svg>`,
       state.page <= 1,
       () => {
-      state.page = Math.max(1, state.page - 1);
-      updateUrl();
-      triggerFetch();
-      }
+        state.page = Math.max(1, state.page - 1);
+        updateUrl();
+        triggerFetch();
+      },
+      'Previous page'
     ));
 
     if (state.page > 1) {
@@ -696,15 +711,16 @@
     }
 
     dom.paginationNav.appendChild(createItem(
-      `Next<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right ms-1" viewBox="0 0 16 16">
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
         <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
       </svg>`,
       !hasNextPage,
       () => {
-      state.page += 1;
-      updateUrl();
-      triggerFetch();
-      }
+        state.page += 1;
+        updateUrl();
+        triggerFetch();
+      },
+      'Next page'
     ));
   };
 
@@ -722,14 +738,14 @@
     books.forEach((book) => {
       const col = document.createElement('div');
       col.className = 'col-12 col-sm-6 col-lg-4 col-xl-3';
-      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '140x180', 'No cover');
+      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '140x180');
       const publication = formatPartialDate(book.publicationDate);
       const pageCount = Number.isFinite(book.pageCount) ? book.pageCount : null;
-      const bookType = book.bookTypeName || null;
-      const authorNames = Array.isArray(book.authors) ? book.authors.map((a) => a.authorName || a.name).filter(Boolean) : [];
+      const bookType = book.bookTypeName || book.bookType?.name || null;
+      const authorNames = extractAuthorNames(book);
       const limitedAuthors = authorNames.slice(0, 2);
       const authorExtra = Math.max(authorNames.length - limitedAuthors.length, 0);
-      const authorsText = limitedAuthors.length ? `${limitedAuthors.join(', ')}${authorExtra ? `, +${authorExtra} more` : ''}` : null;
+      const authorsText = limitedAuthors.length ? `by ${limitedAuthors.join(', ')}${authorExtra ? `, +${authorExtra} more` : ''}` : null;
       const languagesList = Array.isArray(book.languages) ? book.languages.map((l) => l.name) : [];
       const limitedLangs = languagesList.slice(0, 2);
       const langExtra = Math.max(languagesList.length - limitedLangs.length, 0);
@@ -801,7 +817,7 @@
         window.location.href = `book-details?id=${book.id}`;
       });
 
-      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '600x900', 'No cover');
+      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '600x900');
       const publication = formatPartialDate(book.publicationDate) || '';
       const pageCount = Number.isFinite(book.pageCount) ? book.pageCount : '';
       const bookType = book.bookTypeName || book.bookType?.name || '';
@@ -809,7 +825,7 @@
         ? book.languages.map((l) => l.name)
         : [];
       const language = languageNames.slice(0, 2).join(', ') + (languageNames.length > 2 ? `, +${languageNames.length - 2} more` : '');
-      const authorNames = Array.isArray(book.authors) ? book.authors.map((a) => a.authorName || a.name).filter(Boolean) : [];
+      const authorNames = extractAuthorNames(book);
       const authorsText = authorNames.length
         ? authorNames.slice(0, 2).join(', ') + (authorNames.length > 2 ? `, +${authorNames.length - 2} more` : '')
         : '';
