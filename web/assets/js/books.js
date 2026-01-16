@@ -37,7 +37,7 @@
     searchInput: document.getElementById('searchInput'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     sortSelect: document.getElementById('sortSelect'),
-    perPageSelect: document.getElementById('perPageSelect'),
+    perPageInput: document.getElementById('perPageInput'),
     viewCardBtn: document.getElementById('viewCardBtn'),
     viewListBtn: document.getElementById('viewListBtn'),
     filterTitle: document.getElementById('filterTitle'),
@@ -50,6 +50,8 @@
     filterTag: document.getElementById('filterTag'),
     tagOptions: document.getElementById('tagOptions'),
     filterLanguages: document.getElementById('filterLanguages'),
+    selectedLanguagesPills: document.getElementById('selectedLanguagesPills'),
+    clearLanguagesBtn: document.getElementById('clearLanguagesBtn'),
     filterPageMin: document.getElementById('filterPageMin'),
     filterPageMax: document.getElementById('filterPageMax'),
     filterPublishedAfter: document.getElementById('filterPublishedAfter'),
@@ -58,7 +60,7 @@
     onlyWithCoverCheck: document.getElementById('onlyWithCoverCheck'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     refreshButton: document.getElementById('refreshButton'),
-    toggleAdvancedFilters: document.getElementById('toggleAdvancedFilters'),
+    clearAllFiltersBtn: document.getElementById('clearAllFiltersBtn'),
     openRawData: document.getElementById('openRawData'),
     feedbackContainer: document.getElementById('feedbackContainer'),
     activeFilters: document.getElementById('activeFilters'),
@@ -74,10 +76,13 @@
     statTotal: document.getElementById('statTotal'),
     statCovers: document.getElementById('statCovers'),
     statIsbn: document.getElementById('statIsbn'),
-    statDescription: document.getElementById('statDescription')
+    statDescription: document.getElementById('statDescription'),
+    statsContainer: document.getElementById('statsContainer'),
+    statTotalWrap: document.getElementById('statTotalWrap'),
+    statCoversWrap: document.getElementById('statCoversWrap'),
+    statIsbnWrap: document.getElementById('statIsbnWrap'),
+    statDescriptionWrap: document.getElementById('statDescriptionWrap')
   };
-  const advancedFields = Array.from(document.querySelectorAll('[data-advanced="true"]'));
-  let advancedOpen = false;
   let lastHasNextPage = false;
 
   const debounce = (fn, delay = 350) => {
@@ -87,6 +92,8 @@
       timer = setTimeout(() => fn(...args), delay);
     };
   };
+
+  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
   const isIsoDate = (value) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 
@@ -98,9 +105,9 @@
     return '';
   };
 
-  const placeholderCover = (title) => {
-    const text = encodeURIComponent(title || 'Book Cover');
-    return `https://placehold.co/600x900?text=${text}&font=Lora`;
+  const placeholderCover = (title, size = '600x900', text = null) => {
+    const safeText = encodeURIComponent(text || title || 'Book Cover');
+    return `https://placehold.co/${size}?text=${safeText}&bg=dee2e6&fc=495057&font=Lora`;
   };
 
   const formatPartialDate = (date) => {
@@ -115,13 +122,10 @@
     return parts.length ? parts.join(' ') : null;
   };
 
-  const setAdvancedVisibility = (forceOpen = null) => {
-    if (forceOpen !== null) {
-      advancedOpen = forceOpen;
-    }
-    advancedFields.forEach((field) => field.classList.toggle('d-none', !advancedOpen));
-    if (dom.toggleAdvancedFilters) {
-      dom.toggleAdvancedFilters.textContent = advancedOpen ? 'Hide options' : 'More options';
+  const scrollFiltersIntoView = () => {
+    const panel = document.getElementById('filtersPanel');
+    if (panel && panel.classList.contains('show')) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -165,7 +169,7 @@
     }
 
     const limitParam = parseNumber(params.get('limit'));
-    if (limitParam) state.limit = limitParam;
+    if (limitParam) state.limit = Math.min(200, Math.max(2, limitParam));
 
     const pageParam = parseNumber(params.get('page'));
     if (pageParam && pageParam > 0) state.page = pageParam;
@@ -193,6 +197,10 @@
         .split(',')
         .map((id) => parseNumber(id))
         .filter((id) => Number.isInteger(id));
+    }
+
+    if (isMobile() && state.view === 'list') {
+      state.view = 'card';
     }
   };
 
@@ -244,7 +252,7 @@
   const syncControlsFromState = () => {
     if (dom.searchInput) dom.searchInput.value = state.search;
     if (dom.sortSelect) dom.sortSelect.value = `${state.sort.field}:${state.sort.order}`;
-    if (dom.perPageSelect) dom.perPageSelect.value = String(state.limit);
+    if (dom.perPageInput) dom.perPageInput.value = String(state.limit);
 
     const f = state.filters;
     if (dom.filterTitle) dom.filterTitle.value = f.title;
@@ -270,8 +278,7 @@
     }
 
     setViewButtons();
-    const usesAdvanced = Boolean(f.subtitle || f.isbn || f.seriesId || f.publishedAfter || f.publishedBefore || f.pageMin || f.pageMax);
-    setAdvancedVisibility(usesAdvanced ? true : advancedOpen);
+    renderLanguagePills();
   };
 
   const renderActiveFilters = () => {
@@ -346,6 +353,38 @@
     } else {
       chips.forEach((chip) => dom.activeFilters.appendChild(chip));
     }
+
+    if (dom.clearAllFiltersBtn) {
+      dom.clearAllFiltersBtn.classList.toggle('d-none', chips.length === 0);
+    }
+  };
+
+  const renderLanguagePills = () => {
+    if (!dom.selectedLanguagesPills) return;
+    dom.selectedLanguagesPills.innerHTML = '';
+    if (!state.filters.languageIds.length) {
+      const muted = document.createElement('span');
+      muted.className = 'text-muted small';
+      muted.textContent = 'No languages selected';
+      dom.selectedLanguagesPills.appendChild(muted);
+      return;
+    }
+    const languageOptions = Array.from(dom.filterLanguages?.options || []);
+      state.filters.languageIds.forEach((id) => {
+        const match = languageOptions.find((opt) => parseNumber(opt.value) === id);
+        const pill = document.createElement('span');
+        pill.className = 'filter-chip';
+        pill.innerHTML = `<span class="badge text-bg-secondary">language</span> ${match ? match.textContent.trim() : id} <button type="button" class="btn-close btn-close-sm" aria-label="Remove language"></button>`;
+      const btn = pill.querySelector('button');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          state.filters.languageIds = state.filters.languageIds.filter((langId) => langId !== id);
+          syncControlsFromState();
+          triggerFetch();
+        });
+      }
+      dom.selectedLanguagesPills.appendChild(pill);
+    });
   };
 
   const showLoading = () => {
@@ -356,6 +395,20 @@
 
   const hideLoading = () => {
     if (dom.resultsPlaceholder) dom.resultsPlaceholder.classList.add('d-none');
+  };
+
+  const enforceMobileView = () => {
+    if (isMobile()) {
+      state.view = 'card';
+      if (dom.viewListBtn) {
+        dom.viewListBtn.classList.add('disabled', 'd-none');
+        dom.viewListBtn.setAttribute('aria-disabled', 'true');
+      }
+      if (dom.listContainer) dom.listContainer.classList.add('d-none');
+    } else if (dom.viewListBtn) {
+      dom.viewListBtn.classList.remove('disabled', 'd-none');
+      dom.viewListBtn.setAttribute('aria-disabled', 'false');
+    }
   };
 
   const handleRateLimit = async (response) => {
@@ -473,11 +526,13 @@
     books.forEach((book) => {
       const col = document.createElement('div');
       col.className = 'col-12 col-sm-6 col-lg-4 col-xl-3';
-      const coverSrc = book.coverImageUrl || placeholderCover(book.title);
+      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '140x180', 'No cover');
       const publication = formatPartialDate(book.publicationDate) || 'Unknown';
       const pageCount = Number.isFinite(book.pageCount) ? book.pageCount : '—';
       const bookType = book.bookTypeName || 'Unspecified';
-      const language = Array.isArray(book.languages) && book.languages.length > 0 ? book.languages[0].name : '—';
+      const language = Array.isArray(book.languages) && book.languages.length > 0
+        ? book.languages.map((l) => l.name).join(', ')
+        : '—';
       const tags = Array.isArray(book.tags) ? book.tags : [];
       const primaryTag = tags[0];
       const extraTags = tags.slice(1, 3);
@@ -536,11 +591,13 @@
         window.location.href = `book-details.html?id=${book.id}`;
       });
 
-      const coverSrc = book.coverImageUrl || placeholderCover(book.title);
+      const coverSrc = book.coverImageUrl || placeholderCover(book.title, '600x900', 'No cover');
       const publication = formatPartialDate(book.publicationDate) || 'Unknown';
       const pageCount = Number.isFinite(book.pageCount) ? book.pageCount : '—';
       const bookType = book.bookTypeName || book.bookType?.name || '—';
-      const language = Array.isArray(book.languages) && book.languages.length > 0 ? book.languages[0].name : '—';
+      const language = Array.isArray(book.languages) && book.languages.length > 0
+        ? book.languages.map((l) => l.name).join(', ')
+        : '—';
       const tags = Array.isArray(book.tags) ? book.tags : [];
       const visibleTags = tags.slice(0, 3);
       const remaining = Math.max(tags.length - visibleTags.length, 0);
@@ -569,6 +626,9 @@
   };
 
   const renderBooks = (books) => {
+    if (isMobile() && state.view === 'list') {
+      state.view = 'card';
+    }
     setViewButtons();
     hideLoading();
     if (state.view === 'card') {
@@ -582,7 +642,7 @@
   const updateSummary = (count) => {
     const sortLabel = dom.sortSelect ? dom.sortSelect.selectedOptions[0]?.textContent : '';
     if (dom.resultsSummary) dom.resultsSummary.textContent = `${count} book${count === 1 ? '' : 's'} found`;
-    if (dom.resultsMeta) dom.resultsMeta.textContent = `${sortLabel ? `Sorted by ${sortLabel}` : 'Sorted'} · Page ${state.page}${lastHasNextPage ? ' (more available)' : ''}`;
+    if (dom.resultsMeta) dom.resultsMeta.textContent = `${sortLabel ? `Sorted by ${sortLabel}` : 'Sorted'} • Page ${state.page}`;
   };
 
   const loadStats = async () => {
@@ -595,10 +655,26 @@
         return;
       }
       const data = payload.data || {};
-      if (dom.statTotal) dom.statTotal.textContent = data.total ?? '0';
-      if (dom.statCovers) dom.statCovers.textContent = data.withCoverImage ?? '0';
-      if (dom.statIsbn) dom.statIsbn.textContent = data.withIsbn ?? '0';
-      if (dom.statDescription) dom.statDescription.textContent = data.withDescription ?? '0';
+      const applyStat = (wrap, target, value) => {
+        if (!wrap || !target) return;
+        if (value === undefined || value === null || value === 0) {
+          wrap.classList.add('d-none');
+          return;
+        }
+        target.textContent = value;
+        wrap.classList.remove('d-none');
+      };
+      applyStat(dom.statTotalWrap, dom.statTotal, data.total);
+      applyStat(dom.statCoversWrap, dom.statCovers, data.withCoverImage);
+      applyStat(dom.statIsbnWrap, dom.statIsbn, data.withIsbn);
+      applyStat(dom.statDescriptionWrap, dom.statDescription, data.withDescription);
+      if (dom.statTotalWrap && dom.statCoversWrap && dom.statIsbnWrap && dom.statDescriptionWrap) {
+        const anyVisible = [dom.statTotalWrap, dom.statCoversWrap, dom.statIsbnWrap, dom.statDescriptionWrap]
+          .some((el) => !el.classList.contains('d-none'));
+        if (dom.statsContainer) {
+          dom.statsContainer.classList.toggle('d-none', !anyVisible);
+        }
+      }
     } catch (error) {
       warn('Failed to load stats', error);
     }
@@ -660,6 +736,7 @@
       loadTags()
     ];
     await Promise.allSettled(tasks);
+    renderLanguagePills();
   };
 
   const triggerFetch = debounce(() => {
@@ -764,10 +841,12 @@
       });
     }
 
-    if (dom.perPageSelect) {
-      dom.perPageSelect.addEventListener('change', (event) => {
-        const value = parseNumber(event.target.value) || state.limit;
-        state.limit = value;
+    if (dom.perPageInput) {
+      dom.perPageInput.addEventListener('change', (event) => {
+        const raw = parseNumber(event.target.value);
+        const clamped = Math.min(200, Math.max(2, raw || state.limit));
+        dom.perPageInput.value = clamped;
+        state.limit = clamped;
         state.page = 1;
         triggerFetch();
       });
@@ -844,6 +923,15 @@
         state.filters.languageIds = selected;
         state.page = 1;
         triggerFetch();
+        renderLanguagePills();
+      });
+    }
+
+    if (dom.clearLanguagesBtn) {
+      dom.clearLanguagesBtn.addEventListener('click', () => {
+        state.filters.languageIds = [];
+        syncControlsFromState();
+        triggerFetch();
       });
     }
 
@@ -867,10 +955,8 @@
       dom.resetFiltersBtn.addEventListener('click', resetFilters);
     }
 
-    if (dom.toggleAdvancedFilters) {
-      dom.toggleAdvancedFilters.addEventListener('click', () => {
-        setAdvancedVisibility(!advancedOpen);
-      });
+    if (dom.clearAllFiltersBtn) {
+      dom.clearAllFiltersBtn.addEventListener('click', resetFilters);
     }
 
     if (dom.refreshButton) {
@@ -885,10 +971,20 @@
         window.open('temp/books.html', '_blank', 'noopener');
       });
     }
+
+    const filtersPanel = document.getElementById('filtersPanel');
+    if (filtersPanel) {
+      filtersPanel.addEventListener('shown.bs.collapse', () => {
+        scrollFiltersIntoView();
+      });
+    }
+
+    window.addEventListener('resize', enforceMobileView);
   };
 
   const init = async () => {
     hydrateStateFromUrl();
+    enforceMobileView();
     syncControlsFromState();
     renderActiveFilters();
     attachListeners();

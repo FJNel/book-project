@@ -21,6 +21,12 @@
       border-bottom: 1px solid rgba(0,0,0,0.06);
     }
 
+    .toolbar-row .form-control,
+    .toolbar-row .form-select,
+    .toolbar-row .btn {
+      height: 44px;
+    }
+
     .toolbar-subtext {
       font-size: 0.9rem;
       color: #6c757d;
@@ -139,7 +145,10 @@
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <a class="btn btn-primary" href="add-book.html">Add Book</a>
         <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshButton" title="Refresh results" aria-label="Refresh results">
-          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 0 1 4.546 2.916.5.5 0 0 0 .908-.417A6 6 0 1 0 14 8h-1a5 5 0 1 1-5-5z"/><path d="M7.5 5.5v3h3l-3 3v-3h-3l3-3z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+          </svg>
         </button>
       </div>
     </div>
@@ -150,13 +159,15 @@
     <div class="books-toolbar rounded-3 mb-3">
       <div class="container px-0">
         <div class="card border-0 shadow-sm rounded-3">
-          <div class="card-body">
-            <div class="row g-2 align-items-end">
+          <div class="card-body pb-3">
+            <div class="row g-2 align-items-center toolbar-row">
               <div class="col-12 col-lg-6">
                 <label class="form-label fw-semibold mb-1" for="searchInput">Search</label>
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                    </svg>
                   </span>
                   <input class="form-control" id="searchInput" type="text" placeholder="Title, subtitle, ISBN, tag..." autocomplete="off" />
                   <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
@@ -182,7 +193,7 @@
                 <div class="d-flex justify-content-lg-end gap-2">
                   <div class="btn-group view-toggle" role="group" aria-label="View">
                     <button class="btn btn-primary btn-sm" type="button" id="viewCardBtn" aria-pressed="true">Cards</button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" id="viewListBtn" aria-pressed="false">List</button>
+                    <button class="btn btn-outline-primary btn-sm d-none d-md-inline-flex" type="button" id="viewListBtn" aria-pressed="false">List</button>
                   </div>
                   <button class="btn btn-outline-secondary btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#filtersPanel" aria-expanded="false" aria-controls="filtersPanel">
                     Advanced filters
@@ -199,12 +210,15 @@
                       <div class="fw-semibold mb-1">Title & ISBN</div>
                       <div class="row g-2">
                         <div class="col-12">
+                          <label class="form-label small mb-1" for="filterTitle">Title contains</label>
                           <input class="form-control" id="filterTitle" type="text" placeholder="Title contains…" autocomplete="off" />
                         </div>
-                        <div class="col-12 d-none" data-advanced="true">
+                        <div class="col-12">
+                          <label class="form-label small mb-1" for="filterSubtitle">Subtitle contains</label>
                           <input class="form-control" id="filterSubtitle" type="text" placeholder="Subtitle contains…" autocomplete="off" />
                         </div>
-                        <div class="col-12 d-none" data-advanced="true">
+                        <div class="col-12">
+                          <label class="form-label small mb-1" for="filterIsbn">ISBN</label>
                           <input class="form-control" id="filterIsbn" type="text" placeholder="ISBN" autocomplete="off" />
                         </div>
                       </div>
@@ -214,21 +228,25 @@
                       <div class="fw-semibold mb-1">Entities</div>
                       <div class="row g-2">
                         <div class="col-12">
+                          <label class="form-label small mb-1" for="filterBookType">Filter by Book Type</label>
                           <select class="form-select" id="filterBookType">
                             <option value="">Any book type</option>
                           </select>
                         </div>
                         <div class="col-12">
+                          <label class="form-label small mb-1" for="filterPublisher">Filter by Publisher</label>
                           <select class="form-select" id="filterPublisher">
                             <option value="">Any publisher</option>
                           </select>
                         </div>
                         <div class="col-12">
+                          <label class="form-label small mb-1" for="filterAuthor">Filter by Author</label>
                           <select class="form-select" id="filterAuthor">
                             <option value="">Any author</option>
                           </select>
                         </div>
-                        <div class="col-12 d-none" data-advanced="true">
+                        <div class="col-12">
+                          <label class="form-label small mb-1" for="filterSeries">Filter by Series</label>
                           <select class="form-select" id="filterSeries">
                             <option value="">Any series</option>
                           </select>
@@ -240,15 +258,19 @@
                       <div class="fw-semibold mb-1">Dates & pages</div>
                       <div class="row g-2">
                         <div class="col-6">
+                          <label class="form-label small mb-1" for="filterPageMin">Pages min</label>
                           <input class="form-control" id="filterPageMin" type="number" min="1" placeholder="Pages min" />
                         </div>
                         <div class="col-6">
+                          <label class="form-label small mb-1" for="filterPageMax">Pages max</label>
                           <input class="form-control" id="filterPageMax" type="number" min="1" placeholder="Pages max" />
                         </div>
-                        <div class="col-6 d-none" data-advanced="true">
+                        <div class="col-6">
+                          <label class="form-label small mb-1" for="filterPublishedAfter">Published after</label>
                           <input class="form-control" id="filterPublishedAfter" type="date" />
                         </div>
-                        <div class="col-6 d-none" data-advanced="true">
+                        <div class="col-6">
+                          <label class="form-label small mb-1" for="filterPublishedBefore">Published before</label>
                           <input class="form-control" id="filterPublishedBefore" type="date" />
                         </div>
                       </div>
@@ -258,13 +280,19 @@
                       <div class="fw-semibold mb-1">Tags & language</div>
                       <div class="row g-2">
                         <div class="col-12 col-md-6">
+                          <label class="form-label small mb-1" for="filterTag">Filter by Tag</label>
                           <input class="form-control" id="filterTag" type="text" list="tagOptions" placeholder="Tag name" autocomplete="off" />
                           <datalist id="tagOptions"></datalist>
                         </div>
                         <div class="col-12 col-md-6">
-                          <select class="form-select" id="filterLanguages" multiple size="4">
-                            <option disabled>Loading languages…</option>
-                          </select>
+                          <label class="form-label small mb-1" for="filterLanguages">Filter by Language(s)</label>
+                          <div class="d-flex flex-column gap-1">
+                            <div class="d-flex flex-wrap gap-2" id="selectedLanguagesPills"></div>
+                            <select class="form-select" id="filterLanguages" multiple size="4">
+                              <option disabled>Loading languages…</option>
+                            </select>
+                            <button class="btn btn-link btn-sm p-0 align-self-start" type="button" id="clearLanguagesBtn">Clear languages</button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -280,13 +308,11 @@
                           <input class="form-check-input" type="checkbox" value="" id="onlyWithCoverCheck">
                           <label class="form-check-label" for="onlyWithCoverCheck">Only books with covers</label>
                         </div>
-                        <div class="form-text">Filters update automatically when changed.</div>
                       </div>
                     </div>
 
                     <div class="col-12 d-flex justify-content-end">
-                      <button class="btn btn-outline-secondary btn-sm" type="button" id="toggleAdvancedFilters">More options</button>
-                      <button class="btn btn-sm btn-outline-secondary ms-2" type="button" id="resetFiltersBtn">Reset all</button>
+                      <button class="btn btn-sm btn-outline-secondary" type="button" id="resetFiltersBtn">Reset all</button>
                     </div>
                   </div><!-- /row -->
                 </div>
@@ -300,6 +326,7 @@
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2" id="activeFiltersBar">
       <span class="text-muted small">Active filters:</span>
       <div id="activeFilters" class="d-flex flex-wrap gap-2"></div>
+      <button class="btn btn-link btn-sm p-0 d-none" type="button" id="clearAllFiltersBtn">Clear all</button>
     </div>
 
     <!-- Results summary + stats strip -->
@@ -310,17 +337,19 @@
             <div class="fw-semibold" id="resultsSummary">Loading books…</div>
             <div class="text-muted small" id="resultsMeta">Filters and view are saved in the URL.</div>
           </div>
-          <div class="d-flex align-items-center gap-4 flex-wrap">
-            <div class="text-muted small" id="statsContainer">
-              <span class="me-3"><span class="fw-semibold" id="statTotal">–</span> total</span>
-              <span class="me-3"><span class="fw-semibold" id="statCovers">–</span> with covers</span>
-              <span class="me-3"><span class="fw-semibold" id="statIsbn">–</span> with ISBN</span>
-              <span><span class="fw-semibold" id="statDescription">–</span> with description</span>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="text-muted small d-flex flex-wrap gap-3" id="statsContainer">
+              <span class="d-none" id="statTotalWrap"><span class="fw-semibold" id="statTotal">–</span> total</span>
+              <span class="d-none" id="statCoversWrap"><span class="fw-semibold" id="statCovers">–</span> with covers</span>
+              <span class="d-none" id="statIsbnWrap"><span class="fw-semibold" id="statIsbn">–</span> with ISBN</span>
+              <span class="d-none" id="statDescriptionWrap"><span class="fw-semibold" id="statDescription">–</span> with description</span>
             </div>
             <div class="d-flex gap-2">
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="exportButton" disabled aria-disabled="true">Export</button>
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="openRawData" title="Open raw data">
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 2a.5.5 0 0 1 .5.5V5h2.5a.5.5 0 0 1 .354.854l-5.5 5.5a.5.5 0 0 1-.708 0l-5.5-5.5A.5.5 0 0 1 1.5 5H4V2.5a.5.5 0 0 1 .5-.5h5Z"/><path d="M13 10.5a.5.5 0 0 1 .5.5v2a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 2 13v-2a.5.5 0 0 1 1 0v2c0 .276.224.5.5.5h8a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 .5-.5Z"/></svg>
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="exportButton" disabled aria-disabled="true" title="Export view" aria-label="Export view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 1 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="openRawData" title="Open raw data" aria-label="Open raw data">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-database-fill-down" viewBox="0 0 16 16"><path d="M12.5 9a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7m.354 5.854 1.5-1.5a.5.5 0 0 0-.708-.708l-.646.647V10.5a.5.5 0 0 0-1 0v2.793l-.646-.647a.5.5 0 0 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0M8 1c-1.573 0-3.022.289-4.096.777C2.875 2.245 2 2.993 2 4s.875 1.755 1.904 2.223C4.978 6.711 6.427 7 8 7s3.022-.289 4.096-.777C13.125 5.755 14 5.007 14 4s-.875-1.755-1.904-2.223C11.022 1.289 9.573 1 8 1"/><path d="M2 7v-.839c.457.432 1.004.751 1.49.972C4.722 7.693 6.318 8 8 8s3.278-.307 4.51-.867c.486-.22 1.033-.54 1.49-.972V7c0 .424-.155.802-.411 1.133a4.51 4.51 0 0 0-4.815 1.843A12 12 0 0 1 8 10c-1.573 0-3.022-.289-4.096-.777C2.875 8.755 2 8.007 2 7m6.257 3.998L8 11c-1.682 0-3.278-.307-4.51-.867-.486-.22-1.033-.54-1.49-.972V10c0 1.007.875 1.755 1.904 2.223C4.978 12.711 6.427 13 8 13h.027a4.55 4.55 0 0 1 .23-2.002m-.002 3L8 14c-1.682 0-3.278-.307-4.51-.867-.486-.22-1.033-.54-1.49-.972V13c0 1.007.875 1.755 1.904 2.223C4.978 15.711 6.427 16 8 16c.536 0 1.058-.034 1.555-.097a4.5 4.5 0 0 1-1.3-1.905"/></svg>
               </button>
             </div>
           </div>
@@ -374,13 +403,8 @@
         </nav>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <label class="form-label mb-0 text-muted small" for="perPageSelect">Per page</label>
-        <select class="form-select form-select-sm" id="perPageSelect" style="width: auto;">
-          <option value="8">8</option>
-          <option value="12" selected>12</option>
-          <option value="24">24</option>
-          <option value="48">48</option>
-        </select>
+        <label class="form-label mb-0 text-muted small" for="perPageInput">Per page</label>
+        <input type="number" class="form-control form-control-sm" id="perPageInput" value="12" step="10" min="2" max="200" style="width: 90px;" />
       </div>
     </div>
   </main>
