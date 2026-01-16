@@ -293,6 +293,14 @@
     if (isMobile() && state.view === 'list') {
       state.view = 'card';
     }
+
+    if (state.filters.title && !state.search) {
+      state.search = state.filters.title;
+    } else if (state.search && !state.filters.title) {
+      state.filters.title = state.search;
+    } else if (state.search && state.filters.title && state.search !== state.filters.title) {
+      state.search = state.filters.title;
+    }
   };
 
   const updateUrl = () => {
@@ -347,12 +355,15 @@
   };
 
   const syncControlsFromState = () => {
-    if (dom.searchInput) dom.searchInput.value = state.search;
+    const mergedTitle = state.filters.title || state.search || '';
+    if (state.search !== mergedTitle) state.search = mergedTitle;
+    if (state.filters.title !== mergedTitle) state.filters.title = mergedTitle;
+    if (dom.searchInput) dom.searchInput.value = mergedTitle;
     if (dom.sortSelect) dom.sortSelect.value = `${state.sort.field}:${state.sort.order}`;
     if (dom.perPageInput) dom.perPageInput.value = String(state.limit);
 
     const f = state.filters;
-    if (dom.filterTitle) dom.filterTitle.value = f.title;
+    if (dom.filterTitle) dom.filterTitle.value = mergedTitle;
     if (dom.filterSubtitle) dom.filterSubtitle.value = f.subtitle;
     if (dom.filterIsbn) dom.filterIsbn.value = f.isbn;
     if (dom.authorModeSelect) dom.authorModeSelect.value = f.authorMode;
@@ -429,7 +440,6 @@
     };
 
     const f = state.filters;
-    if (f.title) pushChip('title', f.title, () => { f.title = ''; syncControlsFromState(); triggerFetch(); });
     if (f.subtitle) pushChip('subtitle', f.subtitle, () => { f.subtitle = ''; syncControlsFromState(); triggerFetch(); });
     if (f.isbn) pushChip('isbn', f.isbn, () => { f.isbn = ''; syncControlsFromState(); triggerFetch(); });
     if (f.tagIds.length) {
@@ -523,6 +533,8 @@
 
   const applyFiltersFromControls = () => {
     state.filters = readFiltersFromControls();
+    state.search = state.filters.title || '';
+    if (dom.searchInput) dom.searchInput.value = state.search;
     state.page = 1;
     renderActiveFilters();
     triggerFetch();
@@ -610,6 +622,8 @@
     if (f.pageMax) body.filterPageMax = f.pageMax;
     if (isIsoDate(f.publishedAfter)) body.filterPublishedAfter = f.publishedAfter;
     if (isIsoDate(f.publishedBefore)) body.filterPublishedBefore = f.publishedBefore;
+    if (f.includeDeleted) body.includeDeleted = true;
+    if (f.onlyWithCover) body.onlyWithCover = true;
     if (f.languageIds.length > 0) {
       body.filterLanguageId = f.languageIds;
       body.filterLanguageIdMode = f.languageMode || 'and';
@@ -619,7 +633,6 @@
         body.filterLanguageMode = f.languageMode || 'and';
       }
     }
-    if (f.includeDeleted) body.includeDeleted = true;
 
     return body;
   };
@@ -757,7 +770,6 @@
         publication ? { label: 'Published', value: publication } : null,
         pageCount !== null ? { label: 'Pages', value: pageCount } : null,
         bookType ? { label: 'Type', value: bookType } : null,
-        authorsText ? { label: 'Authors', value: authorsText } : null,
         language ? { label: 'Language', value: language } : null
       ].filter(Boolean);
 
@@ -770,7 +782,7 @@
           <div class="card-body d-flex flex-column">
             <div class="fw-bold meta-line">${book.title || 'Untitled'}</div>
             <div class="text-muted small meta-line ${subtitle ? '' : 'd-none'}">${subtitle}</div>
-            <div class="text-muted small meta-line ${authorsText ? '' : 'd-none'}">${authorsText || ''}</div>
+            <div class="text-muted small fw-semibold meta-line ${authorsText ? '' : 'd-none'}">${authorsText || ''}</div>
             <div class="mt-2 small text-muted">
               ${metaRows.map((row) => `<div class="d-flex justify-content-between"><span class="meta-label">${row.label}</span><span class="meta-value">${row.value}</span></div>`).join('')}
             </div>
@@ -1060,7 +1072,9 @@
   };
 
   const resetFilters = () => {
+    const preservedSearch = state.search;
     state.filters = defaultFilters();
+    state.filters.title = preservedSearch;
     state.page = 1;
     syncControlsFromState();
     renderActiveFilters();
@@ -1070,14 +1084,20 @@
   const attachListeners = () => {
     if (dom.searchInput) {
       dom.searchInput.addEventListener('input', debounce((event) => {
-        state.search = event.target.value.trim();
+        const nextValue = event.target.value.trim();
+        state.search = nextValue;
+        state.filters.title = nextValue;
+        if (dom.filterTitle) dom.filterTitle.value = nextValue;
         state.page = 1;
         triggerFetch();
       }, 500));
       dom.searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
-          state.search = dom.searchInput.value.trim();
+          const nextValue = dom.searchInput.value.trim();
+          state.search = nextValue;
+          state.filters.title = nextValue;
+          if (dom.filterTitle) dom.filterTitle.value = nextValue;
           state.page = 1;
           triggerFetch();
         }
@@ -1087,7 +1107,9 @@
     if (dom.clearSearchBtn) {
       dom.clearSearchBtn.addEventListener('click', () => {
         state.search = '';
+        state.filters.title = '';
         if (dom.searchInput) dom.searchInput.value = '';
+        if (dom.filterTitle) dom.filterTitle.value = '';
         state.page = 1;
         triggerFetch();
       });

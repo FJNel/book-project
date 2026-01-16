@@ -47,6 +47,10 @@
       height: auto;
       object-fit: cover;
       background: #f1f3f5;
+      display: block;
+    }
+    @media (max-width: 576px) {
+      .cover-card { max-width: 85%; margin: 0 auto; }
     }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -346,19 +350,20 @@
       <div class="container px-0">
         <div class="card border-0 shadow-sm rounded-3">
           <div class="card-body pb-3">
-            <div class="row g-2 toolbar-grid">
+            <div class="row g-2 toolbar-grid d-none d-lg-flex">
               <div class="col-12 col-lg-6">
-                <label class="form-label fw-semibold mb-1" for="searchInput">Search</label>
+                <label class="form-label fw-semibold mb-1" for="searchInput">Search by Title</label>
               </div>
               <div class="col-12 col-lg-2">
                 <label class="form-label fw-semibold mb-1" for="sortSelect">Sort</label>
               </div>
-              <div class="col-12 col-lg-2 d-none d-lg-block"></div>
-              <div class="col-12 col-lg-2 d-none d-lg-block"></div>
+              <div class="col-12 col-lg-2"></div>
+              <div class="col-12 col-lg-2"></div>
             </div>
 
             <div class="row g-2 align-items-end toolbar-grid">
               <div class="col-12 col-lg-6">
+                <label class="form-label fw-semibold mb-1 d-lg-none" for="searchInput">Search by Title</label>
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
@@ -371,6 +376,7 @@
               </div>
 
               <div class="col-12 col-lg-2">
+                <label class="form-label fw-semibold mb-1 d-lg-none" for="sortSelect">Sort</label>
                 <select class="form-select" id="sortSelect" aria-label="Sort books">
                   <option value="title:asc">Title (A to Z)</option>
                   <option value="title:desc">Title (Z to A)</option>
