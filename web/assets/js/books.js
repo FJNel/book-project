@@ -8,9 +8,17 @@
     window.pageContentReady.reset();
   }
 
-  const DEBUG = window.location.search.includes('booksDebug=true') || localStorage.getItem('booksDebug') === 'true';
   const debugLog = (...args) => {
-    if (DEBUG) console.log('[Books][debug]', ...args);
+    console.log('[Books][debug]', ...args);
+  };
+
+  const buildQueryFromBody = (body) => {
+    const params = new URLSearchParams();
+    Object.entries(body || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      params.set(key, value);
+    });
+    return params.toString();
   };
 
   const state = {
@@ -765,17 +773,37 @@
     showLoading();
 
     const body = buildBookBody();
-    debugLog('Requesting /book with body', body);
+    debugLog('Requesting /book with JSON body', body);
     try {
-      const response = await apiFetch('/book', {
-        method: 'GET',
-        body: JSON.stringify(body)
-      });
+      let response;
+      let payload;
+
+      // Primary attempt: JSON body via method override header (API expects GET+body; browsers disallow GET body)
+      try {
+        response = await apiFetch('/book', {
+          method: 'POST',
+          headers: {
+            'X-HTTP-Method-Override': 'GET'
+          },
+          body: JSON.stringify(body)
+        });
+        payload = await response.json().catch(() => ({}));
+      } catch (primaryError) {
+      warn('Primary /book request failed before response', primaryError);
+    }
+
+    // Fallback: GET with query params for compatibility
+    if (!response || !response.ok) {
+      const qs = buildQueryFromBody(body);
+        warn('Falling back to GET with query params because GET body is not allowed in browsers.', { qs, status: response?.status, message: payload?.message });
+        response = await apiFetch(`/book?${qs}`, { method: 'GET' });
+        payload = await response.json().catch(() => ({}));
+      }
+
       if (await handleRateLimit(response)) {
         hideLoading();
         return;
       }
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         showAlert({ message: payload.message || 'Failed to load books.', details });
