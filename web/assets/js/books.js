@@ -292,10 +292,6 @@
     const langMode = params.get('filterLanguageMode');
     state.filters.languageMode = langMode === 'or' ? 'or' : 'and';
 
-    if (isMobile() && state.view === 'list') {
-      state.view = 'card';
-    }
-
     if (state.filters.title && !state.search) {
       state.search = state.filters.title;
     } else if (state.search && !state.filters.title) {
@@ -553,16 +549,7 @@
   };
 
   const enforceMobileView = () => {
-    const mobile = isMobile();
-    if (mobile) {
-      state.view = 'card';
-      if (dom.viewListBtn) {
-        dom.viewListBtn.classList.add('disabled');
-        dom.viewListBtn.setAttribute('aria-disabled', 'true');
-        dom.viewListBtn.title = 'List view available on desktop';
-      }
-      if (dom.listContainer) dom.listContainer.classList.add('d-none');
-    } else if (dom.viewListBtn) {
+    if (dom.viewListBtn) {
       dom.viewListBtn.classList.remove('disabled');
       dom.viewListBtn.setAttribute('aria-disabled', 'false');
       dom.viewListBtn.title = '';
@@ -843,40 +830,38 @@
       const authorsText = authorNames.length
         ? authorNames.slice(0, 2).join(', ') + (authorNames.length > 2 ? `, +${authorNames.length - 2} more` : '')
         : '';
+      const authorsLine = authorsText ? `by ${authorsText}` : '';
       const authorsTitle = authorNames.length > 2 ? ` title="${escapeHtml(authorNames.join(', '))}"` : '';
       const tags = Array.isArray(book.tags) ? book.tags : [];
       const visibleTags = tags.slice(0, 3);
       const remaining = Math.max(tags.length - visibleTags.length, 0);
-      const infoLineParts = [];
-      if (book.subtitle) infoLineParts.push(book.subtitle);
-      if (book.isbn) infoLineParts.push(`ISBN: ${book.isbn}`);
-      const infoLine = infoLineParts.join(' • ');
+      const subtitle = book.subtitle || '';
+      const isbnLine = book.isbn ? `ISBN: ${book.isbn}` : '';
 
       row.innerHTML = `
-        <td>
+        <td class="list-col-book">
           <div class="d-flex align-items-center gap-3">
             <img class="cover-thumb rounded border" alt="Cover" src="${coverSrc}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
             <div style="min-width: 220px;">
               <div class="fw-semibold meta-line">${book.title || 'Untitled'}</div>
-              <div class="text-muted small meta-line ${infoLine ? '' : 'd-none'}">${infoLine}</div>
+              <div class="text-muted small meta-line list-meta-subtitle ${subtitle ? '' : 'd-none'}">${subtitle}</div>
+              <div class="text-muted small meta-line list-meta-authors ${authorsLine ? '' : 'd-none'}">${authorsLine}</div>
+              <div class="text-muted small meta-line list-meta-isbn ${isbnLine ? '' : 'd-none'}">${isbnLine}</div>
             </div>
           </div>
         </td>
-        <td${authorsTitle}>${authorsText}</td>
-        <td>${bookType || ''}</td>
-        <td>${language}</td>
-        <td>${pageCount}</td>
-        <td>${publication}</td>
-        <td>${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${tag.name}</span>`).join(' ')}${remaining > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remaining}</span>` : ''}</td>
+        <td class="list-col-authors"${authorsTitle}>${authorsText}</td>
+        <td class="list-col-type">${bookType || ''}</td>
+        <td class="list-col-language">${language}</td>
+        <td class="list-col-pages">${pageCount}</td>
+        <td class="list-col-published">${publication}</td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${tag.name}</span>`).join(' ')}${remaining > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remaining}</span>` : ''}</td>
       `;
       dom.listTableBody.appendChild(row);
     });
   };
 
   const renderBooks = (books) => {
-    if (isMobile() && state.view === 'list') {
-      state.view = 'card';
-    }
     setViewButtons();
     hideLoading();
     if (state.view === 'card') {

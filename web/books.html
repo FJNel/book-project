@@ -59,6 +59,24 @@
       .cover-card-wrap { padding: 0.5rem; }
       .cover-card { border-radius: 0.5rem; }
     }
+    @media (max-width: 576px) {
+      .list-table th.list-col-authors,
+      .list-table th.list-col-type,
+      .list-table th.list-col-language,
+      .list-table th.list-col-pages,
+      .list-table th.list-col-published,
+      .list-table th.list-col-tags,
+      .list-table td.list-col-authors,
+      .list-table td.list-col-type,
+      .list-table td.list-col-language,
+      .list-table td.list-col-pages,
+      .list-table td.list-col-published,
+      .list-table td.list-col-tags {
+        display: none;
+      }
+      .list-meta-isbn { display: none; }
+      .list-meta-authors { display: block; }
+    }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .meta-label { color: #6c757d; font-size: 0.85rem; }
@@ -79,6 +97,7 @@
     .subtle-panel { background-color: #f7f8f9; }
 
     .list-table th { white-space: nowrap; }
+    .list-meta-authors { display: none; }
 
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
@@ -394,7 +413,7 @@
                 </select>
               </div>
 
-              <div class="col-12 col-lg-2 d-none d-lg-block">
+              <div class="col-12 col-lg-2">
                 <div class="btn-group view-toggle w-100" role="group" aria-label="View">
                   <button class="btn btn-primary" type="button" id="viewCardBtn" aria-pressed="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-grid-3x3-gap me-1" viewBox="0 0 16 16">
@@ -472,13 +491,13 @@
           <table class="table list-table align-middle mb-0">
             <thead>
               <tr class="text-muted">
-                <th>Book</th>
-                <th>Authors</th>
-                <th>Type</th>
-                <th>Language</th>
-                <th>Pages</th>
-                <th>Published</th>
-                <th>Tags</th>
+                <th class="list-col-book">Book</th>
+                <th class="list-col-authors">Authors</th>
+                <th class="list-col-type">Type</th>
+                <th class="list-col-language">Language</th>
+                <th class="list-col-pages">Pages</th>
+                <th class="list-col-published">Published</th>
+                <th class="list-col-tags">Tags</th>
               </tr>
             </thead>
             <tbody id="listTableBody"></tbody>
