@@ -463,6 +463,9 @@
         modalEl.addEventListener('shown.bs.modal', () => {
             utils.restoreModalValues('addBookTypeModal', [nameInput, descInput]);
             utils.hideAlert(errorAlert);
+            if (!nameInput.value.trim()) {
+                utils.setHelpText(nameHelp, 'This field is required.', true);
+            }
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
@@ -727,6 +730,9 @@
             }
             utils.hideAlert(errorAlert);
             utils.setPartialDateHelp(foundedInput, foundedHelp);
+            if (!nameInput.value.trim()) {
+                utils.setHelpText(nameHelp, 'This field is required.', true);
+            }
             updateChangeSummary();
         });
         saveButton.addEventListener('click', save);
@@ -1150,6 +1156,9 @@
             utils.hideAlert(errorAlert);
             utils.setPartialDateHelp(birthDateInput, birthHelp);
             utils.setPartialDateHelp(deathDateInput, deathHelp);
+            if (!displayNameInput.value.trim()) {
+                utils.setHelpText(displayNameHelp, 'This field is required.', true);
+            }
             applyDeceasedState();
             updateChangeSummary();
         });
@@ -1409,6 +1418,9 @@
                 utils.restoreModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
             }
             utils.hideAlert(errorAlert);
+            if (!nameInput.value.trim()) {
+                utils.setHelpText(nameHelp, 'This field is required.', true);
+            }
             updateChangeSummary();
         });
         saveButton.addEventListener('click', save);

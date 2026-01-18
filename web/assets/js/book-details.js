@@ -244,6 +244,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
+  const updateCopyLocationHelp = () => {
+    if (!copyLocationHelp) return;
+    const value = copyLocationSelect?.value ? String(copyLocationSelect.value) : '';
+    if (!value) {
+      setHelpText(copyLocationHelp, 'This field is required.', true);
+      return;
+    }
+    clearHelpText(copyLocationHelp);
+  };
+
   const attachButtonSpinner = (button) => {
     if (!button) return null;
     if (button.querySelector('.spinner-border')) {
@@ -1987,6 +1997,7 @@ document.addEventListener('DOMContentLoaded', () => {
       copyNotes.value = '';
       clearHelpText(copyAcquisitionDateHelp);
     }
+    updateCopyLocationHelp();
     updateCopyChangeSummary();
     await showModal(editCopyModal, { backdrop: 'static', keyboard: false });
   };
@@ -1995,7 +2006,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!bookRecord || !copyEditTarget) return;
     const locationId = copyLocationSelect?.value ? Number(copyLocationSelect.value) : null;
     if (!locationId) {
-      if (copyLocationHelp) copyLocationHelp.textContent = 'Select a storage location.';
+      setHelpText(copyLocationHelp, 'This field is required.', true);
       return;
     }
     const dateRaw = copyAcquisitionDate.value.trim();
@@ -2150,6 +2161,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = `add-book?id=${bookRecord.id}`;
   });
   if (editBookSaveBtn) editBookSaveBtn.addEventListener('click', saveBookEdits);
+  if (editBookTitle) editBookTitle.addEventListener('input', validateEditBook);
+  if (editBookSubtitle) editBookSubtitle.addEventListener('input', validateEditBook);
+  if (editBookIsbn) editBookIsbn.addEventListener('input', validateEditBook);
+  if (editBookPublication) editBookPublication.addEventListener('input', validateEditBook);
+  if (editBookPages) editBookPages.addEventListener('input', validateEditBook);
+  if (editBookCover) editBookCover.addEventListener('input', validateEditBook);
+  if (editBookDescription) editBookDescription.addEventListener('input', validateEditBook);
   if (deleteBookBtn) deleteBookBtn.addEventListener('click', openDeleteBookModal);
   if (deleteBookConfirmBtn) deleteBookConfirmBtn.addEventListener('click', confirmDeleteBook);
   if (manageAuthorsBtn) manageAuthorsBtn.addEventListener('click', openManageAuthorsModal);
@@ -2173,7 +2191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCopyChangeSummary();
   });
   if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => {
-    clearHelpText(copyLocationHelp);
+    updateCopyLocationHelp();
     updateCopyChangeSummary();
   });
   if (copyAcquiredFrom) copyAcquiredFrom.addEventListener('input', updateCopyChangeSummary);
