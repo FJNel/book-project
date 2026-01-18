@@ -1817,7 +1817,7 @@ async function handleBookUpdate(req, res, bookId) {
 				updatedRow = result.rows[0];
 			}
 
-			if (hasAuthorIds) {
+			if (hasAuthors) {
 				await client.query(
 					`DELETE FROM book_authors WHERE user_id = $1 AND book_id = $2`,
 					[userId, bookId]

@@ -105,20 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
-  const normalizeUrl = (value) => {
-    if (!value) return null;
-    const trimmed = value.trim();
-    if (!trimmed || /\s/.test(trimmed)) return null;
-    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    try {
-      const url = new URL(withScheme);
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-      return url.href;
-    } catch (error) {
-      return null;
-    }
-  };
-
   const renderLink = (url, text) => {
     const normalized = normalizeUrl(url);
     if (!normalized) return null;

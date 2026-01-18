@@ -80,7 +80,10 @@
         confirmButtonLabel: byId('confirmAddBookLabel'),
         editCopyNotice: byId('editCopyNotice'),
         editCopyNoticeLink: byId('editCopyNoticeLink'),
-        editLoadError: byId('editBookLoadError')
+        editLoadError: byId('editBookLoadError'),
+        editCopyUnavailableAlert: byId('editCopyUnavailableAlert'),
+        editCopyUnavailableLink: byId('editCopyUnavailableLink'),
+        bookCopyCard: byId('bookCopyDetailsCard')
     };
 
     selectors.titleHelp = ensureHelpText(selectors.title, 'twoTitleHelp');
@@ -117,6 +120,81 @@
     const editState = addBook.state.edit || (addBook.state.edit = { enabled: false, bookId: null, copyId: null });
     const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
 
+    function triggerInput(el) {
+        if (!el) return;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function refreshInlineHelp() {
+        const title = selectors.title.value.trim();
+        if (!title) {
+            setHelpText(selectors.titleHelp, 'This field is required.', true);
+        } else if (title.length < 2 || title.length > 255) {
+            setHelpText(selectors.titleHelp, 'Title must be between 2 and 255 characters.', true);
+        } else if (!patterns.title.test(title)) {
+            setHelpText(selectors.titleHelp, 'Title contains unsupported characters.', true);
+        } else {
+            clearHelpText(selectors.titleHelp);
+        }
+
+        const subtitle = selectors.subtitle.value.trim();
+        if (!subtitle) {
+            clearHelpText(selectors.subtitleHelp);
+        } else if (subtitle.length > 255) {
+            setHelpText(selectors.subtitleHelp, 'Subtitle must be 255 characters or fewer.', true);
+        } else if (!patterns.subtitle.test(subtitle)) {
+            setHelpText(selectors.subtitleHelp, 'Subtitle contains unsupported characters.', true);
+        } else {
+            clearHelpText(selectors.subtitleHelp);
+        }
+
+        const rawIsbn = selectors.isbn.value.trim();
+        if (!rawIsbn) {
+            clearHelpText(selectors.isbnHelp);
+        } else {
+            const normalized = normalizeIsbn(rawIsbn);
+            if (!normalized) {
+                setHelpText(selectors.isbnHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
+            } else {
+                setHelpText(selectors.isbnHelp, `This ISBN will be stored as: ${normalized}`, false);
+            }
+        }
+
+        const pagesRaw = selectors.pages.value.trim();
+        if (!pagesRaw) {
+            clearHelpText(selectors.pagesHelp);
+        } else {
+            const numeric = Number.parseInt(pagesRaw, 10);
+            if (!Number.isInteger(numeric) || numeric < 1 || numeric > 10000) {
+                setHelpText(selectors.pagesHelp, 'Number of pages must be between 1 and 10000.', true);
+            } else {
+                clearHelpText(selectors.pagesHelp);
+            }
+        }
+
+        const coverRaw = selectors.coverUrl.value.trim();
+        if (!coverRaw) {
+            clearHelpText(selectors.coverUrlHelp);
+        } else if (!normalizeUrl(coverRaw)) {
+            setHelpText(selectors.coverUrlHelp, 'Book cover URL must be a valid URL starting with http:// or https://', true);
+        } else {
+            clearHelpText(selectors.coverUrlHelp);
+        }
+
+        const description = selectors.description.value.trim();
+        if (!description) {
+            clearHelpText(selectors.descriptionHelp);
+        } else if (description.length > 2000) {
+            setHelpText(selectors.descriptionHelp, 'Description must be 2000 characters or fewer.', true);
+        } else {
+            clearHelpText(selectors.descriptionHelp);
+        }
+
+        setPartialDateHelp(selectors.publicationDate, selectors.publicationDateHelp);
+        setPartialDateHelp(selectors.acquisitionDate, selectors.acquisitionDateHelp);
+    }
+
     function getEditBookId() {
         const params = new URLSearchParams(window.location.search);
         const raw = params.get('id') || params.get('bookId');
@@ -134,6 +212,19 @@
         if (selectors.isbnLookupCard) {
             selectors.isbnLookupCard.classList.add('d-none');
         }
+        const detailTitle = document.querySelector('#bookDetailsCard .card-title');
+        const typeTitle = document.querySelector('#bookBookTypeCard .card-title');
+        const authorsTitle = document.querySelector('#bookAuthorsCard .card-title');
+        const publisherTitle = document.querySelector('#bookPublishersCard .card-title');
+        const seriesTitle = document.querySelector('#bookSeriesCard .card-title');
+        const tagsTitle = document.querySelector('#bookTagsCard .card-title');
+        if (detailTitle) detailTitle.textContent = 'Step 1: Enter Book Details';
+        if (typeTitle) typeTitle.textContent = 'Step 2: Select Book Type';
+        if (authorsTitle) authorsTitle.textContent = 'Step 3: Add Book Authors';
+        if (publisherTitle) publisherTitle.textContent = 'Step 4: Add Book Publisher';
+        if (seriesTitle) seriesTitle.textContent = 'Step 5: Add Book Series';
+        if (tagsTitle) tagsTitle.textContent = 'Step 6: Add Book Tags';
+
         if (selectors.pageTitle) {
             selectors.pageTitle.textContent = 'Edit Book';
         }
@@ -157,6 +248,15 @@
         }
         if (selectors.editCopyNoticeLink && editState.bookId) {
             selectors.editCopyNoticeLink.href = `book-details?id=${editState.bookId}`;
+        }
+        if (selectors.editCopyUnavailableAlert) {
+            selectors.editCopyUnavailableAlert.classList.remove('d-none');
+        }
+        if (selectors.editCopyUnavailableLink && editState.bookId) {
+            selectors.editCopyUnavailableLink.href = `book-details?id=${editState.bookId}`;
+        }
+        if (selectors.bookCopyCard) {
+            selectors.bookCopyCard.classList.add('d-none');
         }
     }
 
@@ -267,7 +367,13 @@
         addBook.state.selections.publisherId = Number.parseInt(selectedId, 10);
         const publisher = addBook.state.publishers.find((entry) => String(entry.id) === selectedId);
         selectors.publisherFounded.textContent = publisher?.foundedDate?.text || 'No founded date provided.';
-        selectors.publisherWebsite.textContent = publisher?.website || 'No website provided.';
+        const websiteValue = publisher?.website || '';
+        const normalizedWebsite = websiteValue ? normalizeUrl(websiteValue) : null;
+        if (normalizedWebsite) {
+            selectors.publisherWebsite.innerHTML = `<a href="${normalizedWebsite}" target="_blank" rel="noopener">${normalizedWebsite}</a>`;
+        } else {
+            selectors.publisherWebsite.textContent = websiteValue || 'No website provided.';
+        }
         selectors.publisherNotes.textContent = publisher?.notes || 'No notes provided.';
         if (selectors.publisherFounded?.parentElement) {
             selectors.publisherFounded.parentElement.classList.remove('d-none');
@@ -756,8 +862,15 @@
             addBook.state.selections.storageLocationPath = firstCopy.storageLocationPath;
         }
 
-        setPartialDateHelp(selectors.publicationDate, selectors.publicationDateHelp);
-        setPartialDateHelp(selectors.acquisitionDate, selectors.acquisitionDateHelp);
+        refreshInlineHelp();
+        triggerInput(selectors.title);
+        triggerInput(selectors.subtitle);
+        triggerInput(selectors.isbn);
+        triggerInput(selectors.pages);
+        triggerInput(selectors.coverUrl);
+        triggerInput(selectors.description);
+        triggerInput(selectors.publicationDate);
+        triggerInput(selectors.acquisitionDate);
     }
 
     async function loadBookForEdit() {
