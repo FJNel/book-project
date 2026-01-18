@@ -836,7 +836,10 @@
       const visibleTags = tags.slice(0, 3);
       const remaining = Math.max(tags.length - visibleTags.length, 0);
       const subtitle = book.subtitle || '';
-      const isbnLine = book.isbn ? `ISBN: ${book.isbn}` : '';
+      const infoLineParts = [];
+      if (subtitle) infoLineParts.push(subtitle);
+      if (book.isbn) infoLineParts.push(`ISBN: ${book.isbn}`);
+      const infoLine = infoLineParts.join(' • ');
 
       row.innerHTML = `
         <td class="list-col-book">
@@ -844,9 +847,9 @@
             <img class="cover-thumb rounded border" alt="Cover" src="${coverSrc}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
             <div style="min-width: 220px;">
               <div class="fw-semibold meta-line">${book.title || 'Untitled'}</div>
-              <div class="text-muted small meta-line list-meta-subtitle ${subtitle ? '' : 'd-none'}">${subtitle}</div>
-              <div class="text-muted small meta-line list-meta-authors ${authorsLine ? '' : 'd-none'}">${authorsLine}</div>
-              <div class="text-muted small meta-line list-meta-isbn ${isbnLine ? '' : 'd-none'}">${isbnLine}</div>
+              <div class="text-muted small meta-line list-meta-desktop ${infoLine ? '' : 'd-none'}">${infoLine}</div>
+              <div class="text-muted small meta-line list-meta-mobile-subtitle ${subtitle ? '' : 'd-none'}">${subtitle}</div>
+              <div class="text-muted small meta-line list-meta-mobile-authors ${authorsLine ? '' : 'd-none'}">${authorsLine}</div>
             </div>
           </div>
         </td>

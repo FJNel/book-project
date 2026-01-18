@@ -59,7 +59,7 @@
       .cover-card-wrap { padding: 0.5rem; }
       .cover-card { border-radius: 0.5rem; }
     }
-    @media (max-width: 576px) {
+    @media (max-width: 767.98px) {
       .list-table th.list-col-authors,
       .list-table th.list-col-type,
       .list-table th.list-col-language,
@@ -74,8 +74,11 @@
       .list-table td.list-col-tags {
         display: none;
       }
-      .list-meta-isbn { display: none; }
-      .list-meta-authors { display: block; }
+      .list-meta-desktop { display: none; }
+      .list-meta-mobile-subtitle,
+      .list-meta-mobile-authors {
+        display: block;
+      }
     }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -97,7 +100,10 @@
     .subtle-panel { background-color: #f7f8f9; }
 
     .list-table th { white-space: nowrap; }
-    .list-meta-authors { display: none; }
+    .list-meta-mobile-subtitle,
+    .list-meta-mobile-authors {
+      display: none;
+    }
 
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
