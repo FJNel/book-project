@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const editAuthorRoleModal = document.getElementById('editAuthorRoleModal');
   const authorRoleInput = document.getElementById('authorRoleInput');
   const authorRoleSummary = document.getElementById('authorRoleSummary');
+  const authorRoleChangeSummary = document.getElementById('authorRoleChangeSummary');
+  const authorRoleResetBtn = document.getElementById('authorRoleResetBtn');
   const authorRoleSaveBtn = document.getElementById('authorRoleSaveBtn');
   const authorRoleErrorAlert = document.getElementById('authorRoleErrorAlert');
 
@@ -84,6 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
   const seriesOrderInput = document.getElementById('seriesOrderInput');
   const seriesOrderSummary = document.getElementById('seriesOrderSummary');
+  const seriesOrderChangeSummary = document.getElementById('seriesOrderChangeSummary');
+  const seriesOrderResetBtn = document.getElementById('seriesOrderResetBtn');
   const seriesOrderSaveBtn = document.getElementById('seriesOrderSaveBtn');
   const seriesOrderErrorAlert = document.getElementById('seriesOrderErrorAlert');
 
@@ -110,7 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const copyAcquisitionLocation = document.getElementById('copyAcquisitionLocation');
   const copyAcquisitionStory = document.getElementById('copyAcquisitionStory');
   const copyNotes = document.getElementById('copyNotes');
+  const copyChangeSummary = document.getElementById('copyChangeSummary');
+  const copyResetBtn = document.getElementById('copyResetBtn');
   const copySaveBtn = document.getElementById('copySaveBtn');
+  const editCopyModalLabel = document.getElementById('editCopyModalLabel');
   const openAddLocationBtn = document.getElementById('openAddLocationBtn');
 
   const deleteCopyModal = document.getElementById('deleteCopyModal');
@@ -237,6 +244,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
+  const attachButtonSpinner = (button) => {
+    if (!button) return null;
+    if (button.querySelector('.spinner-border')) {
+      return {
+        spinner: button.querySelector('.spinner-border'),
+        label: button.textContent.trim() || 'Submit'
+      };
+    }
+    const label = button.textContent.trim() || 'Submit';
+    button.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner-border spinner-border-sm d-none';
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    button.appendChild(spinner);
+    button.appendChild(document.createTextNode(' '));
+    button.appendChild(document.createTextNode(label));
+    return { spinner, label };
+  };
+
+  const setButtonLabel = (button, label) => {
+    if (!button) return;
+    const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.nodeValue = ` ${label}`;
+    } else {
+      button.textContent = label;
+    }
+  };
+
+  const setButtonLoading = (button, spinner, isLoading) => {
+    if (!button || !spinner) return;
+    spinner.classList.toggle('d-none', !isLoading);
+    button.disabled = isLoading;
+  };
+
+  const toggleDisabled = (elements, disabled) => {
+    if (!elements) return;
+    elements.forEach((el) => {
+      if (el) el.disabled = disabled;
+    });
+  };
+
+  const bindModalLock = (modalEl, state) => {
+    if (!modalEl || modalEl.dataset.lockBound === 'true') return;
+    modalEl.dataset.lockBound = 'true';
+    modalEl.addEventListener('hide.bs.modal', (event) => {
+      if (state.locked) event.preventDefault();
+    });
+  };
+
+  const setModalLocked = (modalEl, locked) => {
+    if (!modalEl) return;
+    modalEl.dataset.locked = locked ? 'true' : 'false';
+    const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+    closeButtons.forEach((btn) => {
+      btn.disabled = locked;
+    });
+  };
+
   const sharedNamePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
 
   const bindRequiredFieldValidation = (inputEl, helpEl, { label = 'This field', min = 2, max = 150, pattern = sharedNamePattern } = {}) => {
@@ -328,6 +395,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let seriesOrderTarget = null;
   let removeSeriesTarget = null;
   let copyEditTarget = null;
+
+  const authorRoleModalState = { locked: false };
+  const seriesOrderModalState = { locked: false };
+  const copyModalState = { locked: false };
+  const authorRoleSpinner = attachButtonSpinner(authorRoleSaveBtn);
+  const seriesOrderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
+  const copySpinner = attachButtonSpinner(copySaveBtn);
+
+  bindModalLock(editAuthorRoleModal, authorRoleModalState);
+  bindModalLock(editSeriesOrderModal, seriesOrderModalState);
+  bindModalLock(editCopyModal, copyModalState);
 
   const toggleDetails = ({ row, wrap, chevron }) => {
     if (!row || !wrap || !chevron) return;
@@ -866,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Loading storage locations list.');
     const payload = await fetchList('/storagelocation/list', {
       method: 'POST',
-      body: JSON.stringify({ sortBy: 'path', order: 'asc', limit: 500, offset: 0 })
+      body: JSON.stringify({ sortBy: 'path', order: 'asc', limit: 200, offset: 0 })
     });
     referenceData.locations = payload.storageLocations || [];
     return referenceData.locations;
@@ -1167,17 +1245,56 @@ document.addEventListener('DOMContentLoaded', () => {
     authorRoleSummary.textContent = `Changing ${author.authorName || 'this author'}'s role on ${bookRecord.title || 'this book'} from ${safeCurrent} to ${safeNext}.`;
   };
 
+  const updateAuthorRoleChangeSummary = () => {
+    if (!authorRoleChangeSummary) return;
+    if (!authorRoleTarget || !bookRecord) {
+      authorRoleChangeSummary.textContent = '';
+      return;
+    }
+    const originalInput = authorRoleTarget.originalInputValue || '';
+    const nextInput = authorRoleInput.value.trim();
+    const hasChanges = nextInput !== originalInput;
+    const currentLabel = authorRoleTarget.currentRole || 'No role';
+    const nextLabel = nextInput || 'No role';
+    authorRoleChangeSummary.textContent = hasChanges
+      ? `Changing ${authorRoleTarget.author.authorName || 'this author'}'s role on ${bookRecord.title || 'this book'} from ${currentLabel} to ${nextLabel}.`
+      : 'No changes yet.';
+    if (authorRoleSaveBtn) authorRoleSaveBtn.disabled = authorRoleModalState.locked || !hasChanges;
+  };
+
+  const setAuthorRoleLocked = (locked) => {
+    authorRoleModalState.locked = locked;
+    setModalLocked(editAuthorRoleModal, locked);
+    toggleDisabled([authorRoleInput, authorRoleResetBtn], locked);
+    if (authorRoleSpinner) setButtonLoading(authorRoleSaveBtn, authorRoleSpinner.spinner, locked);
+    updateAuthorRoleChangeSummary();
+  };
+
+  const resetAuthorRoleModal = () => {
+    if (!authorRoleTarget) return;
+    authorRoleInput.value = authorRoleTarget.originalInputValue || '';
+    if (authorRoleErrorAlert) {
+      authorRoleErrorAlert.classList.add('d-none');
+      authorRoleErrorAlert.textContent = '';
+    }
+    updateAuthorRoleSummary(authorRoleTarget.author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
+    updateAuthorRoleChangeSummary();
+  };
+
   const openAuthorRoleModal = (authorId) => {
     const authors = bookRecord?.authors || [];
     const author = authors.find((entry) => entry.authorId === authorId);
     if (!author) return;
-    authorRoleTarget = { author, currentRole: author.authorRole || 'Contributor' };
-    authorRoleInput.value = author.authorRole === 'Contributor' ? '' : author.authorRole || '';
+    const currentRole = author.authorRole || 'Contributor';
+    const originalInputValue = author.authorRole === 'Contributor' ? '' : author.authorRole || '';
+    authorRoleTarget = { author, currentRole, originalInputValue };
+    authorRoleInput.value = originalInputValue;
     if (authorRoleErrorAlert) {
       authorRoleErrorAlert.classList.add('d-none');
       authorRoleErrorAlert.textContent = '';
     }
     updateAuthorRoleSummary(author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
+    updateAuthorRoleChangeSummary();
     showModal(editAuthorRoleModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -1188,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
       authorId: entry.authorId,
       authorRole: entry.authorId === authorRoleTarget.author.authorId ? (nextRole || null) : (entry.authorRole || null)
     }));
-    authorRoleSaveBtn.disabled = true;
+    setAuthorRoleLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, authors }) });
       const data = await response.json().catch(() => ({}));
@@ -1210,7 +1327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         authorRoleErrorAlert.textContent = 'Unable to update role right now.';
       }
     } finally {
-      authorRoleSaveBtn.disabled = false;
+      setAuthorRoleLocked(false);
     }
   };
 
@@ -1383,16 +1500,60 @@ document.addEventListener('DOMContentLoaded', () => {
     seriesOrderSummary.textContent = `Changing ${bookRecord.title || 'this book'}'s order in ${seriesEntry.seriesName || 'this series'} from ${current} to ${next}.`;
   };
 
+  const updateSeriesOrderChangeSummary = () => {
+    if (!seriesOrderChangeSummary) return;
+    if (!seriesOrderTarget || !bookRecord) {
+      seriesOrderChangeSummary.textContent = '';
+      return;
+    }
+    const originalInput = seriesOrderTarget.originalInputValue || '';
+    const nextInput = seriesOrderInput.value.trim();
+    const hasChanges = nextInput !== originalInput;
+    const currentLabel = Number.isInteger(seriesOrderTarget.currentOrder)
+      ? String(seriesOrderTarget.currentOrder)
+      : 'No order';
+    const nextLabel = nextInput ? nextInput : 'No order';
+    seriesOrderChangeSummary.textContent = hasChanges
+      ? `Changing ${bookRecord.title || 'this book'}'s order in ${seriesOrderTarget.seriesEntry.seriesName || 'this series'} from ${currentLabel} to ${nextLabel}.`
+      : 'No changes yet.';
+    if (seriesOrderSaveBtn) seriesOrderSaveBtn.disabled = seriesOrderModalState.locked || !hasChanges;
+  };
+
+  const setSeriesOrderLocked = (locked) => {
+    seriesOrderModalState.locked = locked;
+    setModalLocked(editSeriesOrderModal, locked);
+    toggleDisabled([seriesOrderInput, seriesOrderResetBtn], locked);
+    if (seriesOrderSpinner) setButtonLoading(seriesOrderSaveBtn, seriesOrderSpinner.spinner, locked);
+    updateSeriesOrderChangeSummary();
+  };
+
+  const resetSeriesOrderModal = () => {
+    if (!seriesOrderTarget) return;
+    seriesOrderInput.value = seriesOrderTarget.originalInputValue || '';
+    if (seriesOrderErrorAlert) {
+      seriesOrderErrorAlert.classList.add('d-none');
+      seriesOrderErrorAlert.textContent = '';
+    }
+    updateSeriesOrderSummary(
+      seriesOrderTarget.seriesEntry,
+      seriesOrderTarget.currentOrder,
+      seriesOrderInput.value ? Number(seriesOrderInput.value) : null
+    );
+    updateSeriesOrderChangeSummary();
+  };
+
   const openSeriesOrderModal = (seriesId) => {
     const seriesEntry = (bookRecord?.series || []).find((entry) => entry.seriesId === seriesId);
     if (!seriesEntry) return;
-    seriesOrderTarget = { seriesEntry, currentOrder: seriesEntry.bookOrder };
-    seriesOrderInput.value = Number.isInteger(seriesEntry.bookOrder) ? String(seriesEntry.bookOrder) : '';
+    const originalInputValue = Number.isInteger(seriesEntry.bookOrder) ? String(seriesEntry.bookOrder) : '';
+    seriesOrderTarget = { seriesEntry, currentOrder: seriesEntry.bookOrder, originalInputValue };
+    seriesOrderInput.value = originalInputValue;
     if (seriesOrderErrorAlert) {
       seriesOrderErrorAlert.classList.add('d-none');
       seriesOrderErrorAlert.textContent = '';
     }
     updateSeriesOrderSummary(seriesEntry, seriesEntry.bookOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+    updateSeriesOrderChangeSummary();
     showModal(editSeriesOrderModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -1407,7 +1568,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     }
-    seriesOrderSaveBtn.disabled = true;
+    setSeriesOrderLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'PUT',
@@ -1436,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', () => {
         seriesOrderErrorAlert.textContent = 'Unable to update order right now.';
       }
     } finally {
-      seriesOrderSaveBtn.disabled = false;
+      setSeriesOrderLocked(false);
     }
   };
 
@@ -1622,15 +1783,174 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBookTags();
   };
 
+  const getLocationLabelById = (locationId) => {
+    if (!copyLocationSelect || !locationId) return '';
+    const option = Array.from(copyLocationSelect.options).find((entry) => entry.value === String(locationId));
+    return option ? option.textContent : '';
+  };
+
+  const getCopyCurrentValues = () => ({
+    locationId: copyLocationSelect?.value ? Number(copyLocationSelect.value) : null,
+    locationLabel: copyLocationSelect?.selectedOptions?.[0]?.textContent || '',
+    acquisitionDate: copyAcquisitionDate.value.trim(),
+    acquiredFrom: copyAcquiredFrom.value.trim(),
+    acquisitionType: copyAcquisitionType?.value ? copyAcquisitionType.value.trim() : '',
+    acquisitionLocation: copyAcquisitionLocation.value.trim(),
+    acquisitionStory: copyAcquisitionStory.value.trim(),
+    notes: copyNotes.value.trim()
+  });
+
+  const getCopyOriginalValues = () => (copyEditTarget?.original
+    ? { ...copyEditTarget.original }
+    : {
+      locationId: null,
+      locationLabel: '',
+      acquisitionDate: '',
+      acquiredFrom: '',
+      acquisitionType: '',
+      acquisitionLocation: '',
+      acquisitionStory: '',
+      notes: ''
+    });
+
+  const buildCopyChangeList = () => {
+    if (!copyEditTarget || copyEditTarget.mode !== 'edit') return [];
+    const current = getCopyCurrentValues();
+    const original = getCopyOriginalValues();
+    const changes = [];
+    if (current.locationId !== original.locationId) {
+      const fromLabel = original.locationLabel || 'No location';
+      const toLabel = current.locationLabel || 'No location';
+      changes.push(`Updated storage location from "${fromLabel}" to "${toLabel}".`);
+    }
+    if (current.acquisitionDate !== original.acquisitionDate) {
+      const fromLabel = original.acquisitionDate || 'No date';
+      const toLabel = current.acquisitionDate || 'No date';
+      changes.push(`Updated acquisition date from "${fromLabel}" to "${toLabel}".`);
+    }
+    if (current.acquiredFrom !== original.acquiredFrom) {
+      if (!original.acquiredFrom && current.acquiredFrom) {
+        changes.push(`Added acquired from "${current.acquiredFrom}".`);
+      } else if (original.acquiredFrom && !current.acquiredFrom) {
+        changes.push('Cleared acquired from.');
+      } else {
+        changes.push(`Updated acquired from to "${current.acquiredFrom || 'None'}".`);
+      }
+    }
+    if (current.acquisitionType !== original.acquisitionType) {
+      if (!original.acquisitionType && current.acquisitionType) {
+        changes.push(`Set acquisition type to "${current.acquisitionType}".`);
+      } else if (original.acquisitionType && !current.acquisitionType) {
+        changes.push('Cleared acquisition type.');
+      } else {
+        changes.push(`Updated acquisition type to "${current.acquisitionType || 'None'}".`);
+      }
+    }
+    if (current.acquisitionLocation !== original.acquisitionLocation) {
+      if (!original.acquisitionLocation && current.acquisitionLocation) {
+        changes.push(`Added acquisition location "${current.acquisitionLocation}".`);
+      } else if (original.acquisitionLocation && !current.acquisitionLocation) {
+        changes.push('Cleared acquisition location.');
+      } else {
+        changes.push(`Updated acquisition location to "${current.acquisitionLocation || 'None'}".`);
+      }
+    }
+    if (current.acquisitionStory !== original.acquisitionStory) {
+      if (!original.acquisitionStory && current.acquisitionStory) {
+        changes.push('Added acquisition story.');
+      } else if (original.acquisitionStory && !current.acquisitionStory) {
+        changes.push('Cleared acquisition story.');
+      } else {
+        changes.push('Updated acquisition story.');
+      }
+    }
+    if (current.notes !== original.notes) {
+      if (!original.notes && current.notes) {
+        changes.push('Added notes.');
+      } else if (original.notes && !current.notes) {
+        changes.push('Cleared notes.');
+      } else {
+        changes.push('Updated notes.');
+      }
+    }
+    return changes;
+  };
+
+  const updateCopyChangeSummary = () => {
+    if (!copyChangeSummary) return;
+    if (!copyEditTarget || copyEditTarget.mode !== 'edit') {
+      copyChangeSummary.textContent = '';
+      if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked;
+      return;
+    }
+    const changes = buildCopyChangeList();
+    copyChangeSummary.textContent = changes.length
+      ? `Changing this copy: ${changes.join(' ')}`
+      : 'No changes yet.';
+    if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked || changes.length === 0;
+  };
+
+  const setCopyLocked = (locked) => {
+    copyModalState.locked = locked;
+    setModalLocked(editCopyModal, locked);
+    toggleDisabled([
+      copyLocationSelect,
+      copyAcquisitionDate,
+      copyAcquiredFrom,
+      copyAcquisitionType,
+      copyAcquisitionLocation,
+      copyAcquisitionStory,
+      copyNotes,
+      copyResetBtn
+    ], locked);
+    if (copySpinner) setButtonLoading(copySaveBtn, copySpinner.spinner, locked);
+    updateCopyChangeSummary();
+  };
+
+  const resetCopyModal = () => {
+    if (!copyEditTarget) return;
+    if (copyEditTarget.mode === 'edit') {
+      const original = getCopyOriginalValues();
+      copyLocationSelect.value = original.locationId ? String(original.locationId) : '';
+      copyAcquisitionDate.value = original.acquisitionDate || '';
+      copyAcquiredFrom.value = original.acquiredFrom || '';
+      copyAcquisitionType.value = original.acquisitionType || '';
+      copyAcquisitionLocation.value = original.acquisitionLocation || '';
+      copyAcquisitionStory.value = original.acquisitionStory || '';
+      copyNotes.value = original.notes || '';
+    } else {
+      copyLocationSelect.value = '';
+      copyAcquisitionDate.value = '';
+      copyAcquiredFrom.value = '';
+      copyAcquisitionType.value = '';
+      copyAcquisitionLocation.value = '';
+      copyAcquisitionStory.value = '';
+      copyNotes.value = '';
+    }
+    clearHelpText(copyLocationHelp);
+    clearHelpText(copyAcquisitionDateHelp);
+    if (editCopyErrorAlert) {
+      editCopyErrorAlert.classList.add('d-none');
+      editCopyErrorAlert.textContent = '';
+    }
+    setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
+    updateCopyChangeSummary();
+  };
+
   const openCopyModal = async ({ mode, copyId }) => {
     if (!bookRecord) return;
-    copyEditTarget = { mode, copyId };
+    copyEditTarget = { mode, copyId, original: null };
     if (editCopyErrorAlert) {
       editCopyErrorAlert.classList.add('d-none');
       editCopyErrorAlert.textContent = '';
     }
     if (copyLocationHelp) copyLocationHelp.textContent = '';
     if (copyAcquisitionDateHelp) copyAcquisitionDateHelp.textContent = '';
+    if (editCopyModalLabel) {
+      editCopyModalLabel.textContent = mode === 'edit' ? 'Edit Copy' : 'Add Copy';
+    }
+    setButtonLabel(copySaveBtn, mode === 'edit' ? 'Save changes' : 'Add copy');
+    if (copyResetBtn) copyResetBtn.textContent = mode === 'edit' ? 'Revert' : 'Reset';
     try {
       const locations = await loadLocationsList();
       populateSelect(copyLocationSelect, locations, { placeholder: 'Select storage location', labelKey: 'path', valueKey: 'id', includeEmpty: true });
@@ -1648,6 +1968,16 @@ document.addEventListener('DOMContentLoaded', () => {
       copyAcquisitionLocation.value = copy.acquisitionLocation || '';
       copyAcquisitionStory.value = copy.acquisitionStory || '';
       copyNotes.value = copy.notes || '';
+      copyEditTarget.original = {
+        locationId: copy.storageLocationId || null,
+        locationLabel: copy.storageLocationPath || getLocationLabelById(copy.storageLocationId),
+        acquisitionDate: copy.acquisitionDate?.text || '',
+        acquiredFrom: copy.acquiredFrom || '',
+        acquisitionType: copy.acquisitionType || '',
+        acquisitionLocation: copy.acquisitionLocation || '',
+        acquisitionStory: copy.acquisitionStory || '',
+        notes: copy.notes || ''
+      };
       setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
     } else {
       copyLocationSelect.value = '';
@@ -1659,6 +1989,7 @@ document.addEventListener('DOMContentLoaded', () => {
       copyNotes.value = '';
       clearHelpText(copyAcquisitionDateHelp);
     }
+    updateCopyChangeSummary();
     await showModal(editCopyModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -1677,7 +2008,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     }
-    copySaveBtn.disabled = true;
+    setCopyLocked(true);
     try {
       const acquisitionTypeValue = copyAcquisitionType?.value ? copyAcquisitionType.value.trim() : '';
       const payload = {
@@ -1719,7 +2050,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editCopyErrorAlert.textContent = 'Unable to save copy right now.';
       }
     } finally {
-      copySaveBtn.disabled = false;
+      setCopyLocked(false);
     }
   };
 
@@ -1829,15 +2160,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (addCopyBtn) addCopyBtn.addEventListener('click', () => openCopyModal({ mode: 'create' }));
   if (addAuthorToBookBtn) addAuthorToBookBtn.addEventListener('click', addAuthorToBook);
   if (authorRoleSaveBtn) authorRoleSaveBtn.addEventListener('click', saveAuthorRole);
+  if (authorRoleResetBtn) authorRoleResetBtn.addEventListener('click', resetAuthorRoleModal);
   if (removeAuthorConfirmBtn) removeAuthorConfirmBtn.addEventListener('click', confirmRemoveAuthor);
   if (addSeriesToBookBtn) addSeriesToBookBtn.addEventListener('click', addSeriesToBook);
   if (seriesOrderSaveBtn) seriesOrderSaveBtn.addEventListener('click', saveSeriesOrder);
+  if (seriesOrderResetBtn) seriesOrderResetBtn.addEventListener('click', resetSeriesOrderModal);
   if (removeSeriesConfirmBtn) removeSeriesConfirmBtn.addEventListener('click', confirmRemoveSeries);
   if (addTagBtn) addTagBtn.addEventListener('click', addTag);
   if (copySaveBtn) copySaveBtn.addEventListener('click', saveCopy);
+  if (copyResetBtn) copyResetBtn.addEventListener('click', resetCopyModal);
   if (deleteCopyConfirmBtn) deleteCopyConfirmBtn.addEventListener('click', confirmDeleteCopy);
-  if (copyAcquisitionDate) copyAcquisitionDate.addEventListener('input', () => setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp));
-  if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => clearHelpText(copyLocationHelp));
+  if (copyAcquisitionDate) copyAcquisitionDate.addEventListener('input', () => {
+    setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
+    updateCopyChangeSummary();
+  });
+  if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => {
+    clearHelpText(copyLocationHelp);
+    updateCopyChangeSummary();
+  });
+  if (copyAcquiredFrom) copyAcquiredFrom.addEventListener('input', updateCopyChangeSummary);
+  if (copyAcquisitionType) copyAcquisitionType.addEventListener('change', updateCopyChangeSummary);
+  if (copyAcquisitionLocation) copyAcquisitionLocation.addEventListener('input', updateCopyChangeSummary);
+  if (copyAcquisitionStory) copyAcquisitionStory.addEventListener('input', updateCopyChangeSummary);
+  if (copyNotes) copyNotes.addEventListener('input', updateCopyChangeSummary);
   if (openAddPublisherBtn) openAddPublisherBtn.addEventListener('click', () => window.sharedAddModals?.open('publisher'));
   if (openAddBookTypeBtn) openAddBookTypeBtn.addEventListener('click', () => window.sharedAddModals?.open('booktype'));
   if (openAddAuthorBtn) openAddAuthorBtn.addEventListener('click', () => window.sharedAddModals?.open('author'));
@@ -1850,6 +2195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     authorRoleInput.addEventListener('input', () => {
       if (!authorRoleTarget) return;
       updateAuthorRoleSummary(authorRoleTarget.author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
+      updateAuthorRoleChangeSummary();
     });
   }
 
@@ -1857,6 +2203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     seriesOrderInput.addEventListener('input', () => {
       if (!seriesOrderTarget) return;
       updateSeriesOrderSummary(seriesOrderTarget.seriesEntry, seriesOrderTarget.currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+      updateSeriesOrderChangeSummary();
     });
   }
 

@@ -54,6 +54,7 @@
           <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link active" aria-current="page" href="books">Books</a></li>
           <li class="nav-item"><a class="nav-link" href="publishers">Publishers</a></li>
+          <li class="nav-item"><a class="nav-link" href="authors">Authors</a></li>
           <li class="nav-item"><a class="nav-link" href="series">Series</a></li>
           <li class="nav-item"><a class="nav-link" href="storage-locations">Storage Locations</a></li>
           <li class="nav-item"><a class="nav-link" href="statistics">Statistics</a></li>
@@ -526,8 +527,10 @@
             <input class="form-control" type="text" id="authorRoleInput" autocomplete="off" maxlength="80">
             <small class="form-text text-muted">Leave blank to clear the role.</small>
           </div>
+          <small class="text-muted d-block" id="authorRoleChangeSummary"></small>
         </div>
         <div class="modal-footer">
+          <button class="btn btn-outline-secondary" id="authorRoleResetBtn" type="button">Revert</button>
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
           <button class="btn btn-primary" id="authorRoleSaveBtn" type="button">Save role</button>
         </div>
@@ -608,8 +611,10 @@
             <input class="form-control" type="number" id="seriesOrderInput" min="1" step="1">
             <small class="form-text text-muted">Leave blank to clear the order.</small>
           </div>
+          <small class="text-muted d-block" id="seriesOrderChangeSummary"></small>
         </div>
         <div class="modal-footer">
+          <button class="btn btn-outline-secondary" id="seriesOrderResetBtn" type="button">Revert</button>
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
           <button class="btn btn-primary" id="seriesOrderSaveBtn" type="button">Save order</button>
         </div>
@@ -716,8 +721,10 @@
               </div>
             </div>
           </form>
+          <small class="text-muted d-block mt-3" id="copyChangeSummary"></small>
         </div>
         <div class="modal-footer">
+          <button class="btn btn-outline-secondary" id="copyResetBtn" type="button">Reset</button>
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
           <button class="btn btn-primary" id="copySaveBtn" type="button">Save copy</button>
         </div>

@@ -174,7 +174,7 @@
 
     const modalMarkup = `
 <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addBookTypeModal" aria-labelledby="addBookTypeModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title" id="addBookTypeModalLabel">Create a New Book Type</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -197,7 +197,7 @@
   </div>
 </div>
 <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addAuthorModal" aria-labelledby="addAuthorModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title" id="addAuthorModalLabel">Add a New Author</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -239,7 +239,7 @@
   </div>
 </div>
 <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addPublisherModal" aria-labelledby="addPublisherModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title" id="addPublisherModalLabel">Add a New Publisher</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -262,7 +262,7 @@
   </div>
 </div>
 <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addSeriesModal" aria-labelledby="addSeriesModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title" id="addSeriesModalLabel">Add a New Series</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -275,13 +275,14 @@
           <div class="mb-3"><label class="form-label" for="sixEdtSeriesWebsite"><strong>Series Website</strong></label><input class="form-control" type="url" id="sixEdtSeriesWebsite" name="seriesWebsite" inputmode="url" autocomplete="off"><small class="form-text" id="sixSeriesWebsiteHelp"></small></div>
           <div class="mb-0"><label class="form-label" for="sixRdtSeriesDescription"><strong>Description</strong></label><textarea class="form-control" id="sixRdtSeriesDescription" name="seriesDescription" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea><small class="form-text" id="sixSeriesDescriptionHelp"></small></div>
         </form>
+                <small class="text-muted d-block mt-3" id="sixSeriesChangeSummary"></small>
       </div>
       <div class="modal-footer"><button class="btn btn-outline-secondary" id="sixBtnResetSeries" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Add Series</button></div>
     </div>
   </div>
 </div>
 <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addLocationModal" aria-labelledby="addLocationModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h4 class="modal-title" id="addLocationModalLabel">Add a New Storage Location</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
@@ -369,6 +370,7 @@
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
 
         utils.bindModalLock(modalEl, modalState);
+        setMode('add');
 
         const validate = () => {
             utils.hideAlert(errorAlert);
@@ -845,6 +847,18 @@
         resetButton.addEventListener('click', reset);
     }
 
+    let seriesMode = { mode: 'add', original: null };
+
+    const setButtonLabel = (button, label) => {
+        if (!button) return;
+        const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+        if (textNode) {
+            textNode.nodeValue = ` ${label}`;
+        } else {
+            button.textContent = label;
+        }
+    };
+
     function setupSeriesModal() {
         const modalEl = utils.byId('addSeriesModal');
         if (!modalEl || modalEl.dataset.bound === 'true') return;
@@ -856,11 +870,76 @@
         const websiteHelp = utils.byId('sixSeriesWebsiteHelp');
         const descHelp = utils.byId('sixSeriesDescriptionHelp');
         const errorAlert = utils.byId('sixSeriesErrorAlert');
+        const changeSummary = utils.byId('sixSeriesChangeSummary');
         const saveButton = utils.byId('sixBtnSaveSeries');
         const resetButton = utils.byId('sixBtnResetSeries');
         const spinnerState = utils.attachButtonSpinner(saveButton);
         const modalState = { locked: false };
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+        const setMode = (mode, original) => {
+            seriesMode = { mode, original: original || null };
+            if (modalEl) {
+                const title = modalEl.querySelector('.modal-title');
+                if (title) title.textContent = mode === 'edit' ? 'Edit Series' : 'Add a New Series';
+            }
+            if (saveButton) setButtonLabel(saveButton, mode === 'edit' ? 'Save changes' : 'Add Series');
+            if (resetButton) resetButton.textContent = mode === 'edit' ? 'Revert' : 'Reset';
+        };
+
+        const getCurrentValues = () => ({
+            name: nameInput.value.trim(),
+            website: utils.normalizeUrl(websiteInput.value.trim()) || '',
+            description: descInput.value.trim()
+        });
+
+        const getOriginalValues = () => ({
+            name: (seriesMode.original?.name || '').trim(),
+            website: utils.normalizeUrl((seriesMode.original?.website || '').trim()) || '',
+            description: (seriesMode.original?.description || '').trim()
+        });
+
+        const buildChangeList = () => {
+            if (seriesMode.mode !== 'edit') return [];
+            const current = getCurrentValues();
+            const original = getOriginalValues();
+            const changes = [];
+            if (current.name !== original.name) {
+                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
+            }
+            if (current.website !== original.website) {
+                if (original.website && !current.website) {
+                    changes.push(`Removed website "${original.website}".`);
+                } else if (!original.website && current.website) {
+                    changes.push(`Added website "${current.website}".`);
+                } else {
+                    changes.push(`Updated website from "${original.website || 'None'}" to "${current.website || 'None'}".`);
+                }
+            }
+            if (current.description !== original.description) {
+                if (original.description && !current.description) {
+                    changes.push('Removed description.');
+                } else if (!original.description && current.description) {
+                    changes.push('Added description.');
+                } else {
+                    changes.push('Updated description.');
+                }
+            }
+            return changes;
+        };
+
+        const updateChangeSummary = () => {
+            if (!changeSummary) return;
+            if (seriesMode.mode !== 'edit') {
+                changeSummary.textContent = '';
+                return;
+            }
+            const changes = buildChangeList();
+            changeSummary.textContent = changes.length
+                ? `Changing ${seriesMode.original?.name || 'this series'}: ${changes.join(' ')}`
+                : 'No changes yet.';
+            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
 
         utils.bindModalLock(modalEl, modalState);
 
@@ -894,6 +973,9 @@
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, websiteInput, descInput, resetButton], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
+            if (seriesMode.mode === 'edit') {
+                updateChangeSummary();
+            }
         };
 
         const save = async () => {
@@ -905,19 +987,33 @@
                 description: descInput.value.trim() || null
             };
             try {
-                const response = await apiFetch('/bookseries', { method: 'POST', body: JSON.stringify(payload) });
+                const response = await apiFetch('/bookseries', {
+                    method: seriesMode.mode === 'edit' ? 'PUT' : 'POST',
+                    body: JSON.stringify(seriesMode.mode === 'edit'
+                        ? { id: seriesMode.original?.id, ...payload }
+                        : payload)
+                });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add series.', data.errors || []);
                     return;
                 }
                 const created = data.data || {};
-                dispatchEvent('series:created', {
-                    id: created.id,
-                    name: created.name || payload.name,
-                    description: created.description || payload.description,
-                    website: created.website || payload.website
-                });
+                if (seriesMode.mode === 'edit') {
+                    dispatchEvent('series:updated', {
+                        id: created.id || seriesMode.original?.id,
+                        name: created.name || payload.name,
+                        description: created.description || payload.description,
+                        website: created.website || payload.website
+                    });
+                } else {
+                    dispatchEvent('series:created', {
+                        id: created.id,
+                        name: created.name || payload.name,
+                        description: created.description || payload.description,
+                        website: created.website || payload.website
+                    });
+                }
                 utils.clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
                 utils.hideAlert(errorAlert);
                 hideModal(modalEl);
@@ -929,11 +1025,19 @@
         };
 
         const reset = () => {
-            utils.clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
+            if (seriesMode.mode === 'edit') {
+                const original = seriesMode.original || {};
+                nameInput.value = original.name || '';
+                websiteInput.value = original.website || '';
+                descInput.value = original.description || '';
+            } else {
+                utils.clearModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
+            }
             utils.clearHelpText(nameHelp);
             utils.clearHelpText(websiteHelp);
             utils.clearHelpText(descHelp);
             utils.hideAlert(errorAlert);
+            updateChangeSummary();
         };
 
         nameInput.addEventListener('input', () => {
@@ -943,14 +1047,20 @@
                 return utils.setHelpText(nameHelp, 'Series Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(nameHelp);
+            updateChangeSummary();
         });
         websiteInput.addEventListener('input', () => {
             const value = websiteInput.value.trim();
-            if (!value) return utils.clearHelpText(websiteHelp);
+            if (!value) {
+                utils.clearHelpText(websiteHelp);
+                updateChangeSummary();
+                return;
+            }
             if (!utils.normalizeUrl(value)) {
                 return utils.setHelpText(websiteHelp, 'Series Website must be a valid URL starting with http:// or https://', true);
             }
             utils.setHelpText(websiteHelp, `Will be saved as: ${utils.normalizeUrl(value)}`, false);
+            updateChangeSummary();
         });
         descInput.addEventListener('input', () => {
             if (descInput.value.trim().length > 1000) {
@@ -958,17 +1068,40 @@
             } else {
                 utils.clearHelpText(descHelp);
             }
+            updateChangeSummary();
         });
 
         modalEl.addEventListener('hidden.bs.modal', () => {
             utils.cacheModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
         });
         modalEl.addEventListener('shown.bs.modal', () => {
-            utils.restoreModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
+            if (seriesMode.mode === 'edit') {
+                const original = seriesMode.original || {};
+                nameInput.value = original.name || '';
+                websiteInput.value = original.website || '';
+                descInput.value = original.description || '';
+            } else {
+                utils.restoreModalValues('addSeriesModal', [nameInput, websiteInput, descInput]);
+            }
             utils.hideAlert(errorAlert);
+            updateChangeSummary();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (seriesMode.mode === 'edit') {
+                seriesMode = { mode: 'add', original: null };
+                setMode('add');
+                if (changeSummary) changeSummary.textContent = '';
+            }
+        });
+
+        modalEl.addEventListener('shared:seriesMode', (event) => {
+            const mode = event.detail?.mode || 'add';
+            const original = event.detail?.original || null;
+            setMode(mode, original);
+        });
     }
 
     function setupLocationModal() {
@@ -1296,7 +1429,7 @@
         setupLocationModal();
     }
 
-    function open(type) {
+    function open(type, options = {}) {
         ensureMarkup();
         init();
         const map = {
@@ -1308,6 +1441,17 @@
         };
         const target = map[String(type || '').toLowerCase()];
         if (!target) return;
+        if (String(type || '').toLowerCase() === 'series') {
+            const modalEl = document.getElementById('addSeriesModal');
+            if (modalEl) {
+                modalEl.dispatchEvent(new CustomEvent('shared:seriesMode', {
+                    detail: {
+                        mode: options.mode === 'edit' ? 'edit' : 'add',
+                        original: options.initial || null
+                    }
+                }));
+            }
+        }
         showModal(target, { backdrop: 'static', keyboard: false });
     }
 

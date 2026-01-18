@@ -152,6 +152,7 @@
           <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="books">Books</a></li>
           <li class="nav-item"><a class="nav-link" href="publishers">Publishers</a></li>
+          <li class="nav-item"><a class="nav-link" href="authors">Authors</a></li>
           <li class="nav-item"><a class="nav-link" href="series">Series</a></li>
           <li class="nav-item"><a class="nav-link active" aria-current="page" href="storage-locations">Storage Locations</a></li>
           <li class="nav-item"><a class="nav-link" href="statistics">Statistics</a></li>
@@ -474,8 +475,10 @@
             <input type="text" class="form-control" id="locationParentLabel" disabled />
           </div>
           <div id="locationModalError" class="alert alert-danger d-none"></div>
+          <small class="text-muted d-block" id="locationModalChangeSummary"></small>
         </div>
         <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" id="locationModalResetBtn">Revert</button>
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
           <button class="btn btn-primary" type="button" id="locationModalSaveBtn">Save</button>
         </div>
