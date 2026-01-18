@@ -114,12 +114,13 @@
         <a class="btn btn-outline-secondary" href="books">Back to Books</a>
         <button class="btn btn-outline-secondary btn-sm" type="button" disabled aria-disabled="true">Refresh</button>
         <button class="btn btn-outline-secondary btn-sm" type="button" disabled aria-disabled="true">Share</button>
-        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" disabled aria-disabled="true">
+        <button class="btn btn-primary d-flex align-items-center gap-2" type="button" id="editBookBtn">
           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
           </svg>
           <span>Edit Book</span>
         </button>
+        <button class="btn btn-outline-danger btn-sm" type="button" id="deleteBookBtn">Delete</button>
       </div>
     </div>
 
@@ -229,6 +230,13 @@
                 <div class="card border-0 shadow-sm h-100" style="background-color: #f7f8f9;">
                   <div class="card-body py-3">
                     <div class="fw-semibold mb-2">Overview</div>
+                    <div class="d-flex justify-content-end mb-2">
+                      <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage tags" data-bs-toggle="tooltip" title="Manage tags" id="manageTagsBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                          <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+                        </svg>
+                      </button>
+                    </div>
 
                     <div class="mb-3" id="overviewTags"></div>
 
@@ -262,7 +270,7 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h4 class="card-title mb-0">Authors</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors" disabled aria-disabled="true">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors" id="manageAuthorsBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
@@ -279,7 +287,7 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h4 class="card-title mb-0">Series</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series" disabled aria-disabled="true">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series" id="manageSeriesBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
@@ -301,7 +309,7 @@
             <div class="text-muted small">These are your physical copies and personal acquisition details.</div>
           </div>
           <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" type="button" disabled aria-disabled="true">Add Copy</button>
+            <button class="btn btn-outline-secondary" type="button" id="addCopyBtn">Add Copy</button>
             <button class="btn btn-primary" type="button" disabled aria-disabled="true">Locate</button>
           </div>
         </div>
@@ -365,9 +373,561 @@
     </div>
   </div>
 
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="editBookModal" aria-labelledby="editBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="editBookModalLabel">Edit Book</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="editBookErrorAlert"></div>
+          <form id="editBookForm">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookTitle"><strong>Title</strong></label>
+                <input class="form-control" type="text" id="editBookTitle" autocomplete="off" maxlength="200">
+                <small class="form-text" id="editBookTitleHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookSubtitle"><strong>Subtitle</strong></label>
+                <input class="form-control" type="text" id="editBookSubtitle" autocomplete="off" maxlength="200">
+                <small class="form-text" id="editBookSubtitleHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookIsbn"><strong>ISBN</strong></label>
+                <input class="form-control" type="text" id="editBookIsbn" autocomplete="off" maxlength="40">
+                <small class="form-text" id="editBookIsbnHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookPublication"><strong>Publication Date</strong></label>
+                <input class="form-control" type="text" id="editBookPublication" autocomplete="off" maxlength="50">
+                <small class="form-text" id="editBookPublicationHelp"></small>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="editBookPages"><strong>Pages</strong></label>
+                <input class="form-control" type="number" id="editBookPages" min="1" step="1">
+                <small class="form-text" id="editBookPagesHelp"></small>
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label" for="editBookCover"><strong>Cover Image URL</strong></label>
+                <input class="form-control" type="text" id="editBookCover" autocomplete="off" maxlength="500">
+                <small class="form-text" id="editBookCoverHelp"></small>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="editBookDescription"><strong>Description</strong></label>
+                <textarea class="form-control" id="editBookDescription" rows="4" maxlength="2000"></textarea>
+                <small class="form-text" id="editBookDescriptionHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookLanguages"><strong>Languages</strong></label>
+                <select class="form-select" id="editBookLanguages" multiple></select>
+                <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple languages.</small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookType"><strong>Book Type</strong></label>
+                <select class="form-select" id="editBookType"></select>
+                <small class="form-text" id="editBookTypeHelp"></small>
+                <button class="btn btn-link btn-sm px-0" type="button" id="openAddBookTypeBtn">Add new book type</button>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="editBookPublisher"><strong>Publisher</strong></label>
+                <select class="form-select" id="editBookPublisher"></select>
+                <small class="form-text" id="editBookPublisherHelp"></small>
+                <button class="btn btn-link btn-sm px-0" type="button" id="openAddPublisherBtn">Add new publisher</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="editBookSaveBtn" type="button">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="deleteBookModal" aria-labelledby="deleteBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="deleteBookModalLabel">Delete Book</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Are you sure you want to delete <strong id="deleteBookName"></strong>?</p>
+          <p class="text-muted mb-0">This is a soft delete. The book will be hidden from lists and relationships until restored.</p>
+          <div class="alert alert-danger d-none mt-3" id="deleteBookErrorAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="deleteBookConfirmBtn" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="manageAuthorsModal" aria-labelledby="manageAuthorsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="manageAuthorsModalLabel">Manage Authors</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="manageAuthorsError"></div>
+          <div class="mb-3">
+            <div class="fw-semibold mb-2">Current authors</div>
+            <ul class="list-group" id="manageAuthorsList"></ul>
+          </div>
+          <div class="border rounded p-3">
+            <div class="fw-semibold mb-2">Add author</div>
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="manageAuthorsSelect"><strong>Author</strong></label>
+                <select class="form-select" id="manageAuthorsSelect"></select>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="manageAuthorsRole"><strong>Role</strong></label>
+                <input class="form-control" type="text" id="manageAuthorsRole" maxlength="80" autocomplete="off">
+              </div>
+              <div class="col-12 col-md-2">
+                <button class="btn btn-primary w-100" type="button" id="addAuthorToBookBtn">Add</button>
+              </div>
+            </div>
+            <button class="btn btn-link btn-sm px-0 mt-2" type="button" id="openAddAuthorBtn">Create new author</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="editAuthorRoleModal" aria-labelledby="editAuthorRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="editAuthorRoleModalLabel">Edit Author Role</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="authorRoleErrorAlert"></div>
+          <div class="mb-2 text-muted small" id="authorRoleSummary"></div>
+          <div class="mb-3">
+            <label class="form-label" for="authorRoleInput"><strong>Role on this book</strong></label>
+            <input class="form-control" type="text" id="authorRoleInput" autocomplete="off" maxlength="80">
+            <small class="form-text text-muted">Leave blank to clear the role.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="authorRoleSaveBtn" type="button">Save role</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="removeAuthorModal" aria-labelledby="removeAuthorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="removeAuthorModalLabel">Remove Author</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2" id="removeAuthorText"></p>
+          <p class="text-muted mb-0">This removes the author from this book.</p>
+          <div class="alert alert-danger d-none mt-3" id="removeAuthorError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="removeAuthorConfirmBtn" type="button">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="manageSeriesModal" aria-labelledby="manageSeriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="manageSeriesModalLabel">Manage Series</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="manageSeriesError"></div>
+          <div class="mb-3">
+            <div class="fw-semibold mb-2">Current series</div>
+            <ul class="list-group" id="manageSeriesList"></ul>
+          </div>
+          <div class="border rounded p-3">
+            <div class="fw-semibold mb-2">Add series</div>
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="manageSeriesSelect"><strong>Series</strong></label>
+                <select class="form-select" id="manageSeriesSelect"></select>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="manageSeriesOrder"><strong>Order</strong></label>
+                <input class="form-control" type="number" id="manageSeriesOrder" min="1" step="1">
+              </div>
+              <div class="col-12 col-md-2">
+                <button class="btn btn-primary w-100" type="button" id="addSeriesToBookBtn">Add</button>
+              </div>
+            </div>
+            <button class="btn btn-link btn-sm px-0 mt-2" type="button" id="openAddSeriesBtn">Create new series</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="editSeriesOrderModal" aria-labelledby="editSeriesOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="editSeriesOrderModalLabel">Edit Series Order</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="seriesOrderErrorAlert"></div>
+          <div class="mb-2 text-muted small" id="seriesOrderSummary"></div>
+          <div class="mb-3">
+            <label class="form-label" for="seriesOrderInput"><strong>Order in series</strong></label>
+            <input class="form-control" type="number" id="seriesOrderInput" min="1" step="1">
+            <small class="form-text text-muted">Leave blank to clear the order.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="seriesOrderSaveBtn" type="button">Save order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="removeSeriesModal" aria-labelledby="removeSeriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="removeSeriesModalLabel">Remove Series</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2" id="removeSeriesText"></p>
+          <p class="text-muted mb-0">This removes the book from the series.</p>
+          <div class="alert alert-danger d-none mt-3" id="removeSeriesError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="removeSeriesConfirmBtn" type="button">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="manageTagsModal" aria-labelledby="manageTagsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="manageTagsModalLabel">Manage Tags</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="manageTagsError"></div>
+          <div class="mb-3">
+            <div class="fw-semibold mb-2">Current tags</div>
+            <div id="manageTagsList" class="d-flex flex-wrap gap-2"></div>
+          </div>
+          <div class="input-group">
+            <input class="form-control" type="text" id="manageTagsInput" placeholder="Add a tag">
+            <button class="btn btn-primary" type="button" id="addTagBtn">Add</button>
+          </div>
+          <small class="form-text" id="manageTagsHelp"></small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="editCopyModal" aria-labelledby="editCopyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="editCopyModalLabel">Book Copy</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="editCopyErrorAlert"></div>
+          <form id="editCopyForm">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label" for="copyLocationSelect"><strong>Storage Location</strong></label>
+                <select class="form-select" id="copyLocationSelect"></select>
+                <small class="form-text" id="copyLocationHelp"></small>
+                <button class="btn btn-link btn-sm px-0" type="button" id="openAddLocationBtn">Add new storage location</button>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="copyAcquisitionDate"><strong>Acquisition Date</strong></label>
+                <input class="form-control" type="text" id="copyAcquisitionDate" autocomplete="off" maxlength="50">
+                <small class="form-text" id="copyAcquisitionDateHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="copyAcquiredFrom"><strong>Acquired From</strong></label>
+                <input class="form-control" type="text" id="copyAcquiredFrom" autocomplete="off" maxlength="150">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="copyAcquisitionType"><strong>Acquisition Type</strong></label>
+                <input class="form-control" type="text" id="copyAcquisitionType" autocomplete="off" maxlength="150">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="copyAcquisitionLocation"><strong>Acquisition Location</strong></label>
+                <input class="form-control" type="text" id="copyAcquisitionLocation" autocomplete="off" maxlength="150">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="copyAcquisitionStory"><strong>Story</strong></label>
+                <textarea class="form-control" id="copyAcquisitionStory" rows="3" maxlength="1000"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="copyNotes"><strong>Notes</strong></label>
+                <textarea class="form-control" id="copyNotes" rows="3" maxlength="1000"></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="copySaveBtn" type="button">Save copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="deleteCopyModal" aria-labelledby="deleteCopyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="deleteCopyModalLabel">Remove Copy</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2" id="deleteCopyText"></p>
+          <p class="text-muted mb-0">This permanently removes the copy details from your library.</p>
+          <div class="alert alert-danger d-none mt-3" id="deleteCopyErrorAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="deleteCopyConfirmBtn" type="button">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addPublisherModal" aria-labelledby="addPublisherModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addPublisherModalLabel">Add Publisher</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="addPublisherErrorAlert"></div>
+          <form id="addPublisherForm">
+            <div class="mb-3">
+              <label class="form-label" for="addPublisherName"><strong>Publisher Name</strong></label>
+              <input class="form-control" type="text" id="addPublisherName" autocomplete="off" maxlength="150">
+              <small class="form-text" id="addPublisherNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addPublisherFounded"><strong>Founded Date</strong></label>
+              <input class="form-control" type="text" id="addPublisherFounded" autocomplete="off" maxlength="50">
+              <small class="form-text" id="addPublisherFoundedHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addPublisherWebsite"><strong>Website</strong></label>
+              <input class="form-control" type="text" id="addPublisherWebsite" autocomplete="off" maxlength="300">
+              <small class="form-text" id="addPublisherWebsiteHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addPublisherNotes"><strong>Notes</strong></label>
+              <textarea class="form-control" id="addPublisherNotes" rows="3" maxlength="1000"></textarea>
+              <small class="form-text" id="addPublisherNotesHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="addPublisherSaveBtn" type="button">Save publisher</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addBookTypeModal" aria-labelledby="addBookTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addBookTypeModalLabel">Add Book Type</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="addBookTypeErrorAlert"></div>
+          <form id="addBookTypeForm">
+            <div class="mb-3">
+              <label class="form-label" for="addBookTypeName"><strong>Book Type Name</strong></label>
+              <input class="form-control" type="text" id="addBookTypeName" autocomplete="off" maxlength="120">
+              <small class="form-text" id="addBookTypeNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addBookTypeDescription"><strong>Description</strong></label>
+              <textarea class="form-control" id="addBookTypeDescription" rows="3" maxlength="500"></textarea>
+              <small class="form-text" id="addBookTypeDescriptionHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="addBookTypeSaveBtn" type="button">Save book type</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addAuthorModal" aria-labelledby="addAuthorModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addAuthorModalLabel">Add Author</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="addAuthorErrorAlert"></div>
+          <form id="addAuthorForm">
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorDisplayName"><strong>Display Name</strong></label>
+              <input class="form-control" type="text" id="addAuthorDisplayName" autocomplete="off" maxlength="150">
+              <small class="form-text" id="addAuthorDisplayNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorFirstNames"><strong>First Name(s)</strong></label>
+              <input class="form-control" type="text" id="addAuthorFirstNames" autocomplete="off" maxlength="150">
+              <small class="form-text" id="addAuthorFirstNamesHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorLastName"><strong>Last Name</strong></label>
+              <input class="form-control" type="text" id="addAuthorLastName" autocomplete="off" maxlength="100">
+              <small class="form-text" id="addAuthorLastNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorBirthDate"><strong>Birth Date</strong></label>
+              <input class="form-control" type="text" id="addAuthorBirthDate" autocomplete="off" maxlength="50">
+              <small class="form-text" id="addAuthorBirthDateHelp"></small>
+            </div>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" id="addAuthorDeceased">
+              <label class="form-check-label" for="addAuthorDeceased">Mark as deceased</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorDeathDate"><strong>Death Date</strong></label>
+              <input class="form-control" type="text" id="addAuthorDeathDate" autocomplete="off" maxlength="50">
+              <small class="form-text" id="addAuthorDeathDateHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addAuthorBio"><strong>Bio</strong></label>
+              <textarea class="form-control" id="addAuthorBio" rows="4" maxlength="1000"></textarea>
+              <small class="form-text" id="addAuthorBioHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="addAuthorSaveBtn" type="button">Save author</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addSeriesModal" aria-labelledby="addSeriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addSeriesModalLabel">Add Series</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="addSeriesErrorAlert"></div>
+          <form id="addSeriesForm">
+            <div class="mb-3">
+              <label class="form-label" for="addSeriesName"><strong>Series Name</strong></label>
+              <input class="form-control" type="text" id="addSeriesName" autocomplete="off" maxlength="150">
+              <small class="form-text" id="addSeriesNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addSeriesWebsite"><strong>Website</strong></label>
+              <input class="form-control" type="text" id="addSeriesWebsite" autocomplete="off" maxlength="300">
+              <small class="form-text" id="addSeriesWebsiteHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addSeriesDescription"><strong>Description</strong></label>
+              <textarea class="form-control" id="addSeriesDescription" rows="3" maxlength="1000"></textarea>
+              <small class="form-text" id="addSeriesDescriptionHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="addSeriesSaveBtn" type="button">Save series</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addLocationModal" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addLocationModalLabel">Add Storage Location</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="addLocationErrorAlert"></div>
+          <form id="addLocationForm">
+            <div class="mb-3">
+              <label class="form-label" for="addLocationName"><strong>Location Name</strong></label>
+              <input class="form-control" type="text" id="addLocationName" autocomplete="off" maxlength="150">
+              <small class="form-text" id="addLocationNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addLocationParent"><strong>Parent Location</strong></label>
+              <select class="form-select" id="addLocationParent"></select>
+              <small class="form-text" id="addLocationParentHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="addLocationNotes"><strong>Notes</strong></label>
+              <textarea class="form-control" id="addLocationNotes" rows="3" maxlength="500"></textarea>
+              <small class="form-text" id="addLocationNotesHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="addLocationSaveBtn" type="button">Save location</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
   <script src="assets/js/http-interceptor.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/partial-date-parser.js"></script>
   <script src="assets/js/book-details.js"></script>
 </body>
 </html>

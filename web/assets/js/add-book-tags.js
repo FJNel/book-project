@@ -119,4 +119,8 @@
 
     addButton.addEventListener('click', addTag);
     renderTags();
+
+    addBook.events.addEventListener('tags:updated', () => {
+        renderTags();
+    });
 })();

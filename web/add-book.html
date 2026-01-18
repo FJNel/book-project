@@ -80,13 +80,17 @@
                     <ol class="breadcrumb mb-2">
                         <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="books" class="text-decoration-none">Books</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Add Book</li>
+                        <li class="breadcrumb-item active" aria-current="page" id="addBookBreadcrumbCurrent">Add Book</li>
                     </ol>
                 </nav>
 
-                <h1 class="mb-1">Add a Book</h1>
-                <p class="lead mb-0">On this page you can add a new book to your book collection.</p>
+                <h1 class="mb-1" id="addBookPageTitle">Add a Book</h1>
+                <p class="lead mb-0" id="addBookPageLead">On this page you can add a new book to your book collection.</p>
             </div>
+        </div>
+        <div class="alert alert-danger d-none" role="alert" id="editBookLoadError">
+            We couldn’t load this book. Please return to your books list and try again.
+            <a class="alert-link" href="books">Go back to Books</a>.
         </div>
         <div class="card shadow mb-3" id="lookupByISBNCard">
             <div class="card-body">
@@ -362,6 +366,10 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 8: Enter Book Copy Details</h4>
                     <p>Here you can enter the specific details of your first copy of this book. This includes where the book is stored, how the book was acquired, the book's condition, etc.&nbsp;<br>You can add multiple copies of the same book later, each with its own details. This step is only for the first copy of this book.</p>
+                    <div class="alert alert-info d-none" role="alert" id="editCopyNotice">
+                        You are editing the first copy for this book. To manage other copies, open the
+                        <a class="alert-link" href="book-details" id="editCopyNoticeLink">Book Details</a> page.
+                    </div>
                     <div>
                         <div class="row align-items-start">
                             <div class="col-12 col-md-8">
@@ -452,7 +460,7 @@
             <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Review Book Details</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+                        <h4 class="modal-title" id="reviewAddBookModalTitle">Review Book Details</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-danger d-none" role="alert" id="reviewErrorsAlert"></div>
@@ -463,7 +471,7 @@
                         <button class="btn btn-outline-secondary" id="reviewGoBackBtn" data-bs-dismiss="modal" type="button">Go Back</button>
                         <button class="btn btn-primary" id="confirmAddBookBtn" type="button">
                             <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="confirmAddBookSpinner"></span>
-                            Confirm and Add Book
+                            <span id="confirmAddBookLabel">Confirm and Add Book</span>
                         </button>
                     </div>
                 </div>

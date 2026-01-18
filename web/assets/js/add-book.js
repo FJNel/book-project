@@ -70,7 +70,17 @@
         isbnHelp: byId('twoISBNHelp'),
         pagesHelp: byId('twoPagesHelp'),
         coverUrlHelp: byId('twoBookCoverURLHelp'),
-        descriptionHelp: byId('twoBookDescriptionHelp')
+        descriptionHelp: byId('twoBookDescriptionHelp'),
+        pageTitle: byId('addBookPageTitle'),
+        pageLead: byId('addBookPageLead'),
+        breadcrumbCurrent: byId('addBookBreadcrumbCurrent'),
+        isbnLookupCard: byId('lookupByISBNCard'),
+        reviewButton: byId('reviewAddBookBtn'),
+        reviewModalTitle: byId('reviewAddBookModalTitle'),
+        confirmButtonLabel: byId('confirmAddBookLabel'),
+        editCopyNotice: byId('editCopyNotice'),
+        editCopyNoticeLink: byId('editCopyNoticeLink'),
+        editLoadError: byId('editBookLoadError')
     };
 
     selectors.titleHelp = ensureHelpText(selectors.title, 'twoTitleHelp');
@@ -103,6 +113,75 @@
         personText: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u,
         authorRole: /^[\p{L}0-9 .,'":;!?()&\/-]+$/u
     };
+
+    const editState = addBook.state.edit || (addBook.state.edit = { enabled: false, bookId: null, copyId: null });
+    const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
+
+    function getEditBookId() {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('id') || params.get('bookId');
+        if (!raw) return null;
+        const parsed = Number.parseInt(raw, 10);
+        return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    function isEditMode() {
+        return editState.enabled && Number.isInteger(editState.bookId);
+    }
+
+    function applyEditModeUI() {
+        if (!isEditMode()) return;
+        if (selectors.isbnLookupCard) {
+            selectors.isbnLookupCard.classList.add('d-none');
+        }
+        if (selectors.pageTitle) {
+            selectors.pageTitle.textContent = 'Edit Book';
+        }
+        if (selectors.pageLead) {
+            selectors.pageLead.textContent = 'Update the details for this book in your collection.';
+        }
+        if (selectors.breadcrumbCurrent) {
+            selectors.breadcrumbCurrent.textContent = 'Edit Book';
+        }
+        if (selectors.reviewButton) {
+            selectors.reviewButton.textContent = 'Review and Save Changes';
+        }
+        if (selectors.reviewModalTitle) {
+            selectors.reviewModalTitle.textContent = 'Review Book Changes';
+        }
+        if (selectors.confirmButtonLabel) {
+            selectors.confirmButtonLabel.textContent = 'Confirm and Save Changes';
+        }
+        if (selectors.editCopyNotice) {
+            selectors.editCopyNotice.classList.remove('d-none');
+        }
+        if (selectors.editCopyNoticeLink && editState.bookId) {
+            selectors.editCopyNoticeLink.href = `book-details?id=${editState.bookId}`;
+        }
+    }
+
+    function showEditLoadError() {
+        if (selectors.editLoadError) {
+            selectors.editLoadError.classList.remove('d-none');
+        }
+        if (selectors.reviewButton) {
+            selectors.reviewButton.disabled = true;
+        }
+    }
+
+    function mapAuthorRole(role) {
+        if (!role) return { role: null, customRole: '' };
+        if (authorRoleOptions.has(role)) {
+            return { role, customRole: '' };
+        }
+        return { role: 'Other', customRole: role };
+    }
+
+    const initialEditId = getEditBookId();
+    if (Number.isInteger(initialEditId)) {
+        editState.enabled = true;
+        editState.bookId = initialEditId;
+    }
 
     function renderBookTypes() {
         if (!selectors.bookType) return;
@@ -538,7 +617,10 @@
 
     async function loadAuthors() {
         log('Loading authors...');
-        const response = await apiFetch('/author', { method: 'GET' });
+        const response = await apiFetch('/author/list', {
+            method: 'POST',
+            body: JSON.stringify({ sortBy: 'displayName', order: 'asc', limit: 200 })
+        });
         if (response.status === 429) {
             rateLimitGuard?.record(response);
             return false;
@@ -555,7 +637,10 @@
 
     async function loadSeries() {
         log('Loading series...');
-        const response = await apiFetch('/bookseries', { method: 'GET' });
+        const response = await apiFetch('/bookseries/list', {
+            method: 'POST',
+            body: JSON.stringify({ sortBy: 'name', order: 'asc', limit: 200 })
+        });
         if (response.status === 429) {
             rateLimitGuard?.record(response);
             return false;
@@ -572,7 +657,10 @@
 
     async function loadLocations() {
         log('Loading storage locations...');
-        const response = await apiFetch('/storagelocation', { method: 'GET' });
+        const response = await apiFetch('/storagelocation/list', {
+            method: 'POST',
+            body: JSON.stringify({ sortBy: 'path', order: 'asc', limit: 200 })
+        });
         if (response.status === 429) {
             rateLimitGuard?.record(response);
             return false;
@@ -587,7 +675,122 @@
         return response.ok;
     }
 
-    addBook.buildPayload = function buildPayload({ dryRun = false } = {}) {
+    function applyBookToForm(book) {
+        if (!book) return;
+        selectors.title.value = book.title || '';
+        selectors.subtitle.value = book.subtitle || '';
+        selectors.isbn.value = book.isbn || '';
+        selectors.publicationDate.value = book.publicationDate?.text || '';
+        selectors.pages.value = Number.isInteger(book.pageCount) ? String(book.pageCount) : '';
+        selectors.coverUrl.value = book.coverImageUrl || '';
+        selectors.description.value = book.description || '';
+
+        const bookTypeId = book.bookType?.id ?? book.bookTypeId ?? null;
+        addBook.state.selections.bookTypeId = Number.isInteger(bookTypeId) ? bookTypeId : null;
+        if (selectors.bookType) {
+            selectors.bookType.value = addBook.state.selections.bookTypeId ? String(addBook.state.selections.bookTypeId) : 'none';
+            updateBookTypeDisplay();
+        }
+
+        const publisherId = book.publisher?.id ?? book.publisherId ?? null;
+        addBook.state.selections.publisherId = Number.isInteger(publisherId) ? publisherId : null;
+        if (selectors.publisher) {
+            selectors.publisher.value = addBook.state.selections.publisherId ? String(addBook.state.selections.publisherId) : 'none';
+            updatePublisherDisplay();
+        }
+
+        const authors = (book.authors || []).map((author) => {
+            const mapped = mapAuthorRole(author.authorRole ?? author.role ?? null);
+            return {
+                id: author.authorId ?? author.id,
+                displayName: author.authorName ?? author.displayName ?? 'Unknown Author',
+                role: mapped.role,
+                customRole: mapped.customRole
+            };
+        }).filter((author) => Number.isInteger(author.id));
+        addBook.state.selections.authors = authors;
+        renderAuthors();
+
+        const series = (book.series || []).map((entry) => {
+            const seriesId = entry.seriesId ?? entry.id;
+            if (!Number.isInteger(seriesId)) return null;
+            return {
+                id: seriesId,
+                name: entry.seriesName ?? entry.name ?? 'Unknown Series',
+                order: Number.isInteger(entry.bookOrder) ? entry.bookOrder : null
+            };
+        }).filter(Boolean);
+        addBook.state.selections.series = series;
+        renderSeries();
+
+        const tags = (book.tags || [])
+            .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+            .filter(Boolean);
+        addBook.state.selections.tags = tags;
+        addBook.events.dispatchEvent(new CustomEvent('tags:updated', { detail: tags }));
+
+        const languages = (book.languages || []).map((lang) => {
+            if (!lang || !Number.isInteger(lang.id)) return null;
+            return addBook.state.languages.all.find((entry) => entry.id === lang.id) || lang;
+        }).filter(Boolean);
+        addBook.state.languages.selected = languages;
+        addBook.events.dispatchEvent(new CustomEvent('languages:updated', { detail: languages }));
+
+        const copies = Array.isArray(book.bookCopies) ? book.bookCopies : [];
+        const firstCopy = copies.length > 0 ? copies[0] : null;
+        editState.copyId = firstCopy?.id ?? null;
+        selectors.acquisitionStory.value = firstCopy?.acquisitionStory || '';
+        selectors.acquisitionDate.value = firstCopy?.acquisitionDate?.text || '';
+        selectors.acquiredFrom.value = firstCopy?.acquiredFrom || '';
+        selectors.acquisitionType.value = firstCopy?.acquisitionType || 'none';
+        selectors.acquisitionLocation.value = firstCopy?.acquisitionLocation || '';
+        selectors.copyNotes.value = firstCopy?.notes || '';
+
+        if (firstCopy?.storageLocationId && selectors.storageLocation) {
+            selectors.storageLocation.value = String(firstCopy.storageLocationId);
+        } else if (selectors.storageLocation) {
+            selectors.storageLocation.value = 'none';
+        }
+        updateLocationDisplay();
+        if (firstCopy?.storageLocationPath && !addBook.state.selections.storageLocationPath) {
+            addBook.state.selections.storageLocationPath = firstCopy.storageLocationPath;
+        }
+
+        setPartialDateHelp(selectors.publicationDate, selectors.publicationDateHelp);
+        setPartialDateHelp(selectors.acquisitionDate, selectors.acquisitionDateHelp);
+    }
+
+    async function loadBookForEdit() {
+        if (!isEditMode()) return true;
+        log('Loading book for edit:', editState.bookId);
+        try {
+            const response = await apiFetch(`/book?id=${editState.bookId}`, { method: 'GET' });
+            if (response.status === 429) {
+                rateLimitGuard?.record(response);
+                return false;
+            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                log('Failed to load book for edit:', response.status, data);
+                showEditLoadError();
+                return false;
+            }
+            const book = data.data || null;
+            if (!book || !Number.isInteger(book.id)) {
+                showEditLoadError();
+                return false;
+            }
+            applyBookToForm(book);
+            log('Book loaded for edit:', book.id);
+            return true;
+        } catch (error) {
+            log('Edit load exception:', error);
+            showEditLoadError();
+            return false;
+        }
+    }
+
+    addBook.buildPayload = function buildPayload({ dryRun = false, includeCopy = true, includeId = false } = {}) {
         const publicationParsed = parsePartialDateInput(selectors.publicationDate.value.trim());
         const acquisitionParsed = parsePartialDateInput(selectors.acquisitionDate.value.trim());
         const pageCountValue = selectors.pages.value ? Number.parseInt(selectors.pages.value, 10) : null;
@@ -616,9 +819,9 @@
         };
         if (storageLocationId) {
             bookCopy.storageLocationId = storageLocationId;
-            if (storageLocationPath) {
-                bookCopy.storageLocationPath = storageLocationPath;
-            }
+        }
+        if (storageLocationPath) {
+            bookCopy.storageLocationPath = storageLocationPath;
         }
 
         const normalizedIsbn = normalizeIsbn(selectors.isbn.value.trim());
@@ -637,12 +840,35 @@
             authors: authorsPayload,
             languageIds: addBook.state.languages.selected.map((lang) => lang.id),
             tags: addBook.state.selections.tags,
-            series: seriesPayload,
-            bookCopy,
-            dryRun
+            series: seriesPayload
         };
 
+        if (includeCopy) {
+            payload.bookCopy = bookCopy;
+        }
+        if (includeId && Number.isInteger(editState.bookId)) {
+            payload.id = editState.bookId;
+        }
+        if (dryRun) {
+            payload.dryRun = true;
+        }
+
         return payload;
+    };
+
+    addBook.buildCopyPayload = function buildCopyPayload() {
+        const acquisitionParsed = parsePartialDateInput(selectors.acquisitionDate.value.trim());
+        const acquisitionTypeValue = selectors.acquisitionType.value.trim();
+        return {
+            storageLocationId: addBook.state.selections.storageLocationId || null,
+            storageLocationPath: addBook.state.selections.storageLocationPath || null,
+            acquisitionStory: selectors.acquisitionStory.value.trim() || null,
+            acquisitionDate: acquisitionParsed.value || null,
+            acquiredFrom: selectors.acquiredFrom.value.trim() || null,
+            acquisitionType: acquisitionTypeValue && acquisitionTypeValue !== 'none' ? acquisitionTypeValue : null,
+            acquisitionLocation: selectors.acquisitionLocation.value.trim() || null,
+            notes: selectors.copyNotes.value.trim() || null
+        };
     };
 
     addBook.validateMainForm = function validateMainForm() {
@@ -1054,6 +1280,7 @@
     async function initialize() {
         log('Initializing Add Book page...');
         attachEvents();
+        applyEditModeUI();
         renderAuthors();
         renderSeries();
         const results = await Promise.allSettled([
@@ -1064,7 +1291,9 @@
             loadSeries(),
             loadLocations()
         ]);
-        const allOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        const listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        const editOk = await loadBookForEdit();
+        const allOk = listOk && editOk;
         if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
             window.pageContentReady.resolve({ success: allOk });
         }

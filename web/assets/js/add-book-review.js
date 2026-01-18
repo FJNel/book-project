@@ -17,6 +17,7 @@
     if (!reviewButton || !modalEl) return;
 
     const redirectBase = window.ADD_BOOK_REDIRECT_BASE || '/books';
+    const editRedirectBase = window.EDIT_BOOK_REDIRECT_BASE || 'book-details?id=';
     const modalState = { locked: false };
 
     bindModalLock(modalEl, modalState);
@@ -174,8 +175,18 @@
             return;
         }
 
+        const editMode = addBook.state?.edit?.enabled && Number.isInteger(addBook.state.edit.bookId);
+        const summaryPayload = addBook.buildPayload({ dryRun: false, includeCopy: true, includeId: editMode });
+        renderSummary(summaryPayload);
+
+        if (editMode) {
+            showAlertWithDetails(dryRunAlert, 'Ready to save changes.');
+            confirmButton.disabled = false;
+            log('Edit review ready.');
+            return;
+        }
+
         const payload = addBook.buildPayload({ dryRun: true });
-        renderSummary(payload);
         log('Running dry run with payload:', payload);
 
         try {
@@ -205,36 +216,54 @@
         modalState.locked = true;
         setModalLocked(modalEl, true);
         setButtonLoading(confirmButton, confirmSpinner, true);
-        const payload = addBook.buildPayload({ dryRun: false });
+        const editMode = addBook.state?.edit?.enabled && Number.isInteger(addBook.state.edit.bookId);
+        const payload = addBook.buildPayload({ dryRun: false, includeCopy: !editMode, includeId: editMode });
         log('Submitting book payload:', payload);
 
         try {
-            const response = await apiFetch('/book', {
-                method: 'POST',
+            const response = await apiFetch(editMode ? `/book/${addBook.state.edit.bookId}` : '/book', {
+                method: editMode ? 'PUT' : 'POST',
                 body: JSON.stringify(payload)
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const errors = data.errors && data.errors.length ? data.errors : [data.message || 'Failed to add book.'];
-                showAlertWithDetails(errorAlert, 'Unable to add this book:', errors);
+                const fallbackMessage = editMode ? 'Failed to save changes.' : 'Failed to add book.';
+                const errors = data.errors && data.errors.length ? data.errors : [data.message || fallbackMessage];
+                showAlertWithDetails(errorAlert, editMode ? 'Unable to save this book:' : 'Unable to add this book:', errors);
                 log('Submit failed:', errors);
                 return;
             }
-            const id = data.data?.id;
-            let target = redirectBase;
-            if (id) {
-                if (redirectBase.includes('{id}')) {
-                    target = redirectBase.replace('{id}', id);
-                } else if (redirectBase.includes('?') || redirectBase.endsWith('=')) {
-                    target = `${redirectBase}${id}`;
-                } else {
-                    target = `${redirectBase}/${id}`;
+            const id = data.data?.id || addBook.state.edit?.bookId;
+
+            if (editMode && addBook.state.edit?.copyId && typeof addBook.buildCopyPayload === 'function') {
+                const copyPayload = addBook.buildCopyPayload();
+                const copyResponse = await apiFetch(`/bookcopy/${addBook.state.edit.copyId}` , {
+                    method: 'PUT',
+                    body: JSON.stringify(copyPayload)
+                });
+                const copyData = await copyResponse.json().catch(() => ({}));
+                if (!copyResponse.ok) {
+                    const copyErrors = copyData.errors && copyData.errors.length ? copyData.errors : [copyData.message || 'Failed to update copy.'];
+                    showAlertWithDetails(errorAlert, 'Book saved, but copy updates failed:', copyErrors);
+                    log('Copy update failed:', copyErrors);
+                    return;
                 }
             }
-            log('Book created. Redirecting to:', target);
+
+            let target = editMode ? editRedirectBase : redirectBase;
+            if (id) {
+                if (target.includes('{id}')) {
+                    target = target.replace('{id}', id);
+                } else if (target.includes('?') || target.endsWith('=')) {
+                    target = `${target}${id}`;
+                } else {
+                    target = `${target}/${id}`;
+                }
+            }
+            log(editMode ? 'Book updated. Redirecting to:' : 'Book created. Redirecting to:', target);
             window.location.href = target;
         } catch (error) {
-            showAlertWithDetails(errorAlert, 'Unable to add the book right now.');
+            showAlertWithDetails(errorAlert, editMode ? 'Unable to save the book right now.' : 'Unable to add the book right now.');
             log('Submit exception:', error);
         } finally {
             setButtonLoading(confirmButton, confirmSpinner, false);

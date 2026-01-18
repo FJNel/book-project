@@ -110,6 +110,12 @@
         log('Languages event received:', addBook.state.languages.all.length);
     });
 
+    addBook.events.addEventListener('languages:updated', () => {
+        refreshSelectOptions();
+        renderSelected();
+        log('Languages updated from edit mode.');
+    });
+
     languageSelect.addEventListener('change', () => {
         if (!languageSelect.value || languageSelect.value === 'none') {
             clearHelpText(helpEl);

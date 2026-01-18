@@ -9,6 +9,11 @@
         authors: [],
         series: [],
         locations: [],
+        edit: {
+            enabled: false,
+            bookId: null,
+            copyId: null
+        },
         selections: {
             bookTypeId: null,
             publisherId: null,
