@@ -12,6 +12,9 @@
     feedbackContainer: document.getElementById('feedbackContainer'),
     refreshBtn: document.getElementById('refreshStatsBtn'),
     refreshSpinner: document.getElementById('refreshSpinner'),
+    exportLibraryBtn: document.getElementById('exportLibraryBtn'),
+    exportLibrarySpinner: document.getElementById('exportLibrarySpinner'),
+    statsHelpBtn: document.getElementById('statsHelpBtn'),
     navButtons: Array.from(document.querySelectorAll('[data-section]')),
     sections: Array.from(document.querySelectorAll('[data-section-content]')),
     overview: {
@@ -27,12 +30,16 @@
       empty: document.getElementById('booksEmpty'),
       publicationChart: document.getElementById('booksPublicationChart'),
       publicationEmpty: document.getElementById('booksPublicationEmpty'),
+      publicationHint: document.getElementById('booksPublicationEmptyHint'),
       typeChart: document.getElementById('booksTypeChart'),
       typeEmpty: document.getElementById('booksTypeEmpty'),
+      typeHint: document.getElementById('booksTypeEmptyHint'),
       languageChart: document.getElementById('booksLanguageChart'),
       languageEmpty: document.getElementById('booksLanguageEmpty'),
+      languageHint: document.getElementById('booksLanguageEmptyHint'),
       tagChart: document.getElementById('booksTagChart'),
       tagEmpty: document.getElementById('booksTagEmpty'),
+      tagHint: document.getElementById('booksTagEmptyHint'),
       qualityGrid: document.getElementById('booksQualityGrid'),
       highlights: document.getElementById('booksHighlightsList')
     },
@@ -42,13 +49,24 @@
       empty: document.getElementById('authorsEmpty'),
       aliveChart: document.getElementById('authorsAliveChart'),
       aliveEmpty: document.getElementById('authorsAliveEmpty'),
+      aliveHint: document.getElementById('authorsDeathEmptyHint'),
       decadeChart: document.getElementById('authorsDecadeChart'),
       decadeEmpty: document.getElementById('authorsDecadeEmpty'),
+      decadeHint: document.getElementById('authorsBirthEmptyHint'),
       topTable: document.getElementById('authorsTopTable'),
       highlights: document.getElementById('authorsHighlights'),
       rolesChart: document.getElementById('authorRolesChart'),
       rolesEmpty: document.getElementById('authorRolesEmpty'),
       collabTable: document.getElementById('authorsCollabTable')
+    },
+    publishers: {
+      loading: document.getElementById('publishersLoading'),
+      content: document.getElementById('publishersContent'),
+      empty: document.getElementById('publishersEmpty'),
+      topChart: document.getElementById('publishersTopChart'),
+      topEmpty: document.getElementById('publishersTopEmpty'),
+      highlights: document.getElementById('publishersHighlights'),
+      breakdownTable: document.getElementById('publishersBreakdownTable')
     },
     series: {
       loading: document.getElementById('seriesLoading'),
@@ -90,7 +108,17 @@
       error: document.getElementById('timelineError'),
       chart: document.getElementById('timelineChart'),
       chartEmpty: document.getElementById('timelineChartEmpty'),
-      summary: document.getElementById('timelineSummary')
+      chartEmptyTitle: document.getElementById('timelineChartEmptyTitle'),
+      chartEmptyText: document.getElementById('timelineChartEmptyText'),
+      summary: document.getElementById('timelineSummary'),
+      retryBtn: document.getElementById('timelineRetryBtn'),
+      entityError: document.getElementById('timelineEntityError'),
+      fieldError: document.getElementById('timelineFieldError'),
+      bucketsError: document.getElementById('timelineBucketsError'),
+      startError: document.getElementById('timelineStartError'),
+      endError: document.getElementById('timelineEndError'),
+      stepError: document.getElementById('timelineStepError'),
+      stepUnitError: document.getElementById('timelineStepUnitError')
     }
   };
 
@@ -101,16 +129,22 @@
     timelineRequestId: 0
   };
 
-  const chartPalette = [
-    '#1d3557',
-    '#457b9d',
-    '#2a9d8f',
-    '#f4a261',
-    '#e63946',
-    '#9d4edd',
-    '#6c757d',
-    '#0d6efd'
-  ];
+  const validSections = new Set(['overview', 'books', 'authors', 'publishers', 'series', 'storage', 'timeline']);
+
+  const chartPalette = (() => {
+    const style = getComputedStyle(document.documentElement);
+    const colors = [
+      style.getPropertyValue('--bs-primary').trim(),
+      style.getPropertyValue('--bs-success').trim(),
+      style.getPropertyValue('--bs-info').trim(),
+      style.getPropertyValue('--bs-warning').trim(),
+      style.getPropertyValue('--bs-danger').trim(),
+      style.getPropertyValue('--bs-secondary').trim(),
+      style.getPropertyValue('--bs-teal')?.trim(),
+      style.getPropertyValue('--bs-indigo')?.trim()
+    ].filter(Boolean);
+    return colors.length ? colors : ['#0d6efd', '#198754', '#0dcaf0', '#ffc107', '#dc3545', '#6c757d'];
+  })();
 
   const escapeHtml = (value) => String(value)
     .replace(/&/g, '&amp;')
@@ -194,6 +228,23 @@
     });
   };
 
+  const getSectionFromHash = () => {
+    const raw = window.location.hash.replace('#', '').trim();
+    if (!raw) return null;
+    return validSections.has(raw) ? raw : null;
+  };
+
+  const updateHash = (sectionKey, { push = false } = {}) => {
+    if (!sectionKey || !validSections.has(sectionKey)) return;
+    const hash = `#${sectionKey}`;
+    if (window.location.hash === hash) return;
+    if (push) {
+      window.location.hash = sectionKey;
+    } else {
+      history.replaceState(null, '', hash);
+    }
+  };
+
   const destroyCharts = () => {
     state.charts.forEach((chart) => {
       if (chart && typeof chart.destroy === 'function') {
@@ -210,24 +261,74 @@
     if (existing) existing.destroy();
     if (!config) {
       if (emptyEl) emptyEl.classList.remove('d-none');
+      canvasEl.classList.add('d-none');
       return;
     }
     const ctx = canvasEl.getContext('2d');
     if (!ctx) {
       if (emptyEl) emptyEl.classList.remove('d-none');
+      canvasEl.classList.add('d-none');
       return;
     }
+    canvasEl.classList.remove('d-none');
     const chart = new Chart(ctx, config);
     state.charts.set(canvasEl.id, chart);
   };
 
-  const fetchStats = async (path, body, label) => {
-    const payload = body && Object.keys(body).length ? body : undefined;
-    log('Stats request starting.', { label, path, body: payload || null });
-    const response = await apiFetch(path, {
-      method: 'GET',
-      body: payload ? JSON.stringify(payload) : undefined
+  const downloadChartImage = (chartId) => {
+    const chart = state.charts.get(chartId);
+    if (!chart) {
+      warn('Chart download requested without data.', { chartId });
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = chart.toBase64Image();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.download = `book-project-${chartId}-${timestamp}.png`;
+    link.click();
+    log('Chart download triggered.', { chartId });
+  };
+
+  const copyChartImage = async (chartId) => {
+    const chart = state.charts.get(chartId);
+    if (!chart) {
+      warn('Chart copy requested without data.', { chartId });
+      return;
+    }
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      warn('Clipboard image copy not supported.');
+      return;
+    }
+    const dataUrl = chart.toBase64Image();
+    const blob = await fetch(dataUrl).then((response) => response.blob());
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    log('Chart copied to clipboard.', { chartId });
+  };
+
+  const buildQueryPath = (path, params) => {
+    if (!params || !Object.keys(params).length) return path;
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      if (Array.isArray(value)) {
+        if (!value.length) return;
+        value.forEach((entry) => {
+          if (entry === undefined || entry === null || entry === '') return;
+          query.append(key, entry);
+        });
+        return;
+      }
+      query.set(key, String(value));
     });
+    const queryString = query.toString();
+    return queryString ? `${path}?${queryString}` : path;
+  };
+
+  const fetchStats = async (path, params, label) => {
+    const payload = params && Object.keys(params).length ? params : undefined;
+    const resolvedPath = buildQueryPath(path, payload || {});
+    log('Stats request starting.', { label, path: resolvedPath, params: payload || null });
+    const response = await apiFetch(resolvedPath, { method: 'GET' });
     if (await handleRateLimit(response)) {
       throw new Error('rate-limited');
     }
@@ -294,9 +395,44 @@
       return;
     }
     container.innerHTML = items.map((item) => {
+      if (item.html) {
+        return `<li class="mb-2">${item.html}</li>`;
+      }
       const detail = item.detail ? ` <span class="text-muted">${escapeHtml(item.detail)}</span>` : '';
       return `<li class="mb-2"><span class="fw-semibold">${escapeHtml(item.label)}</span>${detail}</li>`;
     }).join('');
+  };
+
+  const setHint = (el, text) => {
+    if (!el) return;
+    if (!text) {
+      el.textContent = '';
+      el.classList.add('d-none');
+      return;
+    }
+    el.textContent = text;
+    el.classList.remove('d-none');
+  };
+
+  const setFieldError = (inputEl, errorEl, message) => {
+    if (!inputEl || !errorEl) return;
+    if (!message) {
+      inputEl.classList.remove('is-invalid');
+      errorEl.textContent = '';
+      return;
+    }
+    inputEl.classList.add('is-invalid');
+    errorEl.textContent = message;
+  };
+
+  const clearFieldErrors = () => {
+    setFieldError(dom.timeline.entity, dom.timeline.entityError, '');
+    setFieldError(dom.timeline.field, dom.timeline.fieldError, '');
+    setFieldError(dom.timeline.buckets, dom.timeline.bucketsError, '');
+    setFieldError(dom.timeline.start, dom.timeline.startError, '');
+    setFieldError(dom.timeline.end, dom.timeline.endError, '');
+    setFieldError(dom.timeline.step, dom.timeline.stepError, '');
+    setFieldError(dom.timeline.stepUnit, dom.timeline.stepUnitError, '');
   };
 
   const renderTableRows = (container, rows, colspan = 2) => {
@@ -309,12 +445,13 @@
   };
 
   const renderOverviewSection = async () => {
-    const [userStats, authorStats, seriesStats, storageStats, bookTypeStats] = await Promise.all([
+    const [userStats, authorStats, seriesStats, storageStats, bookTypeStats, publisherStats] = await Promise.all([
       fetchStatsSafe('/users/me/stats', null, 'user-totals'),
       fetchStatsSafe('/author/stats', { fields: ['mostRepresentedAuthor'] }, 'author-highlight'),
       fetchStatsSafe('/bookseries/stats', { fields: ['mostCollectedSeries'] }, 'series-highlight'),
       fetchStatsSafe('/storagelocation/stats', { fields: ['mostUsedLocation'] }, 'storage-highlight'),
-      fetchStatsSafe('/booktype/stats', { fields: ['mostCollectedType'] }, 'booktype-highlight')
+      fetchStatsSafe('/booktype/stats', { fields: ['mostCollectedType'] }, 'booktype-highlight'),
+      fetchStatsSafe('/publisher/stats', { fields: ['mostUsedPublisher'] }, 'publisher-highlight')
     ]);
 
     const totals = [
@@ -359,6 +496,14 @@
           ? `${formatNumber(bookTypeStats.mostCollectedType.bookCount)} books`
           : '',
         section: 'books'
+      },
+      {
+        label: 'Most used publisher',
+        value: publisherStats?.mostUsedPublisher?.name || '',
+        meta: publisherStats?.mostUsedPublisher?.bookCount !== undefined
+          ? `${formatNumber(publisherStats.mostUsedPublisher.bookCount)} books`
+          : '',
+        section: 'publishers'
       }
     ];
     renderHighlightCards(dom.overview.highlights, highlightItems);
@@ -379,6 +524,7 @@
           'withBookType',
           'withLanguages',
           'withPublisher',
+          'withTags',
           'publicationYearHistogram',
           'oldestPublicationYear',
           'newestPublicationYear',
@@ -477,6 +623,16 @@
     } : null, dom.books.tagEmpty);
 
     const totalBooks = Number(bookStats?.total ?? bookStats?.totalBooks ?? 0);
+    const missingPublished = Math.max(totalBooks - Number(bookStats?.withPublicationDate ?? 0), 0);
+    const missingType = Math.max(totalBooks - Number(bookStats?.withBookType ?? 0), 0);
+    const missingLanguage = Math.max(totalBooks - Number(bookStats?.withLanguages ?? 0), 0);
+    const missingTags = bookTagStats?.untaggedBooks?.count !== undefined
+      ? Number(bookTagStats.untaggedBooks.count)
+      : Math.max(totalBooks - Number(bookStats?.withTags ?? 0), 0);
+    setHint(dom.books.publicationHint, missingPublished > 0 ? `${formatNumber(missingPublished)} books missing published date.` : '');
+    setHint(dom.books.typeHint, missingType > 0 ? `${formatNumber(missingType)} books missing type.` : '');
+    setHint(dom.books.languageHint, missingLanguage > 0 ? `${formatNumber(missingLanguage)} books missing language.` : '');
+    setHint(dom.books.tagHint, missingTags > 0 ? `${formatNumber(missingTags)} books missing tags.` : '');
     const qualityItems = [
       { label: 'Missing cover', value: totalBooks - Number(bookStats?.withCoverImage ?? 0) },
       { label: 'Missing published date', value: totalBooks - Number(bookStats?.withPublicationDate ?? 0) },
@@ -510,15 +666,15 @@
       });
     }
     if (bookStats?.longestBook?.title) {
+      const longestLink = `<a href="book-details?id=${encodeURIComponent(bookStats.longestBook.id)}">${escapeHtml(bookStats.longestBook.title)}</a>`;
       highlights.push({
-        label: 'Longest book',
-        detail: `${bookStats.longestBook.title} (${formatNumber(bookStats.longestBook.pageCount)} pages)`
+        html: `<span class="fw-semibold">Longest book</span> <span class="text-muted">${longestLink} (${escapeHtml(formatNumber(bookStats.longestBook.pageCount))} pages)</span>`
       });
     }
     if (bookStats?.shortestBook?.title) {
+      const shortestLink = `<a href="book-details?id=${encodeURIComponent(bookStats.shortestBook.id)}">${escapeHtml(bookStats.shortestBook.title)}</a>`;
       highlights.push({
-        label: 'Shortest book',
-        detail: `${bookStats.shortestBook.title} (${formatNumber(bookStats.shortestBook.pageCount)} pages)`
+        html: `<span class="fw-semibold">Shortest book</span> <span class="text-muted">${shortestLink} (${escapeHtml(formatNumber(bookStats.shortestBook.pageCount))} pages)</span>`
       });
     }
     if (bookTagStats?.untaggedBooks?.count !== undefined) {
@@ -536,6 +692,9 @@
     const [authorStats, bookAuthorStats] = await Promise.all([
       fetchStatsSafe('/author/stats', {
         fields: [
+          'total',
+          'withBirthDate',
+          'withDeathDate',
           'breakdownPerAliveDeceased',
           'breakdownPerBirthDecade',
           'breakdownPerAuthor',
@@ -550,6 +709,11 @@
     const aliveBreakdown = Array.isArray(authorStats?.breakdownPerAliveDeceased)
       ? authorStats.breakdownPerAliveDeceased
       : [];
+    const authorTotal = Number(authorStats?.total ?? authorStats?.totalAuthors ?? 0);
+    const missingBirthDates = Math.max(authorTotal - Number(authorStats?.withBirthDate ?? 0), 0);
+    const missingDeathDates = Math.max(authorTotal - Number(authorStats?.withDeathDate ?? 0), 0);
+    setHint(dom.authors.aliveHint, missingDeathDates > 0 ? `${formatNumber(missingDeathDates)} authors missing death dates.` : '');
+    setHint(dom.authors.decadeHint, missingBirthDates > 0 ? `${formatNumber(missingBirthDates)} authors missing birth dates.` : '');
     const aliveLabels = aliveBreakdown.map((entry) => (entry.deceased ? 'With death date' : 'No death date'));
     const aliveCounts = aliveBreakdown.map((entry) => Number(entry.authorCount) || 0);
     renderChart(dom.authors.aliveChart, aliveLabels.length ? {
@@ -648,6 +812,60 @@
     renderTableRows(dom.authors.collabTable, collabRows, 2);
 
     return Boolean(authorStats || bookAuthorStats);
+  };
+
+  const renderPublisherSection = async () => {
+    const publisherStats = await fetchStatsSafe('/publisher/stats', { fields: ['publisherBreakdown', 'mostUsedPublisher', 'oldestFoundedPublisher', 'total'] }, 'publisher-stats');
+    const breakdown = Array.isArray(publisherStats?.publisherBreakdown)
+      ? publisherStats.publisherBreakdown
+      : [];
+    const topPublishers = breakdown.slice(0, 8);
+    const labels = topPublishers.map((entry) => entry.name);
+    const counts = topPublishers.map((entry) => Number(entry.bookCount) || 0);
+    renderChart(dom.publishers.topChart, labels.length ? {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'Books', data: counts, backgroundColor: chartPalette[0] }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    } : null, dom.publishers.topEmpty);
+
+    const rows = topPublishers.map((entry) => `
+      <tr>
+        <td><a href="publisher-details?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.name || 'Unknown')}</a></td>
+        <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
+      </tr>
+    `);
+    renderTableRows(dom.publishers.breakdownTable, rows, 2);
+
+    const highlightItems = [];
+    if (publisherStats?.mostUsedPublisher?.name) {
+      highlightItems.push({
+        label: 'Most used publisher',
+        detail: `${publisherStats.mostUsedPublisher.name} (${formatNumber(publisherStats.mostUsedPublisher.bookCount)} books)`
+      });
+    }
+    if (publisherStats?.oldestFoundedPublisher?.name) {
+      highlightItems.push({
+        label: 'Oldest founded publisher',
+        detail: `${publisherStats.oldestFoundedPublisher.name} (${formatMaybe(publisherStats.oldestFoundedPublisher.foundedYear)})`
+      });
+    }
+    if (publisherStats?.total !== undefined) {
+      highlightItems.push({
+        label: 'Total publishers',
+        detail: formatNumber(publisherStats.total)
+      });
+    }
+    renderListItems(dom.publishers.highlights, highlightItems);
+
+    return Boolean(publisherStats);
   };
 
   const renderSeriesSection = async () => {
@@ -875,35 +1093,136 @@
     if (dom.timeline.bucketsWrap) {
       dom.timeline.bucketsWrap.classList.toggle('d-none', mode !== 'auto');
     }
+    clearFieldErrors();
+  };
+
+  const parsePartialDate = (value, { isEnd = false } = {}) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parts = trimmed.split('-');
+    if (parts.length < 1 || parts.length > 3) return null;
+    const year = Number.parseInt(parts[0], 10);
+    if (!Number.isInteger(year) || year < 1 || year > 9999) return null;
+    let month = 1;
+    let day = 1;
+    if (parts.length >= 2) {
+      month = Number.parseInt(parts[1], 10);
+      if (!Number.isInteger(month) || month < 1 || month > 12) return null;
+    }
+    if (parts.length === 3) {
+      day = Number.parseInt(parts[2], 10);
+      if (!Number.isInteger(day) || day < 1 || day > 31) return null;
+    }
+    if (isEnd) {
+      if (parts.length === 1) {
+        return new Date(Date.UTC(year, 11, 31));
+      }
+      if (parts.length === 2) {
+        return new Date(Date.UTC(year, month, 0));
+      }
+    }
+    return new Date(Date.UTC(year, month - 1, day));
+  };
+
+  const validateTimelineInputs = () => {
+    clearFieldErrors();
+    let isValid = true;
+    const mode = dom.timeline.mode?.value || 'auto';
+    const entity = dom.timeline.entity?.value || '';
+    const field = dom.timeline.field?.value || '';
+
+    if (!entity) {
+      setFieldError(dom.timeline.entity, dom.timeline.entityError, 'Select an entity.');
+      isValid = false;
+    }
+    if (!field) {
+      setFieldError(dom.timeline.field, dom.timeline.fieldError, 'Select a field.');
+      isValid = false;
+    }
+
+    const payload = {
+      entity,
+      field,
+      auto: mode === 'auto',
+      hideEmptyBuckets: Boolean(dom.timeline.hideEmpty?.checked)
+    };
+
+    if (mode === 'auto') {
+      const bucketsValue = dom.timeline.buckets?.value;
+      if (bucketsValue) {
+        const buckets = Number(bucketsValue);
+        if (!Number.isInteger(buckets) || buckets < 2 || buckets > 200) {
+          setFieldError(dom.timeline.buckets, dom.timeline.bucketsError, 'Enter a bucket count between 2 and 200.');
+          isValid = false;
+        } else {
+          payload.numberOfBuckets = buckets;
+        }
+      }
+    } else {
+      const startValue = dom.timeline.start?.value || '';
+      const endValue = dom.timeline.end?.value || '';
+      const stepValue = Number(dom.timeline.step?.value);
+      const stepUnitValue = dom.timeline.stepUnit?.value || '';
+      const startDate = parsePartialDate(startValue, { isEnd: false });
+      const endDate = parsePartialDate(endValue, { isEnd: true });
+
+      if (!startValue || !startDate) {
+        setFieldError(dom.timeline.start, dom.timeline.startError, 'Enter a valid start date (YYYY or YYYY-MM).');
+        isValid = false;
+      }
+      if (!endValue || !endDate) {
+        setFieldError(dom.timeline.end, dom.timeline.endError, 'Enter a valid end date (YYYY or YYYY-MM).');
+        isValid = false;
+      }
+      if (!Number.isInteger(stepValue) || stepValue < 1) {
+        setFieldError(dom.timeline.step, dom.timeline.stepError, 'Step must be a positive number.');
+        isValid = false;
+      }
+      if (!stepUnitValue) {
+        setFieldError(dom.timeline.stepUnit, dom.timeline.stepUnitError, 'Select a step unit.');
+        isValid = false;
+      }
+      if (startDate && endDate && startDate > endDate) {
+        setFieldError(dom.timeline.end, dom.timeline.endError, 'End date must be after the start date.');
+        isValid = false;
+      }
+
+      payload.start = startValue;
+      payload.end = endValue;
+      payload.step = stepValue || 1;
+      payload.stepUnit = stepUnitValue || 'year';
+    }
+
+    return { isValid, payload };
   };
 
   const runTimeline = async () => {
     if (!dom.timeline.runBtn) return;
     setFeedback('');
     if (dom.timeline.error) dom.timeline.error.classList.add('d-none');
+    const validation = validateTimelineInputs();
+    if (!validation.isValid) {
+      warn('Timeline validation failed.', validation);
+      return;
+    }
+
     if (dom.timeline.runSpinner) dom.timeline.runSpinner.classList.remove('d-none');
     dom.timeline.runBtn.disabled = true;
 
-    const requestId = ++state.timelineRequestId;
-    const mode = dom.timeline.mode?.value || 'auto';
-    const payload = {
-      entity: dom.timeline.entity?.value || 'books',
-      field: dom.timeline.field?.value || 'datePublished',
-      auto: mode === 'auto',
-      hideEmptyBuckets: Boolean(dom.timeline.hideEmpty?.checked)
-    };
-
-    if (mode === 'auto') {
-      const buckets = Number(dom.timeline.buckets?.value);
-      if (Number.isFinite(buckets) && buckets > 0) {
-        payload.numberOfBuckets = buckets;
-      }
-    } else {
-      payload.start = dom.timeline.start?.value || '';
-      payload.end = dom.timeline.end?.value || '';
-      payload.step = Number(dom.timeline.step?.value || 1);
-      payload.stepUnit = dom.timeline.stepUnit?.value || 'year';
+    const timelineChartId = dom.timeline.chart?.id;
+    if (timelineChartId && state.charts.has(timelineChartId)) {
+      state.charts.get(timelineChartId).destroy();
+      state.charts.delete(timelineChartId);
     }
+    if (dom.timeline.chart) dom.timeline.chart.classList.add('d-none');
+
+    if (dom.timeline.chartEmpty) dom.timeline.chartEmpty.classList.remove('d-none');
+    if (dom.timeline.chartEmptyTitle) dom.timeline.chartEmptyTitle.textContent = 'Loading timeline...';
+    if (dom.timeline.chartEmptyText) dom.timeline.chartEmptyText.textContent = 'Fetching buckets from your library.';
+
+    const requestId = ++state.timelineRequestId;
+    const payload = validation.payload;
 
     log('Timeline request starting.', payload);
 
@@ -924,6 +1243,8 @@
           dom.timeline.error.textContent = message;
           dom.timeline.error.classList.remove('d-none');
         }
+        if (dom.timeline.chartEmptyTitle) dom.timeline.chartEmptyTitle.textContent = 'Timeline failed';
+        if (dom.timeline.chartEmptyText) dom.timeline.chartEmptyText.textContent = message;
         warn('Timeline request failed.', { status: response.status, data });
         return;
       }
@@ -931,13 +1252,20 @@
       const payloadData = data.data || data;
       renderTimelineChart(payloadData);
       renderTimelineSummary(payloadData);
-      if (dom.timeline.chartEmpty) dom.timeline.chartEmpty.classList.toggle('d-none', Array.isArray(payloadData.buckets) && payloadData.buckets.length > 0);
+      const hasBuckets = Array.isArray(payloadData.buckets) && payloadData.buckets.length > 0;
+      if (!hasBuckets) {
+        if (dom.timeline.chartEmptyTitle) dom.timeline.chartEmptyTitle.textContent = 'No results for this range';
+        if (dom.timeline.chartEmptyText) dom.timeline.chartEmptyText.textContent = 'Try widening the date range or switching to Auto mode.';
+      }
+      if (dom.timeline.chartEmpty) dom.timeline.chartEmpty.classList.toggle('d-none', hasBuckets);
     } catch (error) {
       errorLog('Timeline request error.', error);
       if (dom.timeline.error) {
         dom.timeline.error.textContent = 'Unable to build timeline right now. Please try again soon.';
         dom.timeline.error.classList.remove('d-none');
       }
+      if (dom.timeline.chartEmptyTitle) dom.timeline.chartEmptyTitle.textContent = 'Timeline failed';
+      if (dom.timeline.chartEmptyText) dom.timeline.chartEmptyText.textContent = 'Try again in a moment.';
     } finally {
       if (dom.timeline.runSpinner) dom.timeline.runSpinner.classList.add('d-none');
       dom.timeline.runBtn.disabled = false;
@@ -955,6 +1283,8 @@
 
     if (dom.timeline.chartEmpty) {
       dom.timeline.chartEmpty.classList.remove('d-none');
+      if (dom.timeline.chartEmptyTitle) dom.timeline.chartEmptyTitle.textContent = 'Run a timeline';
+      if (dom.timeline.chartEmptyText) dom.timeline.chartEmptyText.textContent = 'Generate buckets to see counts.';
     }
     return true;
   };
@@ -963,14 +1293,16 @@
     overview: renderOverviewSection,
     books: renderBookSection,
     authors: renderAuthorSection,
+    publishers: renderPublisherSection,
     series: renderSeriesSection,
     storage: renderStorageSection,
     timeline: renderTimelineSection
   };
 
-  const showSection = async (sectionKey, { force = false } = {}) => {
+  const showSection = async (sectionKey, { force = false, updateHash: shouldUpdateHash = true, pushHash = false } = {}) => {
     if (!sectionLoaders[sectionKey]) return;
     setActiveSection(sectionKey);
+    if (shouldUpdateHash) updateHash(sectionKey, { push: pushHash });
     setSectionState(sectionKey, { loading: true, empty: false });
 
     if (!force && state.sectionLoaded.has(sectionKey)) {
@@ -1008,12 +1340,54 @@
       button.addEventListener('click', () => {
         const section = button.dataset.section;
         if (!section || section === state.activeSection) return;
-        showSection(section);
+        showSection(section, { updateHash: true, pushHash: true });
       });
     });
 
     if (dom.refreshBtn) {
       dom.refreshBtn.addEventListener('click', handleRefresh);
+    }
+
+    if (dom.exportLibraryBtn) {
+      dom.exportLibraryBtn.addEventListener('click', async () => {
+        log('Library export requested.');
+        if (dom.exportLibrarySpinner) dom.exportLibrarySpinner.classList.remove('d-none');
+        dom.exportLibraryBtn.disabled = true;
+        try {
+          const response = await apiFetch('/export?format=json&entity=all', { method: 'GET' });
+          if (await handleRateLimit(response)) return;
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            warn('Library export failed.', payload);
+            setFeedback(payload.message || 'Unable to export library right now.');
+            return;
+          }
+          const exportData = payload.data?.data ?? payload.data ?? payload;
+          const exportedAt = payload.data?.exportedAt || new Date().toISOString();
+          const fileName = `book-project-export-${exportedAt.replace(/[:.]/g, '-')}.json`;
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.click();
+          URL.revokeObjectURL(url);
+          log('Library export downloaded.', { fileName });
+        } catch (error) {
+          errorLog('Library export failed.', error);
+          setFeedback('Unable to export library right now. Please try again soon.');
+        } finally {
+          if (dom.exportLibrarySpinner) dom.exportLibrarySpinner.classList.add('d-none');
+          dom.exportLibraryBtn.disabled = false;
+        }
+      });
+    }
+
+    if (dom.statsHelpBtn) {
+      dom.statsHelpBtn.addEventListener('click', async () => {
+        log('Opening statistics help modal.');
+        await showModal('statsHelpModal', { backdrop: 'static', keyboard: true });
+      });
     }
 
     document.addEventListener('click', (event) => {
@@ -1022,12 +1396,26 @@
       const section = target.getAttribute('data-section-link');
       if (!section) return;
       event.preventDefault();
-      showSection(section);
+      showSection(section, { updateHash: true, pushHash: true });
+    });
+
+    window.addEventListener('hashchange', () => {
+      const section = getSectionFromHash();
+      if (!section || section === state.activeSection) return;
+      log('Hash navigation triggered.', { section });
+      showSection(section, { updateHash: false });
     });
 
     if (dom.timeline.entity) {
       dom.timeline.entity.addEventListener('change', () => {
         updateTimelineFields();
+        clearFieldErrors();
+      });
+    }
+
+    if (dom.timeline.field) {
+      dom.timeline.field.addEventListener('change', () => {
+        clearFieldErrors();
       });
     }
 
@@ -1038,6 +1426,52 @@
     if (dom.timeline.runBtn) {
       dom.timeline.runBtn.addEventListener('click', runTimeline);
     }
+
+    if (dom.timeline.retryBtn) {
+      dom.timeline.retryBtn.addEventListener('click', () => {
+        log('Retrying timeline section load.');
+        showSection('timeline', { force: true, updateHash: true, pushHash: true });
+      });
+    }
+
+    ['buckets', 'start', 'end', 'step'].forEach((key) => {
+      const input = dom.timeline[key];
+      if (!input) return;
+      input.addEventListener('input', () => {
+        clearFieldErrors();
+      });
+    });
+
+    if (dom.timeline.stepUnit) {
+      dom.timeline.stepUnit.addEventListener('change', () => {
+        clearFieldErrors();
+      });
+    }
+
+    document.querySelectorAll('.js-chart-download').forEach((button) => {
+      button.addEventListener('click', () => {
+        const chartId = button.getAttribute('data-chart-target');
+        if (!chartId) return;
+        downloadChartImage(chartId);
+      });
+    });
+
+    const canCopy = Boolean(navigator.clipboard && window.ClipboardItem);
+    document.querySelectorAll('.js-chart-copy').forEach((button) => {
+      if (!canCopy) {
+        button.classList.add('d-none');
+        return;
+      }
+      button.addEventListener('click', async () => {
+        const chartId = button.getAttribute('data-chart-target');
+        if (!chartId) return;
+        try {
+          await copyChartImage(chartId);
+        } catch (error) {
+          warn('Failed to copy chart image.', error);
+        }
+      });
+    });
   };
 
   const init = async () => {
@@ -1047,8 +1481,10 @@
       return;
     }
     attachEvents();
+    const initialSection = getSectionFromHash() || state.activeSection;
+    state.activeSection = initialSection;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
-    await showSection(state.activeSection, { force: true });
+    await showSection(initialSection, { force: true, updateHash: true });
     await hideModal('pageLoadingModal');
   };
 
