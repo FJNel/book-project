@@ -266,12 +266,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const setButtonLabel = (button, label) => {
     if (!button) return;
-    const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-    if (textNode) {
-      textNode.nodeValue = ` ${label}`;
-    } else {
-      button.textContent = label;
-    }
+    Array.from(button.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .forEach((node) => button.removeChild(node));
+    button.appendChild(document.createTextNode(` ${label}`));
   };
 
   const setButtonLoading = (button, spinner, isLoading) => {
