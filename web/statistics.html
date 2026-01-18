@@ -41,13 +41,14 @@
     }
 
     .stat-value {
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       font-weight: 600;
     }
 
     .stat-label {
-      color: #6c757d;
-      font-size: 0.85rem;
+      color: #495057;
+      font-size: 1rem;
+      font-weight: 600;
     }
 
     .chart-shell {
@@ -99,9 +100,19 @@
       color: #6c757d;
     }
 
-    .chart-actions .btn {
-      padding: 0.2rem 0.45rem;
+    .highlight-label {
+      font-size: 1rem;
+      font-weight: 600;
     }
+
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background-color: #f8f9fa; }
+    .clickable-row:active { background-color: #f1f3f5; }
+
+    .chart-shell.compact { min-height: 140px; max-height: 180px; }
+
+    .clickable-card { cursor: pointer; transition: box-shadow 0.15s ease; }
+    .clickable-card:hover { box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08); }
   </style>
 </head>
 
@@ -174,20 +185,13 @@
       </nav>
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
         <div>
-          <div class="d-flex flex-wrap align-items-center gap-2">
-            <h1 class="mb-1">Statistics</h1>
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="statsHelpBtn">How to interpret</button>
-          </div>
+          <h1 class="mb-1">Statistics</h1>
           <p class="text-muted mb-0">Insights about your library.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshStatsBtn">
             <span class="spinner-border spinner-border-sm me-2 d-none" role="status" id="refreshSpinner"></span>
             Refresh
-          </button>
-          <button class="btn btn-outline-primary btn-sm" type="button" id="exportLibraryBtn">
-            <span class="spinner-border spinner-border-sm me-2 d-none" role="status" id="exportLibrarySpinner"></span>
-            Download library export
           </button>
         </div>
       </div>
@@ -212,12 +216,12 @@
       </div>
       <div id="overviewContent" class="d-none">
         <div class="mb-3">
-          <h2 class="h5 fw-semibold">Key totals</h2>
+          <h2 class="h5 fw-semibold"><span data-bs-toggle="tooltip" data-bs-title="Core totals across your library.">Key totals</span></h2>
         </div>
         <div class="row g-3 mb-4" id="overviewTotals"></div>
 
         <div class="mb-3">
-          <h2 class="h5 fw-semibold">Highlights</h2>
+          <h2 class="h5 fw-semibold"><span data-bs-toggle="tooltip" data-bs-title="Highlights pulled from your library data.">Highlights</span></h2>
         </div>
         <div class="row g-3" id="overviewHighlights"></div>
       </div>
@@ -246,13 +250,7 @@
           <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Publication timeline</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="booksPublicationChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="booksPublicationChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Books grouped by published year, including years with zero entries.">Publication timeline</span></div>
                 <div class="chart-shell">
                   <canvas id="booksPublicationChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="booksPublicationEmpty">
@@ -276,13 +274,7 @@
           <div class="col-12 col-lg-5">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Book types</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="booksTypeChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="booksTypeChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Breakdown of books by type.">Book types</span></div>
                 <div class="chart-shell">
                   <canvas id="booksTypeChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="booksTypeEmpty">
@@ -309,13 +301,7 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Languages</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="booksLanguageChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="booksLanguageChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Breakdown of languages assigned to books.">Languages</span></div>
                 <div class="chart-shell">
                   <canvas id="booksLanguageChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="booksLanguageEmpty">
@@ -339,13 +325,7 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Top tags</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="booksTagChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="booksTagChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Most used tags across your books.">Top tags</span></div>
                 <div class="chart-shell">
                   <canvas id="booksTagChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="booksTagEmpty">
@@ -372,7 +352,7 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Data quality</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Counts of missing or incomplete book metadata.">Data quality</span></div>
                 <div class="row g-3" id="booksQualityGrid"></div>
               </div>
             </div>
@@ -380,7 +360,7 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Highlights</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Notable book stats pulled from your library.">Highlights</span></div>
                 <ul class="list-unstyled mb-0" id="booksHighlightsList"></ul>
               </div>
             </div>
@@ -412,13 +392,7 @@
           <div class="col-12 col-lg-4">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">With death date</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="authorsAliveChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="authorsAliveChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Share of authors with and without a recorded death date.">With death date</span></div>
                 <div class="chart-shell">
                   <canvas id="authorsAliveChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="authorsAliveEmpty">
@@ -442,13 +416,7 @@
           <div class="col-12 col-lg-8">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Authors by birth decade</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="authorsDecadeChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="authorsDecadeChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Author counts grouped by birth decade.">Authors by birth decade</span></div>
                 <div class="chart-shell">
                   <canvas id="authorsDecadeChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="authorsDecadeEmpty">
@@ -475,13 +443,13 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Top authors</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Authors linked to the most books.">Top authors</span></div>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead class="text-muted small">
                       <tr>
-                        <th>Author</th>
-                        <th class="text-end">Books</th>
+                        <th><span data-bs-toggle="tooltip" data-bs-title="Author name.">Author</span></th>
+                        <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Number of books linked to this author.">Books</span></th>
                       </tr>
                     </thead>
                     <tbody id="authorsTopTable"></tbody>
@@ -493,7 +461,7 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Highlights</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Notable author stats pulled from your library.">Highlights</span></div>
                 <ul class="list-unstyled mb-0" id="authorsHighlights"></ul>
               </div>
             </div>
@@ -504,14 +472,8 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Contributor roles</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="authorRolesChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="authorRolesChart">Copy</button>
-                  </div>
-                </div>
-                <div class="chart-shell">
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Breakdown of contributor roles across your books.">Contributor roles</span></div>
+                <div class="chart-shell compact">
                   <canvas id="authorRolesChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="authorRolesEmpty">
                     <div class="empty-state-icon mb-2">
@@ -533,13 +495,13 @@
           <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Collaboration pairs</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Pairs of authors who appear together on books.">Collaboration pairs</span></div>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead class="text-muted small">
                       <tr>
-                        <th>Authors</th>
-                        <th class="text-end">Books</th>
+                        <th><span data-bs-toggle="tooltip" data-bs-title="Author pair.">Authors</span></th>
+                        <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Number of books co-authored by the pair.">Books</span></th>
                       </tr>
                     </thead>
                     <tbody id="authorsCollabTable"></tbody>
@@ -575,13 +537,7 @@
           <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Top publishers</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="publishersTopChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="publishersTopChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Publishers with the most books in your library.">Top publishers</span></div>
                 <div class="chart-shell">
                   <canvas id="publishersTopChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="publishersTopEmpty">
@@ -604,7 +560,7 @@
           <div class="col-12 col-lg-5">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Highlights</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Notable publisher stats pulled from your library.">Highlights</span></div>
                 <ul class="list-unstyled mb-0" id="publishersHighlights"></ul>
               </div>
             </div>
@@ -613,13 +569,13 @@
 
         <div class="card shadow-sm">
           <div class="card-body">
-            <div class="fw-semibold mb-2">Publisher breakdown</div>
+            <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Book counts grouped by publisher.">Publisher breakdown</span></div>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
                 <thead class="text-muted small">
                   <tr>
-                    <th>Publisher</th>
-                    <th class="text-end">Books</th>
+                    <th><span data-bs-toggle="tooltip" data-bs-title="Publisher name.">Publisher</span></th>
+                    <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Number of books linked to this publisher.">Books</span></th>
                   </tr>
                 </thead>
                 <tbody id="publishersBreakdownTable"></tbody>
@@ -653,13 +609,7 @@
           <div class="col-12 col-lg-4">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Series vs standalones</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="seriesVsStandaloneChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="seriesVsStandaloneChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Split between books that belong to a series and standalones.">Series vs standalones</span></div>
                 <div class="chart-shell">
                   <canvas id="seriesVsStandaloneChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="seriesVsStandaloneEmpty">
@@ -682,13 +632,7 @@
           <div class="col-12 col-lg-8">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Top series</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="seriesTopChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="seriesTopChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2">Top series</div>
                 <div class="chart-shell">
                   <canvas id="seriesTopChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="seriesTopEmpty">
@@ -714,7 +658,7 @@
           <div class="col-12 col-lg-5">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Series data health</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Data quality checks for series ordering and completeness.">Series data health</span></div>
                 <ul class="list-unstyled mb-0" id="seriesHealthList"></ul>
               </div>
             </div>
@@ -722,14 +666,14 @@
           <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Series breakdown</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Book counts per series.">Series breakdown</span></div>
                 <div class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                     <thead class="text-muted small">
                       <tr>
-                        <th>Series</th>
-                        <th class="text-end">Books</th>
-                        <th class="text-end">Gaps</th>
+                        <th><span data-bs-toggle="tooltip" data-bs-title="Series name.">Series</span></th>
+                        <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Number of books in this series.">Books</span></th>
+                        <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Number of gaps in the series order.">Gaps</span></th>
                       </tr>
                     </thead>
                     <tbody id="seriesBreakdownTable"></tbody>
@@ -765,13 +709,7 @@
           <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-semibold">Locations by copy count</div>
-                  <div class="chart-actions btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="storageLocationChart">Download PNG</button>
-                    <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="storageLocationChart">Copy</button>
-                  </div>
-                </div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Copy counts per storage location.">Locations by copy count</span></div>
                 <div class="chart-shell">
                   <canvas id="storageLocationChart"></canvas>
                   <div class="empty-state chart-empty text-center py-4 d-none" id="storageLocationEmpty">
@@ -794,7 +732,7 @@
           <div class="col-12 col-lg-5">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="fw-semibold mb-2">Most used location</div>
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="The storage location with the most copies.">Most used location</span></div>
                 <div id="storageHighlights"></div>
               </div>
             </div>
@@ -803,15 +741,15 @@
 
         <div class="card shadow-sm">
           <div class="card-body">
-            <div class="fw-semibold mb-2">Location breakdown</div>
+            <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Detailed copy counts for every storage location.">Location breakdown</span></div>
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
                 <thead class="text-muted small">
                   <tr>
-                    <th>Location</th>
-                    <th class="text-end">Copies</th>
-                    <th class="text-end">Direct</th>
-                    <th class="text-end">Nested</th>
+                    <th><span data-bs-toggle="tooltip" data-bs-title="Storage location path.">Location</span></th>
+                    <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Total copies in this location and its children.">Copies</span></th>
+                    <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Copies stored directly in this location.">Direct</span></th>
+                    <th class="text-end"><span data-bs-toggle="tooltip" data-bs-title="Copies stored in child locations.">Nested</span></th>
                   </tr>
                 </thead>
                 <tbody id="storageBreakdownTable"></tbody>
@@ -920,13 +858,7 @@
 
         <div class="card shadow-sm">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <div class="fw-semibold">Timeline output</div>
-              <div class="chart-actions btn-group btn-group-sm" role="group">
-                <button class="btn btn-outline-secondary js-chart-download" type="button" data-chart-target="timelineChart">Download PNG</button>
-                <button class="btn btn-outline-secondary js-chart-copy" type="button" data-chart-target="timelineChart">Copy</button>
-              </div>
-            </div>
+            <div class="fw-semibold mb-2">Timeline output</div>
             <div class="chart-shell">
               <canvas id="timelineChart"></canvas>
               <div class="empty-state chart-empty text-center py-4 d-none" id="timelineChartEmpty">
@@ -980,34 +912,6 @@
     </div>
   </div>
 
-  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="statsHelpModal" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">How to interpret these statistics</h4>
-          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-3">These charts summarize the books, authors, and collections you have entered. Each chart is calculated from your saved data, so missing metadata will create gaps.</p>
-          <h5 class="h6">Charts &amp; tables</h5>
-          <ul>
-            <li><strong>Breakdowns</strong> show how your library is split (for example by language, type, or series).</li>
-            <li><strong>Top lists</strong> rank items with the highest counts.</li>
-            <li><strong>Data quality</strong> counts highlight missing metadata that you can fill in.</li>
-          </ul>
-          <h5 class="h6">What “Unknown” means</h5>
-          <p class="mb-3">“Unknown” counts represent items missing a date, type, language, tag, or other metadata required by the chart.</p>
-          <h5 class="h6">Fixing missing data</h5>
-          <p class="mb-3">Update books and authors with published dates, languages, tags, covers, and roles to make the charts more complete.</p>
-          <h5 class="h6">Timeline builder</h5>
-          <p class="mb-0">Timelines group dates into buckets. Auto mode picks a range and bucket size for you. Manual mode lets you set the start/end and bucket size (step). For example, a step of 1 year will group all dates within each year.</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>

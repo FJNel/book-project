@@ -12,9 +12,6 @@
     feedbackContainer: document.getElementById('feedbackContainer'),
     refreshBtn: document.getElementById('refreshStatsBtn'),
     refreshSpinner: document.getElementById('refreshSpinner'),
-    exportLibraryBtn: document.getElementById('exportLibraryBtn'),
-    exportLibrarySpinner: document.getElementById('exportLibrarySpinner'),
-    statsHelpBtn: document.getElementById('statsHelpBtn'),
     navButtons: Array.from(document.querySelectorAll('[data-section]')),
     sections: Array.from(document.querySelectorAll('[data-section-content]')),
     overview: {
@@ -126,6 +123,7 @@
     activeSection: 'overview',
     sectionLoaded: new Set(),
     charts: new Map(),
+    statsCache: new Map(),
     timelineRequestId: 0
   };
 
@@ -162,6 +160,71 @@
   const formatMaybe = (value, fallback = '-') => {
     if (value === undefined || value === null || value === '') return fallback;
     return value;
+  };
+
+  const tooltipText = new Map([
+    ['Books', 'Total number of books in your library.'],
+    ['Book Copies', 'Total number of book copies tracked in your library.'],
+    ['Authors', 'Total number of authors in your library.'],
+    ['Series', 'Total number of series in your library.'],
+    ['Publishers', 'Total number of publishers in your library.'],
+    ['Storage locations', 'Total number of storage locations in your library.'],
+    ['Most represented author', 'The author linked to the most books in your library.'],
+    ['Most collected series', 'The series with the most books in your library.'],
+    ['Most used location', 'The storage location with the most book copies.'],
+    ['Most collected book type', 'The book type with the most books in your library.'],
+    ['Most common publisher', 'The publisher linked to the most books in your library.'],
+    ['Missing cover', 'Books without a cover image.'],
+    ['Missing published date', 'Books without a published date.'],
+    ['Missing pages', 'Books without a page count.'],
+    ['Missing type', 'Books without a book type.'],
+    ['Missing language', 'Books without languages assigned.'],
+    ['Missing publisher', 'Books without a publisher.'],
+    ['Oldest publication year', 'The earliest published year in your library.'],
+    ['Newest publication year', 'The most recent published year in your library.'],
+    ['Longest book', 'The book with the most pages in your library.'],
+    ['Shortest book', 'The book with the fewest pages in your library.'],
+    ['Untagged books', 'Books that do not have any tags assigned.'],
+    ['Most used tag', 'The tag applied to the most books in your library.'],
+    ['Most tagged book', 'The single book with the most tags assigned.'],
+    ['With death date', 'Authors with a recorded death date.'],
+    ['Authors by birth decade', 'Count of authors grouped by birth decade.'],
+    ['Top authors', 'Authors with the most books linked to them.'],
+    ['Contributor roles', 'Breakdown of author roles across book contributions.'],
+    ['Collaboration pairs', 'Pairs of authors who appear together on books.'],
+    ['Oldest author', 'Author with the earliest birth year on record.'],
+    ['Youngest author', 'Author with the most recent birth year on record.'],
+    ['Oldest founded publisher', 'Publisher with the earliest founded year.'],
+    ['Total publishers', 'Total number of publishers in your library.'],
+    ['Books in series', 'Books that belong to a series.'],
+    ['Standalones', 'Books that are not part of any series.'],
+    ['Missing order numbers', 'Series entries missing a book order number.'],
+    ['Gaps in series order', 'Gaps detected in series ordering.'],
+    ['Series without books', 'Series that currently have no books linked.'],
+    ['Series with gaps', 'Series that contain gaps in ordering.'],
+    ['Duplicate order numbers', 'Series with duplicate order positions.'],
+    ['Null order entries', 'Series entries without an order number.'],
+    ['Locations by copy count', 'Copy counts per storage location.'],
+    ['Direct copies', 'Copies stored directly in this location.'],
+    ['Nested copies', 'Copies stored in child locations.'],
+    ['In range', 'Items that fall within the selected timeline range.'],
+    ['Before start', 'Items dated before the selected start date.'],
+    ['After end', 'Items dated after the selected end date.'],
+    ['Unknown', 'Items missing a date for the selected field.']
+  ]);
+
+  const renderTooltipLabel = (label, extraClass = '') => {
+    const tooltip = tooltipText.get(label);
+    if (!tooltip) return `<span class="${extraClass}">${escapeHtml(label)}</span>`;
+    const classAttr = extraClass ? ` class="${extraClass}"` : '';
+    return `<span${classAttr} data-bs-toggle="tooltip" data-bs-title="${escapeHtml(tooltip)}">${escapeHtml(label)}</span>`;
+  };
+
+  const initTooltips = (scope = document) => {
+    if (!window.bootstrap || !bootstrap.Tooltip) return;
+    scope.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
   };
 
   const setFeedback = (message, variant = 'danger') => {
@@ -275,36 +338,6 @@
     state.charts.set(canvasEl.id, chart);
   };
 
-  const downloadChartImage = (chartId) => {
-    const chart = state.charts.get(chartId);
-    if (!chart) {
-      warn('Chart download requested without data.', { chartId });
-      return;
-    }
-    const link = document.createElement('a');
-    link.href = chart.toBase64Image();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    link.download = `book-project-${chartId}-${timestamp}.png`;
-    link.click();
-    log('Chart download triggered.', { chartId });
-  };
-
-  const copyChartImage = async (chartId) => {
-    const chart = state.charts.get(chartId);
-    if (!chart) {
-      warn('Chart copy requested without data.', { chartId });
-      return;
-    }
-    if (!navigator.clipboard || !window.ClipboardItem) {
-      warn('Clipboard image copy not supported.');
-      return;
-    }
-    const dataUrl = chart.toBase64Image();
-    const blob = await fetch(dataUrl).then((response) => response.blob());
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    log('Chart copied to clipboard.', { chartId });
-  };
-
   const buildQueryPath = (path, params) => {
     if (!params || !Object.keys(params).length) return path;
     const query = new URLSearchParams();
@@ -327,6 +360,11 @@
   const fetchStats = async (path, params, label) => {
     const payload = params && Object.keys(params).length ? params : undefined;
     const resolvedPath = buildQueryPath(path, payload || {});
+    const cacheKey = resolvedPath;
+    if (state.statsCache.has(cacheKey)) {
+      log('Stats cache hit.', { label, path: resolvedPath });
+      return state.statsCache.get(cacheKey);
+    }
     log('Stats request starting.', { label, path: resolvedPath, params: payload || null });
     const response = await apiFetch(resolvedPath, { method: 'GET' });
     if (await handleRateLimit(response)) {
@@ -338,6 +376,7 @@
       throw new Error(data.message || 'Stats request failed.');
     }
     const stats = data.data?.stats ?? data.data ?? {};
+    state.statsCache.set(cacheKey, stats);
     log('Stats response received.', { label, status: response.status });
     return stats;
   };
@@ -357,12 +396,13 @@
       <div class="col-6 col-md-4 col-xl-2">
         <div class="card shadow-sm h-100">
           <div class="card-body">
-            <div class="stat-label">${escapeHtml(item.label)}</div>
+            <div class="stat-label">${renderTooltipLabel(item.label)}</div>
             <div class="stat-value">${escapeHtml(formatNumber(item.value))}</div>
           </div>
         </div>
       </div>
     `).join('');
+    initTooltips(container);
   };
 
   const renderHighlightCards = (container, items) => {
@@ -370,22 +410,22 @@
     container.innerHTML = items.map((item) => {
       const metaLine = item.meta ? `<div class="text-muted small">${escapeHtml(item.meta)}</div>` : '';
       const valueLine = item.value ? `<div class="fw-semibold">${escapeHtml(item.value)}</div>` : '<div class="text-muted">Not enough data</div>';
-      const link = item.section
-        ? `<button class="btn btn-link p-0 small" type="button" data-section-link="${escapeHtml(item.section)}">View</button>`
-        : '';
+      const href = item.href || '';
+      const cardAttrs = href ? `data-href="${escapeHtml(href)}" role="button" tabindex="0"` : '';
+      const cardClass = href ? 'card shadow-sm mini-card h-100 clickable-card' : 'card shadow-sm mini-card h-100';
       return `
         <div class="col-12 col-md-6 col-lg-3">
-          <div class="card shadow-sm mini-card h-100">
+          <div class="${cardClass}" ${cardAttrs}>
             <div class="card-body">
-              <div class="text-muted small mb-1">${escapeHtml(item.label)}</div>
+              <div class="highlight-label text-muted mb-1">${renderTooltipLabel(item.label)}</div>
               ${valueLine}
               ${metaLine}
-              ${link ? `<div class="mt-2">${link}</div>` : ''}
             </div>
           </div>
         </div>
       `;
     }).join('');
+    initTooltips(container);
   };
 
   const renderListItems = (container, items) => {
@@ -399,8 +439,9 @@
         return `<li class="mb-2">${item.html}</li>`;
       }
       const detail = item.detail ? ` <span class="text-muted">${escapeHtml(item.detail)}</span>` : '';
-      return `<li class="mb-2"><span class="fw-semibold">${escapeHtml(item.label)}</span>${detail}</li>`;
+      return `<li class="mb-2"><span class="fw-semibold">${renderTooltipLabel(item.label)}</span>${detail}</li>`;
     }).join('');
+    initTooltips(container);
   };
 
   const setHint = (el, text) => {
@@ -448,19 +489,19 @@
     const [userStats, authorStats, seriesStats, storageStats, bookTypeStats, publisherStats] = await Promise.all([
       fetchStatsSafe('/users/me/stats', null, 'user-totals'),
       fetchStatsSafe('/author/stats', { fields: ['mostRepresentedAuthor'] }, 'author-highlight'),
-      fetchStatsSafe('/bookseries/stats', { fields: ['mostCollectedSeries'] }, 'series-highlight'),
-      fetchStatsSafe('/storagelocation/stats', { fields: ['mostUsedLocation'] }, 'storage-highlight'),
+      fetchStatsSafe('/bookseries/stats', { fields: ['largestSeries'] }, 'series-highlight'),
+      fetchStatsSafe('/storagelocation/stats', { fields: ['largestLocation'] }, 'storage-highlight'),
       fetchStatsSafe('/booktype/stats', { fields: ['mostCollectedType'] }, 'booktype-highlight'),
-      fetchStatsSafe('/publisher/stats', { fields: ['mostUsedPublisher'] }, 'publisher-highlight')
+      fetchStatsSafe('/publisher/stats', { fields: ['mostCommonPublisher'] }, 'publisher-highlight')
     ]);
 
     const totals = [
       { label: 'Books', value: userStats?.books ?? userStats?.totalBooks ?? 0 },
+      { label: 'Book Copies', value: userStats?.bookCopies ?? 0 },
       { label: 'Authors', value: userStats?.authors ?? 0 },
       { label: 'Series', value: userStats?.series ?? 0 },
       { label: 'Publishers', value: userStats?.publishers ?? 0 },
-      { label: 'Storage locations', value: userStats?.storageLocations ?? 0 },
-      { label: 'Copies', value: userStats?.bookCopies ?? 0 }
+      { label: 'Storage locations', value: userStats?.storageLocations ?? 0 }
     ];
     renderTotals(dom.overview.totals, totals);
 
@@ -471,23 +512,29 @@
         meta: authorStats?.mostRepresentedAuthor?.bookCount !== undefined
           ? `${formatNumber(authorStats.mostRepresentedAuthor.bookCount)} books`
           : '',
-        section: 'authors'
+        href: authorStats?.mostRepresentedAuthor?.id
+          ? `author-details?id=${encodeURIComponent(authorStats.mostRepresentedAuthor.id)}`
+          : 'authors'
       },
       {
         label: 'Most collected series',
-        value: seriesStats?.mostCollectedSeries?.name || '',
-        meta: seriesStats?.mostCollectedSeries?.bookCount !== undefined
-          ? `${formatNumber(seriesStats.mostCollectedSeries.bookCount)} books`
+        value: seriesStats?.largestSeries?.name || '',
+        meta: seriesStats?.largestSeries?.bookCount !== undefined
+          ? `${formatNumber(seriesStats.largestSeries.bookCount)} books`
           : '',
-        section: 'series'
+        href: seriesStats?.largestSeries?.id
+          ? `series-details?id=${encodeURIComponent(seriesStats.largestSeries.id)}`
+          : 'series'
       },
       {
         label: 'Most used location',
-        value: storageStats?.mostUsedLocation?.name || '',
-        meta: storageStats?.mostUsedLocation?.copyCount !== undefined
-          ? `${formatNumber(storageStats.mostUsedLocation.copyCount)} copies`
+        value: storageStats?.largestLocation?.path || storageStats?.largestLocation?.name || '',
+        meta: storageStats?.largestLocation?.directCopyCount !== undefined
+          ? `${formatNumber(Number(storageStats.largestLocation.directCopyCount ?? 0))} copies`
           : '',
-        section: 'storage'
+        href: storageStats?.largestLocation?.id
+          ? `storage-locations?id=${encodeURIComponent(storageStats.largestLocation.id)}`
+          : 'storage-locations'
       },
       {
         label: 'Most collected book type',
@@ -495,15 +542,19 @@
         meta: bookTypeStats?.mostCollectedType?.bookCount !== undefined
           ? `${formatNumber(bookTypeStats.mostCollectedType.bookCount)} books`
           : '',
-        section: 'books'
+        href: bookTypeStats?.mostCollectedType?.id
+          ? `books?filterBookTypeId=${encodeURIComponent(bookTypeStats.mostCollectedType.id)}`
+          : 'books'
       },
       {
-        label: 'Most used publisher',
-        value: publisherStats?.mostUsedPublisher?.name || '',
-        meta: publisherStats?.mostUsedPublisher?.bookCount !== undefined
-          ? `${formatNumber(publisherStats.mostUsedPublisher.bookCount)} books`
+        label: 'Most common publisher',
+        value: publisherStats?.mostCommonPublisher?.name || '',
+        meta: publisherStats?.mostCommonPublisher?.bookCount !== undefined
+          ? `${formatNumber(publisherStats.mostCommonPublisher.bookCount)} books`
           : '',
-        section: 'publishers'
+        href: publisherStats?.mostCommonPublisher?.id
+          ? `publisher-details?id=${encodeURIComponent(publisherStats.mostCommonPublisher.id)}`
+          : 'publishers'
       }
     ];
     renderHighlightCards(dom.overview.highlights, highlightItems);
@@ -514,7 +565,7 @@
   };
 
   const renderBookSection = async () => {
-    const [bookStats, bookTypeStats, languageStats, tagStats, bookTagStats] = await Promise.all([
+    const [bookStats, bookTypeStats, languageStats, bookTagStats] = await Promise.all([
       fetchStatsSafe('/book/stats', {
         fields: [
           'total',
@@ -534,16 +585,41 @@
       }, 'book-stats'),
       fetchStatsSafe('/booktype/stats', { fields: ['bookTypeBreakdown'] }, 'booktype-stats'),
       fetchStatsSafe('/languages/stats', { fields: ['languageBreakdown', 'booksMissingLanguage'] }, 'language-stats'),
-      fetchStatsSafe('/tags/stats', { fields: ['mostUsedTag', 'leastUsedTags', 'unusedTags', 'totalTags'] }, 'tag-stats'),
-      fetchStatsSafe('/booktags/stats', null, 'booktag-stats')
+      fetchStatsSafe('/booktags/stats', {
+        fields: ['tagBreakdown', 'untaggedBooks', 'mostTaggedBook'],
+        breakdownLimit: 8
+      }, 'booktag-stats')
     ]);
 
     const histogram = Array.isArray(bookStats?.publicationYearHistogram)
       ? [...bookStats.publicationYearHistogram]
       : [];
-    histogram.sort((a, b) => (a.year || 0) - (b.year || 0));
-    const publicationLabels = histogram.map((entry) => String(entry.year || 'Unknown'));
-    const publicationCounts = histogram.map((entry) => Number(entry.bookCount) || 0);
+    const yearCounts = new Map();
+    let unknownCount = 0;
+    histogram.forEach((entry) => {
+      const year = Number(entry.year);
+      const count = Number(entry.bookCount) || 0;
+      if (Number.isInteger(year) && year > 0) {
+        yearCounts.set(year, count);
+      } else if (count > 0) {
+        unknownCount += count;
+      }
+    });
+    const years = Array.from(yearCounts.keys()).sort((a, b) => a - b);
+    const publicationLabels = [];
+    const publicationCounts = [];
+    if (years.length) {
+      const minYear = years[0];
+      const maxYear = years[years.length - 1];
+      for (let year = minYear; year <= maxYear; year += 1) {
+        publicationLabels.push(String(year));
+        publicationCounts.push(yearCounts.get(year) || 0);
+      }
+    }
+    if (unknownCount > 0) {
+      publicationLabels.push('Unknown');
+      publicationCounts.push(unknownCount);
+    }
     renderChart(dom.books.publicationChart, publicationLabels.length ? {
       type: 'bar',
       data: {
@@ -566,7 +642,7 @@
     } : null, dom.books.publicationEmpty);
 
     const typeBreakdown = Array.isArray(bookTypeStats?.bookTypeBreakdown)
-      ? bookTypeStats.bookTypeBreakdown
+      ? bookTypeStats.bookTypeBreakdown.filter((entry) => Number(entry.bookCount) > 0)
       : [];
     const typeLabels = typeBreakdown.map((entry) => entry.name);
     const typeCounts = typeBreakdown.map((entry) => Number(entry.bookCount) || 0);
@@ -601,7 +677,9 @@
       options: { responsive: true, maintainAspectRatio: false }
     } : null, dom.books.languageEmpty);
 
-    const tagBreakdown = tagStats?.mostUsedTag ? [tagStats.mostUsedTag] : [];
+    const tagBreakdown = Array.isArray(bookTagStats?.tagBreakdown)
+      ? bookTagStats.tagBreakdown.filter((entry) => Number(entry.bookCount) > 0)
+      : [];
     const tagLabels = tagBreakdown.map((entry) => entry.name);
     const tagCounts = tagBreakdown.map((entry) => Number(entry.bookCount) || 0);
     renderChart(dom.books.tagChart, tagLabels.length ? {
@@ -647,11 +725,12 @@
       dom.books.qualityGrid.innerHTML = qualityItems.map((item) => `
         <div class="col-6">
           <div class="stats-card p-3 h-100">
-            <div class="stat-label">${escapeHtml(item.label)}</div>
+            <div class="stat-label">${renderTooltipLabel(item.label)}</div>
             <div class="stat-value">${escapeHtml(formatNumber(Math.max(item.value, 0)))}</div>
           </div>
         </div>
       `).join('');
+      initTooltips(dom.books.qualityGrid);
     }
 
     const highlights = [];
@@ -670,13 +749,13 @@
     if (bookStats?.longestBook?.title) {
       const longestLink = `<a href="book-details?id=${encodeURIComponent(bookStats.longestBook.id)}">${escapeHtml(bookStats.longestBook.title)}</a>`;
       highlights.push({
-        html: `<span class="fw-semibold">Longest book</span> <span class="text-muted">${longestLink} (${escapeHtml(formatNumber(bookStats.longestBook.pageCount))} pages)</span>`
+        html: `<span class="fw-semibold">${renderTooltipLabel('Longest book')}</span> <span class="text-muted">${longestLink} (${escapeHtml(formatNumber(bookStats.longestBook.pageCount))} pages)</span>`
       });
     }
     if (bookStats?.shortestBook?.title) {
       const shortestLink = `<a href="book-details?id=${encodeURIComponent(bookStats.shortestBook.id)}">${escapeHtml(bookStats.shortestBook.title)}</a>`;
       highlights.push({
-        html: `<span class="fw-semibold">Shortest book</span> <span class="text-muted">${shortestLink} (${escapeHtml(formatNumber(bookStats.shortestBook.pageCount))} pages)</span>`
+        html: `<span class="fw-semibold">${renderTooltipLabel('Shortest book')}</span> <span class="text-muted">${shortestLink} (${escapeHtml(formatNumber(bookStats.shortestBook.pageCount))} pages)</span>`
       });
     }
     if (bookTagStats?.untaggedBooks?.count !== undefined) {
@@ -685,15 +764,21 @@
         detail: formatNumber(bookTagStats.untaggedBooks.count)
       });
     }
-    if (tagStats?.mostUsedTag?.name) {
+    if (tagBreakdown[0]?.name) {
       highlights.push({
         label: 'Most used tag',
-        detail: `${tagStats.mostUsedTag.name} (${formatNumber(tagStats.mostUsedTag.bookCount)} books)`
+        detail: `${tagBreakdown[0].name} (${formatNumber(tagBreakdown[0].bookCount)} books)`
+      });
+    }
+    if (bookTagStats?.mostTaggedBook?.title) {
+      const mostTaggedLink = `<a href="book-details?id=${encodeURIComponent(bookTagStats.mostTaggedBook.id)}">${escapeHtml(bookTagStats.mostTaggedBook.title)}</a>`;
+      highlights.push({
+        html: `<span class="fw-semibold">${renderTooltipLabel('Most tagged book')}</span> <span class="text-muted">${mostTaggedLink} (${escapeHtml(formatNumber(bookTagStats.mostTaggedBook.tagCount))} tags)</span>`
       });
     }
     renderListItems(dom.books.highlights, highlights);
 
-    return Boolean(bookStats || bookTypeStats || languageStats || tagStats || bookTagStats);
+    return Boolean(bookStats || bookTypeStats || languageStats || bookTagStats);
   };
 
   const renderAuthorSection = async () => {
@@ -756,8 +841,8 @@
       ? authorStats.breakdownPerAuthor.slice(0, 6)
       : [];
     const topRows = topAuthors.map((entry) => `
-      <tr>
-        <td><a href="author-details?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.displayName || 'Unknown')}</a></td>
+      <tr class="clickable-row" data-row-href="author-details?id=${encodeURIComponent(entry.id)}">
+        <td>${escapeHtml(entry.displayName || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
       </tr>
     `);
@@ -823,9 +908,9 @@
   };
 
   const renderPublisherSection = async () => {
-    const publisherStats = await fetchStatsSafe('/publisher/stats', { fields: ['publisherBreakdown', 'mostUsedPublisher', 'oldestFoundedPublisher', 'total'] }, 'publisher-stats');
-    const breakdown = Array.isArray(publisherStats?.publisherBreakdown)
-      ? publisherStats.publisherBreakdown
+    const publisherStats = await fetchStatsSafe('/publisher/stats', { fields: ['breakdownPerPublisher', 'mostCommonPublisher', 'oldestFoundedPublisher', 'total'] }, 'publisher-stats');
+    const breakdown = Array.isArray(publisherStats?.breakdownPerPublisher)
+      ? publisherStats.breakdownPerPublisher
       : [];
     const topPublishers = breakdown.slice(0, 8);
     const labels = topPublishers.map((entry) => entry.name);
@@ -845,18 +930,18 @@
     } : null, dom.publishers.topEmpty);
 
     const rows = topPublishers.map((entry) => `
-      <tr>
-        <td><a href="publisher-details?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.name || 'Unknown')}</a></td>
+      <tr class="clickable-row" data-row-href="publisher-details?id=${encodeURIComponent(entry.id)}">
+        <td>${escapeHtml(entry.name || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
       </tr>
     `);
     renderTableRows(dom.publishers.breakdownTable, rows, 2);
 
     const highlightItems = [];
-    if (publisherStats?.mostUsedPublisher?.name) {
+    if (publisherStats?.mostCommonPublisher?.name) {
       highlightItems.push({
-        label: 'Most used publisher',
-        detail: `${publisherStats.mostUsedPublisher.name} (${formatNumber(publisherStats.mostUsedPublisher.bookCount)} books)`
+        label: 'Most common publisher',
+        detail: `${publisherStats.mostCommonPublisher.name} (${formatNumber(publisherStats.mostCommonPublisher.bookCount)} books)`
       });
     }
     if (publisherStats?.oldestFoundedPublisher?.name) {
@@ -947,8 +1032,8 @@
     renderListItems(dom.series.healthList, healthItems);
 
     const breakdownRows = topSeries.map((entry) => `
-      <tr>
-        <td><a href="series-details?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.name || 'Unknown')}</a></td>
+      <tr class="clickable-row" data-row-href="series-details?id=${encodeURIComponent(entry.id)}">
+        <td>${escapeHtml(entry.name || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.gapCount ?? 0))}</td>
       </tr>
@@ -996,12 +1081,13 @@
         const directCount = Number(mostUsed.directCopyCount ?? 0);
         dom.storage.highlights.innerHTML = `
           <div class="stat-label">${escapeHtml(pathLabel)}</div>
-          <div class="stat-value">${escapeHtml(formatNumber(directCount))}</div>
+          <div class="stat-value" data-bs-toggle="tooltip" data-bs-title="Direct copies stored in this location.">${escapeHtml(formatNumber(directCount))}</div>
           <div class="text-muted small">Direct copies in this location.</div>
           <div class="mt-3">
             <a class="btn btn-sm btn-outline-secondary" href="storage-locations?id=${encodeURIComponent(mostUsed.id)}">Open location</a>
           </div>
         `;
+        initTooltips(dom.storage.highlights);
       } else {
         dom.storage.highlights.innerHTML = '<div class="text-muted">No storage data yet.</div>';
       }
@@ -1010,8 +1096,8 @@
     const breakdownRows = breakdown.map((entry) => {
       const totalCopies = Number(entry.directCopyCount ?? 0) + Number(entry.nestedCopyCount ?? 0);
       return `
-        <tr>
-          <td><a href="storage-locations?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.path || 'Unknown')}</a></td>
+        <tr class="clickable-row" data-row-href="storage-locations?id=${encodeURIComponent(entry.id)}">
+          <td>${escapeHtml(entry.path || 'Unknown')}</td>
           <td class="text-end">${escapeHtml(formatNumber(totalCopies))}</td>
           <td class="text-end">${escapeHtml(formatNumber(entry.directCopyCount ?? 0))}</td>
           <td class="text-end">${escapeHtml(formatNumber(entry.nestedCopyCount ?? 0))}</td>
@@ -1052,11 +1138,12 @@
     dom.timeline.summary.innerHTML = summaryItems.map((item) => `
       <div class="col-6 col-md-3">
         <div class="stats-card p-3 h-100">
-          <div class="stat-label">${escapeHtml(item.label)}</div>
+          <div class="stat-label">${renderTooltipLabel(item.label)}</div>
           <div class="stat-value">${escapeHtml(formatNumber(item.value))}</div>
         </div>
       </div>
     `).join('');
+    initTooltips(dom.timeline.summary);
   };
 
   const renderTimelineChart = (payload) => {
@@ -1348,6 +1435,7 @@
     setFeedback('');
     destroyCharts();
     state.sectionLoaded.clear();
+    state.statsCache.clear();
     await showSection(state.activeSection, { force: true });
     if (dom.refreshSpinner) dom.refreshSpinner.classList.add('d-none');
     if (dom.refreshBtn) dom.refreshBtn.disabled = false;
@@ -1366,55 +1454,25 @@
       dom.refreshBtn.addEventListener('click', handleRefresh);
     }
 
-    if (dom.exportLibraryBtn) {
-      dom.exportLibraryBtn.addEventListener('click', async () => {
-        log('Library export requested.');
-        if (dom.exportLibrarySpinner) dom.exportLibrarySpinner.classList.remove('d-none');
-        dom.exportLibraryBtn.disabled = true;
-        try {
-          const response = await apiFetch('/export?format=json&entity=all', { method: 'GET' });
-          if (await handleRateLimit(response)) return;
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            warn('Library export failed.', payload);
-            setFeedback(payload.message || 'Unable to export library right now.');
-            return;
-          }
-          const exportData = payload.data?.data ?? payload.data ?? payload;
-          const exportedAt = payload.data?.exportedAt || new Date().toISOString();
-          const fileName = `book-project-export-${exportedAt.replace(/[:.]/g, '-')}.json`;
-          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          link.click();
-          URL.revokeObjectURL(url);
-          log('Library export downloaded.', { fileName });
-        } catch (error) {
-          errorLog('Library export failed.', error);
-          setFeedback('Unable to export library right now. Please try again soon.');
-        } finally {
-          if (dom.exportLibrarySpinner) dom.exportLibrarySpinner.classList.add('d-none');
-          dom.exportLibraryBtn.disabled = false;
-        }
-      });
-    }
-
-    if (dom.statsHelpBtn) {
-      dom.statsHelpBtn.addEventListener('click', async () => {
-        log('Opening statistics help modal.');
-        await showModal('statsHelpModal', { backdrop: 'static', keyboard: true });
-      });
-    }
-
     document.addEventListener('click', (event) => {
-      const target = event.target.closest('[data-section-link]');
-      if (!target) return;
-      const section = target.getAttribute('data-section-link');
-      if (!section) return;
-      event.preventDefault();
-      showSection(section, { updateHash: true, pushHash: true });
+      const targetCard = event.target.closest('[data-href]');
+      if (targetCard && targetCard.dataset.href) {
+        window.location.href = targetCard.dataset.href;
+        return;
+      }
+      const row = event.target.closest('[data-row-href]');
+      if (row && row.dataset.rowHref) {
+        window.location.href = row.dataset.rowHref;
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const targetCard = event.target.closest('[data-href]');
+      if (targetCard && targetCard.dataset.href) {
+        event.preventDefault();
+        window.location.href = targetCard.dataset.href;
+      }
     });
 
     window.addEventListener('hashchange', () => {
@@ -1466,30 +1524,6 @@
       });
     }
 
-    document.querySelectorAll('.js-chart-download').forEach((button) => {
-      button.addEventListener('click', () => {
-        const chartId = button.getAttribute('data-chart-target');
-        if (!chartId) return;
-        downloadChartImage(chartId);
-      });
-    });
-
-    const canCopy = Boolean(navigator.clipboard && window.ClipboardItem);
-    document.querySelectorAll('.js-chart-copy').forEach((button) => {
-      if (!canCopy) {
-        button.classList.add('d-none');
-        return;
-      }
-      button.addEventListener('click', async () => {
-        const chartId = button.getAttribute('data-chart-target');
-        if (!chartId) return;
-        try {
-          await copyChartImage(chartId);
-        } catch (error) {
-          warn('Failed to copy chart image.', error);
-        }
-      });
-    });
   };
 
   const init = async () => {
@@ -1499,6 +1533,7 @@
       return;
     }
     attachEvents();
+    initTooltips();
     const initialSection = getSectionFromHash() || state.activeSection;
     state.activeSection = initialSection;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });

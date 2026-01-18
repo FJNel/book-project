@@ -908,6 +908,17 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			};
 		}
 
+		let totalBooks = null;
+		if (selected.includes("breakdownPerAuthor") || selected.includes("mostRepresentedAuthor")) {
+			const totalBooksResult = await pool.query(
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE user_id = $1 AND deleted_at IS NULL`,
+				[userId]
+			);
+			totalBooks = totalBooksResult.rows[0]?.count ?? 0;
+		}
+
 		if (selected.includes("mostRepresentedAuthor")) {
 			const topResult = await pool.query(
 				`SELECT a.id, a.display_name, COUNT(DISTINCT ba.book_id)::int AS book_count
@@ -1006,17 +1017,6 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		const breakdownTargets = breakdowns.length > 0
 			? new Set(breakdowns)
 			: new Set(["perAuthor", "perBirthDecade", "perAliveDeceased"]);
-
-		let totalBooks = null;
-		if (selected.includes("breakdownPerAuthor") || selected.includes("mostRepresentedAuthor")) {
-			const totalBooksResult = await pool.query(
-				`SELECT COUNT(*)::int AS count
-				 FROM books
-				 WHERE user_id = $1 AND deleted_at IS NULL`,
-				[userId]
-			);
-			totalBooks = totalBooksResult.rows[0]?.count ?? 0;
-		}
 
 		if (selected.includes("breakdownPerAuthor") && breakdownTargets.has("perAuthor")) {
 			const perAuthorResult = await pool.query(

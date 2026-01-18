@@ -3055,7 +3055,7 @@ paths:
             examples:
               default:
                 value:
-                  fields: ["publisherBreakdown", "mostUsedPublisher"]
+                  fields: ["breakdownPerPublisher", "mostCommonPublisher"]
       responses:
         '200':
           description: Stats
@@ -3083,7 +3083,7 @@ paths:
                           id: 5
                           name: Allen & Unwin
                           foundedYear: 1910
-                        publisherBreakdown:
+                        breakdownPerPublisher:
                           - id: 5
                             name: Allen & Unwin
                             bookCount: 12
@@ -3092,7 +3092,7 @@ paths:
                             name: HarperCollins
                             bookCount: 18
                             percentageOfBooks: 45.0
-                        mostUsedPublisher:
+                        mostCommonPublisher:
                           id: 6
                           name: HarperCollins
                           bookCount: 18
@@ -5366,12 +5366,12 @@ paths:
                         averageTagsPerBook: 2.4
                         untaggedBooks:
                           count: 5
-                          percentageOfBooks: 4.2
-                        tagCoveragePercentage: 78.5
+                          percentage: 4.2
                         mostTaggedBook:
-                          bookId: 22
+                          id: 22
                           title: The Lord of the Rings
                           tagCount: 5
+                          percentageOfBooks: 5.0
                         coOccurringTags:
                           - tags: ["Fantasy", "Adventure"]
                             bookCount: 12
@@ -5379,16 +5379,24 @@ paths:
                           - tags: ["Fantasy", "Magic"]
                             bookCount: 9
                             percentageOfBooks: 7.5
-                        tagEntropy: 1.85
+                        tagEntropy:
+                          totalUses: 40
+                          distinctTagsUsed: 8
+                          entropy: 1.85
+                          normalizedEntropy: 0.64
                         tagBreakdown:
                           - id: 7
                             name: Fantasy
                             bookCount: 34
+                            tagUseCount: 40
                             percentageOfBooks: 28.3
+                            percentageOfTagUses: 18.5
                           - id: 8
                             name: Adventure
                             bookCount: 26
+                            tagUseCount: 30
                             percentageOfBooks: 21.7
+                            percentageOfTagUses: 13.8
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
