@@ -340,6 +340,151 @@ function checkLoginStatus() {
     }, true);
 })();
 
+function getLoginRedirectUrl() {
+	return 'index?action=login';
+}
+
+window.authSession = window.authSession || {};
+window.authSession.clearLocalSession = function clearLocalSession() {
+	localStorage.removeItem('accessToken');
+	localStorage.removeItem('refreshToken');
+	localStorage.removeItem('userProfile');
+};
+
+window.authSession.logout = async function logoutSession({ allDevices = false } = {}) {
+	const refreshToken = localStorage.getItem('refreshToken');
+	const payload = {
+		refreshToken: refreshToken || undefined,
+		allDevices: Boolean(allDevices)
+	};
+
+	console.log('[Logout] Requesting logout.', { allDevices: Boolean(allDevices) });
+
+	if (!refreshToken && !allDevices) {
+		console.warn('[Logout] No refresh token found; clearing local session only.');
+		window.authSession.clearLocalSession();
+		window.location.href = getLoginRedirectUrl();
+		return { success: true, localOnly: true };
+	}
+
+	const loadingModal = document.getElementById('pageLoadingModal');
+	if (loadingModal && window.modalManager?.showModal) {
+		await window.modalManager.showModal(loadingModal, { backdrop: 'static', keyboard: false });
+	}
+
+	try {
+		const response = await apiFetch('/auth/logout', {
+			method: 'POST',
+			body: JSON.stringify(payload)
+		});
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok) {
+			console.warn('[Logout] Logout failed.', { status: response.status, data });
+			return { success: false, status: response.status, data };
+		}
+		console.log('[Logout] Logout successful.', data);
+		window.authSession.clearLocalSession();
+		window.location.href = getLoginRedirectUrl();
+		return { success: true, data };
+	} catch (error) {
+		console.error('[Logout] Logout request failed.', error);
+		return { success: false, error };
+	} finally {
+		if (loadingModal && window.modalManager?.hideModal) {
+			await window.modalManager.hideModal(loadingModal);
+		}
+	}
+};
+
+function ensureLogoutModal() {
+	if (document.getElementById('logoutConfirmModal')) {
+		return document.getElementById('logoutConfirmModal');
+	}
+
+	const modal = document.createElement('div');
+	modal.className = 'modal fade';
+	modal.id = 'logoutConfirmModal';
+	modal.tabIndex = -1;
+	modal.setAttribute('aria-hidden', 'true');
+	modal.innerHTML = `
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Log out</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-2">How would you like to log out?</p>
+					<p class="small text-muted mb-0">This device only ends the current session. All devices invalidates every active session for this account.</p>
+					<div class="alert alert-danger d-none mt-3" id="logoutError"></div>
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-primary" type="button" id="logoutDeviceBtn">This device only</button>
+					<button class="btn btn-outline-danger" type="button" id="logoutAllBtn">All devices</button>
+					<button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+				</div>
+			</div>
+		</div>
+	`;
+	document.body.appendChild(modal);
+	return modal;
+}
+
+function attachLogoutHandlers() {
+	const modal = ensureLogoutModal();
+	if (!modal) return;
+
+	const logoutButtons = document.querySelectorAll('.js-logout-btn');
+	if (!logoutButtons.length) return;
+
+	const deviceBtn = modal.querySelector('#logoutDeviceBtn');
+	const allBtn = modal.querySelector('#logoutAllBtn');
+	const errorEl = modal.querySelector('#logoutError');
+
+	const showModal = async () => {
+		if (errorEl) {
+			errorEl.classList.add('d-none');
+			errorEl.textContent = '';
+		}
+		if (window.modalManager?.showModal) {
+			await window.modalManager.showModal(modal);
+		} else if (window.bootstrap?.Modal) {
+			window.bootstrap.Modal.getOrCreateInstance(modal).show();
+		}
+	};
+
+	logoutButtons.forEach((btn) => {
+		btn.addEventListener('click', (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			showModal();
+		});
+	});
+
+	const runLogout = async (allDevices) => {
+		if (deviceBtn) deviceBtn.disabled = true;
+		if (allBtn) allBtn.disabled = true;
+		const result = await window.authSession.logout({ allDevices });
+		if (!result || !result.success) {
+			if (errorEl) {
+				errorEl.textContent = 'Unable to log out right now. Please try again.';
+				errorEl.classList.remove('d-none');
+			}
+			if (deviceBtn) deviceBtn.disabled = false;
+			if (allBtn) allBtn.disabled = false;
+		}
+	};
+
+	if (deviceBtn) {
+		deviceBtn.addEventListener('click', () => runLogout(false));
+	}
+	if (allBtn) {
+		allBtn.addEventListener('click', () => runLogout(true));
+	}
+}
+
+document.addEventListener('DOMContentLoaded', attachLogoutHandlers);
+
 let legacyPageLoadingModalInstance;
 
 function showPageLoadingModal() {

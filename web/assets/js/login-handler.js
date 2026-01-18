@@ -273,9 +273,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleLoginSuccess(data) {
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
 
-        // Save tokens
+        // Save tokens + user profile
         localStorage.setItem('accessToken', data.data.accessToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);
+        localStorage.setItem('userProfile', JSON.stringify({
+            id: data.data.user.id,
+            email: data.data.user.email,
+            fullName: data.data.user.fullName,
+            preferredName: data.data.user.preferredName,
+            role: data.data.user.role
+        }));
 
         // Remove ?action=login from URL so nothing re-opens the login modal later
         try {
@@ -323,8 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            console.log('[Redirect] Redirecting to books...');
-            window.location.href = 'books';
+            console.log('[Redirect] Redirecting to dashboard...');
+            window.location.href = 'dashboard';
         }, 3000);
     }
 

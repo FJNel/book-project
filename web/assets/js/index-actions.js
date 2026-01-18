@@ -104,11 +104,17 @@ async function handleActionModalFromQuery() {
 }
 
 async function logoutCurrentUser() {
+	if (window.authSession && typeof window.authSession.logout === 'function') {
+		await window.authSession.logout({ allDevices: false });
+		return;
+	}
+
 	const refreshToken = localStorage.getItem('refreshToken');
 	if (!refreshToken) {
 		console.warn('[Index Actions] No refresh token found; clearing local tokens only.');
 		localStorage.removeItem('accessToken');
 		localStorage.removeItem('refreshToken');
+		localStorage.removeItem('userProfile');
 		return;
 	}
 
@@ -129,6 +135,7 @@ async function logoutCurrentUser() {
 
 	localStorage.removeItem('accessToken');
 	localStorage.removeItem('refreshToken');
+	localStorage.removeItem('userProfile');
 }
 
 function attachAlreadyLoggedInHandlers(modalElement) {
@@ -155,7 +162,7 @@ function attachAlreadyLoggedInHandlers(modalElement) {
 	}, { once: true });
 
 	dashboardButton.addEventListener('click', () => {
-		window.location.href = 'https://bookproject.fjnel.co.za/add-book';
+		window.location.href = 'dashboard';
 	}, { once: true });
 }
 
@@ -182,8 +189,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 
 	await waitForMaintenanceModal();
-	if (await showAlreadyLoggedInModalIfNeeded()) {
-		console.log('[Index Actions] Already logged in modal shown; action modals deferred.');
+	if (getTokensPresent()) {
+		console.log('[Index Actions] User already logged in; redirecting to dashboard.');
+		window.location.href = 'dashboard';
 		return;
 	}
 	await handleActionModalFromQuery();
