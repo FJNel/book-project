@@ -570,149 +570,7 @@
                 </div>
             </div>
         </div>
-        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addBookTypeModal" aria-labelledby="addBookTypeModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="addBookTypeModalLabel">Create a New Book Type</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger d-none" role="alert" id="threeBookTypeErrorAlert"></div>
-                        <form id="threeAddBookTypeForm">
-                            <div class="mb-3"><label class="form-label" for="threeEdtBookTypeName"><strong>Book Type Name</strong></label><label class="form-label text-danger" for="threeEdtBookTypeName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter a clear name for this book type, such as Hardcover or Softcover.">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                </svg><input class="form-control" type="text" id="threeEdtBookTypeName" name="bookTypeName" autocomplete="off" required="" minlength="2" maxlength="100"><small class="form-text" id="threeBookTypeNameHelp"></small></div>
-                            <div class="mb-0"><label class="form-label" for="threeRdtBookTypeDescription"><strong>Description</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Describe the physical format and any special notes for this book type.">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                </svg><textarea class="form-control" id="threeRdtBookTypeDescription" name="bookTypeDescription" autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea><small class="form-text" id="threeBookTypeDescriptionHelp"></small></div>
-                        </form>
-                    </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="threeBtnResetBookType" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button">Add Book Type</button></div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addAuthorModal" aria-labelledby="addAuthorModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="addAuthorModalLabel">Add a New Author</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger d-none" role="alert" id="fourAuthorErrorAlert"></div>
-                        <form id="fourAddAuthorForm">
-                            <div class="mb-3"><label class="form-label" for="fourEdtAuthorDisplayName"><strong>Display Name</strong></label><label class="form-label text-danger" for="fourEdtAuthorDisplayName"><strong>*</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="The name shown in your collection (for example, a pen name or organization).">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
-                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
-                                </svg><input class="form-control" type="text" id="fourEdtAuthorDisplayName" name="authorDisplayName" autocomplete="off" required="" minlength="2" maxlength="150"></div>
-                            <div class="row">
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorFirstName"><strong>First Name(s)</strong></label><input class="form-control" type="text" id="fourEdtAuthorFirstName" name="authorFirstName" autocomplete="off" minlength="2" maxlength="150"></div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorLastName"><strong>Last Name</strong></label><input class="form-control" type="text" id="fourEdtAuthorLastName" name="authorLastName" autocomplete="off" minlength="2" maxlength="100"></div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="fourEdtAuthorBirthDate"><strong>Birth Date</strong></label><input class="form-control" type="text" id="fourEdtAuthorBirthDate" name="authorBirthDate" autocomplete="off" maxlength="50"><small class="form-text" id="fourAuthorBirthDateHelp"></small></div>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="fourChkAuthorDeceased" data-bs-toggle="collapse" data-bs-target="#authorDeathDateWrap" aria-expanded="false" aria-controls="authorDeathDateWrap" autocomplete="off">
-                                        <label class="form-check-label" for="fourChkAuthorDeceased">Author is deceased</label>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <div class="collapse mb-3 mb-md-0" id="authorDeathDateWrap">
-                                        <label class="form-label" for="fourEdtAuthorDeathDate"><strong>Death Date</strong></label><input class="form-control" type="text" id="fourEdtAuthorDeathDate" name="authorDeathDate" autocomplete="off" maxlength="50"><small class="form-text" id="fourAuthorDeathDateHelp"></small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-0"><label class="form-label" for="fourRdtAuthorBio"><strong>Short Bio</strong></label><textarea class="form-control" id="fourRdtAuthorBio" name="authorBio" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
-                        </form>
-                    </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button">Add Author</button></div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addPublisherModal" aria-labelledby="addPublisherModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="addPublisherModalLabel">Add a New Publisher</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger d-none" role="alert" id="fivePublisherErrorAlert"></div>
-                        <form id="fiveAddPublisherForm">
-                            <div class="mb-3"><label class="form-label" for="fiveEdtPublisherName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="fiveEdtPublisherName"><strong>*</strong></label><input class="form-control" type="text" id="fiveEdtPublisherName" name="publisherName" autocomplete="off" required="" minlength="2" maxlength="150"></div>
-                            <div class="row">
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-3"><label class="form-label" for="fiveEdtPublisherFoundedDate"><strong>Founded Date</strong></label><input class="form-control" type="text" id="fiveEdtPublisherFoundedDate" name="publisherFoundedDate" autocomplete="off" maxlength="50"><small class="form-text" id="fivePublisherFoundedDateHelp"></small></div>
-                                </div>
-                            </div>
-                            <div class="mb-3"><label class="form-label" for="fiveEdtPublisherWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="fiveEdtPublisherWebsite" name="publisherWebsite" inputmode="url" autocomplete="off"></div>
-                            <div class="mb-0"><label class="form-label" for="fiveRdtPublisherNotes"><strong>Notes</strong></label><textarea class="form-control" id="fiveRdtPublisherNotes" name="publisherNotes" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
-                        </form>
-                    </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fiveBtnResetPublisher" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Add Publisher</button></div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addSeriesModal" aria-labelledby="addSeriesModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="addSeriesModalLabel">Add a New Series</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger d-none" role="alert" id="sixSeriesErrorAlert"></div>
-                        <p class="text-muted mb-3">Series start and end dates are automatically derived from the books you add to the series.</p>
-                        <form id="sixAddSeriesForm">
-                            <div class="mb-3"><label class="form-label" for="sixEdtSeriesName"><strong>Series Name</strong></label><label class="form-label text-danger" for="sixEdtSeriesName"><strong>*</strong></label><input class="form-control" type="text" id="sixEdtSeriesName" name="seriesName" autocomplete="off" required="" minlength="2" maxlength="150"></div>
-                            <div class="mb-3"><label class="form-label" for="sixEdtSeriesWebsite"><strong>Series Website</strong></label><input class="form-control" type="url" id="sixEdtSeriesWebsite" name="seriesWebsite" inputmode="url" autocomplete="off"></div>
-                            <div class="mb-0"><label class="form-label" for="sixRdtSeriesDescription"><strong>Description</strong></label><textarea class="form-control" id="sixRdtSeriesDescription" name="seriesDescription" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea></div>
-                        </form>
-                    </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="sixBtnResetSeries" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Add Series</button></div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addLocationModal" aria-labelledby="addLocationModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title" id="addLocationModalLabel">Add a New Storage Location</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-                    <!-- TODO Ensure that a user cannot add two base storage locations with the same name -->
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger d-none" role="alert" id="eightLocationErrorAlert"></div>
-                        <form id="eightAddLocationForm">
-                            <div class="mb-3" id="eightLocationTypeGroup">
-                                <label class="form-label"><strong>Location Type</strong></label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationBase" value="base" checked="" data-bs-toggle="collapse" data-bs-target="#eightBaseLocationFields" aria-controls="eightBaseLocationFields" autocomplete="off">
-                                    <label class="form-check-label" for="eightRdoLocationBase">New base location</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="locationType" id="eightRdoLocationNested" value="nested" data-bs-toggle="collapse" data-bs-target="#eightNestedLocationFields" aria-controls="eightNestedLocationFields" autocomplete="off">
-                                    <label class="form-check-label" for="eightRdoLocationNested">Nested under an existing location</label>
-                                </div>
-                            </div>
-                            <div class="collapse show" id="eightBaseLocationFields" data-bs-parent="#eightLocationTypeGroup">
-                                <div class="mb-3"><label class="form-label" for="eightEdtLocationNameBase"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameBase"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameBase" name="locationNameBase" autocomplete="off" required="" minlength="2" maxlength="200"></div>
-                                <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesBase"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesBase" name="locationNotesBase" autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
-                            </div>
-                            <div class="collapse" id="eightNestedLocationFields" data-bs-parent="#eightLocationTypeGroup">
-                                <div class="mb-3"><label class="form-label" for="eightCmbParentLocation"><strong>Parent Location</strong></label><label class="form-label text-danger" for="eightCmbParentLocation"><strong>*</strong></label><select class="form-select" id="eightCmbParentLocation" name="parentLocation" autocomplete="off"></select></div>
-                                <div class="mb-3"><label class="form-label" for="eightEdtLocationNameNested"><strong>Location Name</strong></label><label class="form-label text-danger" for="eightEdtLocationNameNested"><strong>*</strong></label><input class="form-control" type="text" id="eightEdtLocationNameNested" name="locationNameNested" autocomplete="off" required="" minlength="2" maxlength="200"></div>
-                                <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesNested"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesNested" name="locationNotesNested" autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea></div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer"><button class="btn btn-outline-secondary" id="eightBtnResetLocation" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Add Location</button></div>
-                </div>
-            </div>
-        </div>
+        <div id="sharedAddEntityModals"></div>
     </div>
     <div id="recaptcha-root" class="hidden" data-sitekey="6LeedsorAAAAALv_xUltcVyeYvCInfhGVl7qkeMA"></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
@@ -723,13 +581,9 @@
     <script src="assets/js/partial-date-parser.js"></script>
     <script src="assets/js/maintenance.js"></script>
     <script src="assets/js/add-book-helpers.js"></script>
-    <script src="assets/js/add-book-booktypes.js"></script>
-    <script src="assets/js/add-book-authors.js"></script>
-    <script src="assets/js/add-book-publishers.js"></script>
-    <script src="assets/js/add-book-series.js"></script>
+    <script src="assets/js/shared-add-modals.js"></script>
     <script src="assets/js/add-book-languages.js"></script>
     <script src="assets/js/add-book-tags.js"></script>
-    <script src="assets/js/add-book-locations.js"></script>
     <script src="assets/js/add-book-cover.js"></script>
     <script>
         window.ADD_BOOK_REDIRECT_BASE = 'book-details?id=';

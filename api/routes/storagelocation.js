@@ -1119,6 +1119,18 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
+		if (!Number.isInteger(parentId)) {
+			const duplicateBase = await pool.query(
+				`SELECT id FROM storage_locations
+				 WHERE user_id = $1 AND parent_id IS NULL AND LOWER(name) = LOWER($2)
+				 LIMIT 1`,
+				[userId, name]
+			);
+			if (duplicateBase.rows.length > 0) {
+				return errorResponse(res, 409, "Storage location already exists.", ["A base storage location with this name already exists."]);
+			}
+		}
+
 		const result = await pool.query(
 			`INSERT INTO storage_locations (user_id, name, parent_id, notes, created_at, updated_at)
 			 VALUES ($1, $2, $3, $4, NOW(), NOW())
@@ -1204,6 +1216,15 @@ async function handleStorageLocationUpdate(req, res, targetId) {
 	}
 
 	try {
+		const currentResult = await pool.query(
+			`SELECT id, name, parent_id FROM storage_locations WHERE user_id = $1 AND id = $2`,
+			[userId, targetId]
+		);
+		if (currentResult.rows.length === 0) {
+			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
+		}
+		const current = currentResult.rows[0];
+
 		if (hasParentId && Number.isInteger(parentId)) {
 			const existing = await pool.query(
 				`SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2`,
@@ -1225,6 +1246,20 @@ async function handleStorageLocationUpdate(req, res, targetId) {
 			);
 			if (cycleCheck.rows.length > 0) {
 				return errorResponse(res, 400, "Validation Error", ["Parent location cannot be a child of this location."]);
+			}
+		}
+
+		const effectiveName = hasName ? name : current.name;
+		const effectiveParentId = hasParentId ? parentId : current.parent_id;
+		if (effectiveParentId === null || effectiveParentId === undefined) {
+			const duplicateBase = await pool.query(
+				`SELECT id FROM storage_locations
+				 WHERE user_id = $1 AND parent_id IS NULL AND LOWER(name) = LOWER($2) AND id <> $3
+				 LIMIT 1`,
+				[userId, effectiveName, targetId]
+			);
+			if (duplicateBase.rows.length > 0) {
+				return errorResponse(res, 409, "Storage location already exists.", ["A base storage location with this name already exists."]);
 			}
 		}
 
@@ -1253,9 +1288,6 @@ async function handleStorageLocationUpdate(req, res, targetId) {
 		`;
 
 		const result = await pool.query(query, params);
-		if (result.rows.length === 0) {
-			return errorResponse(res, 404, "Storage location not found.", ["The requested storage location could not be located."]);
-		}
 
 		const row = result.rows[0];
 		const pathResult = await pool.query(

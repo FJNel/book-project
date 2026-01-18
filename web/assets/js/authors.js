@@ -890,6 +890,12 @@
       });
     }
 
+    if (dom.addAuthorBtn) {
+      dom.addAuthorBtn.addEventListener('click', () => {
+        window.sharedAddModals?.open('author');
+      });
+    }
+
     if (dom.authorAddResetBtn) {
       dom.authorAddResetBtn.addEventListener('click', resetAddAuthorForm);
     }
@@ -931,6 +937,19 @@
     }
 
     await loadAuthors();
+
+    const sharedEvents = window.sharedAddModals?.events;
+    if (sharedEvents) {
+      sharedEvents.addEventListener('author:created', async (event) => {
+        showAlert({ message: 'Author created successfully.', type: 'success' });
+        if (event?.detail?.id) {
+          state.page = 1;
+          await loadAuthors();
+        } else {
+          triggerFetch();
+        }
+      });
+    }
 
     if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
       window.pageContentReady.resolve({ success: true });

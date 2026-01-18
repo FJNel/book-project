@@ -118,63 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteCopyConfirmBtn = document.getElementById('deleteCopyConfirmBtn');
   const deleteCopyErrorAlert = document.getElementById('deleteCopyErrorAlert');
 
-  const addPublisherModal = document.getElementById('addPublisherModal');
-  const addPublisherErrorAlert = document.getElementById('addPublisherErrorAlert');
-  const addPublisherName = document.getElementById('addPublisherName');
-  const addPublisherFounded = document.getElementById('addPublisherFounded');
-  const addPublisherWebsite = document.getElementById('addPublisherWebsite');
-  const addPublisherNotes = document.getElementById('addPublisherNotes');
-  const addPublisherSaveBtn = document.getElementById('addPublisherSaveBtn');
-  const addPublisherNameHelp = document.getElementById('addPublisherNameHelp');
-  const addPublisherFoundedHelp = document.getElementById('addPublisherFoundedHelp');
-  const addPublisherWebsiteHelp = document.getElementById('addPublisherWebsiteHelp');
-  const addPublisherNotesHelp = document.getElementById('addPublisherNotesHelp');
-
-  const addBookTypeModal = document.getElementById('addBookTypeModal');
-  const addBookTypeErrorAlert = document.getElementById('addBookTypeErrorAlert');
-  const addBookTypeName = document.getElementById('addBookTypeName');
-  const addBookTypeDescription = document.getElementById('addBookTypeDescription');
-  const addBookTypeSaveBtn = document.getElementById('addBookTypeSaveBtn');
-  const addBookTypeNameHelp = document.getElementById('addBookTypeNameHelp');
-  const addBookTypeDescriptionHelp = document.getElementById('addBookTypeDescriptionHelp');
-
-  const addAuthorModal = document.getElementById('addAuthorModal');
-  const addAuthorErrorAlert = document.getElementById('addAuthorErrorAlert');
-  const addAuthorDisplayName = document.getElementById('addAuthorDisplayName');
-  const addAuthorFirstNames = document.getElementById('addAuthorFirstNames');
-  const addAuthorLastName = document.getElementById('addAuthorLastName');
-  const addAuthorBirthDate = document.getElementById('addAuthorBirthDate');
-  const addAuthorDeceased = document.getElementById('addAuthorDeceased');
-  const addAuthorDeathDate = document.getElementById('addAuthorDeathDate');
-  const addAuthorBio = document.getElementById('addAuthorBio');
-  const addAuthorSaveBtn = document.getElementById('addAuthorSaveBtn');
-  const addAuthorDisplayNameHelp = document.getElementById('addAuthorDisplayNameHelp');
-  const addAuthorFirstNamesHelp = document.getElementById('addAuthorFirstNamesHelp');
-  const addAuthorLastNameHelp = document.getElementById('addAuthorLastNameHelp');
-  const addAuthorBirthDateHelp = document.getElementById('addAuthorBirthDateHelp');
-  const addAuthorDeathDateHelp = document.getElementById('addAuthorDeathDateHelp');
-  const addAuthorBioHelp = document.getElementById('addAuthorBioHelp');
-
-  const addSeriesModal = document.getElementById('addSeriesModal');
-  const addSeriesErrorAlert = document.getElementById('addSeriesErrorAlert');
-  const addSeriesName = document.getElementById('addSeriesName');
-  const addSeriesWebsite = document.getElementById('addSeriesWebsite');
-  const addSeriesDescription = document.getElementById('addSeriesDescription');
-  const addSeriesSaveBtn = document.getElementById('addSeriesSaveBtn');
-  const addSeriesNameHelp = document.getElementById('addSeriesNameHelp');
-  const addSeriesWebsiteHelp = document.getElementById('addSeriesWebsiteHelp');
-  const addSeriesDescriptionHelp = document.getElementById('addSeriesDescriptionHelp');
-
-  const addLocationModal = document.getElementById('addLocationModal');
-  const addLocationErrorAlert = document.getElementById('addLocationErrorAlert');
-  const addLocationName = document.getElementById('addLocationName');
-  const addLocationParent = document.getElementById('addLocationParent');
-  const addLocationNotes = document.getElementById('addLocationNotes');
-  const addLocationSaveBtn = document.getElementById('addLocationSaveBtn');
-  const addLocationNameHelp = document.getElementById('addLocationNameHelp');
-  const addLocationParentHelp = document.getElementById('addLocationParentHelp');
-  const addLocationNotesHelp = document.getElementById('addLocationNotesHelp');
-
   const toggleSubtitle = (text) => {
     const el = document.getElementById('bookSubtitle');
     if (!el) return;
@@ -1830,329 +1773,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const savePublisher = async () => {
-    const name = addPublisherName.value.trim();
-    if (!name) {
-      setHelpText(addPublisherNameHelp, 'Publisher name is required.', true);
-      return;
-    }
-    clearHelpText(addPublisherNameHelp);
-    const foundedRaw = addPublisherFounded.value.trim();
-    if (foundedRaw) {
-      const parsed = parsePartialDateInput(foundedRaw);
-      if (parsed.error) {
-        setHelpText(addPublisherFoundedHelp, parsed.error, true);
-        return;
-      }
-      clearHelpText(addPublisherFoundedHelp);
-    } else {
-      clearHelpText(addPublisherFoundedHelp);
-    }
-    const websiteRaw = addPublisherWebsite.value.trim();
-    if (websiteRaw && !normalizeUrl(websiteRaw)) {
-      setHelpText(addPublisherWebsiteHelp, 'Website must be a valid URL.', true);
-      return;
-    }
-    clearHelpText(addPublisherWebsiteHelp);
+  const handleSharedModalReady = () => {
+    window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
+    window.sharedAddModalsConfig.getLocations = async () => loadLocationsList();
 
-    const notes = addPublisherNotes.value.trim();
-    if (notes.length > 1000) {
-      setHelpText(addPublisherNotesHelp, 'Notes must be 1000 characters or fewer.', true);
-      return;
-    }
-    clearHelpText(addPublisherNotesHelp);
-    addPublisherSaveBtn.disabled = true;
-    try {
-      const payload = {
-        name,
-        foundedDate: foundedRaw ? parsePartialDateInput(foundedRaw).value : null,
-        website: websiteRaw ? normalizeUrl(websiteRaw) : null,
-        notes: notes || null
-      };
-      const response = await apiFetch('/publisher', { method: 'POST', body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (addPublisherErrorAlert) {
-          addPublisherErrorAlert.classList.remove('d-none');
-          addPublisherErrorAlert.textContent = data.message || 'Unable to save publisher.';
-        }
-        return;
-      }
+    const sharedEvents = window.sharedAddModals?.events;
+    if (!sharedEvents) return;
+
+    sharedEvents.addEventListener('publisher:created', async (event) => {
       referenceData.publishers = null;
       await loadPublishers();
       populateSelect(editBookPublisher, referenceData.publishers, { placeholder: 'No publisher', labelKey: 'name', valueKey: 'id', includeEmpty: true });
-      editBookPublisher.value = data.data?.id ? String(data.data.id) : '';
-      await hideModal(addPublisherModal);
-    } catch (error) {
-      errorLog('Save publisher failed.', error);
-      if (addPublisherErrorAlert) {
-        addPublisherErrorAlert.classList.remove('d-none');
-        addPublisherErrorAlert.textContent = 'Unable to save publisher right now.';
-      }
-    } finally {
-      addPublisherSaveBtn.disabled = false;
-    }
-  };
+      if (event?.detail?.id) editBookPublisher.value = String(event.detail.id);
+    });
 
-  const saveBookType = async () => {
-    const name = addBookTypeName.value.trim();
-    if (!name) {
-      setHelpText(addBookTypeNameHelp, 'Book type name is required.', true);
-      return;
-    }
-    clearHelpText(addBookTypeNameHelp);
-    const desc = addBookTypeDescription.value.trim();
-    if (desc.length > 500) {
-      setHelpText(addBookTypeDescriptionHelp, 'Description must be 500 characters or fewer.', true);
-      return;
-    }
-    clearHelpText(addBookTypeDescriptionHelp);
-    addBookTypeSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/booktype', { method: 'POST', body: JSON.stringify({ name, description: desc || null }) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (addBookTypeErrorAlert) {
-          addBookTypeErrorAlert.classList.remove('d-none');
-          addBookTypeErrorAlert.textContent = data.message || 'Unable to save book type.';
-        }
-        return;
-      }
+    sharedEvents.addEventListener('booktype:created', async (event) => {
       referenceData.bookTypes = null;
       await loadBookTypes();
       populateSelect(editBookType, referenceData.bookTypes, { placeholder: 'No book type', labelKey: 'name', valueKey: 'id', includeEmpty: true });
-      editBookType.value = data.data?.id ? String(data.data.id) : '';
-      await hideModal(addBookTypeModal);
-    } catch (error) {
-      errorLog('Save book type failed.', error);
-      if (addBookTypeErrorAlert) {
-        addBookTypeErrorAlert.classList.remove('d-none');
-        addBookTypeErrorAlert.textContent = 'Unable to save book type right now.';
-      }
-    } finally {
-      addBookTypeSaveBtn.disabled = false;
-    }
-  };
+      if (event?.detail?.id) editBookType.value = String(event.detail.id);
+    });
 
-  const saveAuthor = async () => {
-    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
-    const displayName = addAuthorDisplayName.value.trim();
-    if (!displayName) {
-      setHelpText(addAuthorDisplayNameHelp, 'Display Name is required.', true);
-      return;
-    }
-    if (displayName.length < 2 || displayName.length > 150 || !namePattern.test(displayName)) {
-      setHelpText(addAuthorDisplayNameHelp, 'Display Name must be 2-150 characters and valid.', true);
-      return;
-    }
-    clearHelpText(addAuthorDisplayNameHelp);
-
-    const firstNames = addAuthorFirstNames.value.trim();
-    if (firstNames && (firstNames.length < 2 || firstNames.length > 150 || !namePattern.test(firstNames))) {
-      setHelpText(addAuthorFirstNamesHelp, 'First Name(s) must be 2-150 characters and valid.', true);
-      return;
-    }
-    clearHelpText(addAuthorFirstNamesHelp);
-
-    const lastName = addAuthorLastName.value.trim();
-    if (lastName && (lastName.length < 2 || lastName.length > 100 || !namePattern.test(lastName))) {
-      setHelpText(addAuthorLastNameHelp, 'Last Name must be 2-100 characters and valid.', true);
-      return;
-    }
-    clearHelpText(addAuthorLastNameHelp);
-
-    const birthRaw = addAuthorBirthDate.value.trim();
-    if (birthRaw) {
-      const parsed = parsePartialDateInput(birthRaw);
-      if (parsed.error) {
-        setHelpText(addAuthorBirthDateHelp, parsed.error, true);
-        return;
-      }
-      clearHelpText(addAuthorBirthDateHelp);
-    } else {
-      clearHelpText(addAuthorBirthDateHelp);
-    }
-
-    const deathRaw = addAuthorDeathDate.value.trim();
-    const deceased = Boolean(addAuthorDeceased.checked);
-    if (deathRaw && !deceased) {
-      setHelpText(addAuthorDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
-      return;
-    }
-    if (deathRaw) {
-      const parsed = parsePartialDateInput(deathRaw);
-      if (parsed.error) {
-        setHelpText(addAuthorDeathDateHelp, parsed.error, true);
-        return;
-      }
-      clearHelpText(addAuthorDeathDateHelp);
-    } else {
-      clearHelpText(addAuthorDeathDateHelp);
-    }
-
-    const bio = addAuthorBio.value.trim();
-    if (bio.length > 1000) {
-      setHelpText(addAuthorBioHelp, 'Bio must be 1000 characters or fewer.', true);
-      return;
-    }
-    clearHelpText(addAuthorBioHelp);
-    addAuthorSaveBtn.disabled = true;
-    try {
-      const payload = {
-        displayName,
-        firstNames: firstNames || null,
-        lastName: lastName || null,
-        birthDate: birthRaw ? parsePartialDateInput(birthRaw).value : null,
-        deceased,
-        deathDate: deathRaw ? parsePartialDateInput(deathRaw).value : null,
-        bio: bio || null
-      };
-      const response = await apiFetch('/author', { method: 'POST', body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (addAuthorErrorAlert) {
-          addAuthorErrorAlert.classList.remove('d-none');
-          addAuthorErrorAlert.textContent = data.message || 'Unable to save author.';
-        }
-        return;
-      }
+    sharedEvents.addEventListener('author:created', async (event) => {
       referenceData.authors = null;
       await loadAuthorsList();
       populateSelect(manageAuthorsSelect, referenceData.authors, { placeholder: 'Select author', labelKey: 'displayName', valueKey: 'id', includeEmpty: true });
-      await hideModal(addAuthorModal);
-      manageAuthorsSelect.value = data.data?.id ? String(data.data.id) : '';
-    } catch (error) {
-      errorLog('Save author failed.', error);
-      if (addAuthorErrorAlert) {
-        addAuthorErrorAlert.classList.remove('d-none');
-        addAuthorErrorAlert.textContent = 'Unable to save author right now.';
-      }
-    } finally {
-      addAuthorSaveBtn.disabled = false;
-    }
-  };
+      if (event?.detail?.id) manageAuthorsSelect.value = String(event.detail.id);
+    });
 
-  const saveSeries = async () => {
-    const name = addSeriesName.value.trim();
-    if (!name) {
-      setHelpText(addSeriesNameHelp, 'Series name is required.', true);
-      return;
-    }
-    if (name.length < 2 || name.length > 150) {
-      setHelpText(addSeriesNameHelp, 'Series name must be between 2 and 150 characters.', true);
-      return;
-    }
-    clearHelpText(addSeriesNameHelp);
-    const websiteRaw = addSeriesWebsite.value.trim();
-    if (websiteRaw && !normalizeUrl(websiteRaw)) {
-      setHelpText(addSeriesWebsiteHelp, 'Website must be a valid URL.', true);
-      return;
-    }
-    clearHelpText(addSeriesWebsiteHelp);
-    const desc = addSeriesDescription.value.trim();
-    if (desc.length > 1000) {
-      setHelpText(addSeriesDescriptionHelp, 'Description must be 1000 characters or fewer.', true);
-      return;
-    }
-    clearHelpText(addSeriesDescriptionHelp);
-    addSeriesSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/bookseries', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          website: websiteRaw ? normalizeUrl(websiteRaw) : null,
-          description: desc || null
-        })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (addSeriesErrorAlert) {
-          addSeriesErrorAlert.classList.remove('d-none');
-          addSeriesErrorAlert.textContent = data.message || 'Unable to save series.';
-        }
-        return;
-      }
+    sharedEvents.addEventListener('series:created', async (event) => {
       referenceData.series = null;
       await loadSeriesList();
       populateSelect(manageSeriesSelect, referenceData.series, { placeholder: 'Select series', labelKey: 'name', valueKey: 'id', includeEmpty: true });
-      manageSeriesSelect.value = data.data?.id ? String(data.data.id) : '';
-      await hideModal(addSeriesModal);
-    } catch (error) {
-      errorLog('Save series failed.', error);
-      if (addSeriesErrorAlert) {
-        addSeriesErrorAlert.classList.remove('d-none');
-        addSeriesErrorAlert.textContent = 'Unable to save series right now.';
-      }
-    } finally {
-      addSeriesSaveBtn.disabled = false;
-    }
-  };
+      if (event?.detail?.id) manageSeriesSelect.value = String(event.detail.id);
+    });
 
-  const saveLocation = async () => {
-    const name = addLocationName.value.trim();
-    if (!name) {
-      setHelpText(addLocationNameHelp, 'Location name is required.', true);
-      return;
-    }
-    if (name.length < 2 || name.length > 150) {
-      setHelpText(addLocationNameHelp, 'Location name must be between 2 and 150 characters.', true);
-      return;
-    }
-    clearHelpText(addLocationNameHelp);
-    const parentId = addLocationParent?.value ? Number(addLocationParent.value) : null;
-    const notes = addLocationNotes.value.trim();
-    if (notes.length > 500) {
-      setHelpText(addLocationNotesHelp, 'Notes must be 500 characters or fewer.', true);
-      return;
-    }
-    clearHelpText(addLocationNotesHelp);
-    addLocationSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/storagelocation', {
-        method: 'POST',
-        body: JSON.stringify({ name, parentId, notes: notes || null })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (addLocationErrorAlert) {
-          addLocationErrorAlert.classList.remove('d-none');
-          addLocationErrorAlert.textContent = data.message || 'Unable to save location.';
-        }
-        return;
-      }
+    sharedEvents.addEventListener('location:created', async (event) => {
       referenceData.locations = null;
       await loadLocationsList();
       populateSelect(copyLocationSelect, referenceData.locations, { placeholder: 'Select storage location', labelKey: 'path', valueKey: 'id', includeEmpty: true });
-      copyLocationSelect.value = data.data?.id ? String(data.data.id) : '';
-      populateSelect(addLocationParent, referenceData.locations, { placeholder: 'No parent', labelKey: 'path', valueKey: 'id', includeEmpty: true });
-      await hideModal(addLocationModal);
-    } catch (error) {
-      errorLog('Save location failed.', error);
-      if (addLocationErrorAlert) {
-        addLocationErrorAlert.classList.remove('d-none');
-        addLocationErrorAlert.textContent = 'Unable to save location right now.';
-      }
-    } finally {
-      addLocationSaveBtn.disabled = false;
-    }
-  };
-
-  const openAddLocationModal = async () => {
-    try {
-      const locations = await loadLocationsList();
-      populateSelect(addLocationParent, locations, { placeholder: 'No parent', labelKey: 'path', valueKey: 'id', includeEmpty: true });
-    } catch (error) {
-      errorLog('Failed to load locations for parent selection.', error);
-    }
-    addLocationName.value = '';
-    addLocationNotes.value = '';
-    addLocationParent.value = '';
-    if (addLocationErrorAlert) {
-      addLocationErrorAlert.classList.add('d-none');
-      addLocationErrorAlert.textContent = '';
-    }
-    showModal(addLocationModal, { backdrop: 'static', keyboard: false });
+      if (event?.detail?.id) copyLocationSelect.value = String(event.detail.id);
+    });
   };
 
   if (editBookBtn) editBookBtn.addEventListener('click', () => {
@@ -2177,38 +1838,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deleteCopyConfirmBtn) deleteCopyConfirmBtn.addEventListener('click', confirmDeleteCopy);
   if (copyAcquisitionDate) copyAcquisitionDate.addEventListener('input', () => setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp));
   if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => clearHelpText(copyLocationHelp));
-  if (addPublisherFounded) addPublisherFounded.addEventListener('input', () => setPartialDateHelp(addPublisherFounded, addPublisherFoundedHelp));
-  if (addPublisherWebsite) addPublisherWebsite.addEventListener('input', () => setUrlHelp(addPublisherWebsite, addPublisherWebsiteHelp, 'Website'));
-  if (addAuthorBirthDate) addAuthorBirthDate.addEventListener('input', () => setPartialDateHelp(addAuthorBirthDate, addAuthorBirthDateHelp));
-  if (addAuthorDeathDate) addAuthorDeathDate.addEventListener('input', () => {
-    if (!addAuthorDeceased.checked && addAuthorDeathDate.value.trim()) {
-      setHelpText(addAuthorDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
-      return;
-    }
-    setPartialDateHelp(addAuthorDeathDate, addAuthorDeathDateHelp);
-  });
-  if (addAuthorDeceased) addAuthorDeceased.addEventListener('change', () => {
-    if (!addAuthorDeceased.checked && addAuthorDeathDate.value.trim()) {
-      setHelpText(addAuthorDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
-      return;
-    }
-    setPartialDateHelp(addAuthorDeathDate, addAuthorDeathDateHelp);
-  });
-  bindRequiredFieldValidation(addPublisherName, addPublisherNameHelp, { label: 'Publisher name', min: 2, max: 150 });
-  bindRequiredFieldValidation(addBookTypeName, addBookTypeNameHelp, { label: 'Book type name', min: 2, max: 120 });
-  bindRequiredFieldValidation(addAuthorDisplayName, addAuthorDisplayNameHelp, { label: 'Display Name', min: 2, max: 150, pattern: sharedNamePattern });
-  bindRequiredFieldValidation(addSeriesName, addSeriesNameHelp, { label: 'Series name', min: 2, max: 150 });
-  bindRequiredFieldValidation(addLocationName, addLocationNameHelp, { label: 'Location name', min: 2, max: 150 });
-  if (openAddPublisherBtn) openAddPublisherBtn.addEventListener('click', () => showModal(addPublisherModal, { backdrop: 'static', keyboard: false }));
-  if (openAddBookTypeBtn) openAddBookTypeBtn.addEventListener('click', () => showModal(addBookTypeModal, { backdrop: 'static', keyboard: false }));
-  if (addPublisherSaveBtn) addPublisherSaveBtn.addEventListener('click', savePublisher);
-  if (addBookTypeSaveBtn) addBookTypeSaveBtn.addEventListener('click', saveBookType);
-  if (openAddAuthorBtn) openAddAuthorBtn.addEventListener('click', () => showModal(addAuthorModal, { backdrop: 'static', keyboard: false }));
-  if (addAuthorSaveBtn) addAuthorSaveBtn.addEventListener('click', saveAuthor);
-  if (openAddSeriesBtn) openAddSeriesBtn.addEventListener('click', () => showModal(addSeriesModal, { backdrop: 'static', keyboard: false }));
-  if (addSeriesSaveBtn) addSeriesSaveBtn.addEventListener('click', saveSeries);
-  if (openAddLocationBtn) openAddLocationBtn.addEventListener('click', openAddLocationModal);
-  if (addLocationSaveBtn) addLocationSaveBtn.addEventListener('click', saveLocation);
+  if (openAddPublisherBtn) openAddPublisherBtn.addEventListener('click', () => window.sharedAddModals?.open('publisher'));
+  if (openAddBookTypeBtn) openAddBookTypeBtn.addEventListener('click', () => window.sharedAddModals?.open('booktype'));
+  if (openAddAuthorBtn) openAddAuthorBtn.addEventListener('click', () => window.sharedAddModals?.open('author'));
+  if (openAddSeriesBtn) openAddSeriesBtn.addEventListener('click', () => window.sharedAddModals?.open('series'));
+  if (openAddLocationBtn) openAddLocationBtn.addEventListener('click', () => window.sharedAddModals?.open('location'));
+
+  handleSharedModalReady();
 
   if (authorRoleInput) {
     authorRoleInput.addEventListener('input', () => {

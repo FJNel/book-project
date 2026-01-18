@@ -4507,6 +4507,10 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '401':
           $ref: '#/components/responses/AuthError'
     put:
@@ -4543,6 +4547,12 @@ paths:
                     data:
                       id: 12
                     errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '401':
           $ref: '#/components/responses/AuthError'
     delete:
@@ -4663,6 +4673,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '401':
           $ref: '#/components/responses/AuthError'
     delete:
@@ -8447,6 +8463,7 @@ components:
       properties:
         name:
           type: string
+          description: Display name for the location. Base (root) locations must have unique names.
         parentId:
           type: integer
         notes:
@@ -8457,6 +8474,7 @@ components:
       properties:
         name:
           type: string
+          description: Display name for the location. Base (root) locations must have unique names.
         parentId:
           type: integer
         notes:

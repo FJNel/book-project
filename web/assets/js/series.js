@@ -812,6 +812,12 @@
       });
     }
 
+    if (dom.addSeriesBtn) {
+      dom.addSeriesBtn.addEventListener('click', () => {
+        window.sharedAddModals?.open('series');
+      });
+    }
+
     if (dom.seriesAddResetBtn) {
       dom.seriesAddResetBtn.addEventListener('click', resetAddSeriesForm);
     }
@@ -853,6 +859,19 @@
     }
 
     await loadSeries();
+
+    const sharedEvents = window.sharedAddModals?.events;
+    if (sharedEvents) {
+      sharedEvents.addEventListener('series:created', async (event) => {
+        showAlert({ message: 'Series created successfully.', type: 'success' });
+        if (event?.detail?.id) {
+          state.page = 1;
+          await loadSeries();
+        } else {
+          triggerFetch();
+        }
+      });
+    }
 
     if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
       window.pageContentReady.resolve({ success: true });

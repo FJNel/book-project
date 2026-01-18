@@ -737,22 +737,18 @@
     return true;
   };
 
-  const openLocationModal = ({ mode, locationId = null, parentId = null }) => {
+  const openLocationModal = ({ mode, locationId = null }) => {
+    if (mode !== 'rename') return;
     locationModalMode = mode;
     modalLocationId = locationId;
     const selected = state.locations.find((loc) => loc.id === locationId);
-    const parent = state.locations.find((loc) => loc.id === parentId);
     const selectedParent = selected?.parentId ? state.locations.find((loc) => loc.id === selected.parentId) : null;
 
-    if (dom.locationModalTitle) dom.locationModalTitle.textContent = mode === 'rename' ? 'Rename Location' : 'Add Location';
-    if (dom.locationNameInput) dom.locationNameInput.value = mode === 'rename' ? (selected?.name || '') : '';
-    if (dom.locationNotesInput) dom.locationNotesInput.value = mode === 'rename' ? (selected?.notes || '') : '';
+    if (dom.locationModalTitle) dom.locationModalTitle.textContent = 'Rename Location';
+    if (dom.locationNameInput) dom.locationNameInput.value = selected?.name || '';
+    if (dom.locationNotesInput) dom.locationNotesInput.value = selected?.notes || '';
     if (dom.locationParentLabel) {
-      if (mode === 'rename') {
-        dom.locationParentLabel.value = selected?.parentId ? (selectedParent?.name || 'Parent') : 'Root location';
-      } else {
-        dom.locationParentLabel.value = parent ? parent.name : 'Root location';
-      }
+      dom.locationParentLabel.value = selected?.parentId ? (selectedParent?.name || 'Parent') : 'Root location';
     }
     if (dom.locationModalError) {
       dom.locationModalError.classList.add('d-none');
@@ -762,6 +758,12 @@
     if (dom.locationModal) {
       bootstrap.Modal.getOrCreateInstance(dom.locationModal).show();
     }
+  };
+
+  const openSharedLocationModal = (parentId = null) => {
+    window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
+    window.sharedAddModalsConfig.defaultLocationParentId = parentId || null;
+    window.sharedAddModals?.open('location');
   };
 
   const saveLocationModal = async () => {
@@ -777,29 +779,30 @@
     }
 
     try {
-      if (locationModalMode === 'rename' && modalLocationId) {
-        log('Renaming location.', { id: modalLocationId, name });
-        const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ name, notes })
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const details = Array.isArray(payload.errors) ? payload.errors : [];
-          throw new Error(details.join(' ') || payload.message || 'Rename failed.');
+      if (locationModalMode !== 'rename' || !modalLocationId) return;
+      const current = state.locations.find((loc) => loc.id === modalLocationId);
+      if (current && (current.parentId === null || current.parentId === undefined)) {
+        const duplicate = state.locations.some((loc) => loc.id !== modalLocationId
+          && (loc.parentId === null || loc.parentId === undefined)
+          && loc.name
+          && loc.name.trim().toLowerCase() === name.toLowerCase());
+        if (duplicate) {
+          if (dom.locationModalError) {
+            dom.locationModalError.textContent = 'A base storage location with this name already exists.';
+            dom.locationModalError.classList.remove('d-none');
+          }
+          return;
         }
-      } else {
-        const parentId = modalLocationId;
-        log('Creating location.', { name, parentId });
-        const response = await apiFetch('/storagelocation', {
-          method: 'POST',
-          body: JSON.stringify({ name, parentId, notes })
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const details = Array.isArray(payload.errors) ? payload.errors : [];
-          throw new Error(details.join(' ') || payload.message || 'Create failed.');
-        }
+      }
+      log('Renaming location.', { id: modalLocationId, name });
+      const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, notes })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const details = Array.isArray(payload.errors) ? payload.errors : [];
+        throw new Error(details.join(' ') || payload.message || 'Rename failed.');
       }
 
       bootstrap.Modal.getInstance(dom.locationModal)?.hide();
@@ -962,7 +965,7 @@
 
     if (dom.addRootBtn) {
       dom.addRootBtn.addEventListener('click', () => {
-        openLocationModal({ mode: 'create', locationId: null, parentId: null });
+        openSharedLocationModal(null);
       });
     }
 
@@ -984,7 +987,7 @@
           renderTree();
         } else if (action === 'add-child') {
           event.stopPropagation();
-          openLocationModal({ mode: 'create', locationId: id, parentId: id });
+          openSharedLocationModal(id);
         } else if (action === 'rename') {
           event.stopPropagation();
           openLocationModal({ mode: 'rename', locationId: id });
@@ -1065,7 +1068,7 @@
     if (dom.addChildBtn) {
       dom.addChildBtn.addEventListener('click', () => {
         if (!state.selectedId) return;
-        openLocationModal({ mode: 'create', locationId: state.selectedId, parentId: state.selectedId });
+        openSharedLocationModal(state.selectedId);
       });
     }
 
@@ -1117,6 +1120,23 @@
 
     clearAlerts();
     attachListeners();
+
+    window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
+    window.sharedAddModalsConfig.getLocations = async () => {
+      if (!state.locations.length) {
+        await loadLocations();
+      }
+      return state.locations;
+    };
+    const sharedEvents = window.sharedAddModals?.events;
+    if (sharedEvents) {
+      sharedEvents.addEventListener('location:created', async (event) => {
+        await loadLocations();
+        if (event?.detail?.id) {
+          await selectLocation(event.detail.id, { openPanel: true });
+        }
+      });
+    }
 
     const ok = await loadLocations();
 
