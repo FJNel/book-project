@@ -182,14 +182,13 @@
             <div class="h4 fw-bold mt-2" id="authorName"></div>
             <div class="text-muted" id="authorAltName"></div>
             <div class="d-flex flex-column gap-2 mt-3">
-              <div><span class="text-muted">Status:</span> <span id="authorStatus" class="fw-semibold"></span></div>
-              <div><span class="text-muted">Born:</span> <span id="authorBorn" class="fw-semibold"></span></div>
-              <div><span class="text-muted">Died:</span> <span id="authorDied" class="fw-semibold"></span></div>
-              <div><span class="text-muted">Created:</span> <span id="authorCreated" class="fw-semibold"></span></div>
-              <div><span class="text-muted">Updated:</span> <span id="authorUpdated" class="fw-semibold"></span></div>
+              <div id="authorBornWrap"><span class="text-muted">Born:</span> <span id="authorBorn" class="fw-semibold"></span></div>
+              <div id="authorDiedWrap"><span class="text-muted">Died:</span> <span id="authorDied" class="fw-semibold"></span></div>
+              <div class="small text-muted" id="authorCreatedWrap"><span>Created:</span> <span id="authorCreated"></span></div>
+              <div class="small text-muted" id="authorUpdatedWrap"><span>Updated:</span> <span id="authorUpdated"></span></div>
             </div>
           </div>
-          <div class="col-12 col-lg-8">
+          <div class="col-12 col-lg-8" id="authorBioSection">
             <div class="fw-semibold mb-2">Biography</div>
             <p class="mb-0" id="authorBio"></p>
           </div>

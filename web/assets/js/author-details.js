@@ -54,15 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-  const setTextOrMuted = (el, text, fallback) => {
-    if (!el) return;
+  const setTextOrHide = (wrap, el, text) => {
+    if (!wrap || !el) return;
     if (text) {
       el.textContent = text;
-      el.classList.remove('text-muted');
+      wrap.classList.remove('d-none');
       return;
     }
-    el.textContent = fallback;
-    el.classList.add('text-muted');
+    el.textContent = '';
+    wrap.classList.add('d-none');
   };
 
   const showModal = async (target, options) => {
@@ -111,38 +111,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderAuthor = (author) => {
     log('Rendering author details.');
-    const displayName = author.displayName || 'Unknown author';
-    const altName = [author.firstNames, author.lastName].filter(Boolean).join(' ');
-    const born = formatPartialDate(author.birthDate) || 'Unknown';
-    const died = author.deceased ? (formatPartialDate(author.deathDate) || 'Unknown') : '—';
-    const status = author.deceased ? 'Deceased' : 'Living';
-    const createdAt = formatTimestamp(author.createdAt) || '—';
-    const updatedAt = formatTimestamp(author.updatedAt) || '—';
+    const fullName = [author.firstNames, author.lastName].filter(Boolean).join(' ').trim();
+    const displayName = author.displayName || fullName || 'Unknown author';
+    const altName = fullName && fullName !== displayName ? fullName : '';
+    const born = formatPartialDate(author.birthDate);
+    const isDeceased = Boolean(author.deceased) || Boolean(author.deathDate);
+    const died = isDeceased
+      ? `Died: ${formatPartialDate(author.deathDate) || '(date unknown)'}`
+      : null;
+    const createdAt = formatTimestamp(author.createdAt);
+    const updatedAt = formatTimestamp(author.updatedAt);
 
     const heading = document.getElementById('authorNameHeading');
     const subtitle = document.getElementById('authorSubtitle');
     const nameEl = document.getElementById('authorName');
     const altNameEl = document.getElementById('authorAltName');
-    const statusEl = document.getElementById('authorStatus');
     const bornEl = document.getElementById('authorBorn');
     const diedEl = document.getElementById('authorDied');
     const createdEl = document.getElementById('authorCreated');
     const updatedEl = document.getElementById('authorUpdated');
     const bioEl = document.getElementById('authorBio');
+    const bornWrap = document.getElementById('authorBornWrap');
+    const diedWrap = document.getElementById('authorDiedWrap');
+    const createdWrap = document.getElementById('authorCreatedWrap');
+    const updatedWrap = document.getElementById('authorUpdatedWrap');
+    const bioSection = document.getElementById('authorBioSection');
 
     if (heading) heading.textContent = displayName;
-    if (subtitle) subtitle.textContent = altName ? `Also known as ${altName}` : '';
-    if (nameEl) nameEl.textContent = displayName;
-    setTextOrMuted(altNameEl, altName, 'No alternate name listed');
-    if (statusEl) {
-      statusEl.textContent = status;
-      statusEl.classList.toggle('text-muted', false);
+    if (subtitle) {
+      if (altName) {
+        subtitle.textContent = `Also known as ${altName}`;
+        subtitle.classList.remove('d-none');
+      } else {
+        subtitle.textContent = '';
+        subtitle.classList.add('d-none');
+      }
     }
-    setTextOrMuted(bornEl, born, 'Unknown');
-    setTextOrMuted(diedEl, died, author.deceased ? 'Unknown' : '—');
-    setTextOrMuted(createdEl, createdAt, '—');
-    setTextOrMuted(updatedEl, updatedAt, '—');
-    setTextOrMuted(bioEl, author.bio, 'No biography on file.');
+    if (nameEl) nameEl.textContent = displayName;
+    if (altNameEl) {
+      if (altName) {
+        altNameEl.textContent = altName;
+        altNameEl.classList.remove('d-none');
+      } else {
+        altNameEl.textContent = '';
+        altNameEl.classList.add('d-none');
+      }
+    }
+    setTextOrHide(bornWrap, bornEl, born ? born : '');
+    setTextOrHide(diedWrap, diedEl, died ? died.replace('Died: ', '') : '');
+    setTextOrHide(createdWrap, createdEl, createdAt || '');
+    setTextOrHide(updatedWrap, updatedEl, updatedAt || '');
+    if (bioSection && bioEl) {
+      if (author.bio && author.bio.trim()) {
+        bioEl.textContent = author.bio;
+        bioSection.classList.remove('d-none');
+      } else {
+        bioEl.textContent = '';
+        bioSection.classList.add('d-none');
+      }
+    }
   };
 
   const extractAuthorRole = (book) => {
@@ -174,12 +201,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const cover = book.coverImageUrl || placeholderCover(book.title);
       const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
       const role = extractAuthorRole(book);
-      const languages = Array.isArray(book.languages) && book.languages.length
-        ? book.languages.map((lang) => lang.name).join(', ')
-        : '—';
-      const tags = Array.isArray(book.tags) && book.tags.length
-        ? book.tags.map((tag) => tag.name).join(', ')
-        : '—';
+      const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
+      const visibleLanguages = languageNames.slice(0, 2);
+      const languageExtra = Math.max(languageNames.length - visibleLanguages.length, 0);
+      const languageLabel = visibleLanguages.join(', ') + (languageExtra ? `, +${languageExtra} more` : '');
+      const languageTitle = languageExtra ? ` title="${escapeHtml(languageNames.join(', '))}"` : '';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
       const published = formatPartialDate(book.publicationDate) || '—';
       const bookType = book.bookType?.name || book.bookTypeName || '—';
 
@@ -196,9 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="list-col-role"><span class="text-muted">${escapeHtml(role)}</span></td>
         <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
-        <td class="list-col-language"><span class="text-muted">${escapeHtml(languages)}</span></td>
+        <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel)}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
-        <td class="list-col-tags"><span class="text-muted">${escapeHtml(tags)}</span></td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;

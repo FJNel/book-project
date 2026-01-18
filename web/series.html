@@ -42,9 +42,11 @@
     @media (max-width: 767.98px) {
       .list-table th.list-col-start,
       .list-table th.list-col-end,
+      .list-table th.list-col-count,
       .list-table th.list-col-updated,
       .list-table td.list-col-start,
       .list-table td.list-col-end,
+      .list-table td.list-col-count,
       .list-table td.list-col-updated {
         display: none;
       }
@@ -57,6 +59,7 @@
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
     .list-meta-mobile { display: none; }
+    .series-description { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .filter-chip {
       display: inline-flex;
@@ -217,9 +220,12 @@
         <label class="form-check-label" for="includeDeletedCheck">Include deleted series</label>
       </div>
 
-      <div class="d-flex gap-2 mt-4">
-        <button class="btn btn-primary flex-grow-1" type="button" id="applyFiltersBtn">Apply filters</button>
-        <button class="btn btn-outline-secondary" type="button" id="resetFiltersBtn">Reset</button>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="resetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" id="applyFiltersBtn" data-bs-dismiss="offcanvas">Apply & close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
       </div>
     </div>
   </div>
@@ -230,7 +236,6 @@
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-2">
             <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="books" class="text-decoration-none">Books</a></li>
             <li class="breadcrumb-item active" aria-current="page">Series</li>
           </ol>
         </nav>
@@ -319,10 +324,6 @@
     <div id="listContainer" class="card shadow mb-3">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-          <div>
-            <div class="fw-semibold">List view</div>
-            <div class="text-muted small">Click a row to open series details.</div>
-          </div>
           <div class="text-muted small" id="listCount"></div>
         </div>
 
@@ -333,6 +334,7 @@
                 <th class="list-col-name">Series</th>
                 <th class="list-col-start">Start</th>
                 <th class="list-col-end">End</th>
+                <th class="list-col-count">Number of Books</th>
                 <th class="list-col-updated">Updated</th>
               </tr>
             </thead>

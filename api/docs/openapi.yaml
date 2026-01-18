@@ -3148,6 +3148,7 @@ paths:
                       series:
                         - id: 8
                           name: The Lord of the Rings
+                          bookCount: 3
                           description: Epic high-fantasy trilogy.
                           website: https://example.com/lotr
                           createdAt: "2025-01-10T09:15:23.000Z"
@@ -3315,6 +3316,7 @@ paths:
                       series:
                         - id: 8
                           name: The Lord of the Rings
+                          bookCount: 3
                           description: Epic high-fantasy trilogy.
                           website: https://example.com/lotr
                           createdAt: "2025-01-10T09:15:23.000Z"
@@ -7638,6 +7640,9 @@ components:
         name:
           description: Series name (unique per user).
           type: string
+        bookCount:
+          description: Number of books linked to the series (list responses only).
+          type: integer
         description:
           description: Optional description of the series.
           type:

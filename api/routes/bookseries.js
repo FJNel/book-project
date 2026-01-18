@@ -392,7 +392,8 @@ async function listBookSeriesHandler(req, res) {
 		? "s.id, s.name"
 		: `s.id, s.name, s.description, s.website, s.created_at, s.updated_at,
 		   start_date.id AS start_date_id, start_date.day AS start_day, start_date.month AS start_month, start_date.year AS start_year, start_date.text AS start_text,
-		   end_date.id AS end_date_id, end_date.day AS end_day, end_date.month AS end_month, end_date.year AS end_year, end_date.text AS end_text`;
+		   end_date.id AS end_date_id, end_date.day AS end_day, end_date.month AS end_month, end_date.year AS end_year, end_date.text AS end_text,
+		   COALESCE(book_counts.book_count, 0)::int AS book_count`;
 
 	const errors = [];
 	const sortFields = {
@@ -650,6 +651,12 @@ async function listBookSeriesHandler(req, res) {
 				ORDER BY make_date(d.year, COALESCE(d.month, 1), COALESCE(d.day, 1)) DESC
 				LIMIT 1
 			 ) end_date ON true
+			 LEFT JOIN LATERAL (
+				SELECT COUNT(*)::int AS book_count
+				FROM book_series_books bsb
+				JOIN books b ON bsb.book_id = b.id AND b.deleted_at IS NULL
+				WHERE bsb.user_id = s.user_id AND bsb.series_id = s.id
+			 ) book_counts ON true
 			 WHERE s.user_id = $1`;
 	if (filters.length > 0) {
 		query += ` AND ${filters.join(" AND ")}`;
@@ -688,6 +695,7 @@ async function listBookSeriesHandler(req, res) {
 				endDate: row.end_date_id
 					? { id: row.end_date_id, day: row.end_day, month: row.end_month, year: row.end_year, text: row.end_text }
 					: null,
+				bookCount: row.book_count ?? 0,
 				description: row.description,
 				website: row.website,
 				createdAt: row.created_at,

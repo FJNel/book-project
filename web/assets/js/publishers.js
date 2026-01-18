@@ -30,6 +30,7 @@
     limit: 20,
     page: 1,
     search: '',
+    searchDriven: false,
     filters: defaultFilters()
   };
 
@@ -103,6 +104,20 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const normalizeUrl = (value) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed || /\s/.test(trimmed)) return null;
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      return url.href;
+    } catch (error) {
+      return null;
+    }
+  };
+
   const updateOffcanvasPlacement = () => {
     const offcanvasEl = document.getElementById('filtersOffcanvas');
     if (!offcanvasEl) return;
@@ -141,6 +156,7 @@
 
   const hydrateStateFromUrl = () => {
     state.filters = defaultFilters();
+    state.searchDriven = false;
     const params = new URLSearchParams(window.location.search);
     const sortParam = params.get('sort');
     if (sortParam) {
@@ -169,8 +185,12 @@
     if (params.get('filterUpdatedBefore')) f.updatedBefore = params.get('filterUpdatedBefore');
     if (params.get('includeDeleted') === 'true') f.includeDeleted = true;
 
-    if (!f.name && state.search) {
+    if (f.name) {
+      state.search = f.name;
+      state.searchDriven = false;
+    } else if (state.search) {
       f.name = state.search;
+      state.searchDriven = true;
     }
   };
 
@@ -198,11 +218,11 @@
   };
 
   const syncControlsFromState = () => {
-    const mergedName = state.filters.name || state.search || '';
-    if (state.search !== mergedName) state.search = mergedName;
-    if (state.filters.name !== mergedName) state.filters.name = mergedName;
+    if (state.searchDriven) {
+      state.filters.name = state.search;
+    }
 
-    if (dom.searchInput) dom.searchInput.value = mergedName;
+    if (dom.searchInput) dom.searchInput.value = state.search || '';
     if (dom.sortSelect) dom.sortSelect.value = `${state.sort.field}:${state.sort.order}`;
     if (dom.perPageInput) dom.perPageInput.value = state.limit;
     if (dom.filterName) dom.filterName.value = state.filters.name;
@@ -234,7 +254,7 @@
     };
 
     const f = state.filters;
-    if (f.name) pushChip('name', f.name, () => { f.name = ''; syncControlsFromState(); triggerFetch(); });
+    if (f.name && !state.searchDriven) pushChip('name', f.name, () => { f.name = ''; syncControlsFromState(); triggerFetch(); });
     if (f.website) pushChip('website', f.website, () => { f.website = ''; syncControlsFromState(); triggerFetch(); });
     if (f.notes) pushChip('notes', f.notes, () => { f.notes = ''; syncControlsFromState(); triggerFetch(); });
     if (f.foundedAfter) pushChip('founded after', f.foundedAfter, () => { f.foundedAfter = ''; syncControlsFromState(); triggerFetch(); });
@@ -272,9 +292,26 @@
   });
 
   const applyFiltersFromControls = () => {
-    state.filters = readFiltersFromControls();
-    state.search = state.filters.name || '';
-    if (dom.searchInput) dom.searchInput.value = state.search;
+    const nextFilters = readFiltersFromControls();
+    const nextName = nextFilters.name.trim();
+    const matchesSearch = nextName && nextName === state.search && state.searchDriven;
+
+    state.filters = nextFilters;
+
+    if (nextName) {
+      if (matchesSearch) {
+        state.searchDriven = true;
+      } else {
+        state.search = nextName;
+        state.searchDriven = false;
+      }
+    } else if (state.search) {
+      state.searchDriven = true;
+    } else {
+      state.searchDriven = false;
+    }
+
+    if (dom.searchInput) dom.searchInput.value = state.search || '';
     state.page = 1;
     renderActiveFilters();
     triggerFetch();
@@ -328,12 +365,11 @@
   const getPublishersSignature = () => JSON.stringify(buildPublishersBody());
 
   const updateSummary = (count) => {
+    const sortLabel = dom.sortSelect ? dom.sortSelect.selectedOptions[0]?.textContent : '';
     if (dom.resultsSummary) {
-      dom.resultsSummary.textContent = count === 1 ? '1 publisher found' : `${count} publishers found`;
+      dom.resultsSummary.textContent = `${count} publisher${count === 1 ? '' : 's'} • ${sortLabel || 'Sorted'} • Page ${state.page}`;
     }
-    if (dom.resultsMeta) {
-      dom.resultsMeta.textContent = `Sorted by ${state.sort.field} • Page ${state.page}`;
-    }
+    if (dom.resultsMeta) dom.resultsMeta.textContent = '';
     if (dom.listCount) {
       dom.listCount.textContent = `${count} shown`;
     }
@@ -361,15 +397,55 @@
       return li;
     };
 
-    dom.paginationNav.appendChild(createItem('&laquo;', state.page === 1, () => {
-      state.page = Math.max(1, state.page - 1);
-      triggerFetch();
-    }, 'Previous'));
+    dom.paginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
+      </svg>`,
+      state.page <= 1,
+      () => {
+        state.page = Math.max(1, state.page - 1);
+        updateUrl();
+        triggerFetch();
+      },
+      'Previous page'
+    ));
 
-    dom.paginationNav.appendChild(createItem('&raquo;', !hasNextPage, () => {
-      state.page = state.page + 1;
-      triggerFetch();
-    }, 'Next'));
+    if (state.page > 1) {
+      dom.paginationNav.appendChild(createItem(String(state.page - 1), false, () => {
+        state.page -= 1;
+        updateUrl();
+        triggerFetch();
+      }));
+    }
+
+    const current = document.createElement('li');
+    current.className = 'page-item active';
+    const span = document.createElement('span');
+    span.className = 'page-link';
+    span.textContent = String(state.page);
+    current.appendChild(span);
+    dom.paginationNav.appendChild(current);
+
+    if (hasNextPage) {
+      dom.paginationNav.appendChild(createItem(String(state.page + 1), false, () => {
+        state.page += 1;
+        updateUrl();
+        triggerFetch();
+      }));
+    }
+
+    dom.paginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+      </svg>`,
+      !hasNextPage,
+      () => {
+        state.page += 1;
+        updateUrl();
+        triggerFetch();
+      },
+      'Next page'
+    ));
   };
 
   const renderPublishers = (publishers) => {
@@ -378,7 +454,7 @@
 
     if (!publishers.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="3" class="text-center text-muted py-4">No publishers match your filters.</td>';
+      emptyRow.innerHTML = '<td colspan="4" class="text-center text-muted py-4">No publishers match your filters.</td>';
       dom.listTableBody.appendChild(emptyRow);
       hideLoading();
       return;
@@ -386,14 +462,16 @@
 
     publishers.forEach((publisher) => {
       const foundedLabel = formatPartialDate(publisher.foundedDate) || '—';
+      const websiteUrl = normalizeUrl(publisher.website);
+      const websiteLabel = websiteUrl ? `<a href="${websiteUrl}" target="_blank" rel="noopener">${escapeHtml(publisher.website)}</a>` : '';
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       row.innerHTML = `
         <td class="list-col-name">
           <div class="fw-semibold">${escapeHtml(publisher.name || 'Untitled publisher')}</div>
-          <div class="text-muted small">${escapeHtml(publisher.website || 'No website')}</div>
           <div class="text-muted small list-meta-mobile">${escapeHtml(foundedLabel)}</div>
         </td>
+        <td class="list-col-website">${websiteLabel}</td>
         <td class="list-col-founded">
           <span class="text-muted">${escapeHtml(foundedLabel)}</span>
         </td>
@@ -466,9 +544,13 @@
   };
 
   const resetFilters = () => {
-    const preservedSearch = state.search;
     state.filters = defaultFilters();
-    state.filters.name = preservedSearch;
+    if (state.search) {
+      state.filters.name = state.search;
+      state.searchDriven = true;
+    } else {
+      state.searchDriven = false;
+    }
     state.page = 1;
     syncControlsFromState();
     renderActiveFilters();
@@ -481,6 +563,7 @@
         const nextValue = event.target.value.trim();
         state.search = nextValue;
         state.filters.name = nextValue;
+        state.searchDriven = true;
         if (dom.filterName) dom.filterName.value = nextValue;
         state.page = 1;
         triggerFetch();
@@ -491,6 +574,7 @@
           const nextValue = dom.searchInput.value.trim();
           state.search = nextValue;
           state.filters.name = nextValue;
+          state.searchDriven = true;
           if (dom.filterName) dom.filterName.value = nextValue;
           state.page = 1;
           triggerFetch();
@@ -500,10 +584,14 @@
 
     if (dom.clearSearchBtn) {
       dom.clearSearchBtn.addEventListener('click', () => {
+        const wasSearchDriven = state.searchDriven;
         state.search = '';
-        state.filters.name = '';
+        if (wasSearchDriven) {
+          state.filters.name = '';
+        }
+        state.searchDriven = false;
         if (dom.searchInput) dom.searchInput.value = '';
-        if (dom.filterName) dom.filterName.value = '';
+        if (dom.filterName && wasSearchDriven) dom.filterName.value = '';
         state.page = 1;
         triggerFetch();
       });

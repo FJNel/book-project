@@ -74,15 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<a href="${normalized}" target="_blank" rel="noopener">${escapeHtml(text || normalized)}</a>`;
   };
 
-  const setTextOrMuted = (el, text, fallback) => {
-    if (!el) return;
+  const setTextOrHide = (wrap, el, text) => {
+    if (!wrap || !el) return;
     if (text) {
       el.textContent = text;
-      el.classList.remove('text-muted');
+      wrap.classList.remove('d-none');
       return;
     }
-    el.textContent = fallback;
-    el.classList.add('text-muted');
+    el.textContent = '';
+    wrap.classList.add('d-none');
   };
 
   const showModal = async (target, options) => {
@@ -132,11 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderSeries = (series) => {
     log('Rendering series details.');
     const name = series.name || 'Untitled series';
-    const description = series.description || 'No description on file.';
+    const description = series.description ? series.description.trim() : '';
     const start = formatPartialDate(series.startDate) || 'Unknown';
     const end = formatPartialDate(series.endDate) || 'Unknown';
-    const createdAt = formatTimestamp(series.createdAt) || '—';
-    const updatedAt = formatTimestamp(series.updatedAt) || '—';
+    const createdAt = formatTimestamp(series.createdAt);
+    const updatedAt = formatTimestamp(series.updatedAt);
+    const websiteLink = renderLink(series.website, series.website);
 
     const heading = document.getElementById('seriesNameHeading');
     const subtitle = document.getElementById('seriesSubtitle');
@@ -147,25 +148,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const createdEl = document.getElementById('seriesCreated');
     const updatedEl = document.getElementById('seriesUpdated');
     const descriptionEl = document.getElementById('seriesDescription');
+    const createdWrap = document.getElementById('seriesCreatedWrap');
+    const updatedWrap = document.getElementById('seriesUpdatedWrap');
+    const descriptionSection = document.getElementById('seriesDescriptionSection');
 
     if (heading) heading.textContent = name;
-    if (subtitle) subtitle.textContent = series.website ? series.website : '';
-    if (nameEl) nameEl.textContent = name;
-    if (websiteEl) {
-      const link = renderLink(series.website, series.website);
-      if (link) {
-        websiteEl.innerHTML = link;
-        websiteEl.classList.remove('text-muted');
+    if (subtitle) {
+      if (websiteLink) {
+        subtitle.innerHTML = websiteLink;
+        subtitle.classList.remove('d-none');
       } else {
-        websiteEl.textContent = 'No website listed';
-        websiteEl.classList.add('text-muted');
+        subtitle.textContent = '';
+        subtitle.classList.add('d-none');
       }
     }
-    setTextOrMuted(startEl, start, 'Unknown');
-    setTextOrMuted(endEl, end, 'Unknown');
-    setTextOrMuted(createdEl, createdAt, '—');
-    setTextOrMuted(updatedEl, updatedAt, '—');
-    setTextOrMuted(descriptionEl, description, 'No description on file.');
+    if (nameEl) nameEl.textContent = name;
+    if (websiteEl) {
+      if (websiteLink) {
+        websiteEl.innerHTML = websiteLink;
+        websiteEl.classList.remove('d-none');
+      } else {
+        websiteEl.textContent = '';
+        websiteEl.classList.add('d-none');
+      }
+    }
+    if (startEl) startEl.textContent = start;
+    if (endEl) endEl.textContent = end;
+    setTextOrHide(createdWrap, createdEl, createdAt || '');
+    setTextOrHide(updatedWrap, updatedEl, updatedAt || '');
+    if (descriptionSection && descriptionEl) {
+      if (description) {
+        descriptionEl.textContent = description;
+        descriptionSection.classList.remove('d-none');
+      } else {
+        descriptionEl.textContent = '';
+        descriptionSection.classList.add('d-none');
+      }
+    }
   };
 
   const getSeriesOrder = (book) => {
@@ -195,12 +214,14 @@ document.addEventListener('DOMContentLoaded', () => {
       row.className = 'clickable-row';
       const cover = book.coverImageUrl || placeholderCover(book.title);
       const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
-      const languages = Array.isArray(book.languages) && book.languages.length
-        ? book.languages.map((lang) => lang.name).join(', ')
-        : '—';
-      const tags = Array.isArray(book.tags) && book.tags.length
-        ? book.tags.map((tag) => tag.name).join(', ')
-        : '—';
+      const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
+      const visibleLanguages = languageNames.slice(0, 2);
+      const languageExtra = Math.max(languageNames.length - visibleLanguages.length, 0);
+      const languageLabel = visibleLanguages.join(', ') + (languageExtra ? `, +${languageExtra} more` : '');
+      const languageTitle = languageExtra ? ` title="${escapeHtml(languageNames.join(', '))}"` : '';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
       const published = formatPartialDate(book.publicationDate) || '—';
       const bookType = book.bookType?.name || book.bookTypeName || '—';
       const order = getSeriesOrder(book);
@@ -219,9 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
-        <td class="list-col-language"><span class="text-muted">${escapeHtml(languages)}</span></td>
+        <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel)}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
-        <td class="list-col-tags"><span class="text-muted">${escapeHtml(tags)}</span></td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;

@@ -34,6 +34,7 @@
     limit: 20,
     page: 1,
     search: '',
+    searchDriven: false,
     filters: defaultFilters()
   };
 
@@ -149,6 +150,7 @@
 
   const hydrateStateFromUrl = () => {
     state.filters = defaultFilters();
+    state.searchDriven = false;
     const params = new URLSearchParams(window.location.search);
     const sortParam = params.get('sort');
     if (sortParam) {
@@ -181,8 +183,12 @@
     if (params.get('filterUpdatedBefore')) f.updatedBefore = params.get('filterUpdatedBefore');
     if (params.get('includeDeleted') === 'true') f.includeDeleted = true;
 
-    if (!f.displayName && state.search) {
+    if (f.displayName) {
+      state.search = f.displayName;
+      state.searchDriven = false;
+    } else if (state.search) {
       f.displayName = state.search;
+      state.searchDriven = true;
     }
   };
 
@@ -214,11 +220,11 @@
   };
 
   const syncControlsFromState = () => {
-    const mergedName = state.filters.displayName || state.search || '';
-    if (state.search !== mergedName) state.search = mergedName;
-    if (state.filters.displayName !== mergedName) state.filters.displayName = mergedName;
+    if (state.searchDriven) {
+      state.filters.displayName = state.search;
+    }
 
-    if (dom.searchInput) dom.searchInput.value = mergedName;
+    if (dom.searchInput) dom.searchInput.value = state.search || '';
     if (dom.sortSelect) dom.sortSelect.value = `${state.sort.field}:${state.sort.order}`;
     if (dom.perPageInput) dom.perPageInput.value = state.limit;
     if (dom.filterDisplayName) dom.filterDisplayName.value = state.filters.displayName;
@@ -254,7 +260,9 @@
     };
 
     const f = state.filters;
-    if (f.displayName) pushChip('name', f.displayName, () => { f.displayName = ''; syncControlsFromState(); triggerFetch(); });
+    if (f.displayName && !state.searchDriven) {
+      pushChip('name', f.displayName, () => { f.displayName = ''; syncControlsFromState(); triggerFetch(); });
+    }
     if (f.firstNames) pushChip('first names', f.firstNames, () => { f.firstNames = ''; syncControlsFromState(); triggerFetch(); });
     if (f.lastName) pushChip('last name', f.lastName, () => { f.lastName = ''; syncControlsFromState(); triggerFetch(); });
     if (f.bio) pushChip('bio', f.bio, () => { f.bio = ''; syncControlsFromState(); triggerFetch(); });
@@ -300,9 +308,26 @@
   });
 
   const applyFiltersFromControls = () => {
-    state.filters = readFiltersFromControls();
-    state.search = state.filters.displayName || '';
-    if (dom.searchInput) dom.searchInput.value = state.search;
+    const nextFilters = readFiltersFromControls();
+    const nextName = nextFilters.displayName.trim();
+    const matchesSearch = nextName && nextName === state.search && state.searchDriven;
+
+    state.filters = nextFilters;
+
+    if (nextName) {
+      if (matchesSearch) {
+        state.searchDriven = true;
+      } else {
+        state.search = nextName;
+        state.searchDriven = false;
+      }
+    } else if (state.search) {
+      state.searchDriven = true;
+    } else {
+      state.searchDriven = false;
+    }
+
+    if (dom.searchInput) dom.searchInput.value = state.search || '';
     state.page = 1;
     renderActiveFilters();
     triggerFetch();
@@ -360,12 +385,11 @@
   const getAuthorsSignature = () => JSON.stringify(buildAuthorsBody());
 
   const updateSummary = (count) => {
+    const sortLabel = dom.sortSelect ? dom.sortSelect.selectedOptions[0]?.textContent : '';
     if (dom.resultsSummary) {
-      dom.resultsSummary.textContent = count === 1 ? '1 author found' : `${count} authors found`;
+      dom.resultsSummary.textContent = `${count} author${count === 1 ? '' : 's'} • ${sortLabel || 'Sorted'} • Page ${state.page}`;
     }
-    if (dom.resultsMeta) {
-      dom.resultsMeta.textContent = `Sorted by ${state.sort.field} • Page ${state.page}`;
-    }
+    if (dom.resultsMeta) dom.resultsMeta.textContent = '';
     if (dom.listCount) {
       dom.listCount.textContent = `${count} shown`;
     }
@@ -393,15 +417,55 @@
       return li;
     };
 
-    dom.paginationNav.appendChild(createItem('&laquo;', state.page === 1, () => {
-      state.page = Math.max(1, state.page - 1);
-      triggerFetch();
-    }, 'Previous'));
+    dom.paginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
+      </svg>`,
+      state.page <= 1,
+      () => {
+        state.page = Math.max(1, state.page - 1);
+        updateUrl();
+        triggerFetch();
+      },
+      'Previous page'
+    ));
 
-    dom.paginationNav.appendChild(createItem('&raquo;', !hasNextPage, () => {
-      state.page = state.page + 1;
-      triggerFetch();
-    }, 'Next'));
+    if (state.page > 1) {
+      dom.paginationNav.appendChild(createItem(String(state.page - 1), false, () => {
+        state.page -= 1;
+        updateUrl();
+        triggerFetch();
+      }));
+    }
+
+    const current = document.createElement('li');
+    current.className = 'page-item active';
+    const span = document.createElement('span');
+    span.className = 'page-link';
+    span.textContent = String(state.page);
+    current.appendChild(span);
+    dom.paginationNav.appendChild(current);
+
+    if (hasNextPage) {
+      dom.paginationNav.appendChild(createItem(String(state.page + 1), false, () => {
+        state.page += 1;
+        updateUrl();
+        triggerFetch();
+      }));
+    }
+
+    dom.paginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+      </svg>`,
+      !hasNextPage,
+      () => {
+        state.page += 1;
+        updateUrl();
+        triggerFetch();
+      },
+      'Next page'
+    ));
   };
 
   const renderAuthors = (authors) => {
@@ -410,29 +474,37 @@
 
     if (!authors.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="5" class="text-center text-muted py-4">No authors match your filters.</td>';
+      emptyRow.innerHTML = '<td colspan="4" class="text-center text-muted py-4">No authors match your filters.</td>';
       dom.listTableBody.appendChild(emptyRow);
       hideLoading();
       return;
     }
 
     authors.forEach((author) => {
+      const fullName = [author.firstNames, author.lastName].filter(Boolean).join(' ').trim();
+      const displayName = author.displayName || fullName || 'Unknown author';
+      const showAltName = Boolean(fullName) && fullName !== displayName;
+      const bornText = formatPartialDate(author.birthDate);
+      const isDeceased = Boolean(author.deceased) || Boolean(author.deathDate);
+      const diedText = formatPartialDate(author.deathDate);
+      const bornLabel = bornText ? `Born ${bornText}` : '';
+      const deathLabel = isDeceased ? (diedText ? `† ${diedText}` : '†') : '';
+      const mobileMetaParts = [bornLabel, deathLabel].filter(Boolean);
+      const mobileMeta = mobileMetaParts.join(' • ');
+
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       row.innerHTML = `
         <td class="list-col-name">
-          <div class="fw-semibold">${escapeHtml(author.displayName || 'Unknown author')}</div>
-          <div class="text-muted small">${escapeHtml([author.firstNames, author.lastName].filter(Boolean).join(' ') || 'No alternate name')}</div>
-          <div class="text-muted small list-meta-mobile">${escapeHtml(formatPartialDate(author.birthDate) || 'Birth date unknown')} • ${escapeHtml(author.deceased ? (formatPartialDate(author.deathDate) || 'Deceased') : 'Living')}</div>
+          <div class="fw-semibold">${escapeHtml(displayName)}</div>
+          ${showAltName ? `<div class="text-muted small">${escapeHtml(fullName)}</div>` : ''}
+          <div class="text-muted small list-meta-mobile ${mobileMeta ? '' : 'd-none'}">${escapeHtml(mobileMeta)}</div>
         </td>
         <td class="list-col-born">
-          <span class="text-muted">${escapeHtml(formatPartialDate(author.birthDate) || '—')}</span>
+          <span class="text-muted">${escapeHtml(bornText || '')}</span>
         </td>
         <td class="list-col-died">
-          <span class="text-muted">${escapeHtml(author.deceased ? (formatPartialDate(author.deathDate) || 'Unknown') : '—')}</span>
-        </td>
-        <td class="list-col-status">
-          <span class="badge ${author.deceased ? 'text-bg-secondary' : 'text-bg-success'}">${author.deceased ? 'Deceased' : 'Living'}</span>
+          <span class="text-muted">${escapeHtml(isDeceased ? (deathLabel || '†') : '')}</span>
         </td>
         <td class="list-col-updated">
           <span class="text-muted">${escapeHtml(formatTimestamp(author.updatedAt) || '—')}</span>
@@ -503,9 +575,13 @@
   };
 
   const resetFilters = () => {
-    const preservedSearch = state.search;
     state.filters = defaultFilters();
-    state.filters.displayName = preservedSearch;
+    if (state.search) {
+      state.filters.displayName = state.search;
+      state.searchDriven = true;
+    } else {
+      state.searchDriven = false;
+    }
     state.page = 1;
     syncControlsFromState();
     renderActiveFilters();
@@ -518,6 +594,7 @@
         const nextValue = event.target.value.trim();
         state.search = nextValue;
         state.filters.displayName = nextValue;
+        state.searchDriven = true;
         if (dom.filterDisplayName) dom.filterDisplayName.value = nextValue;
         state.page = 1;
         triggerFetch();
@@ -528,6 +605,7 @@
           const nextValue = dom.searchInput.value.trim();
           state.search = nextValue;
           state.filters.displayName = nextValue;
+          state.searchDriven = true;
           if (dom.filterDisplayName) dom.filterDisplayName.value = nextValue;
           state.page = 1;
           triggerFetch();
@@ -537,10 +615,14 @@
 
     if (dom.clearSearchBtn) {
       dom.clearSearchBtn.addEventListener('click', () => {
+        const wasSearchDriven = state.searchDriven;
         state.search = '';
-        state.filters.displayName = '';
+        if (wasSearchDriven) {
+          state.filters.displayName = '';
+        }
+        state.searchDriven = false;
         if (dom.searchInput) dom.searchInput.value = '';
-        if (dom.filterDisplayName) dom.filterDisplayName.value = '';
+        if (dom.filterDisplayName && wasSearchDriven) dom.filterDisplayName.value = '';
         state.page = 1;
         triggerFetch();
       });

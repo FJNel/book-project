@@ -74,15 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<a href="${normalized}" target="_blank" rel="noopener">${escapeHtml(text || normalized)}</a>`;
   };
 
-  const setTextOrMuted = (el, text, fallback) => {
-    if (!el) return;
+  const setTextOrHide = (wrap, el, text) => {
+    if (!wrap || !el) return;
     if (text) {
       el.textContent = text;
-      el.classList.remove('text-muted');
+      wrap.classList.remove('d-none');
       return;
     }
-    el.textContent = fallback;
-    el.classList.add('text-muted');
+    el.textContent = '';
+    wrap.classList.add('d-none');
   };
 
   const showModal = async (target, options) => {
@@ -133,8 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Rendering publisher details.');
     const name = publisher.name || 'Untitled publisher';
     const founded = formatPartialDate(publisher.foundedDate) || 'Unknown';
-    const createdAt = formatTimestamp(publisher.createdAt) || '—';
-    const updatedAt = formatTimestamp(publisher.updatedAt) || '—';
+    const createdAt = formatTimestamp(publisher.createdAt);
+    const updatedAt = formatTimestamp(publisher.updatedAt);
+    const websiteLink = renderLink(publisher.website, publisher.website);
 
     const heading = document.getElementById('publisherNameHeading');
     const subtitle = document.getElementById('publisherSubtitle');
@@ -144,24 +145,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const createdEl = document.getElementById('publisherCreated');
     const updatedEl = document.getElementById('publisherUpdated');
     const notesEl = document.getElementById('publisherNotes');
+    const createdWrap = document.getElementById('publisherCreatedWrap');
+    const updatedWrap = document.getElementById('publisherUpdatedWrap');
+    const notesSection = document.getElementById('publisherNotesSection');
 
     if (heading) heading.textContent = name;
-    if (subtitle) subtitle.textContent = publisher.website ? publisher.website : '';
-    if (nameEl) nameEl.textContent = name;
-    if (websiteEl) {
-      const link = renderLink(publisher.website, publisher.website);
-      if (link) {
-        websiteEl.innerHTML = link;
-        websiteEl.classList.remove('text-muted');
+    if (subtitle) {
+      if (websiteLink) {
+        subtitle.innerHTML = websiteLink;
+        subtitle.classList.remove('d-none');
       } else {
-        websiteEl.textContent = 'No website listed';
-        websiteEl.classList.add('text-muted');
+        subtitle.textContent = '';
+        subtitle.classList.add('d-none');
       }
     }
-    setTextOrMuted(foundedEl, founded, 'Unknown');
-    setTextOrMuted(createdEl, createdAt, '—');
-    setTextOrMuted(updatedEl, updatedAt, '—');
-    setTextOrMuted(notesEl, publisher.notes, 'No notes on file.');
+    if (nameEl) nameEl.textContent = name;
+    if (websiteEl) {
+      if (websiteLink) {
+        websiteEl.innerHTML = websiteLink;
+        websiteEl.classList.remove('d-none');
+      } else {
+        websiteEl.textContent = '';
+        websiteEl.classList.add('d-none');
+      }
+    }
+    if (foundedEl) foundedEl.textContent = founded;
+    setTextOrHide(createdWrap, createdEl, createdAt || '');
+    setTextOrHide(updatedWrap, updatedEl, updatedAt || '');
+    if (notesSection && notesEl) {
+      if (publisher.notes && publisher.notes.trim()) {
+        notesEl.textContent = publisher.notes;
+        notesSection.classList.remove('d-none');
+      } else {
+        notesEl.textContent = '';
+        notesSection.classList.add('d-none');
+      }
+    }
   };
 
   const renderBooks = (books) => {
@@ -185,12 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
       row.className = 'clickable-row';
       const cover = book.coverImageUrl || placeholderCover(book.title);
       const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
-      const languages = Array.isArray(book.languages) && book.languages.length
-        ? book.languages.map((lang) => lang.name).join(', ')
-        : '—';
-      const tags = Array.isArray(book.tags) && book.tags.length
-        ? book.tags.map((tag) => tag.name).join(', ')
-        : '—';
+      const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
+      const visibleLanguages = languageNames.slice(0, 2);
+      const languageExtra = Math.max(languageNames.length - visibleLanguages.length, 0);
+      const languageLabel = visibleLanguages.join(', ') + (languageExtra ? `, +${languageExtra} more` : '');
+      const languageTitle = languageExtra ? ` title="${escapeHtml(languageNames.join(', '))}"` : '';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
       const published = formatPartialDate(book.publicationDate) || '—';
       const bookType = book.bookType?.name || book.bookTypeName || '—';
 
@@ -206,9 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
-        <td class="list-col-language"><span class="text-muted">${escapeHtml(languages)}</span></td>
+        <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel)}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
-        <td class="list-col-tags"><span class="text-muted">${escapeHtml(tags)}</span></td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;
