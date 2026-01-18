@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <title>The Book Project</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <style>
+    .stats-section { display: none; }
+    .stats-section.active { display: block; }
+
+    .stats-card {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 0.75rem;
+      background: #fff;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.85rem;
+    }
+
+    .chart-shell {
+      position: relative;
+      min-height: 220px;
+    }
+
+    .chart-shell canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .section-loading {
+      min-height: 160px;
+    }
+
+    .mini-card {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 0.75rem;
+    }
+
+    .table thead th { white-space: nowrap; }
+
+    .empty-state {
+      border: 1px dashed rgba(0, 0, 0, 0.15);
+      border-radius: 0.75rem;
+      background: #f8f9fa;
+    }
+
+    .empty-state-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" href="dashboard">The Book Project</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="books">Books</a></li>
+          <li class="nav-item"><a class="nav-link" href="publishers">Publishers</a></li>
+          <li class="nav-item"><a class="nav-link" href="series">Series</a></li>
+          <li class="nav-item"><a class="nav-link" href="storage-locations">Storage Locations</a></li>
+          <li class="nav-item"><a class="nav-link active" aria-current="page" href="statistics">Statistics</a></li>
+        </ul>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" type="button">Account</button>
+          <button class="btn btn-outline-danger btn-sm js-logout-btn" type="button">Log out</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Please Slow Down for a Moment</h4>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information is not available right now.</p>
+          <p class="mb-3">Nothing is wrong, and there is nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+          <p class="mb-2 text-muted">Preparing to continue...</p>
+          <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container py-4">
+    <div class="mb-3">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2 small">
+          <li class="breadcrumb-item"><a href="dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Statistics</li>
+        </ol>
+      </nav>
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+        <div>
+          <h1 class="mb-1">Statistics</h1>
+          <p class="text-muted mb-0">Insights about your library.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshStatsBtn">
+          <span class="spinner-border spinner-border-sm me-2 d-none" role="status" id="refreshSpinner"></span>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <div id="feedbackContainer"></div>
+
+    <ul class="nav nav-pills flex-column flex-md-row gap-2 mb-4" id="statsSectionNav">
+      <li class="nav-item"><button class="nav-link active" type="button" data-section="overview">Overview</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="books">Books</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="authors">Authors</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="series">Series</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="storage">Storage</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="timeline">Timeline</button></li>
+    </ul>
+
+    <section id="section-overview" class="stats-section active" data-section-content="overview">
+      <div id="overviewLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Loading overview stats...</span>
+      </div>
+      <div id="overviewContent" class="d-none">
+        <div class="mb-3">
+          <h2 class="h5 fw-semibold">Key totals</h2>
+        </div>
+        <div class="row g-3 mb-4" id="overviewTotals"></div>
+
+        <div class="mb-3">
+          <h2 class="h5 fw-semibold">Highlights</h2>
+        </div>
+        <div class="row g-3" id="overviewHighlights"></div>
+      </div>
+      <div id="overviewEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">No overview stats yet</div>
+        <div class="text-muted small">Add books to start seeing insights.</div>
+      </div>
+    </section>
+
+    <section id="section-books" class="stats-section" data-section-content="books">
+      <div id="booksLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Loading book stats...</span>
+      </div>
+      <div id="booksContent" class="d-none">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Publication timeline</div>
+                <div class="chart-shell">
+                  <canvas id="booksPublicationChart"></canvas>
+                  <div class="text-muted small d-none" id="booksPublicationEmpty">No publication data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Book types</div>
+                <div class="chart-shell">
+                  <canvas id="booksTypeChart"></canvas>
+                  <div class="text-muted small d-none" id="booksTypeEmpty">No book type data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Languages</div>
+                <div class="chart-shell">
+                  <canvas id="booksLanguageChart"></canvas>
+                  <div class="text-muted small d-none" id="booksLanguageEmpty">No language data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Top tags</div>
+                <div class="chart-shell">
+                  <canvas id="booksTagChart"></canvas>
+                  <div class="text-muted small d-none" id="booksTagEmpty">No tag data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Data quality</div>
+                <div class="row g-3" id="booksQualityGrid"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Highlights</div>
+                <ul class="list-unstyled mb-0" id="booksHighlightsList"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="booksEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">No book stats yet</div>
+        <div class="text-muted small">Add books to unlock these charts.</div>
+      </div>
+    </section>
+
+    <section id="section-authors" class="stats-section" data-section-content="authors">
+      <div id="authorsLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Loading author stats...</span>
+      </div>
+      <div id="authorsContent" class="d-none">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">With death date</div>
+                <div class="chart-shell">
+                  <canvas id="authorsAliveChart"></canvas>
+                  <div class="text-muted small d-none" id="authorsAliveEmpty">No death date data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-8">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Authors by birth decade</div>
+                <div class="chart-shell">
+                  <canvas id="authorsDecadeChart"></canvas>
+                  <div class="text-muted small d-none" id="authorsDecadeEmpty">No birth decade data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Top authors</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="text-muted small">
+                      <tr>
+                        <th>Author</th>
+                        <th class="text-end">Books</th>
+                      </tr>
+                    </thead>
+                    <tbody id="authorsTopTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Highlights</div>
+                <ul class="list-unstyled mb-0" id="authorsHighlights"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Contributor roles</div>
+                <div class="chart-shell">
+                  <canvas id="authorRolesChart"></canvas>
+                  <div class="text-muted small d-none" id="authorRolesEmpty">No role data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Collaboration pairs</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="text-muted small">
+                      <tr>
+                        <th>Authors</th>
+                        <th class="text-end">Books</th>
+                      </tr>
+                    </thead>
+                    <tbody id="authorsCollabTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="authorsEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">No author stats yet</div>
+        <div class="text-muted small">Add authors to see trends.</div>
+      </div>
+    </section>
+
+    <section id="section-series" class="stats-section" data-section-content="series">
+      <div id="seriesLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Loading series stats...</span>
+      </div>
+      <div id="seriesContent" class="d-none">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Series vs standalones</div>
+                <div class="chart-shell">
+                  <canvas id="seriesVsStandaloneChart"></canvas>
+                  <div class="text-muted small d-none" id="seriesVsStandaloneEmpty">No series share data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-8">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Top series</div>
+                <div class="chart-shell">
+                  <canvas id="seriesTopChart"></canvas>
+                  <div class="text-muted small d-none" id="seriesTopEmpty">No series breakdown data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Series data health</div>
+                <ul class="list-unstyled mb-0" id="seriesHealthList"></ul>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Series breakdown</div>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="text-muted small">
+                      <tr>
+                        <th>Series</th>
+                        <th class="text-end">Books</th>
+                        <th class="text-end">Gaps</th>
+                      </tr>
+                    </thead>
+                    <tbody id="seriesBreakdownTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="seriesEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">No series stats yet</div>
+        <div class="text-muted small">Add series to see health signals.</div>
+      </div>
+    </section>
+
+    <section id="section-storage" class="stats-section" data-section-content="storage">
+      <div id="storageLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Loading storage stats...</span>
+      </div>
+      <div id="storageContent" class="d-none">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Locations by copy count</div>
+                <div class="chart-shell">
+                  <canvas id="storageLocationChart"></canvas>
+                  <div class="text-muted small d-none" id="storageLocationEmpty">No storage breakdown data available.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Most used location</div>
+                <div id="storageHighlights"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="fw-semibold mb-2">Location breakdown</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="text-muted small">
+                  <tr>
+                    <th>Location</th>
+                    <th class="text-end">Copies</th>
+                    <th class="text-end">Direct</th>
+                    <th class="text-end">Nested</th>
+                  </tr>
+                </thead>
+                <tbody id="storageBreakdownTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="storageEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">No storage stats yet</div>
+        <div class="text-muted small">Add storage locations to see usage.</div>
+      </div>
+    </section>
+
+    <section id="section-timeline" class="stats-section" data-section-content="timeline">
+      <div id="timelineLoading" class="section-loading d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border text-secondary" role="status"></span>
+        <span>Preparing timeline builder...</span>
+      </div>
+      <div id="timelineContent" class="d-none">
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+              <div class="flex-grow-1">
+                <div class="fw-semibold mb-2">Timeline builder</div>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small text-muted" for="timelineEntity">Entity</label>
+                    <select class="form-select" id="timelineEntity"></select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small text-muted" for="timelineField">Field</label>
+                    <select class="form-select" id="timelineField"></select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small text-muted" for="timelineMode">Mode</label>
+                    <select class="form-select" id="timelineMode">
+                      <option value="auto">Auto</option>
+                      <option value="manual">Manual</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-6" id="timelineBucketsWrap">
+                    <label class="form-label small text-muted" for="timelineBuckets">Number of buckets</label>
+                    <input class="form-control" id="timelineBuckets" type="number" min="2" max="200" placeholder="10" />
+                  </div>
+                  <div class="col-12" id="timelineManualRow">
+                    <div class="row g-3">
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted" for="timelineStart">Start date</label>
+                        <input class="form-control" id="timelineStart" type="text" placeholder="YYYY-MM-DD" />
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted" for="timelineEnd">End date</label>
+                        <input class="form-control" id="timelineEnd" type="text" placeholder="YYYY-MM-DD" />
+                      </div>
+                      <div class="col-6 col-md-2">
+                        <label class="form-label small text-muted" for="timelineStep">Step</label>
+                        <input class="form-control" id="timelineStep" type="number" min="1" value="1" />
+                      </div>
+                      <div class="col-6 col-md-2">
+                        <label class="form-label small text-muted" for="timelineStepUnit">Unit</label>
+                        <select class="form-select" id="timelineStepUnit">
+                          <option value="year">Year</option>
+                          <option value="month">Month</option>
+                          <option value="day">Day</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="timelineHideEmpty" />
+                      <label class="form-check-label" for="timelineHideEmpty">Hide empty buckets</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="align-self-lg-end">
+                <button class="btn btn-primary" type="button" id="timelineRunBtn">
+                  <span class="spinner-border spinner-border-sm me-2 d-none" role="status" id="timelineRunSpinner"></span>
+                  Generate timeline
+                </button>
+              </div>
+            </div>
+            <div class="alert alert-danger d-none mt-3" id="timelineError"></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="fw-semibold mb-2">Timeline output</div>
+            <div class="chart-shell">
+              <canvas id="timelineChart"></canvas>
+              <div class="text-muted small d-none" id="timelineChartEmpty">Run a timeline to see results.</div>
+            </div>
+            <div class="row g-3 mt-3" id="timelineSummary"></div>
+          </div>
+        </div>
+      </div>
+      <div id="timelineEmpty" class="empty-state text-center py-5 d-none">
+        <div class="empty-state-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+            <path d="M0 0h1v15h15v1H0z"/>
+            <path d="M2 14V5h1v9zm4 0V2h1v12zm4 0v-7h1v7zm4 0V8h1v6z"/>
+          </svg>
+        </div>
+        <div class="fw-semibold">Timeline builder unavailable</div>
+        <div class="text-muted small">Try refreshing once stats are ready.</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Session Expired!</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+          <ul>
+            <li><strong>Inactivity:</strong> You have been away for a while, and we need to confirm your identity.</li>
+            <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+            <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+          </ul>
+          <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/statistics.js"></script>
+</body>
+</html>
