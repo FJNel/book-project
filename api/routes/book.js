@@ -1033,6 +1033,37 @@ async function listBooksHandler(req, res) {
 		}
 	}
 
+	if (listParams.filterStorageLocationId !== undefined) {
+		const { ids, error } = parseIdArray(listParams.filterStorageLocationId, "filterStorageLocationId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const includeSubtree = parseBooleanFlag(
+				listParams.includeSubtree ?? listParams.filterStorageLocationIncludeSubtree ?? listParams.filterStorageLocationRecursive
+			) ?? false;
+			if (includeSubtree) {
+				filters.push(`EXISTS (
+					WITH RECURSIVE location_tree AS (
+						SELECT id FROM storage_locations WHERE user_id = $1 AND id = ANY($${paramIndex++}::int[])
+						UNION ALL
+						SELECT sl.id
+						FROM storage_locations sl
+						JOIN location_tree lt ON sl.parent_id = lt.id
+						WHERE sl.user_id = $1
+					)
+					SELECT 1
+					FROM book_copies bc
+					JOIN location_tree lt ON bc.storage_location_id = lt.id
+					WHERE bc.user_id = $1 AND bc.book_id = b.id
+				)`);
+				values.push(ids);
+			} else {
+				filters.push(`EXISTS (SELECT 1 FROM book_copies bc WHERE bc.user_id = $1 AND bc.book_id = b.id AND bc.storage_location_id = ANY($${paramIndex++}::int[]))`);
+				values.push(ids);
+			}
+		}
+	}
+
 	const { values: tagNames, error: tagError } = parseStringArray(listParams.filterTag, "filterTag");
 	if (tagError) {
 		errors.push(tagError);

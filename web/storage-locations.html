@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <title>The Book Project</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <style>
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background-color: #f8f9fa; }
+    .clickable-row:active { background-color: #f1f3f5; }
+
+    .tree-node {
+      padding-left: calc(var(--level, 0) * 1.25rem);
+    }
+
+    .tree-node .node-row {
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.5rem;
+    }
+
+    .tree-node .node-row.selected {
+      background: #f1f3f5;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .node-actions .dropdown-toggle::after {
+      display: none;
+    }
+
+    .cover-thumb {
+      width: 60px;
+      height: 80px;
+      object-fit: cover;
+      background: #f1f3f5;
+      border-radius: 0.35rem;
+    }
+
+    .books-toolbar {
+      position: sticky;
+      top: 56px;
+      z-index: 1010;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .toolbar-grid .form-control,
+    .toolbar-grid .form-select,
+    .toolbar-grid .btn,
+    .toolbar-grid .btn-group .btn,
+    .toolbar-grid .input-group-text {
+      height: 44px;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.6rem;
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 999px;
+      font-size: 0.875rem;
+      background: #f8f9fa;
+    }
+
+    @media (max-width: 767.98px) {
+      .list-table th.list-col-authors,
+      .list-table th.list-col-type,
+      .list-table th.list-col-language,
+      .list-table th.list-col-published,
+      .list-table th.list-col-tags,
+      .list-table td.list-col-authors,
+      .list-table td.list-col-type,
+      .list-table td.list-col-language,
+      .list-table td.list-col-published,
+      .list-table td.list-col-tags {
+        display: none;
+      }
+      .list-meta-mobile { display: block; }
+    }
+
+    .list-table th { white-space: nowrap; }
+    .list-table td { vertical-align: middle; }
+    .list-meta-mobile { display: none; }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" href="dashboard">The Book Project</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="books">Books</a></li>
+          <li class="nav-item"><a class="nav-link" href="add-book">Add Book</a></li>
+        </ul>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" type="button">Account</button>
+          <button class="btn btn-outline-danger btn-sm" type="button">Log out</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="apiErrorModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="api_error_heading">API Connection Error</h4>
+        </div>
+        <div class="modal-body">
+          <h5 data-lang="api_error_heading_2_1">Unable to Connect</h5>
+          <p data-lang="api_error_1">We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
+          <h5 data-lang="api_error_heading_2_2">What you can do</h5>
+          <ul>
+            <li data-lang="api_error_li1"><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
+            <li data-lang="api_error_li2"><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
+          </ul>
+          <p class="mb-0" data-lang="api_error_footer"><em>If the problem continues, please contact the System Administrator at </em><a href="mailto:support@fjnel.co.za?subject=The%20Book%20Project%3A%20API%20Connection%20Error">support@fjnel.co.za</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Please Slow Down for a Moment</h4>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information isn’t available right now.</p>
+          <p class="mb-3">Nothing is wrong, and there’s nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+          <p class="mb-2 text-muted">Preparing to continue…</p>
+          <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container-fluid py-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="books" class="text-decoration-none">Books</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Storage Locations</li>
+          </ol>
+        </nav>
+        <h1 class="mb-1">Storage Locations</h1>
+        <p class="text-muted mb-0">Manage where your physical books live.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshLocationsBtn" title="Refresh">Refresh</button>
+      </div>
+    </div>
+
+    <div id="feedbackContainer" class="mb-3"></div>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="fw-semibold">Locations</div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="expandAllBtn">Expand all</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="collapseAllBtn">Collapse all</button>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                  </svg>
+                </span>
+                <input class="form-control" id="treeSearchInput" type="text" placeholder="Search locations" autocomplete="off" />
+                <button class="btn btn-outline-secondary" type="button" id="clearTreeSearchBtn">Clear</button>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 mb-3">
+              <button class="btn btn-primary" type="button" id="addRootBtn">Add root location</button>
+            </div>
+
+            <div id="treeContainer" class="d-flex flex-column gap-1"></div>
+            <div id="treeEmptyState" class="text-muted text-center py-3 d-none">No storage locations yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-8 col-lg-9">
+        <div class="offcanvas-md offcanvas-end" tabindex="-1" id="detailsOffcanvas" aria-labelledby="detailsOffcanvasLabel" data-bs-scroll="true">
+          <div class="offcanvas-header border-bottom d-md-none">
+            <h5 class="offcanvas-title" id="detailsOffcanvasLabel">Location Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body p-0">
+            <div class="card shadow-sm h-100 border-0 rounded-3">
+              <div class="card-body">
+                <div id="detailsEmptyState" class="text-muted text-center py-5">
+                  Select a location to view details.
+                </div>
+
+                <div id="detailsContent" class="d-none">
+                  <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                    <div>
+                      <div class="text-muted">Selected location</div>
+                      <h2 class="h4 mb-1" id="locationNameHeading"></h2>
+                      <div class="text-muted small" id="locationNotesHeading"></div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                      <button class="btn btn-outline-secondary" type="button" id="addChildBtn">Add child</button>
+                      <button class="btn btn-outline-secondary" type="button" id="renameBtn">Rename</button>
+                      <button class="btn btn-outline-secondary" type="button" id="moveBtn">Move</button>
+                      <button class="btn btn-outline-danger" type="button" id="deleteBtn">Delete</button>
+                    </div>
+                  </div>
+
+                  <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Location path</div>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="copyPathBtn">Copy</button>
+                      </div>
+                      <div id="locationBreadcrumb" class="d-flex flex-wrap gap-2"></div>
+                      <div class="text-muted small mt-2" id="locationParentLine"></div>
+                    </div>
+                  </div>
+
+                  <div class="row g-3 mb-3">
+                    <div class="col-12 col-lg-4">
+                      <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                          <div class="text-muted small">Books in this location</div>
+                          <div class="h4 mb-0" id="booksDirectStat">0</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                      <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                          <div class="text-muted small">Books in subtree</div>
+                          <div class="h4 mb-0" id="booksTotalStat">0</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                      <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                          <div class="text-muted small">Child locations</div>
+                          <div class="h4 mb-0" id="childrenCountStat">0</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                        <div>
+                          <div class="fw-semibold">Books in this location</div>
+                          <div class="text-muted small">Click a row to open book details.</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                          <div class="btn-group" role="group" aria-label="Include subtree toggle">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="directOnlyBtn">Direct only</button>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="includeSubtreeBtn">Include sub-locations</button>
+                          </div>
+                          <select class="form-select form-select-sm" id="booksSortSelect" aria-label="Sort books" style="min-width: 200px;">
+                            <option value="title:asc">Title (A to Z)</option>
+                            <option value="title:desc">Title (Z to A)</option>
+                            <option value="publicationDate:desc">Published date (newest first)</option>
+                            <option value="publicationDate:asc">Published date (oldest first)</option>
+                            <option value="createdAt:desc">Created at (newest first)</option>
+                            <option value="updatedAt:desc">Updated at (newest first)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="table-responsive">
+                        <table class="table list-table align-middle mb-0">
+                          <thead>
+                            <tr class="text-muted">
+                              <th class="list-col-book">Book</th>
+                              <th class="list-col-authors">Authors</th>
+                              <th class="list-col-type">Type</th>
+                              <th class="list-col-language">Language</th>
+                              <th class="list-col-published">Published</th>
+                              <th class="list-col-tags">Tags</th>
+                            </tr>
+                          </thead>
+                          <tbody id="booksTableBody"></tbody>
+                        </table>
+                      </div>
+
+                      <div id="booksEmptyState" class="text-center text-muted py-4 d-none">
+                        No books found for this location.
+                      </div>
+
+                      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                        <div class="text-muted small" id="booksPaginationInfo">Page 1</div>
+                        <nav aria-label="Location books pagination">
+                          <ul class="pagination mb-0" id="booksPaginationNav"></ul>
+                        </nav>
+                        <div class="d-flex align-items-center gap-2">
+                          <div>
+                            <label class="form-label mb-0 text-muted small" for="booksPerPageInput">Per page</label>
+                            <input type="number" class="form-control form-control-sm" id="booksPerPageInput" value="10" step="5" min="2" max="50" style="width: 90px;" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-muted small" id="locationTimestampLine"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Session Expired!</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+          <ul>
+            <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+            <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+            <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+          </ul>
+          <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="locationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="locationModalTitle">Add Location</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="locationNameInput">Location name</label>
+            <input type="text" class="form-control" id="locationNameInput" maxlength="150" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="locationNotesInput">Notes</label>
+            <textarea class="form-control" id="locationNotesInput" rows="3" maxlength="2000"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="locationParentLabel">Parent location</label>
+            <input type="text" class="form-control" id="locationParentLabel" disabled />
+          </div>
+          <div id="locationModalError" class="alert alert-danger d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" id="locationModalSaveBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="moveLocationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Move Location</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="moveLocationSelect">New parent</label>
+            <select class="form-select" id="moveLocationSelect"></select>
+          </div>
+          <div id="moveLocationError" class="alert alert-danger d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" id="moveLocationConfirmBtn">Move</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="deleteLocationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Location</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteLocationMessage"></p>
+          <div id="deleteLocationError" class="alert alert-danger d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" id="deleteLocationConfirmBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/storage-locations.js"></script>
+</body>
+</html>

@@ -71,6 +71,20 @@ function parseId(value) {
 	return parsed;
 }
 
+function parseIdArray(input, label) {
+	if (input === undefined || input === null) return { ids: [], error: null };
+	const raw = Array.isArray(input) ? input : [input];
+	const ids = [];
+	for (const item of raw) {
+		const parsed = parseId(item);
+		if (!Number.isInteger(parsed)) {
+			return { ids: [], error: `${label} must be an integer or array of integers.` };
+		}
+		ids.push(parsed);
+	}
+	return { ids, error: null };
+}
+
 function parseSortOrder(value) {
 	if (!value) return "asc";
 	const normalized = String(value).trim().toLowerCase();
@@ -216,13 +230,238 @@ async function fetchStorageLocationStats(userId, locationId) {
 		[userId, locationId]
 	);
 	const row = result.rows[0] || { direct_copy_count: 0, nested_copy_count: 0, path: null };
+	const childResult = await pool.query(
+		`SELECT COUNT(*)::int AS count
+		 FROM storage_locations
+		 WHERE user_id = $1 AND parent_id = $2`,
+		[userId, locationId]
+	);
 	return {
 		path: row.path,
 		directCopyCount: row.direct_copy_count,
 		nestedCopyCount: row.nested_copy_count,
 		directPercentage: totalCopies > 0 ? Number(((row.direct_copy_count / totalCopies) * 100).toFixed(1)) : 0,
-		nestedPercentage: totalCopies > 0 ? Number(((row.nested_copy_count / totalCopies) * 100).toFixed(1)) : 0
+		nestedPercentage: totalCopies > 0 ? Number(((row.nested_copy_count / totalCopies) * 100).toFixed(1)) : 0,
+		childLocations: childResult.rows[0]?.count ?? 0
 	};
+}
+
+async function listStorageLocationsHandler(req, res) {
+	const userId = req.user.id;
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
+	const includeCounts = parseBooleanFlag(listParams.includeCounts) ?? false;
+
+	const errors = [];
+	const sortFields = {
+		id: "lp.id",
+		name: "lp.name",
+		path: "lp.path",
+		parentId: "lp.parent_id",
+		notes: "lp.notes",
+		createdAt: "lp.created_at",
+		updatedAt: "lp.updated_at"
+	};
+	const sortBy = normalizeText(listParams.sortBy) || "path";
+	const sortColumn = sortFields[sortBy];
+	if (!sortColumn) {
+		errors.push("sortBy must be one of: id, name, path, parentId, notes, createdAt, updatedAt.");
+	}
+
+	const order = parseSortOrder(listParams.order);
+	if (!order) {
+		errors.push("order must be either asc or desc.");
+	}
+
+	const { value: limit, error: limitError } = parseOptionalInt(listParams.limit, "limit", { min: 1, max: MAX_LIST_LIMIT });
+	if (limitError) errors.push(limitError);
+	const { value: offset, error: offsetError } = parseOptionalInt(listParams.offset, "offset", { min: 0 });
+	if (offsetError) errors.push(offsetError);
+
+	const filters = [];
+	const values = [userId];
+	let paramIndex = 2;
+
+	if (listParams.filterId !== undefined) {
+		const { ids, error } = parseIdArray(listParams.filterId, "filterId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`lp.id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`lp.id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
+		}
+	}
+
+	const filterName = normalizeText(listParams.filterName);
+	if (filterName) {
+		filters.push(`lp.name ILIKE $${paramIndex++}`);
+		values.push(`%${filterName}%`);
+	}
+
+	if (listParams.filterParentId !== undefined) {
+		const { ids, error } = parseIdArray(listParams.filterParentId, "filterParentId");
+		if (error) {
+			errors.push(error);
+		} else if (ids.length > 0) {
+			const mode = String(listParams.filterParentMode || "and").toLowerCase() === "or" ? "or" : "and";
+			if (mode === "or") {
+				filters.push(`lp.parent_id = ANY($${paramIndex++}::int[])`);
+				values.push(ids);
+			} else {
+				ids.forEach((id) => {
+					filters.push(`lp.parent_id = $${paramIndex++}`);
+					values.push(id);
+				});
+			}
+		}
+	}
+
+	const filterRootOnly = parseBooleanFlag(listParams.filterRootOnly);
+	if (filterRootOnly === true) {
+		filters.push("lp.parent_id IS NULL");
+	}
+
+	const filterPath = normalizeText(listParams.filterPath);
+	if (filterPath) {
+		filters.push(`lp.path = $${paramIndex++}`);
+		values.push(filterPath);
+	}
+
+	const filterPathContains = normalizeText(listParams.filterPathContains);
+	if (filterPathContains) {
+		filters.push(`lp.path ILIKE $${paramIndex++}`);
+		values.push(`%${filterPathContains}%`);
+	}
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	try {
+		const fields = nameOnly
+			? "lp.id, lp.name, lp.path"
+			: "lp.id, lp.parent_id, lp.name, lp.notes, lp.created_at, lp.updated_at, lp.path";
+
+		let query = `WITH RECURSIVE location_paths AS (
+			SELECT id, user_id, parent_id, name, notes, created_at, updated_at, name::text AS path
+			FROM storage_locations
+			WHERE user_id = $1 AND parent_id IS NULL
+			UNION ALL
+			SELECT sl.id, sl.user_id, sl.parent_id, sl.name, sl.notes, sl.created_at, sl.updated_at,
+				(lp.path || ' -> ' || sl.name) AS path
+			FROM storage_locations sl
+			JOIN location_paths lp ON sl.parent_id = lp.id
+			WHERE sl.user_id = $1
+		)`;
+
+		if (includeCounts && !nameOnly) {
+			query += `,
+			location_tree AS (
+				SELECT id AS ancestor_id, id AS descendant_id
+				FROM storage_locations
+				WHERE user_id = $1
+				UNION ALL
+				SELECT lt.ancestor_id, sl.id
+				FROM location_tree lt
+				JOIN storage_locations sl ON sl.parent_id = lt.descendant_id
+				WHERE sl.user_id = $1
+			),
+			direct_counts AS (
+				SELECT sl.id, COUNT(b.id)::int AS direct_copy_count
+				FROM storage_locations sl
+				LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = sl.user_id
+				LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				WHERE sl.user_id = $1
+				GROUP BY sl.id
+			),
+			nested_counts AS (
+				SELECT lt.ancestor_id, COUNT(b.id)::int AS nested_copy_count
+				FROM location_tree lt
+				LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
+				LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+				GROUP BY lt.ancestor_id
+			),
+			child_counts AS (
+				SELECT parent_id AS id, COUNT(*)::int AS child_count
+				FROM storage_locations
+				WHERE user_id = $1 AND parent_id IS NOT NULL
+				GROUP BY parent_id
+			)`;
+		}
+
+		query += `
+		SELECT ${fields}`;
+		if (includeCounts && !nameOnly) {
+			query += `,
+			       COALESCE(cc.child_count, 0)::int AS child_count,
+			       COALESCE(dc.direct_copy_count, 0)::int AS direct_copy_count,
+			       COALESCE(nc.nested_copy_count, 0)::int AS nested_copy_count`;
+		}
+		query += `
+		FROM location_paths lp`;
+
+		if (includeCounts && !nameOnly) {
+			query += `
+		LEFT JOIN child_counts cc ON cc.id = lp.id
+		LEFT JOIN direct_counts dc ON dc.id = lp.id
+		LEFT JOIN nested_counts nc ON nc.ancestor_id = lp.id`;
+		}
+
+		query += `
+		WHERE lp.user_id = $1`;
+
+		if (filters.length > 0) {
+			query += ` AND ${filters.join(" AND ")}`;
+		}
+
+		query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+		if (limit !== null) {
+			query += ` LIMIT $${paramIndex++}`;
+			values.push(limit);
+		}
+		if (offset !== null) {
+			query += ` OFFSET $${paramIndex++}`;
+			values.push(offset);
+		}
+
+		const result = await pool.query(query, values);
+		const payload = result.rows.map((row) => {
+			const base = buildLocationPayload(row, nameOnly);
+			if (includeCounts && !nameOnly) {
+				base.childrenCount = row.child_count ?? 0;
+				base.booksDirectCount = row.direct_copy_count ?? 0;
+				base.booksTotalCount = row.nested_copy_count ?? 0;
+			}
+			return base;
+		});
+
+		logToFile("STORAGE_LOCATION_LIST", {
+			status: "SUCCESS",
+			user_id: userId,
+			count: payload.length,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Storage locations retrieved successfully.", { storageLocations: payload });
+	} catch (error) {
+		logToFile("STORAGE_LOCATION_LIST", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving storage locations."]);
+	}
 }
 
 // GET /storagelocation - List or fetch a specific storage location
@@ -432,6 +671,11 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving storage locations."]);
 	}
+});
+
+// POST /storagelocation/list - List storage locations with JSON body (tree-friendly)
+router.post("/list", requiresAuth, authenticatedLimiter, async (req, res) => {
+	return listStorageLocationsHandler(req, res);
 });
 
 // GET /storagelocation/:id/bookcopies - List book copies stored in a location (recursive optional)
@@ -1104,6 +1348,42 @@ async function handleStorageLocationDelete(req, res, targetId) {
 	const userId = req.user.id;
 
 	try {
+		const childResult = await pool.query(
+			`SELECT COUNT(*)::int AS count
+			 FROM storage_locations
+			 WHERE user_id = $1 AND parent_id = $2`,
+			[userId, targetId]
+		);
+		const childCount = childResult.rows[0]?.count ?? 0;
+
+		const copyResult = await pool.query(
+			`WITH RECURSIVE location_tree AS (
+				SELECT id FROM storage_locations WHERE user_id = $1 AND id = $2
+				UNION ALL
+				SELECT sl.id
+				FROM storage_locations sl
+				JOIN location_tree lt ON sl.parent_id = lt.id
+				WHERE sl.user_id = $1
+			)
+			SELECT COUNT(b.id)::int AS count
+			FROM location_tree lt
+			LEFT JOIN book_copies bc ON bc.storage_location_id = lt.id AND bc.user_id = $1
+			LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL`,
+			[userId, targetId]
+		);
+		const copyCount = copyResult.rows[0]?.count ?? 0;
+
+		if (childCount > 0 || copyCount > 0) {
+			const details = [];
+			if (childCount > 0) {
+				details.push(`This location has ${childCount} child location${childCount === 1 ? "" : "s"}.`);
+			}
+			if (copyCount > 0) {
+				details.push(`This location contains ${copyCount} book${copyCount === 1 ? "" : "s"} (directly or in sub-locations).`);
+			}
+			return errorResponse(res, 409, "Storage location cannot be deleted.", details);
+		}
+
 		const result = await pool.query(
 			`DELETE FROM storage_locations WHERE user_id = $1 AND id = $2 RETURNING id, name`,
 			[userId, targetId]

@@ -4446,8 +4446,8 @@ paths:
               listTree:
                 summary: List storage locations under parent
                 value:
-                  parentId: 1
-                  includeNested: true
+                  filterParentId: 1
+                  includeCounts: true
                   limit: 50
       responses:
         '200':
@@ -4586,6 +4586,70 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /storagelocation/list:
+    post:
+      tags: [StorageLocations]
+      summary: List storage locations (JSON body)
+      operationId: listStorageLocationsPost
+      description: List storage locations with tree paths and optional counts using a JSON request body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationListRequest'
+            examples:
+              listWithCounts:
+                summary: List storage locations with counts
+                value:
+                  includeCounts: true
+                  sortBy: path
+                  order: asc
+                  limit: 200
+              searchByPath:
+                summary: Search by path text
+                value:
+                  filterPathContains: Shelf
+                  includeCounts: true
+      responses:
+        '200':
+          description: Storage locations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StorageLocationList'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Storage locations retrieved successfully.
+                    data:
+                      storageLocations:
+                        - id: 3
+                          name: Living Room
+                          parentId: 1
+                          notes: Main shelf
+                          path: Home -> Living Room
+                          childrenCount: 2
+                          booksDirectCount: 5
+                          booksTotalCount: 12
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /storagelocation/{id}:
     put:
       tags: [StorageLocations]
@@ -4623,6 +4687,8 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '401':
           $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /storagelocation/{id}/bookcopies:
     get:
       tags: [StorageLocations, BookCopies]
@@ -8108,6 +8174,15 @@ components:
           type: string
           enum: [and, or]
           description: When multiple series ids are provided, choose AND (default) or OR matching.
+        filterStorageLocationId:
+          oneOf:
+            - type: integer
+            - type: array
+              items: { type: integer }
+          description: Filter books by storage location id (book copies).
+        includeSubtree:
+          type: boolean
+          description: When filtering by storage location, include descendant locations.
         filterTag:
           oneOf:
             - type: string
@@ -8298,11 +8373,36 @@ components:
         path:
           description: Human-readable hierarchical path.
           type: string
+        childrenCount:
+          description: Number of direct child locations (when requested).
+          type: integer
+        booksDirectCount:
+          description: Number of books directly in this location (when requested).
+          type: integer
+        booksTotalCount:
+          description: Number of books in this location and its descendants (when requested).
+          type: integer
+        stats:
+          description: Optional stats for this location (when returnStats is true).
+          type: object
+          properties:
+            path:
+              type: string
+            directCopyCount:
+              type: integer
+            nestedCopyCount:
+              type: integer
+            directPercentage:
+              type: number
+            nestedPercentage:
+              type: number
+            childLocations:
+              type: integer
     StorageLocationListRequest:
       description: Filters and pagination for storage locations.
       type: object
       properties:
-        id:
+        filterId:
           oneOf:
             - type: integer
             - type: array
@@ -8312,9 +8412,9 @@ components:
           type: string
           enum: [and, or]
           description: When multiple ids are provided, choose AND (default) or OR matching.
-        name:
+        filterName:
           type: string
-        parentId:
+        filterParentId:
           oneOf:
             - type: integer
             - type: array
@@ -8324,12 +8424,24 @@ components:
           type: string
           enum: [and, or]
           description: When multiple parent ids are provided, choose AND (default) or OR matching.
+        filterRootOnly:
+          type: boolean
+        filterPath:
+          type: string
+        filterPathContains:
+          type: string
+        sortBy:
+          type: string
+        order:
+          type: string
+        nameOnly:
+          type: boolean
+        includeCounts:
+          type: boolean
         limit:
           type: integer
         offset:
           type: integer
-        includeNested:
-          type: boolean
     StorageLocationCreate:
       description: Payload to create a storage location.
       type: object
