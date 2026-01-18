@@ -40,6 +40,14 @@
     .list-table th { white-space: nowrap; }
     .list-table td { vertical-align: middle; }
     .list-meta-mobile { display: none; }
+    .list-row-actions {
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out;
+    }
+    .list-table tr:hover .list-row-actions,
+    .list-table tr:focus-within .list-row-actions {
+      opacity: 1;
+    }
   </style>
 </head>
 

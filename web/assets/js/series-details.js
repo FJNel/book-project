@@ -284,9 +284,20 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="list-col-order">
           <div class="d-flex flex-column gap-1">
             <span class="text-muted">${escapeHtml(orderLabel)}</span>
-            <div class="d-flex gap-2">
-              <button class="btn btn-link btn-sm p-0" type="button" data-order-edit="${book.id}">Edit order</button>
-              <button class="btn btn-link btn-sm text-danger p-0" type="button" data-order-remove="${book.id}">Remove</button>
+            <div class="d-flex gap-2 list-row-actions" aria-label="Row actions">
+              <button class="btn btn-sm p-0 border-0 text-muted" type="button" data-order-edit="${book.id}" aria-label="Edit order" title="Edit order">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708z"/>
+                  <path d="M12.5 6.207 9.793 3.5 4 9.293V12h2.707z"/>
+                  <path fill-rule="evenodd" d="M1 13.5a.5.5 0 0 0 .5.5H5l8.5-8.5-3-3L2 11.5V13.5z"/>
+                </svg>
+              </button>
+              <button class="btn btn-sm p-0 border-0 text-danger" type="button" data-order-remove="${book.id}" aria-label="Remove from series" title="Remove from series">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2h3.11a1 1 0 0 1 .98-.804h2.82a1 1 0 0 1 .98.804h3.11a1 1 0 0 1 1 1"/>
+                </svg>
+              </button>
             </div>
           </div>
         </td>

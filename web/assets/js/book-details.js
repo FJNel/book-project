@@ -208,6 +208,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return { value: parsed };
   };
 
+  const setPartialDateHelp = (inputEl, helpEl) => {
+    if (!inputEl || !helpEl) return;
+    const raw = inputEl.value.trim();
+    if (!raw) {
+      clearHelpText(helpEl);
+      return;
+    }
+    const parsed = parsePartialDateInput(raw);
+    if (parsed.error) {
+      setHelpText(helpEl, parsed.error, true);
+      return;
+    }
+    setHelpText(helpEl, `This date will be saved as: ${parsed.value.text}`, false);
+  };
+
   const formatTimestamp = (value) => {
     if (!value) return null;
     const parsed = new Date(value);
@@ -249,6 +264,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const setUrlHelp = (inputEl, helpEl, label = 'Website') => {
+    if (!inputEl || !helpEl) return;
+    const raw = inputEl.value.trim();
+    if (!raw) {
+      clearHelpText(helpEl);
+      return;
+    }
+    const normalized = normalizeUrl(raw);
+    if (!normalized) {
+      setHelpText(helpEl, `${label} must be a valid URL.`, true);
+      return;
+    }
+    setHelpText(helpEl, `Will be saved as: ${normalized}`, false);
+  };
+
   const renderLink = (url, text) => {
     const normalized = normalizeUrl(url);
     if (!normalized) return null;
@@ -263,6 +293,29 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const clearHelpText = (el) => setHelpText(el, '', false);
+
+  const sharedNamePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+  const bindRequiredFieldValidation = (inputEl, helpEl, { label = 'This field', min = 2, max = 150, pattern = sharedNamePattern } = {}) => {
+    if (!inputEl || !helpEl) return;
+    const validate = () => {
+      const value = inputEl.value.trim();
+      if (!value) {
+        setHelpText(helpEl, `${label} is required.`, true);
+        return;
+      }
+      if (value.length < min || value.length > max) {
+        setHelpText(helpEl, `${label} must be between ${min} and ${max} characters.`, true);
+        return;
+      }
+      if (pattern && !pattern.test(value)) {
+        setHelpText(helpEl, `${label} contains unsupported characters.`, true);
+        return;
+      }
+      clearHelpText(helpEl);
+    };
+    inputEl.addEventListener('input', validate);
+  };
 
   const showModal = async (target, options) => {
     if (window.modalManager && typeof window.modalManager.showModal === 'function') {
@@ -360,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     authors.forEach((author) => {
       const item = document.createElement('li');
-      item.className = 'list-group-item position-relative';
+      item.className = 'list-group-item position-relative clickable-row';
       const name = author.authorName || 'Unknown author';
       const role = author.authorRole || 'Contributor';
       const birthLine = formatPartialDate(author.birthDate);
@@ -378,6 +431,11 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
+      if (Number.isInteger(author.authorId)) {
+        item.addEventListener('click', () => {
+          window.location.href = `author-details?id=${author.authorId}`;
+        });
+      }
       list.appendChild(item);
     });
   };
@@ -395,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     series.forEach((entry) => {
       const item = document.createElement('li');
-      item.className = 'list-group-item position-relative';
+      item.className = 'list-group-item position-relative clickable-row';
       const name = entry.seriesName || 'Untitled series';
       const bookOrder = Number.isInteger(entry.bookOrder) ? entry.bookOrder : null;
       const website = entry.seriesWebsite ? entry.seriesWebsite.trim() : '';
@@ -426,6 +484,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         ${details.length ? `<div class="small text-muted mt-2">${details.join('')}</div>` : ''}
       `;
+      if (Number.isInteger(entry.seriesId)) {
+        item.addEventListener('click', () => {
+          window.location.href = `series-details?id=${entry.seriesId}`;
+        });
+      }
       list.appendChild(item);
     });
   };
@@ -714,11 +777,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookTypeDescriptionWrap = document.getElementById('bookTypeDescriptionWrap');
     if (bookTypeDescription) {
       document.getElementById('bookTypeDescription').textContent = bookTypeDescription;
-      enableExpandableRow({
-        row: bookTypeRow,
-        wrap: bookTypeDescriptionWrap,
-        chevron: document.getElementById('bookTypeChevron')
-      });
+      bookTypeDescriptionWrap.classList.remove('d-none');
+    } else {
+      bookTypeDescriptionWrap.classList.add('d-none');
     }
 
     const publisherName = book.publisher?.name || 'Publisher unknown';
@@ -734,24 +795,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasPublisherDetails = publisherDetails.some((detail) => detail.data);
     if (hasPublisherDetails) {
       const publisherRow = document.getElementById('publisherRow');
-      const publisherChevron = document.getElementById('publisherChevron');
       publisherRow.classList.add('clickable-row');
-      publisherChevron.classList.remove('d-none');
 
       publisherDetails.forEach((detail) => {
         if (!detail.data) return;
         const wrap = document.getElementById(detail.wrap);
         const value = document.getElementById(detail.value);
         value.innerHTML = detail.data;
-        wrap.classList.add('d-none');
+        wrap.classList.remove('d-none');
       });
-
-      publisherRow.addEventListener('click', () => {
-        publisherDetails.forEach((detail) => {
-          if (!detail.data) return;
-          document.getElementById(detail.wrap).classList.toggle('d-none');
+      if (Number.isInteger(book.publisher?.id)) {
+        publisherRow.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target && target.closest && target.closest('a')) return;
+          window.location.href = `publisher-details?id=${book.publisher.id}`;
         });
-      });
+      }
     }
 
     renderTags(book.tags || []);
@@ -1634,6 +1693,7 @@ document.addEventListener('DOMContentLoaded', () => {
       populateSelect(copyLocationSelect, locations, { placeholder: 'Select storage location', labelKey: 'path', valueKey: 'id', includeEmpty: true });
     } catch (error) {
       errorLog('Failed to load locations.', error);
+      if (copyLocationHelp) copyLocationHelp.textContent = 'Unable to load storage locations right now.';
     }
     if (mode === 'edit') {
       const copy = (bookRecord.bookCopies || []).find((entry) => entry.id === copyId);
@@ -1645,6 +1705,7 @@ document.addEventListener('DOMContentLoaded', () => {
       copyAcquisitionLocation.value = copy.acquisitionLocation || '';
       copyAcquisitionStory.value = copy.acquisitionStory || '';
       copyNotes.value = copy.notes || '';
+      setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
     } else {
       copyLocationSelect.value = '';
       copyAcquisitionDate.value = '';
@@ -1653,6 +1714,7 @@ document.addEventListener('DOMContentLoaded', () => {
       copyAcquisitionLocation.value = '';
       copyAcquisitionStory.value = '';
       copyNotes.value = '';
+      clearHelpText(copyAcquisitionDateHelp);
     }
     await showModal(editCopyModal, { backdrop: 'static', keyboard: false });
   };
@@ -1674,11 +1736,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     copySaveBtn.disabled = true;
     try {
+      const acquisitionTypeValue = copyAcquisitionType?.value ? copyAcquisitionType.value.trim() : '';
       const payload = {
         storageLocationId: locationId,
         acquisitionDate: dateRaw ? parsePartialDateInput(dateRaw).value : null,
         acquiredFrom: copyAcquiredFrom.value.trim() || null,
-        acquisitionType: copyAcquisitionType.value.trim() || null,
+        acquisitionType: acquisitionTypeValue || null,
         acquisitionLocation: copyAcquisitionLocation.value.trim() || null,
         acquisitionStory: copyAcquisitionStory.value.trim() || null,
         notes: copyNotes.value.trim() || null
@@ -2092,7 +2155,10 @@ document.addEventListener('DOMContentLoaded', () => {
     showModal(addLocationModal, { backdrop: 'static', keyboard: false });
   };
 
-  if (editBookBtn) editBookBtn.addEventListener('click', openEditBookModal);
+  if (editBookBtn) editBookBtn.addEventListener('click', () => {
+    if (!bookRecord || !Number.isInteger(bookRecord.id)) return;
+    window.location.href = `add-book?id=${bookRecord.id}`;
+  });
   if (editBookSaveBtn) editBookSaveBtn.addEventListener('click', saveBookEdits);
   if (deleteBookBtn) deleteBookBtn.addEventListener('click', openDeleteBookModal);
   if (deleteBookConfirmBtn) deleteBookConfirmBtn.addEventListener('click', confirmDeleteBook);
@@ -2109,6 +2175,30 @@ document.addEventListener('DOMContentLoaded', () => {
   if (addTagBtn) addTagBtn.addEventListener('click', addTag);
   if (copySaveBtn) copySaveBtn.addEventListener('click', saveCopy);
   if (deleteCopyConfirmBtn) deleteCopyConfirmBtn.addEventListener('click', confirmDeleteCopy);
+  if (copyAcquisitionDate) copyAcquisitionDate.addEventListener('input', () => setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp));
+  if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => clearHelpText(copyLocationHelp));
+  if (addPublisherFounded) addPublisherFounded.addEventListener('input', () => setPartialDateHelp(addPublisherFounded, addPublisherFoundedHelp));
+  if (addPublisherWebsite) addPublisherWebsite.addEventListener('input', () => setUrlHelp(addPublisherWebsite, addPublisherWebsiteHelp, 'Website'));
+  if (addAuthorBirthDate) addAuthorBirthDate.addEventListener('input', () => setPartialDateHelp(addAuthorBirthDate, addAuthorBirthDateHelp));
+  if (addAuthorDeathDate) addAuthorDeathDate.addEventListener('input', () => {
+    if (!addAuthorDeceased.checked && addAuthorDeathDate.value.trim()) {
+      setHelpText(addAuthorDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
+      return;
+    }
+    setPartialDateHelp(addAuthorDeathDate, addAuthorDeathDateHelp);
+  });
+  if (addAuthorDeceased) addAuthorDeceased.addEventListener('change', () => {
+    if (!addAuthorDeceased.checked && addAuthorDeathDate.value.trim()) {
+      setHelpText(addAuthorDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
+      return;
+    }
+    setPartialDateHelp(addAuthorDeathDate, addAuthorDeathDateHelp);
+  });
+  bindRequiredFieldValidation(addPublisherName, addPublisherNameHelp, { label: 'Publisher name', min: 2, max: 150 });
+  bindRequiredFieldValidation(addBookTypeName, addBookTypeNameHelp, { label: 'Book type name', min: 2, max: 120 });
+  bindRequiredFieldValidation(addAuthorDisplayName, addAuthorDisplayNameHelp, { label: 'Display Name', min: 2, max: 150, pattern: sharedNamePattern });
+  bindRequiredFieldValidation(addSeriesName, addSeriesNameHelp, { label: 'Series name', min: 2, max: 150 });
+  bindRequiredFieldValidation(addLocationName, addLocationNameHelp, { label: 'Location name', min: 2, max: 150 });
   if (openAddPublisherBtn) openAddPublisherBtn.addEventListener('click', () => showModal(addPublisherModal, { backdrop: 'static', keyboard: false }));
   if (openAddBookTypeBtn) openAddBookTypeBtn.addEventListener('click', () => showModal(addBookTypeModal, { backdrop: 'static', keyboard: false }));
   if (addPublisherSaveBtn) addPublisherSaveBtn.addEventListener('click', savePublisher);

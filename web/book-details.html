@@ -29,6 +29,14 @@
     .clickable-row:active {
       background-color: #f1f3f5;
     }
+    .hover-action {
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out;
+    }
+    .hover-action-container:hover .hover-action,
+    .hover-action-container:focus-within .hover-action {
+      opacity: 1;
+    }
   </style>
 </head>
 
@@ -202,7 +210,7 @@
                         </div>
                         <div class="text-muted opacity-50 d-flex align-items-center d-none" id="bookTypeChevron">
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M6 3.5 10.5 8 6 12.5" />
+                            <path fill-rule="evenodd" d="M6.146 4.646a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L8.793 8 6.146 5.354a.5.5 0 0 1 0-.708"/>
                           </svg>
                         </div>
                       </li>
@@ -217,7 +225,7 @@
                         </div>
                         <div class="text-muted opacity-50 d-flex align-items-center d-none" id="publisherChevron">
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M6 3.5 10.5 8 6 12.5" />
+                            <path fill-rule="evenodd" d="M6.146 4.646a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L8.793 8 6.146 5.354a.5.5 0 0 1 0-.708"/>
                           </svg>
                         </div>
                       </li>
@@ -230,8 +238,8 @@
                 <div class="card border-0 shadow-sm h-100" style="background-color: #f7f8f9;">
                   <div class="card-body py-3">
                     <div class="fw-semibold mb-2">Overview</div>
-                    <div class="d-flex justify-content-end mb-2">
-                      <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage tags" data-bs-toggle="tooltip" title="Manage tags" id="manageTagsBtn">
+                    <div class="d-flex justify-content-end mb-2 hover-action-container">
+                      <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn hover-action" type="button" aria-label="Manage tags" data-bs-toggle="tooltip" title="Manage tags" id="manageTagsBtn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                           <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                         </svg>
@@ -268,9 +276,9 @@
       <div class="col-12 col-lg-6">
         <div class="card shadow h-100">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2 hover-action-container">
               <h4 class="card-title mb-0">Authors</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors" id="manageAuthorsBtn">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn hover-action" type="button" aria-label="Manage authors" data-bs-toggle="tooltip" title="Manage authors" id="manageAuthorsBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
@@ -285,9 +293,9 @@
       <div class="col-12 col-lg-6">
         <div class="card shadow h-100">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2 hover-action-container">
               <h4 class="card-title mb-0">Series</h4>
-              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series" id="manageSeriesBtn">
+              <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn hover-action" type="button" aria-label="Manage series" data-bs-toggle="tooltip" title="Manage series" id="manageSeriesBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                 </svg>
@@ -428,13 +436,11 @@
                 <label class="form-label" for="editBookType"><strong>Book Type</strong></label>
                 <select class="form-select" id="editBookType"></select>
                 <small class="form-text" id="editBookTypeHelp"></small>
-                <button class="btn btn-link btn-sm px-0" type="button" id="openAddBookTypeBtn">Add new book type</button>
               </div>
               <div class="col-12">
                 <label class="form-label" for="editBookPublisher"><strong>Publisher</strong></label>
                 <select class="form-select" id="editBookPublisher"></select>
                 <small class="form-text" id="editBookPublisherHelp"></small>
-                <button class="btn btn-link btn-sm px-0" type="button" id="openAddPublisherBtn">Add new publisher</button>
               </div>
             </div>
           </form>
@@ -669,7 +675,7 @@
           <form id="editCopyForm">
             <div class="row g-3">
               <div class="col-12">
-                <label class="form-label" for="copyLocationSelect"><strong>Storage Location</strong></label>
+                <label class="form-label" for="copyLocationSelect"><strong>Storage Location</strong></label><label class="form-label text-danger" for="copyLocationSelect"><strong>*</strong></label>
                 <select class="form-select" id="copyLocationSelect"></select>
                 <small class="form-text" id="copyLocationHelp"></small>
                 <button class="btn btn-link btn-sm px-0" type="button" id="openAddLocationBtn">Add new storage location</button>
@@ -685,7 +691,16 @@
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label" for="copyAcquisitionType"><strong>Acquisition Type</strong></label>
-                <input class="form-control" type="text" id="copyAcquisitionType" autocomplete="off" maxlength="150">
+                <select class="form-select" id="copyAcquisitionType" autocomplete="off">
+                  <option value="" selected>Select acquisition type...</option>
+                  <option value="Purchased">Purchased</option>
+                  <option value="Gifted">Gifted</option>
+                  <option value="Inherited">Inherited</option>
+                  <option value="Found">Found</option>
+                  <option value="Won">Won</option>
+                  <option value="Borrowed">Borrowed</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label" for="copyAcquisitionLocation"><strong>Acquisition Location</strong></label>
@@ -741,7 +756,7 @@
           <div class="alert alert-danger d-none" id="addPublisherErrorAlert"></div>
           <form id="addPublisherForm">
             <div class="mb-3">
-              <label class="form-label" for="addPublisherName"><strong>Publisher Name</strong></label>
+              <label class="form-label" for="addPublisherName"><strong>Publisher Name</strong></label><label class="form-label text-danger" for="addPublisherName"><strong>*</strong></label>
               <input class="form-control" type="text" id="addPublisherName" autocomplete="off" maxlength="150">
               <small class="form-text" id="addPublisherNameHelp"></small>
             </div>
@@ -781,7 +796,7 @@
           <div class="alert alert-danger d-none" id="addBookTypeErrorAlert"></div>
           <form id="addBookTypeForm">
             <div class="mb-3">
-              <label class="form-label" for="addBookTypeName"><strong>Book Type Name</strong></label>
+              <label class="form-label" for="addBookTypeName"><strong>Book Type Name</strong></label><label class="form-label text-danger" for="addBookTypeName"><strong>*</strong></label>
               <input class="form-control" type="text" id="addBookTypeName" autocomplete="off" maxlength="120">
               <small class="form-text" id="addBookTypeNameHelp"></small>
             </div>
@@ -811,7 +826,7 @@
           <div class="alert alert-danger d-none" id="addAuthorErrorAlert"></div>
           <form id="addAuthorForm">
             <div class="mb-3">
-              <label class="form-label" for="addAuthorDisplayName"><strong>Display Name</strong></label>
+              <label class="form-label" for="addAuthorDisplayName"><strong>Display Name</strong></label><label class="form-label text-danger" for="addAuthorDisplayName"><strong>*</strong></label>
               <input class="form-control" type="text" id="addAuthorDisplayName" autocomplete="off" maxlength="150">
               <small class="form-text" id="addAuthorDisplayNameHelp"></small>
             </div>
@@ -865,7 +880,7 @@
           <div class="alert alert-danger d-none" id="addSeriesErrorAlert"></div>
           <form id="addSeriesForm">
             <div class="mb-3">
-              <label class="form-label" for="addSeriesName"><strong>Series Name</strong></label>
+              <label class="form-label" for="addSeriesName"><strong>Series Name</strong></label><label class="form-label text-danger" for="addSeriesName"><strong>*</strong></label>
               <input class="form-control" type="text" id="addSeriesName" autocomplete="off" maxlength="150">
               <small class="form-text" id="addSeriesNameHelp"></small>
             </div>
@@ -900,7 +915,7 @@
           <div class="alert alert-danger d-none" id="addLocationErrorAlert"></div>
           <form id="addLocationForm">
             <div class="mb-3">
-              <label class="form-label" for="addLocationName"><strong>Location Name</strong></label>
+              <label class="form-label" for="addLocationName"><strong>Location Name</strong></label><label class="form-label text-danger" for="addLocationName"><strong>*</strong></label>
               <input class="form-control" type="text" id="addLocationName" autocomplete="off" maxlength="150">
               <small class="form-text" id="addLocationNameHelp"></small>
             </div>
