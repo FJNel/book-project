@@ -219,7 +219,7 @@ async function insertPartialDate(client, dateValue) {
 }
 
 // GET /author - List or fetch a specific author
-router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function listAuthorsHandler(req, res) {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
@@ -609,7 +609,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving authors."]);
 	}
-});
+}
+
+router.get("/", requiresAuth, authenticatedLimiter, listAuthorsHandler);
+router.post("/list", requiresAuth, authenticatedLimiter, listAuthorsHandler);
 
 // POST /author - Create a new author
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {

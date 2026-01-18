@@ -2067,6 +2067,73 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+  /author/list:
+    post:
+      tags: [Authors]
+      summary: List authors (JSON body)
+      operationId: listAuthorsPost
+      description: List authors with filtering using a JSON request body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorListRequest'
+            examples:
+              listDeceased:
+                summary: List deceased authors sorted by death year
+                value:
+                  filterDeceased: true
+                  sortBy: deathYear
+                  order: desc
+                  limit: 20
+      responses:
+        '200':
+          description: Authors
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthorList'
+              examples:
+                list:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.78"
+                    message: Authors retrieved successfully.
+                    data:
+                      authors:
+                        - id: 1
+                          displayName: "J.R.R. Tolkien"
+                          firstNames: "John Ronald Reuel"
+                          lastName: Tolkien
+                          birthDate:
+                            id: 12
+                            day: 3
+                            month: 1
+                            year: 1892
+                            text: "3 January 1892"
+                          deceased: true
+                          deathDate:
+                            id: 13
+                            day: 2
+                            month: 9
+                            year: 1973
+                            text: "2 September 1973"
+                          bio: Author of The Lord of the Rings.
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /author/{id}:
     get:
       tags: [Authors]
@@ -2680,6 +2747,59 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+  /publisher/list:
+    post:
+      tags: [Publishers]
+      summary: List publishers (JSON body)
+      operationId: listPublishersPost
+      description: List publishers with filtering using a JSON request body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherListRequest'
+            examples:
+              listByName:
+                summary: Search publishers by name
+                value:
+                  filterName: "Harper"
+                  sortBy: name
+                  order: asc
+                  limit: 25
+      responses:
+        '200':
+          description: Publishers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PublisherList'
+              examples:
+                list:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.02"
+                    message: Publishers retrieved successfully.
+                    data:
+                      publishers:
+                        - id: 4
+                          name: "HarperCollins"
+                          website: "https://www.harpercollins.com"
+                          notes: "Major publishing house."
+                          createdAt: "2025-01-09T09:31:55.000Z"
+                          updatedAt: "2025-01-18T13:05:12.000Z"
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /publisher/{id}:
     get:
       tags: [Publishers]
@@ -3149,6 +3269,59 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+  /bookseries/list:
+    post:
+      tags: [Series]
+      summary: List series (JSON body)
+      operationId: listSeriesPost
+      description: List series with filtering using a JSON request body.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesListRequest'
+            examples:
+              listSeries:
+                summary: List series
+                value:
+                  filterName: Rings
+                  sortBy: name
+                  order: asc
+                  limit: 10
+      responses:
+        '200':
+          description: Series
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SeriesList'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.30"
+                    message: Series retrieved successfully.
+                    data:
+                      series:
+                        - id: 8
+                          name: The Lord of the Rings
+                          description: Epic high-fantasy trilogy.
+                          website: https://example.com/lotr
+                          createdAt: "2025-01-10T09:15:23.000Z"
+                          updatedAt: "2025-01-14T16:58:41.000Z"
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /bookseries/{id}:
     get:
       tags: [Series]

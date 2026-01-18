@@ -321,7 +321,7 @@ async function fetchSeriesDateRange(userId, seriesId) {
 }
 
 // GET /bookseries - List or fetch a specific series
-router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function listBookSeriesHandler(req, res) {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
@@ -706,7 +706,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving series."]);
 	}
-});
+}
+
+router.get("/", requiresAuth, authenticatedLimiter, listBookSeriesHandler);
+router.post("/list", requiresAuth, authenticatedLimiter, listBookSeriesHandler);
 
 // POST /bookseries - Create a new series
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {

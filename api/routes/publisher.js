@@ -226,7 +226,7 @@ async function insertPartialDate(client, dateValue) {
 }
 
 // GET /publisher - List or fetch a specific publisher
-router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+async function listPublishersHandler(req, res) {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
@@ -522,7 +522,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving publishers."]);
 	}
-});
+}
+
+router.get("/", requiresAuth, authenticatedLimiter, listPublishersHandler);
+router.post("/list", requiresAuth, authenticatedLimiter, listPublishersHandler);
 
 // POST /publisher - Create a new publisher
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
