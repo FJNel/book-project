@@ -22,7 +22,8 @@
     includeSubtreeBooks: true,
     booksSort: { field: 'title', order: 'asc' },
     booksLimit: 10,
-    booksPage: 1
+    booksPage: 1,
+    lastBreadcrumbParts: []
   };
 
   const dom = {
@@ -37,10 +38,10 @@
     detailsOffcanvas: document.getElementById('detailsOffcanvas'),
     detailsContent: document.getElementById('detailsContent'),
     detailsEmptyState: document.getElementById('detailsEmptyState'),
+    detailsLoadingState: document.getElementById('detailsLoadingState'),
     locationNameHeading: document.getElementById('locationNameHeading'),
     locationNotesHeading: document.getElementById('locationNotesHeading'),
     locationBreadcrumb: document.getElementById('locationBreadcrumb'),
-    locationParentLine: document.getElementById('locationParentLine'),
     copyPathBtn: document.getElementById('copyPathBtn'),
     booksDirectStat: document.getElementById('booksDirectStat'),
     booksTotalStat: document.getElementById('booksTotalStat'),
@@ -53,6 +54,7 @@
     booksPerPageInput: document.getElementById('booksPerPageInput'),
     directOnlyBtn: document.getElementById('directOnlyBtn'),
     includeSubtreeBtn: document.getElementById('includeSubtreeBtn'),
+    booksSummaryLine: document.getElementById('booksSummaryLine'),
     locationTimestampLine: document.getElementById('locationTimestampLine'),
     addChildBtn: document.getElementById('addChildBtn'),
     renameBtn: document.getElementById('renameBtn'),
@@ -78,6 +80,8 @@
 
   let locationModalMode = 'create';
   let modalLocationId = null;
+  let selectionRequestId = 0;
+  let booksRequestId = 0;
 
   const debounce = (fn, delay = 350) => {
     let timer;
@@ -262,7 +266,7 @@
       const hasChildren = (childrenMap.get(loc.id) || []).length > 0;
       const isExpanded = state.expandedIds.has(loc.id) || autoExpand.has(loc.id);
       const nodeWrap = document.createElement('div');
-      nodeWrap.className = 'tree-node';
+      nodeWrap.className = `tree-node ${level === 0 ? 'tree-node-root' : ''}`;
       nodeWrap.style.setProperty('--level', level);
 
       const row = document.createElement('div');
@@ -274,19 +278,23 @@
 
       const caret = document.createElement('button');
       caret.type = 'button';
-      caret.className = `btn btn-sm btn-link text-muted p-0 ${hasChildren ? '' : 'invisible'}`;
+      caret.className = `btn btn-sm btn-link text-muted p-0 tree-caret ${hasChildren ? '' : 'invisible'}`;
       caret.setAttribute('data-action', 'toggle');
       caret.setAttribute('data-id', String(loc.id));
       caret.innerHTML = isExpanded
-        ? '<span aria-hidden="true">▾</span>'
-        : '<span aria-hidden="true">▸</span>';
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+          </svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M6.646 2.646a.5.5 0 0 1 .708 0l4.5 4.5a.5.5 0 0 1 0 .708l-4.5 4.5a.5.5 0 0 1-.708-.708L10.293 8 6.646 4.354a.5.5 0 0 1 0-.708"/>
+          </svg>`;
 
       const name = document.createElement('div');
       name.className = 'fw-semibold';
       name.textContent = loc.name || 'Untitled location';
 
       const badge = document.createElement('span');
-      badge.className = 'badge text-bg-light border';
+      badge.className = 'badge rounded-pill text-bg-light text-dark border tree-count';
       const countValue = Number.isFinite(loc.booksTotalCount) ? loc.booksTotalCount : (Number.isFinite(loc.booksDirectCount) ? loc.booksDirectCount : 0);
       badge.textContent = String(countValue);
 
@@ -295,24 +303,37 @@
       left.appendChild(badge);
 
       const actions = document.createElement('div');
-      actions.className = 'node-actions dropdown';
+      actions.className = 'node-actions d-flex align-items-center gap-1';
       actions.innerHTML = `
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <span aria-hidden="true">⋮</span>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="add-child" data-id="${loc.id}" title="Add child">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
+            <path d="M8 4a.5.5 0 0 1 .5.5V7.5H12a.5.5 0 0 1 0 1H8.5V12a.5.5 0 0 1-1 0V8.5H4a.5.5 0 0 1 0-1h3.5V4.5A.5.5 0 0 1 8 4"/>
+          </svg>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><button class="dropdown-item" type="button" data-action="add-child" data-id="${loc.id}">Add child</button></li>
-          <li><button class="dropdown-item" type="button" data-action="rename" data-id="${loc.id}">Rename</button></li>
-          <li><button class="dropdown-item" type="button" data-action="move" data-id="${loc.id}">Move</button></li>
-          <li><button class="dropdown-item text-danger" type="button" data-action="delete" data-id="${loc.id}">Delete</button></li>
-        </ul>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="rename" data-id="${loc.id}" title="Rename">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+            <path d="M12.146.146a.5.5 0 0 1 .708 0l2.999 2.999a.5.5 0 0 1 0 .708l-9.5 9.5a.5.5 0 0 1-.168.11l-4 1.333a.5.5 0 0 1-.633-.633l1.333-4a.5.5 0 0 1 .11-.168z"/>
+            <path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/>
+          </svg>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="move" data-id="${loc.id}" title="Move">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrows-move" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V6.5h4.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L13.293 8.5H8.5v4.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 13.293V8.5H2.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2a.5.5 0 0 1 0-.708l2-2a.5.5 0 0 1 .708.708L2.707 7.5H7.5V2.707L6.354 3.854a.5.5 0 1 1-.708-.708z"/>
+          </svg>
+        </button>
+        <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${loc.id}" title="Delete">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v7a.5.5 0 0 0 1 0z"/>
+            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1z"/>
+          </svg>
+        </button>
       `;
 
       row.appendChild(left);
       row.appendChild(actions);
       row.addEventListener('click', (event) => {
         if (event.target.closest('[data-action=\"toggle\"]')) return;
-        if (event.target.closest('.dropdown')) return;
+        if (event.target.closest('.node-actions')) return;
         selectLocation(loc.id, { openPanel: true });
       });
 
@@ -327,25 +348,39 @@
     (childrenMap.get('root') || []).forEach((root) => renderNode(root, 0));
   };
 
-  const renderBreadcrumb = (path) => {
+  const buildBreadcrumbParts = (location) => {
+    const parts = [];
+    let current = location;
+    while (current) {
+      parts.unshift({ id: current.id, name: current.name || 'Untitled location' });
+      current = state.locations.find((loc) => loc.id === current.parentId);
+    }
+    return parts;
+  };
+
+  const renderBreadcrumb = (location) => {
     if (!dom.locationBreadcrumb) return;
     dom.locationBreadcrumb.innerHTML = '';
-    if (!path) {
-      dom.locationBreadcrumb.innerHTML = '<span class="text-muted">No path available.</span>';
+    if (!location) {
+      dom.locationBreadcrumb.innerHTML = '<li class="breadcrumb-item text-muted">No path available.</li>';
       return;
     }
-    const parts = path.split(' -> ').map((part) => part.trim()).filter(Boolean);
+    const parts = buildBreadcrumbParts(location);
+    state.lastBreadcrumbParts = parts.map((part) => part.name);
     parts.forEach((part, index) => {
-      const chip = document.createElement('span');
-      chip.className = 'filter-chip';
-      chip.textContent = part;
-      dom.locationBreadcrumb.appendChild(chip);
-      if (index < parts.length - 1) {
-        const arrow = document.createElement('span');
-        arrow.className = 'text-muted';
-        arrow.textContent = '›';
-        dom.locationBreadcrumb.appendChild(arrow);
+      const li = document.createElement('li');
+      li.className = `breadcrumb-item${index === parts.length - 1 ? ' active' : ''}`;
+      if (index === parts.length - 1) {
+        li.textContent = part.name;
+      } else {
+        const link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'btn btn-link btn-sm p-0 text-decoration-none';
+        link.textContent = part.name;
+        link.addEventListener('click', () => selectLocation(part.id, { openPanel: true }));
+        li.appendChild(link);
       }
+      dom.locationBreadcrumb.appendChild(li);
     });
   };
 
@@ -354,22 +389,27 @@
     if (!location) {
       dom.detailsContent.classList.add('d-none');
       dom.detailsEmptyState.classList.remove('d-none');
+      if (dom.detailsLoadingState) dom.detailsLoadingState.classList.add('d-none');
       return;
     }
     dom.detailsEmptyState.classList.add('d-none');
     dom.detailsContent.classList.remove('d-none');
+    if (dom.detailsLoadingState) dom.detailsLoadingState.classList.add('d-none');
 
-    const notesLine = location.notes || 'No notes provided.';
-    const pathValue = stats?.path || location.path || '';
-    const parent = state.locations.find((loc) => loc.id === location.parentId);
+    const notesLine = location.notes ? location.notes.trim() : '';
 
     if (dom.locationNameHeading) dom.locationNameHeading.textContent = location.name || 'Untitled location';
-    if (dom.locationNotesHeading) dom.locationNotesHeading.textContent = notesLine;
-    if (dom.locationParentLine) {
-      dom.locationParentLine.textContent = parent ? `Parent: ${parent.name}` : 'Parent: Root location';
+    if (dom.locationNotesHeading) {
+      if (notesLine) {
+        dom.locationNotesHeading.textContent = notesLine;
+        dom.locationNotesHeading.classList.remove('d-none');
+      } else {
+        dom.locationNotesHeading.textContent = '';
+        dom.locationNotesHeading.classList.add('d-none');
+      }
     }
 
-    renderBreadcrumb(pathValue);
+    renderBreadcrumb(location);
 
     if (dom.booksDirectStat) dom.booksDirectStat.textContent = stats?.directCopyCount ?? location.booksDirectCount ?? 0;
     if (dom.booksTotalStat) dom.booksTotalStat.textContent = stats?.nestedCopyCount ?? location.booksTotalCount ?? 0;
@@ -390,9 +430,24 @@
     dom.includeSubtreeBtn.classList.toggle('btn-outline-secondary', !state.includeSubtreeBooks);
   };
 
+  const showDetailsLoading = () => {
+    if (dom.detailsEmptyState) dom.detailsEmptyState.classList.add('d-none');
+    if (dom.detailsContent) dom.detailsContent.classList.add('d-none');
+    if (dom.detailsLoadingState) dom.detailsLoadingState.classList.remove('d-none');
+    if (dom.booksSummaryLine) dom.booksSummaryLine.textContent = '';
+    if (dom.booksTableBody) dom.booksTableBody.innerHTML = '';
+    if (dom.booksEmptyState) dom.booksEmptyState.classList.add('d-none');
+    if (dom.booksPaginationNav) dom.booksPaginationNav.innerHTML = '';
+    if (dom.booksPaginationInfo) dom.booksPaginationInfo.textContent = '';
+  };
+
   const renderBooks = (books) => {
     if (!dom.booksTableBody) return;
     dom.booksTableBody.innerHTML = '';
+
+    if (dom.booksSummaryLine) {
+      dom.booksSummaryLine.textContent = `${books.length} book${books.length === 1 ? '' : 's'} shown`;
+    }
 
     if (!books.length) {
       if (dom.booksEmptyState) dom.booksEmptyState.classList.remove('d-none');
@@ -405,15 +460,21 @@
       row.className = 'clickable-row';
       const cover = book.coverImageUrl || placeholderCover(book.title);
       const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
-      const authors = Array.isArray(book.authors) && book.authors.length
-        ? book.authors.map((author) => author.authorName || author.displayName || author.name).filter(Boolean).join(', ')
-        : '—';
-      const languages = Array.isArray(book.languages) && book.languages.length
-        ? book.languages.map((lang) => lang.name).join(', ')
-        : '—';
-      const tags = Array.isArray(book.tags) && book.tags.length
-        ? book.tags.map((tag) => tag.name).join(', ')
-        : '—';
+      const authorNames = Array.isArray(book.authors)
+        ? book.authors.map((author) => author.authorName || author.displayName || author.name).filter(Boolean)
+        : [];
+      const visibleAuthors = authorNames.slice(0, 2);
+      const authorsExtra = Math.max(authorNames.length - visibleAuthors.length, 0);
+      const authorsLabel = visibleAuthors.join(', ') + (authorsExtra ? `, +${authorsExtra} more` : '');
+      const authorsTitle = authorsExtra ? ` title="${escapeHtml(authorNames.join(', '))}"` : '';
+      const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
+      const visibleLanguages = languageNames.slice(0, 2);
+      const languageExtra = Math.max(languageNames.length - visibleLanguages.length, 0);
+      const languageLabel = visibleLanguages.join(', ') + (languageExtra ? `, +${languageExtra} more` : '');
+      const languageTitle = languageExtra ? ` title="${escapeHtml(languageNames.join(', '))}"` : '';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
       const published = formatPartialDate(book.publicationDate) || '—';
       const bookType = book.bookType?.name || book.bookTypeName || '—';
 
@@ -424,15 +485,15 @@
             <div>
               <div class="fw-semibold">${escapeHtml(book.title || 'Untitled')}</div>
               ${subtitle}
-              <div class="text-muted small list-meta-mobile">${escapeHtml(authors)} • ${escapeHtml(published)}</div>
+              <div class="text-muted small list-meta-mobile">${escapeHtml(authorsLabel)} • ${escapeHtml(published)}</div>
             </div>
           </div>
         </td>
-        <td class="list-col-authors"><span class="text-muted">${escapeHtml(authors)}</span></td>
+        <td class="list-col-authors"><span class="text-muted"${authorsTitle}>${escapeHtml(authorsLabel || '—')}</span></td>
         <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
-        <td class="list-col-language"><span class="text-muted">${escapeHtml(languages)}</span></td>
+        <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel || '—')}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
-        <td class="list-col-tags"><span class="text-muted">${escapeHtml(tags)}</span></td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;
@@ -463,15 +524,67 @@
       return li;
     };
 
-    dom.booksPaginationNav.appendChild(createItem('&laquo;', state.booksPage === 1, () => {
-      state.booksPage = Math.max(1, state.booksPage - 1);
-      loadBooks();
-    }, 'Previous'));
+    dom.booksPaginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
+      </svg>`,
+      state.booksPage <= 1,
+      () => {
+        state.booksPage = Math.max(1, state.booksPage - 1);
+        loadBooks({ showLoadingRow: true });
+      },
+      'Previous page'
+    ));
 
-    dom.booksPaginationNav.appendChild(createItem('&raquo;', !hasNextPage, () => {
-      state.booksPage = state.booksPage + 1;
-      loadBooks();
-    }, 'Next'));
+    if (state.booksPage > 2) {
+      dom.booksPaginationNav.appendChild(createItem('1', false, () => {
+        state.booksPage = 1;
+        loadBooks({ showLoadingRow: true });
+      }));
+      if (state.booksPage > 3) {
+        const ellipsis = document.createElement('li');
+        ellipsis.className = 'page-item disabled';
+        const span = document.createElement('span');
+        span.className = 'page-link';
+        span.textContent = '…';
+        ellipsis.appendChild(span);
+        dom.booksPaginationNav.appendChild(ellipsis);
+      }
+    }
+
+    if (state.booksPage > 1) {
+      dom.booksPaginationNav.appendChild(createItem(String(state.booksPage - 1), false, () => {
+        state.booksPage -= 1;
+        loadBooks({ showLoadingRow: true });
+      }));
+    }
+
+    const current = document.createElement('li');
+    current.className = 'page-item active';
+    const span = document.createElement('span');
+    span.className = 'page-link';
+    span.textContent = String(state.booksPage);
+    current.appendChild(span);
+    dom.booksPaginationNav.appendChild(current);
+
+    if (hasNextPage) {
+      dom.booksPaginationNav.appendChild(createItem(String(state.booksPage + 1), false, () => {
+        state.booksPage += 1;
+        loadBooks({ showLoadingRow: true });
+      }));
+    }
+
+    dom.booksPaginationNav.appendChild(createItem(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+      </svg>`,
+      !hasNextPage,
+      () => {
+        state.booksPage += 1;
+        loadBooks({ showLoadingRow: true });
+      },
+      'Next page'
+    ));
   };
 
   const buildBooksBody = () => ({
@@ -484,17 +597,19 @@
     includeSubtree: state.includeSubtreeBooks
   });
 
-  const loadBooks = async () => {
-    if (!state.selectedId) return;
+  const loadBooks = async ({ showLoadingRow = false, render = true } = {}) => {
+    if (!state.selectedId) return null;
     updateUrl();
     updateBooksToggle();
 
-    if (dom.booksTableBody) {
+    if (showLoadingRow && dom.booksTableBody) {
       dom.booksTableBody.innerHTML = '<tr><td colspan="6" class="text-muted py-3">Loading books…</td></tr>';
     }
 
     const body = buildBooksBody();
     debugLog('Requesting /book/list with JSON body', body);
+
+    const requestId = ++booksRequestId;
 
     try {
       const response = await apiFetch('/book/list', {
@@ -508,16 +623,20 @@
       if (!response.ok) {
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         showAlert({ message: payload.message || 'Failed to load books.', details });
-        return;
+        return null;
       }
 
       const books = payload.data?.books || [];
       const hasNextPage = books.length === state.booksLimit;
-      renderBooks(books);
-      renderBooksPagination(hasNextPage);
+      if (requestId === booksRequestId && render) {
+        renderBooks(books);
+        renderBooksPagination(hasNextPage);
+      }
+      return { books, hasNextPage };
     } catch (error) {
       errorLog('Book list fetch failed', error);
       showAlert({ message: 'Unable to load books for this location.', details: [error.message] });
+      return null;
     }
   };
 
@@ -555,9 +674,24 @@
       return;
     }
 
-    const detailPayload = await loadLocationDetails(locationId);
+    const requestId = ++selectionRequestId;
+    showDetailsLoading();
+
+    const [detailPayload, booksPayload] = await Promise.all([
+      loadLocationDetails(locationId),
+      loadBooks({ showLoadingRow: false, render: false })
+    ]);
+
+    if (requestId !== selectionRequestId) return;
+
     renderDetails(location, detailPayload?.stats || null);
-    await loadBooks();
+    if (booksPayload && booksPayload.books) {
+      renderBooks(booksPayload.books);
+      renderBooksPagination(booksPayload.hasNextPage);
+    } else {
+      renderBooks([]);
+      renderBooksPagination(false);
+    }
 
     if (openPanel) openDetailsPanel();
   };
@@ -878,10 +1012,10 @@
 
     if (dom.copyPathBtn) {
       dom.copyPathBtn.addEventListener('click', async () => {
-        const pathText = dom.locationBreadcrumb?.textContent || '';
+        const pathText = state.lastBreadcrumbParts.length ? state.lastBreadcrumbParts.join(' > ') : '';
         if (!pathText) return;
         try {
-          await navigator.clipboard.writeText(pathText.replace(/›/g, '->').replace(/\s+/g, ' ').trim());
+          await navigator.clipboard.writeText(pathText);
         } catch (error) {
           warn('Failed to copy path.', error);
         }
@@ -893,7 +1027,7 @@
         if (state.includeSubtreeBooks) {
           state.includeSubtreeBooks = false;
           state.booksPage = 1;
-          loadBooks();
+          loadBooks({ showLoadingRow: true });
         }
       });
     }
@@ -903,7 +1037,7 @@
         if (!state.includeSubtreeBooks) {
           state.includeSubtreeBooks = true;
           state.booksPage = 1;
-          loadBooks();
+          loadBooks({ showLoadingRow: true });
         }
       });
     }
@@ -913,7 +1047,7 @@
         const [field, order] = (event.target.value || 'title:asc').split(':');
         state.booksSort = { field: field || 'title', order: order || 'asc' };
         state.booksPage = 1;
-        loadBooks();
+        loadBooks({ showLoadingRow: true });
       });
     }
 
@@ -924,7 +1058,7 @@
         dom.booksPerPageInput.value = clamped;
         state.booksLimit = clamped;
         state.booksPage = 1;
-        loadBooks();
+        loadBooks({ showLoadingRow: true });
       });
     }
 

@@ -12,12 +12,14 @@
     .clickable-row:active { background-color: #f1f3f5; }
 
     .tree-node {
-      padding-left: calc(var(--level, 0) * 1.25rem);
+      position: relative;
+      padding-left: calc(var(--level, 0) * 1.1rem + 0.5rem);
     }
 
     .tree-node .node-row {
       border-radius: 0.5rem;
       padding: 0.4rem 0.5rem;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
     .tree-node .node-row.selected {
@@ -25,8 +27,48 @@
       border: 1px solid rgba(0, 0, 0, 0.08);
     }
 
-    .node-actions .dropdown-toggle::after {
-      display: none;
+    .tree-node .node-row:hover {
+      background: #f8f9fa;
+    }
+
+    .tree-node:not(.tree-node-root)::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(var(--level, 0) * 1.1rem + 0.15rem);
+      width: 1px;
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    .tree-caret {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .tree-caret:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .tree-count {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.45rem;
+    }
+
+    .node-actions {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .node-row:hover .node-actions,
+    .node-row.selected .node-actions {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .cover-thumb {
@@ -84,6 +126,16 @@
     .list-table th { white-space: nowrap; }
     .list-table td { vertical-align: middle; }
     .list-meta-mobile { display: none; }
+
+    .details-pane {
+      min-height: calc(100vh - 180px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .details-pane-card {
+      flex: 1;
+    }
   </style>
 </head>
 
@@ -168,7 +220,6 @@
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-2">
             <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="books" class="text-decoration-none">Books</a></li>
             <li class="breadcrumb-item active" aria-current="page">Storage Locations</li>
           </ol>
         </nav>
@@ -217,16 +268,24 @@
       </div>
 
       <div class="col-12 col-md-8 col-lg-9">
-        <div class="offcanvas-md offcanvas-end" tabindex="-1" id="detailsOffcanvas" aria-labelledby="detailsOffcanvasLabel" data-bs-scroll="true">
+        <div class="offcanvas-md offcanvas-end" tabindex="-1" id="detailsOffcanvas" aria-labelledby="detailsOffcanvasLabel">
           <div class="offcanvas-header border-bottom d-md-none">
-            <h5 class="offcanvas-title" id="detailsOffcanvasLabel">Location Details</h5>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-link btn-sm text-decoration-none" data-bs-dismiss="offcanvas">Back to locations</button>
+              <h5 class="offcanvas-title mb-0" id="detailsOffcanvasLabel">Location Details</h5>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
           </div>
           <div class="offcanvas-body p-0">
-            <div class="card shadow-sm h-100 border-0 rounded-3">
+            <div class="details-pane">
+              <div class="card shadow-sm h-100 border-0 rounded-3 details-pane-card">
               <div class="card-body">
                 <div id="detailsEmptyState" class="text-muted text-center py-5">
                   Select a location to view details.
+                </div>
+                <div id="detailsLoadingState" class="text-muted text-center py-5 d-none">
+                  <div class="spinner-border text-secondary mb-2" role="status"></div>
+                  <div>Loading location…</div>
                 </div>
 
                 <div id="detailsContent" class="d-none">
@@ -234,13 +293,32 @@
                     <div>
                       <div class="text-muted">Selected location</div>
                       <h2 class="h4 mb-1" id="locationNameHeading"></h2>
-                      <div class="text-muted small" id="locationNotesHeading"></div>
+                      <div class="text-muted small d-none" id="locationNotesHeading"></div>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
-                      <button class="btn btn-outline-secondary" type="button" id="addChildBtn">Add child</button>
-                      <button class="btn btn-outline-secondary" type="button" id="renameBtn">Rename</button>
-                      <button class="btn btn-outline-secondary" type="button" id="moveBtn">Move</button>
-                      <button class="btn btn-outline-danger" type="button" id="deleteBtn">Delete</button>
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="addChildBtn" title="Add child">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+                          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14"/>
+                          <path d="M8 4a.5.5 0 0 1 .5.5V7.5H11.5a.5.5 0 0 1 0 1H8.5V11.5a.5.5 0 0 1-1 0V8.5H4.5a.5.5 0 0 1 0-1H7.5V4.5A.5.5 0 0 1 8 4"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="renameBtn" title="Rename">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                          <path d="M12.146.146a.5.5 0 0 1 .708 0l2.999 2.999a.5.5 0 0 1 0 .708l-9.5 9.5a.5.5 0 0 1-.168.11l-4 1.333a.5.5 0 0 1-.633-.633l1.333-4a.5.5 0 0 1 .11-.168z"/>
+                          <path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="moveBtn" title="Move">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrows-move" viewBox="0 0 16 16">
+                          <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V6.5h4.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L13.293 8.5H8.5v4.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 13.293V8.5H2.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2a.5.5 0 0 1 0-.708l2-2a.5.5 0 0 1 .708.708L2.707 7.5H7.5V2.707L6.354 3.854a.5.5 0 1 1-.708-.708z"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-outline-danger btn-sm" type="button" id="deleteBtn" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                          <path d="M5.5 5.5A.5.5 0 0 1 6 6v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v7a.5.5 0 0 0 1 0z"/>
+                          <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1z"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
 
@@ -250,8 +328,9 @@
                         <div class="fw-semibold">Location path</div>
                         <button class="btn btn-outline-secondary btn-sm" type="button" id="copyPathBtn">Copy</button>
                       </div>
-                      <div id="locationBreadcrumb" class="d-flex flex-wrap gap-2"></div>
-                      <div class="text-muted small mt-2" id="locationParentLine"></div>
+                      <nav aria-label="Location breadcrumb">
+                        <ol class="breadcrumb mb-0" id="locationBreadcrumb"></ol>
+                      </nav>
                     </div>
                   </div>
 
@@ -287,7 +366,7 @@
                       <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                         <div>
                           <div class="fw-semibold">Books in this location</div>
-                          <div class="text-muted small">Click a row to open book details.</div>
+                          <div class="text-muted small" id="booksSummaryLine"></div>
                         </div>
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                           <div class="btn-group" role="group" aria-label="Include subtree toggle">
@@ -344,6 +423,7 @@
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
