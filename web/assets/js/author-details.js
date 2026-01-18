@@ -24,26 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const defaultInvalidAuthorMessage = "This link doesn't seem to lead to an author in your library. Try going back to your author list and selecting it again.";
   const editAuthorBtn = document.getElementById('editAuthorBtn');
   const deleteAuthorBtn = document.getElementById('deleteAuthorBtn');
-  const editAuthorModal = document.getElementById('editAuthorModal');
   const deleteAuthorModal = document.getElementById('deleteAuthorModal');
   const deleteAuthorName = document.getElementById('deleteAuthorName');
   const authorDeleteConfirmBtn = document.getElementById('authorDeleteConfirmBtn');
   const authorDeleteErrorAlert = document.getElementById('authorDeleteErrorAlert');
-  const authorEditErrorAlert = document.getElementById('authorEditErrorAlert');
-  const authorEditSaveBtn = document.getElementById('authorEditSaveBtn');
-  const authorEditDisplayName = document.getElementById('authorEditDisplayName');
-  const authorEditFirstNames = document.getElementById('authorEditFirstNames');
-  const authorEditLastName = document.getElementById('authorEditLastName');
-  const authorEditBirthDate = document.getElementById('authorEditBirthDate');
-  const authorEditBirthDateHelp = document.getElementById('authorEditBirthDateHelp');
-  const authorEditDeceased = document.getElementById('authorEditDeceased');
-  const authorEditDeathDate = document.getElementById('authorEditDeathDate');
-  const authorEditDeathDateHelp = document.getElementById('authorEditDeathDateHelp');
-  const authorEditBio = document.getElementById('authorEditBio');
-  const authorEditDisplayNameHelp = document.getElementById('authorEditDisplayNameHelp');
-  const authorEditFirstNamesHelp = document.getElementById('authorEditFirstNamesHelp');
-  const authorEditLastNameHelp = document.getElementById('authorEditLastNameHelp');
-  const authorEditBioHelp = document.getElementById('authorEditBioHelp');
   const editAuthorRoleModal = document.getElementById('editAuthorRoleModal');
   const authorRoleInput = document.getElementById('authorRoleInput');
   const authorRoleSummary = document.getElementById('authorRoleSummary');
@@ -89,16 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
-  const parsePartialDateInput = (value) => {
-    if (!value || !value.trim()) return { value: null };
-    if (!window.partialDateParser || typeof window.partialDateParser.parsePartialDate !== 'function') {
-      return { error: 'Date parser is unavailable.' };
-    }
-    const parsed = window.partialDateParser.parsePartialDate(value.trim());
-    if (!parsed || !parsed.text) return { error: 'Please enter a valid date.' };
-    return { value: parsed };
-  };
 
   const setHelpText = (el, message, isError = false) => {
     if (!el) return;
@@ -302,146 +276,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openEditModal = () => {
     if (!authorRecord) return;
-    if (authorEditDisplayName) authorEditDisplayName.value = authorRecord.displayName || '';
-    if (authorEditFirstNames) authorEditFirstNames.value = authorRecord.firstNames || '';
-    if (authorEditLastName) authorEditLastName.value = authorRecord.lastName || '';
-    if (authorEditBirthDate) authorEditBirthDate.value = authorRecord.birthDate?.text || '';
-    if (authorEditDeceased) authorEditDeceased.checked = Boolean(authorRecord.deceased);
-    if (authorEditDeathDate) authorEditDeathDate.value = authorRecord.deathDate?.text || '';
-    if (authorEditBio) authorEditBio.value = authorRecord.bio || '';
-    [authorEditDisplayNameHelp, authorEditFirstNamesHelp, authorEditLastNameHelp, authorEditBirthDateHelp, authorEditDeathDateHelp, authorEditBioHelp]
-      .forEach((el) => clearHelpText(el));
-    if (authorEditErrorAlert) {
-      authorEditErrorAlert.classList.add('d-none');
-      authorEditErrorAlert.innerHTML = '';
-    }
-    showModal(editAuthorModal, { backdrop: 'static', keyboard: false });
-  };
-
-  const validateEditForm = () => {
-    let valid = true;
-    const errors = [];
-    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
-    const displayName = authorEditDisplayName?.value.trim() || '';
-    if (!displayName) {
-      setHelpText(authorEditDisplayNameHelp, 'Display Name is required.', true);
-      valid = false;
-      errors.push('Display Name is required.');
-    } else if (displayName.length < 2 || displayName.length > 150 || !namePattern.test(displayName)) {
-      setHelpText(authorEditDisplayNameHelp, 'Display Name must be 2-150 characters and valid.', true);
-      valid = false;
-      errors.push('Display Name must be 2-150 characters and valid.');
-    } else {
-      clearHelpText(authorEditDisplayNameHelp);
-    }
-
-    const firstNames = authorEditFirstNames?.value.trim() || '';
-    if (firstNames && (firstNames.length < 2 || firstNames.length > 150 || !namePattern.test(firstNames))) {
-      setHelpText(authorEditFirstNamesHelp, 'First Name(s) must be 2-150 characters and valid.', true);
-      valid = false;
-      errors.push('First Name(s) must be 2-150 characters and valid.');
-    } else {
-      clearHelpText(authorEditFirstNamesHelp);
-    }
-
-    const lastName = authorEditLastName?.value.trim() || '';
-    if (lastName && (lastName.length < 2 || lastName.length > 100 || !namePattern.test(lastName))) {
-      setHelpText(authorEditLastNameHelp, 'Last Name must be 2-100 characters and valid.', true);
-      valid = false;
-      errors.push('Last Name must be 2-100 characters and valid.');
-    } else {
-      clearHelpText(authorEditLastNameHelp);
-    }
-
-    const birthRaw = authorEditBirthDate?.value.trim() || '';
-    if (birthRaw) {
-      const parsed = parsePartialDateInput(birthRaw);
-      if (parsed.error) {
-        setHelpText(authorEditBirthDateHelp, parsed.error, true);
-        valid = false;
-        errors.push(parsed.error);
-      } else {
-        clearHelpText(authorEditBirthDateHelp);
+    window.sharedAddModals?.open('author', {
+      mode: 'edit',
+      initial: {
+        id: authorRecord.id,
+        displayName: authorRecord.displayName || '',
+        firstNames: authorRecord.firstNames || '',
+        lastName: authorRecord.lastName || '',
+        birthDate: authorRecord.birthDate?.text || '',
+        deathDate: authorRecord.deathDate?.text || '',
+        deceased: Boolean(authorRecord.deceased),
+        bio: authorRecord.bio || ''
       }
-    } else {
-      clearHelpText(authorEditBirthDateHelp);
-    }
-
-    const deathRaw = authorEditDeathDate?.value.trim() || '';
-    const deceased = Boolean(authorEditDeceased?.checked);
-    if (deathRaw && !deceased) {
-      setHelpText(authorEditDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
-      valid = false;
-      errors.push('Mark the author as deceased to set a death date.');
-    } else if (deathRaw) {
-      const parsed = parsePartialDateInput(deathRaw);
-      if (parsed.error) {
-        setHelpText(authorEditDeathDateHelp, parsed.error, true);
-        valid = false;
-        errors.push(parsed.error);
-      } else {
-        clearHelpText(authorEditDeathDateHelp);
-      }
-    } else {
-      clearHelpText(authorEditDeathDateHelp);
-    }
-
-    const bio = authorEditBio?.value.trim() || '';
-    if (bio && bio.length > 1000) {
-      setHelpText(authorEditBioHelp, 'Bio must be 1000 characters or fewer.', true);
-      valid = false;
-      errors.push('Bio must be 1000 characters or fewer.');
-    } else {
-      clearHelpText(authorEditBioHelp);
-    }
-
-    if (!valid && authorEditErrorAlert) {
-      authorEditErrorAlert.classList.remove('d-none');
-      authorEditErrorAlert.innerHTML = `<strong>Please fix the following:</strong> ${escapeHtml(errors.join(' '))}`;
-    }
-    return valid;
-  };
-
-  const saveAuthorEdits = async () => {
-    if (!authorRecord || !validateEditForm()) return;
-    const payload = {
-      id: authorRecord.id,
-      displayName: authorEditDisplayName.value.trim(),
-      firstNames: authorEditFirstNames.value.trim() || undefined,
-      lastName: authorEditLastName.value.trim() || undefined,
-      deceased: Boolean(authorEditDeceased.checked),
-      bio: authorEditBio.value.trim() || undefined
-    };
-    const birthRaw = authorEditBirthDate.value.trim();
-    if (birthRaw) payload.birthDate = parsePartialDateInput(birthRaw).value;
-    const deathRaw = authorEditDeathDate.value.trim();
-    if (deathRaw) payload.deathDate = parsePartialDateInput(deathRaw).value;
-
-    log('Updating author.', { id: authorRecord.id });
-    authorEditSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/author', { method: 'PUT', body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (authorEditErrorAlert) {
-          authorEditErrorAlert.classList.remove('d-none');
-          authorEditErrorAlert.textContent = data.message || 'Unable to update author.';
-        }
-        warn('Author update failed.', { status: response.status, data });
-        return;
-      }
-      await hideModal(editAuthorModal);
-      log('Author updated successfully.');
-      await loadAuthor();
-    } catch (error) {
-      errorLog('Author update failed.', error);
-      if (authorEditErrorAlert) {
-        authorEditErrorAlert.classList.remove('d-none');
-        authorEditErrorAlert.textContent = 'Unable to update author right now.';
-      }
-    } finally {
-      authorEditSaveBtn.disabled = false;
-    }
+    });
   };
 
   const openDeleteModal = () => {
@@ -676,9 +523,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editAuthorBtn) {
     editAuthorBtn.addEventListener('click', openEditModal);
   }
-  if (authorEditSaveBtn) {
-    authorEditSaveBtn.addEventListener('click', saveAuthorEdits);
-  }
   if (deleteAuthorBtn) {
     deleteAuthorBtn.addEventListener('click', openDeleteModal);
   }
@@ -697,6 +541,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (removeAuthorBookConfirmBtn) {
     removeAuthorBookConfirmBtn.addEventListener('click', confirmRemove);
+  }
+
+  const sharedEvents = window.sharedAddModals?.events;
+  if (sharedEvents) {
+    sharedEvents.addEventListener('author:updated', async (event) => {
+      if (event?.detail?.id && authorRecord?.id && event.detail.id !== authorRecord.id) return;
+      await loadAuthor();
+    });
   }
 
   const booksTable = document.getElementById('booksTableBody');

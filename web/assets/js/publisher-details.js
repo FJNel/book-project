@@ -24,21 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const defaultInvalidPublisherMessage = "This link doesn't seem to lead to a publisher in your library. Try going back to your publisher list and selecting it again.";
   const editPublisherBtn = document.getElementById('editPublisherBtn');
   const deletePublisherBtn = document.getElementById('deletePublisherBtn');
-  const editPublisherModal = document.getElementById('editPublisherModal');
   const deletePublisherModal = document.getElementById('deletePublisherModal');
   const deletePublisherName = document.getElementById('deletePublisherName');
   const publisherDeleteConfirmBtn = document.getElementById('publisherDeleteConfirmBtn');
   const publisherDeleteErrorAlert = document.getElementById('publisherDeleteErrorAlert');
-  const publisherEditErrorAlert = document.getElementById('publisherEditErrorAlert');
-  const publisherEditSaveBtn = document.getElementById('publisherEditSaveBtn');
-  const publisherEditName = document.getElementById('publisherEditName');
-  const publisherEditFoundedDate = document.getElementById('publisherEditFoundedDate');
-  const publisherEditWebsite = document.getElementById('publisherEditWebsite');
-  const publisherEditNotes = document.getElementById('publisherEditNotes');
-  const publisherEditNameHelp = document.getElementById('publisherEditNameHelp');
-  const publisherEditFoundedDateHelp = document.getElementById('publisherEditFoundedDateHelp');
-  const publisherEditWebsiteHelp = document.getElementById('publisherEditWebsiteHelp');
-  const publisherEditNotesHelp = document.getElementById('publisherEditNotesHelp');
 
   let publisherRecord = null;
 
@@ -72,16 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
-  const parsePartialDateInput = (value) => {
-    if (!value || !value.trim()) return { value: null };
-    if (!window.partialDateParser || typeof window.partialDateParser.parsePartialDate !== 'function') {
-      return { error: 'Date parser is unavailable.' };
-    }
-    const parsed = window.partialDateParser.parsePartialDate(value.trim());
-    if (!parsed || !parsed.text) return { error: 'Please enter a valid date.' };
-    return { value: parsed };
-  };
 
   const normalizeUrl = (value) => {
     if (!value) return null;
@@ -278,112 +257,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openEditModal = () => {
     if (!publisherRecord) return;
-    if (publisherEditName) publisherEditName.value = publisherRecord.name || '';
-    if (publisherEditFoundedDate) publisherEditFoundedDate.value = publisherRecord.foundedDate?.text || '';
-    if (publisherEditWebsite) publisherEditWebsite.value = publisherRecord.website || '';
-    if (publisherEditNotes) publisherEditNotes.value = publisherRecord.notes || '';
-    [publisherEditNameHelp, publisherEditFoundedDateHelp, publisherEditWebsiteHelp, publisherEditNotesHelp]
-      .forEach((el) => clearHelpText(el));
-    if (publisherEditErrorAlert) {
-      publisherEditErrorAlert.classList.add('d-none');
-      publisherEditErrorAlert.innerHTML = '';
-    }
-    showModal(editPublisherModal, { backdrop: 'static', keyboard: false });
-  };
-
-  const validateEditForm = () => {
-    let valid = true;
-    const errors = [];
-    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
-    const name = publisherEditName?.value.trim() || '';
-    if (!name) {
-      setHelpText(publisherEditNameHelp, 'Publisher Name is required.', true);
-      valid = false;
-      errors.push('Publisher Name is required.');
-    } else if (name.length < 2 || name.length > 150 || !namePattern.test(name)) {
-      setHelpText(publisherEditNameHelp, 'Publisher Name must be 2-150 characters and valid.', true);
-      valid = false;
-      errors.push('Publisher Name must be 2-150 characters and valid.');
-    } else {
-      clearHelpText(publisherEditNameHelp);
-    }
-
-    const foundedRaw = publisherEditFoundedDate?.value.trim() || '';
-    if (foundedRaw) {
-      const parsed = parsePartialDateInput(foundedRaw);
-      if (parsed.error) {
-        setHelpText(publisherEditFoundedDateHelp, parsed.error, true);
-        valid = false;
-        errors.push(parsed.error);
-      } else {
-        clearHelpText(publisherEditFoundedDateHelp);
+    window.sharedAddModals?.open('publisher', {
+      mode: 'edit',
+      initial: {
+        id: publisherRecord.id,
+        name: publisherRecord.name || '',
+        foundedDate: publisherRecord.foundedDate?.text || '',
+        website: publisherRecord.website || '',
+        notes: publisherRecord.notes || ''
       }
-    } else {
-      clearHelpText(publisherEditFoundedDateHelp);
-    }
-
-    const websiteRaw = publisherEditWebsite?.value.trim() || '';
-    if (websiteRaw && !normalizeUrl(websiteRaw)) {
-      setHelpText(publisherEditWebsiteHelp, 'Enter a valid URL.', true);
-      valid = false;
-      errors.push('Enter a valid URL.');
-    } else {
-      clearHelpText(publisherEditWebsiteHelp);
-    }
-
-    const notes = publisherEditNotes?.value.trim() || '';
-    if (notes && notes.length > 1000) {
-      setHelpText(publisherEditNotesHelp, 'Notes must be 1000 characters or fewer.', true);
-      valid = false;
-      errors.push('Notes must be 1000 characters or fewer.');
-    } else {
-      clearHelpText(publisherEditNotesHelp);
-    }
-
-    if (!valid && publisherEditErrorAlert) {
-      publisherEditErrorAlert.classList.remove('d-none');
-      publisherEditErrorAlert.innerHTML = `<strong>Please fix the following:</strong> ${escapeHtml(errors.join(' '))}`;
-    }
-    return valid;
-  };
-
-  const savePublisherEdits = async () => {
-    if (!publisherRecord || !validateEditForm()) return;
-    const payload = {
-      id: publisherRecord.id,
-      name: publisherEditName.value.trim(),
-      notes: publisherEditNotes.value.trim() || undefined
-    };
-    const foundedRaw = publisherEditFoundedDate.value.trim();
-    if (foundedRaw) payload.foundedDate = parsePartialDateInput(foundedRaw).value;
-    const websiteRaw = publisherEditWebsite.value.trim();
-    if (websiteRaw) payload.website = normalizeUrl(websiteRaw);
-
-    log('Updating publisher.', { id: publisherRecord.id });
-    publisherEditSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/publisher', { method: 'PUT', body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (publisherEditErrorAlert) {
-          publisherEditErrorAlert.classList.remove('d-none');
-          publisherEditErrorAlert.textContent = data.message || 'Unable to update publisher.';
-        }
-        warn('Publisher update failed.', { status: response.status, data });
-        return;
-      }
-      await hideModal(editPublisherModal);
-      log('Publisher updated successfully.');
-      await loadPublisher();
-    } catch (error) {
-      errorLog('Publisher update failed.', error);
-      if (publisherEditErrorAlert) {
-        publisherEditErrorAlert.classList.remove('d-none');
-        publisherEditErrorAlert.textContent = 'Unable to update publisher right now.';
-      }
-    } finally {
-      publisherEditSaveBtn.disabled = false;
-    }
+    });
   };
 
   const openDeleteModal = () => {
@@ -500,13 +383,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editPublisherBtn) {
     editPublisherBtn.addEventListener('click', openEditModal);
   }
-  if (publisherEditSaveBtn) {
-    publisherEditSaveBtn.addEventListener('click', savePublisherEdits);
-  }
   if (deletePublisherBtn) {
     deletePublisherBtn.addEventListener('click', openDeleteModal);
   }
   if (publisherDeleteConfirmBtn) {
     publisherDeleteConfirmBtn.addEventListener('click', confirmDelete);
+  }
+
+  const sharedEvents = window.sharedAddModals?.events;
+  if (sharedEvents) {
+    sharedEvents.addEventListener('publisher:updated', async (event) => {
+      if (event?.detail?.id && publisherRecord?.id && event.detail.id !== publisherRecord.id) return;
+      await loadPublisher();
+    });
   }
 });

@@ -233,8 +233,9 @@
           </div>
           <div class="mb-0"><label class="form-label" for="fourRdtAuthorBio"><strong>Short Bio</strong></label><textarea class="form-control" id="fourRdtAuthorBio" name="authorBio" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea><small class="form-text" id="fourAuthorBioHelp"></small></div>
         </form>
+                <small class="text-muted d-block mt-3" id="fourAuthorChangeSummary"></small>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button">Add Author</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button"><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> Add Author</button></div>
     </div>
   </div>
 </div>
@@ -256,6 +257,7 @@
           <div class="mb-3"><label class="form-label" for="fiveEdtPublisherWebsite"><strong>Website</strong></label><input class="form-control" type="url" id="fiveEdtPublisherWebsite" name="publisherWebsite" inputmode="url" autocomplete="off"><small class="form-text" id="fivePublisherWebsiteHelp"></small></div>
           <div class="mb-0"><label class="form-label" for="fiveRdtPublisherNotes"><strong>Notes</strong></label><textarea class="form-control" id="fiveRdtPublisherNotes" name="publisherNotes" autocomplete="off" spellcheck="true" minlength="2" maxlength="1000"></textarea><small class="form-text" id="fivePublisherNotesHelp"></small></div>
         </form>
+                <small class="text-muted d-block mt-3" id="fivePublisherChangeSummary"></small>
       </div>
       <div class="modal-footer"><button class="btn btn-outline-secondary" id="fiveBtnResetPublisher" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Add Publisher</button></div>
     </div>
@@ -311,6 +313,7 @@
             <div class="mb-0"><label class="form-label" for="eightRdtLocationNotesNested"><strong>Notes</strong></label><textarea class="form-control" id="eightRdtLocationNotesNested" name="locationNotesNested" autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea><small class="form-text" id="eightLocationNestedNotesHelp"></small></div>
           </div>
         </form>
+                <small class="text-muted d-block mt-3" id="eightLocationChangeSummary"></small>
       </div>
       <div class="modal-footer"><button class="btn btn-outline-secondary" id="eightBtnResetLocation" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Add Location</button></div>
     </div>
@@ -463,6 +466,21 @@
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (locationMode.mode === 'edit') {
+                locationMode = { mode: 'add', original: null };
+                setMode('add');
+                const changeSummary = utils.byId('eightLocationChangeSummary');
+                if (changeSummary) changeSummary.textContent = '';
+            }
+        });
+
+        modalEl.addEventListener('shared:locationMode', (event) => {
+            const mode = event.detail?.mode || 'add';
+            const original = event.detail?.original || null;
+            setMode(mode, original);
+        });
     }
 
     function setupPublisherModal() {
@@ -478,11 +496,83 @@
         const websiteHelp = utils.byId('fivePublisherWebsiteHelp');
         const notesHelp = utils.byId('fivePublisherNotesHelp');
         const errorAlert = utils.byId('fivePublisherErrorAlert');
+        const changeSummary = utils.byId('fivePublisherChangeSummary');
         const saveButton = utils.byId('fiveBtnSavePublisher');
         const resetButton = utils.byId('fiveBtnResetPublisher');
         const spinnerState = utils.attachButtonSpinner(saveButton);
         const modalState = { locked: false };
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+        const setMode = (mode, original) => {
+            publisherMode = { mode, original: original || null };
+            if (modalEl) {
+                const title = modalEl.querySelector('.modal-title');
+                if (title) title.textContent = mode === 'edit' ? 'Edit Publisher' : 'Add a New Publisher';
+            }
+            if (saveButton) setButtonLabel(saveButton, mode === 'edit' ? 'Save changes' : 'Add Publisher');
+            if (resetButton) resetButton.textContent = mode === 'edit' ? 'Revert' : 'Reset';
+        };
+
+        const getCurrentValues = () => ({
+            name: nameInput.value.trim(),
+            foundedDate: foundedInput.value.trim(),
+            website: utils.normalizeUrl(websiteInput.value.trim()) || '',
+            notes: notesInput.value.trim()
+        });
+
+        const getOriginalValues = () => ({
+            name: (publisherMode.original?.name || '').trim(),
+            foundedDate: (publisherMode.original?.foundedDate || '').trim(),
+            website: utils.normalizeUrl((publisherMode.original?.website || '').trim()) || '',
+            notes: (publisherMode.original?.notes || '').trim()
+        });
+
+        const buildChangeList = () => {
+            if (publisherMode.mode !== 'edit') return [];
+            const current = getCurrentValues();
+            const original = getOriginalValues();
+            const changes = [];
+            if (current.name !== original.name) {
+                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
+            }
+            if (current.foundedDate !== original.foundedDate) {
+                const fromLabel = original.foundedDate || 'No date';
+                const toLabel = current.foundedDate || 'No date';
+                changes.push(`Updated founded date from "${fromLabel}" to "${toLabel}".`);
+            }
+            if (current.website !== original.website) {
+                if (original.website && !current.website) {
+                    changes.push(`Removed website "${original.website}".`);
+                } else if (!original.website && current.website) {
+                    changes.push(`Added website "${current.website}".`);
+                } else {
+                    changes.push(`Updated website from "${original.website || 'None'}" to "${current.website || 'None'}".`);
+                }
+            }
+            if (current.notes !== original.notes) {
+                if (original.notes && !current.notes) {
+                    changes.push('Removed notes.');
+                } else if (!original.notes && current.notes) {
+                    changes.push('Added notes.');
+                } else {
+                    changes.push('Updated notes.');
+                }
+            }
+            return changes;
+        };
+
+        const updateChangeSummary = () => {
+            if (!changeSummary) return;
+            if (publisherMode.mode !== 'edit') {
+                changeSummary.textContent = '';
+                return;
+            }
+            const changes = buildChangeList();
+            changeSummary.textContent = changes.length
+                ? `Changing ${publisherMode.original?.name || 'this publisher'}: ${changes.join(' ')}`
+                : 'No changes yet.';
+            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
 
         utils.bindModalLock(modalEl, modalState);
 
@@ -520,6 +610,7 @@
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, foundedInput, websiteInput, notesInput, resetButton], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
+            if (publisherMode.mode === 'edit') updateChangeSummary();
         };
 
         const save = async () => {
@@ -533,20 +624,35 @@
                 notes: notesInput.value.trim() || null
             };
             try {
-                const response = await apiFetch('/publisher', { method: 'POST', body: JSON.stringify(payload) });
+                const response = await apiFetch('/publisher', {
+                    method: publisherMode.mode === 'edit' ? 'PUT' : 'POST',
+                    body: JSON.stringify(publisherMode.mode === 'edit'
+                        ? { id: publisherMode.original?.id, ...payload }
+                        : payload)
+                });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add publisher.', data.errors || []);
                     return;
                 }
                 const created = data.data || {};
-                dispatchEvent('publisher:created', {
-                    id: created.id,
-                    name: created.name || payload.name,
-                    foundedDate: created.foundedDate || payload.foundedDate,
-                    website: created.website || payload.website,
-                    notes: created.notes || payload.notes
-                });
+                if (publisherMode.mode === 'edit') {
+                    dispatchEvent('publisher:updated', {
+                        id: created.id || publisherMode.original?.id,
+                        name: created.name || payload.name,
+                        foundedDate: created.foundedDate || payload.foundedDate,
+                        website: created.website || payload.website,
+                        notes: created.notes || payload.notes
+                    });
+                } else {
+                    dispatchEvent('publisher:created', {
+                        id: created.id,
+                        name: created.name || payload.name,
+                        foundedDate: created.foundedDate || payload.foundedDate,
+                        website: created.website || payload.website,
+                        notes: created.notes || payload.notes
+                    });
+                }
                 utils.clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
                 utils.hideAlert(errorAlert);
                 hideModal(modalEl);
@@ -558,12 +664,21 @@
         };
 
         const reset = () => {
-            utils.clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            if (publisherMode.mode === 'edit') {
+                const original = publisherMode.original || {};
+                nameInput.value = original.name || '';
+                foundedInput.value = original.foundedDate || '';
+                websiteInput.value = original.website || '';
+                notesInput.value = original.notes || '';
+            } else {
+                utils.clearModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            }
             utils.clearHelpText(nameHelp);
             utils.clearHelpText(foundedHelp);
             utils.clearHelpText(websiteHelp);
             utils.clearHelpText(notesHelp);
             utils.hideAlert(errorAlert);
+            updateChangeSummary();
         };
 
         foundedInput.addEventListener('input', () => utils.setPartialDateHelp(foundedInput, foundedHelp));
@@ -574,6 +689,7 @@
                 return utils.setHelpText(nameHelp, 'Publisher Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(nameHelp);
+            updateChangeSummary();
         });
         websiteInput.addEventListener('input', () => {
             const value = websiteInput.value.trim();
@@ -582,6 +698,7 @@
                 return utils.setHelpText(websiteHelp, 'Website must be a valid URL starting with http:// or https://', true);
             }
             utils.setHelpText(websiteHelp, `Will be saved as: ${utils.normalizeUrl(value)}`, false);
+            updateChangeSummary();
         });
         notesInput.addEventListener('input', () => {
             if (notesInput.value.trim().length > 1000) {
@@ -589,18 +706,45 @@
             } else {
                 utils.clearHelpText(notesHelp);
             }
+            updateChangeSummary();
         });
+        foundedInput.addEventListener('input', updateChangeSummary);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
-            utils.cacheModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            if (publisherMode.mode === 'add') {
+                utils.cacheModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            }
         });
         modalEl.addEventListener('shown.bs.modal', () => {
-            utils.restoreModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            if (publisherMode.mode === 'edit') {
+                const original = publisherMode.original || {};
+                nameInput.value = original.name || '';
+                foundedInput.value = original.foundedDate || '';
+                websiteInput.value = original.website || '';
+                notesInput.value = original.notes || '';
+            } else {
+                utils.restoreModalValues('addPublisherModal', [nameInput, foundedInput, websiteInput, notesInput]);
+            }
             utils.hideAlert(errorAlert);
             utils.setPartialDateHelp(foundedInput, foundedHelp);
+            updateChangeSummary();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (publisherMode.mode === 'edit') {
+                publisherMode = { mode: 'add', original: null };
+                setMode('add');
+                if (changeSummary) changeSummary.textContent = '';
+            }
+        });
+
+        modalEl.addEventListener('shared:publisherMode', (event) => {
+            const mode = event.detail?.mode || 'add';
+            const original = event.detail?.original || null;
+            setMode(mode, original);
+        });
     }
 
     function setupAuthorModal() {
@@ -614,6 +758,7 @@
         const deathDateInput = utils.byId('fourEdtAuthorDeathDate');
         const deceasedToggle = utils.byId('fourChkAuthorDeceased');
         const bioInput = utils.byId('fourRdtAuthorBio');
+        const deathDateWrap = utils.byId('authorDeathDateWrap');
 
         const birthHelp = utils.byId('fourAuthorBirthDateHelp');
         const deathHelp = utils.byId('fourAuthorDeathDateHelp');
@@ -622,6 +767,7 @@
         const lastNameHelp = utils.byId('fourAuthorLastNameHelp');
         const bioHelp = utils.byId('fourAuthorBioHelp');
         const errorAlert = utils.byId('fourAuthorErrorAlert');
+        const changeSummary = utils.byId('fourAuthorChangeSummary');
 
         const saveButton = utils.byId('fourBtnSaveAuthor');
         const resetButton = utils.byId('fourBtnResetAuthor');
@@ -629,6 +775,115 @@
         const spinnerState = utils.attachButtonSpinner(saveButton);
         const modalState = { locked: false };
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+        const setMode = (mode, original) => {
+            authorMode = { mode, original: original || null };
+            if (modalEl) {
+                const title = modalEl.querySelector('.modal-title');
+                if (title) title.textContent = mode === 'edit' ? 'Edit Author' : 'Add a New Author';
+            }
+            if (saveButton) setButtonLabel(saveButton, mode === 'edit' ? 'Save changes' : 'Add Author');
+            if (resetButton) resetButton.textContent = mode === 'edit' ? 'Revert' : 'Reset';
+        };
+
+        const getCurrentValues = () => ({
+            displayName: displayNameInput.value.trim(),
+            firstNames: firstNameInput.value.trim(),
+            lastName: lastNameInput.value.trim(),
+            birthDate: birthDateInput.value.trim(),
+            deceased: Boolean(deceasedToggle.checked),
+            deathDate: deathDateInput.value.trim(),
+            bio: bioInput.value.trim()
+        });
+
+        const getOriginalValues = () => ({
+            displayName: (authorMode.original?.displayName || '').trim(),
+            firstNames: (authorMode.original?.firstNames || '').trim(),
+            lastName: (authorMode.original?.lastName || '').trim(),
+            birthDate: (authorMode.original?.birthDate || '').trim(),
+            deceased: Boolean(authorMode.original?.deceased),
+            deathDate: (authorMode.original?.deathDate || '').trim(),
+            bio: (authorMode.original?.bio || '').trim()
+        });
+
+        const buildChangeList = () => {
+            if (authorMode.mode !== 'edit') return [];
+            const current = getCurrentValues();
+            const original = getOriginalValues();
+            const changes = [];
+            if (current.displayName !== original.displayName) {
+                changes.push(`Renamed "${original.displayName || 'Untitled'}" to "${current.displayName || 'Untitled'}".`);
+            }
+            if (current.firstNames !== original.firstNames) {
+                if (original.firstNames && !current.firstNames) {
+                    changes.push('Removed first names.');
+                } else if (!original.firstNames && current.firstNames) {
+                    changes.push(`Added first names "${current.firstNames}".`);
+                } else {
+                    changes.push('Updated first names.');
+                }
+            }
+            if (current.lastName !== original.lastName) {
+                if (original.lastName && !current.lastName) {
+                    changes.push('Removed last name.');
+                } else if (!original.lastName && current.lastName) {
+                    changes.push(`Added last name "${current.lastName}".`);
+                } else {
+                    changes.push('Updated last name.');
+                }
+            }
+            if (current.birthDate !== original.birthDate) {
+                const fromLabel = original.birthDate || 'No date';
+                const toLabel = current.birthDate || 'No date';
+                changes.push(`Updated birth date from "${fromLabel}" to "${toLabel}".`);
+            }
+            if (current.deceased !== original.deceased) {
+                changes.push(current.deceased ? 'Marked author as deceased.' : 'Marked author as living.');
+            }
+            if (current.deathDate !== original.deathDate) {
+                const fromLabel = original.deathDate || 'No date';
+                const toLabel = current.deathDate || 'No date';
+                changes.push(`Updated death date from "${fromLabel}" to "${toLabel}".`);
+            }
+            if (current.bio !== original.bio) {
+                if (original.bio && !current.bio) {
+                    changes.push('Removed bio.');
+                } else if (!original.bio && current.bio) {
+                    changes.push('Added bio.');
+                } else {
+                    changes.push('Updated bio.');
+                }
+            }
+            return changes;
+        };
+
+        const updateChangeSummary = () => {
+            if (!changeSummary) return;
+            if (authorMode.mode !== 'edit') {
+                changeSummary.textContent = '';
+                return;
+            }
+            const changes = buildChangeList();
+            changeSummary.textContent = changes.length
+                ? `Changing ${authorMode.original?.displayName || 'this author'}: ${changes.join(' ')}`
+                : 'No changes yet.';
+            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
+        const setDeathDateVisibility = (show) => {
+            if (!deathDateWrap) return;
+            if (window.bootstrap && window.bootstrap.Collapse) {
+                const instance = window.bootstrap.Collapse.getOrCreateInstance(deathDateWrap, { toggle: false });
+                if (show) instance.show(); else instance.hide();
+                return;
+            }
+            deathDateWrap.classList.toggle('show', show);
+        };
+
+        const applyDeceasedState = () => {
+            const show = Boolean(deceasedToggle?.checked);
+            setDeathDateVisibility(show);
+        };
 
         utils.bindModalLock(modalEl, modalState);
 
@@ -706,6 +961,7 @@
                 resetButton
             ], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
+            if (authorMode.mode === 'edit') updateChangeSummary();
         };
 
         const save = async () => {
@@ -723,17 +979,35 @@
                 bio: bioInput.value.trim() || null
             };
             try {
-                const response = await apiFetch('/author', { method: 'POST', body: JSON.stringify(payload) });
+                const response = await apiFetch('/author', {
+                    method: authorMode.mode === 'edit' ? 'PUT' : 'POST',
+                    body: JSON.stringify(authorMode.mode === 'edit'
+                        ? { id: authorMode.original?.id, ...payload }
+                        : payload)
+                });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add author.', data.errors || []);
                     return;
                 }
                 const created = data.data || {};
-                dispatchEvent('author:created', {
-                    id: created.id,
-                    displayName: created.displayName || payload.displayName
-                });
+                if (authorMode.mode === 'edit') {
+                    dispatchEvent('author:updated', {
+                        id: created.id || authorMode.original?.id,
+                        displayName: created.displayName || payload.displayName,
+                        firstNames: created.firstNames || payload.firstNames,
+                        lastName: created.lastName || payload.lastName,
+                        birthDate: created.birthDate || payload.birthDate,
+                        deathDate: created.deathDate || payload.deathDate,
+                        deceased: created.deceased ?? payload.deceased,
+                        bio: created.bio || payload.bio
+                    });
+                } else {
+                    dispatchEvent('author:created', {
+                        id: created.id,
+                        displayName: created.displayName || payload.displayName
+                    });
+                }
                 utils.clearModalValues('addAuthorModal', [
                     displayNameInput,
                     firstNameInput,
@@ -753,15 +1027,26 @@
         };
 
         const reset = () => {
-            utils.clearModalValues('addAuthorModal', [
-                displayNameInput,
-                firstNameInput,
-                lastNameInput,
-                birthDateInput,
-                deathDateInput,
-                deceasedToggle,
-                bioInput
-            ]);
+            if (authorMode.mode === 'edit') {
+                const original = authorMode.original || {};
+                displayNameInput.value = original.displayName || '';
+                firstNameInput.value = original.firstNames || '';
+                lastNameInput.value = original.lastName || '';
+                birthDateInput.value = original.birthDate || '';
+                deceasedToggle.checked = Boolean(original.deceased);
+                deathDateInput.value = original.deathDate || '';
+                bioInput.value = original.bio || '';
+            } else {
+                utils.clearModalValues('addAuthorModal', [
+                    displayNameInput,
+                    firstNameInput,
+                    lastNameInput,
+                    birthDateInput,
+                    deathDateInput,
+                    deceasedToggle,
+                    bioInput
+                ]);
+            }
             utils.clearHelpText(displayNameHelp);
             utils.clearHelpText(firstNameHelp);
             utils.clearHelpText(lastNameHelp);
@@ -769,6 +1054,8 @@
             utils.clearHelpText(deathHelp);
             utils.clearHelpText(bioHelp);
             utils.hideAlert(errorAlert);
+            applyDeceasedState();
+            updateChangeSummary();
         };
 
         birthDateInput.addEventListener('input', () => utils.setPartialDateHelp(birthDateInput, birthHelp));
@@ -778,6 +1065,7 @@
                 return;
             }
             utils.setPartialDateHelp(deathDateInput, deathHelp);
+            updateChangeSummary();
         });
         deceasedToggle.addEventListener('change', () => {
             if (!deceasedToggle.checked && deathDateInput.value.trim()) {
@@ -785,6 +1073,8 @@
                 return;
             }
             utils.setPartialDateHelp(deathDateInput, deathHelp);
+            applyDeceasedState();
+            updateChangeSummary();
         });
         displayNameInput.addEventListener('input', () => {
             const value = displayNameInput.value.trim();
@@ -793,6 +1083,7 @@
                 return utils.setHelpText(displayNameHelp, 'Display Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(displayNameHelp);
+            updateChangeSummary();
         });
         firstNameInput.addEventListener('input', () => {
             const value = firstNameInput.value.trim();
@@ -801,6 +1092,7 @@
                 return utils.setHelpText(firstNameHelp, 'First Name(s) must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(firstNameHelp);
+            updateChangeSummary();
         });
         lastNameInput.addEventListener('input', () => {
             const value = lastNameInput.value.trim();
@@ -809,6 +1101,7 @@
                 return utils.setHelpText(lastNameHelp, 'Last Name must be 2-100 characters and valid.', true);
             }
             utils.clearHelpText(lastNameHelp);
+            updateChangeSummary();
         });
         bioInput.addEventListener('input', () => {
             if (bioInput.value.trim().length > 1000) {
@@ -816,48 +1109,80 @@
             } else {
                 utils.clearHelpText(bioHelp);
             }
+            updateChangeSummary();
         });
+        birthDateInput.addEventListener('input', updateChangeSummary);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
-            utils.cacheModalValues('addAuthorModal', [
-                displayNameInput,
-                firstNameInput,
-                lastNameInput,
-                birthDateInput,
-                deathDateInput,
-                deceasedToggle,
-                bioInput
-            ]);
+            if (authorMode.mode === 'add') {
+                utils.cacheModalValues('addAuthorModal', [
+                    displayNameInput,
+                    firstNameInput,
+                    lastNameInput,
+                    birthDateInput,
+                    deathDateInput,
+                    deceasedToggle,
+                    bioInput
+                ]);
+            }
         });
         modalEl.addEventListener('shown.bs.modal', () => {
-            utils.restoreModalValues('addAuthorModal', [
-                displayNameInput,
-                firstNameInput,
-                lastNameInput,
-                birthDateInput,
-                deathDateInput,
-                deceasedToggle,
-                bioInput
-            ]);
+            if (authorMode.mode === 'edit') {
+                const original = authorMode.original || {};
+                displayNameInput.value = original.displayName || '';
+                firstNameInput.value = original.firstNames || '';
+                lastNameInput.value = original.lastName || '';
+                birthDateInput.value = original.birthDate || '';
+                deceasedToggle.checked = Boolean(original.deceased);
+                deathDateInput.value = original.deathDate || '';
+                bioInput.value = original.bio || '';
+            } else {
+                utils.restoreModalValues('addAuthorModal', [
+                    displayNameInput,
+                    firstNameInput,
+                    lastNameInput,
+                    birthDateInput,
+                    deathDateInput,
+                    deceasedToggle,
+                    bioInput
+                ]);
+            }
             utils.hideAlert(errorAlert);
             utils.setPartialDateHelp(birthDateInput, birthHelp);
             utils.setPartialDateHelp(deathDateInput, deathHelp);
+            applyDeceasedState();
+            updateChangeSummary();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            if (authorMode.mode === 'edit') {
+                authorMode = { mode: 'add', original: null };
+                setMode('add');
+                if (changeSummary) changeSummary.textContent = '';
+            }
+        });
+
+        modalEl.addEventListener('shared:authorMode', (event) => {
+            const mode = event.detail?.mode || 'add';
+            const original = event.detail?.original || null;
+            setMode(mode, original);
+        });
     }
 
+    let authorMode = { mode: 'add', original: null };
+    let publisherMode = { mode: 'add', original: null };
     let seriesMode = { mode: 'add', original: null };
+    let locationMode = { mode: 'add', original: null };
 
-    const setButtonLabel = (button, label) => {
+    function setButtonLabel(button, label) {
         if (!button) return;
-        const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-        if (textNode) {
-            textNode.nodeValue = ` ${label}`;
-        } else {
-            button.textContent = label;
-        }
-    };
+        Array.from(button.childNodes)
+            .filter((node) => node.nodeType === Node.TEXT_NODE)
+            .forEach((node) => button.removeChild(node));
+        button.appendChild(document.createTextNode(` ${label}`));
+    }
 
     function setupSeriesModal() {
         const modalEl = utils.byId('addSeriesModal');
@@ -1127,6 +1452,65 @@
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
         let cachedLocations = [];
 
+        const setMode = (mode, original) => {
+            locationMode = { mode, original: original || null };
+            if (modalEl) {
+                const title = modalEl.querySelector('.modal-title');
+                if (title) title.textContent = mode === 'edit' ? 'Edit Storage Location' : 'Add a New Location';
+            }
+            if (saveButton) setButtonLabel(saveButton, mode === 'edit' ? 'Save changes' : 'Add Location');
+            if (resetButton) resetButton.textContent = mode === 'edit' ? 'Revert' : 'Reset';
+        };
+
+        const getCurrentValues = () => {
+            const isBase = baseRadio.checked;
+            return {
+                name: isBase ? baseNameInput.value.trim() : nestedNameInput.value.trim(),
+                notes: isBase ? baseNotesInput.value.trim() : nestedNotesInput.value.trim(),
+                parentId: isBase ? null : Number.parseInt(parentSelect.value, 10) || null
+            };
+        };
+
+        const getOriginalValues = () => ({
+            name: (locationMode.original?.name || '').trim(),
+            notes: (locationMode.original?.notes || '').trim(),
+            parentId: locationMode.original?.parentId ?? null
+        });
+
+        const buildChangeList = () => {
+            if (locationMode.mode !== 'edit') return [];
+            const current = getCurrentValues();
+            const original = getOriginalValues();
+            const changes = [];
+            if (current.name !== original.name) {
+                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
+            }
+            if (current.notes !== original.notes) {
+                if (original.notes && !current.notes) {
+                    changes.push('Removed notes.');
+                } else if (!original.notes && current.notes) {
+                    changes.push('Added notes.');
+                } else {
+                    changes.push('Updated notes.');
+                }
+            }
+            return changes;
+        };
+
+        const updateChangeSummary = () => {
+            const changeSummary = utils.byId('eightLocationChangeSummary');
+            if (!changeSummary) return;
+            if (locationMode.mode !== 'edit') {
+                changeSummary.textContent = '';
+                return;
+            }
+            const changes = buildChangeList();
+            changeSummary.textContent = changes.length
+                ? `Changing ${locationMode.original?.name || 'this location'}: ${changes.join(' ')}`
+                : 'No changes yet.';
+            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
         const baseNameHelp = utils.byId('eightLocationBaseNameHelp');
         const baseNotesHelp = utils.byId('eightLocationBaseNotesHelp');
         const parentHelp = utils.byId('eightLocationParentHelp');
@@ -1219,8 +1603,10 @@
         }
 
         function applyLocationMode() {
+            const isEdit = locationMode.mode === 'edit' && locationMode.original;
             const allowNested = hasBaseLocations(cachedLocations);
-            nestedRadio.disabled = !allowNested;
+            nestedRadio.disabled = !allowNested || isEdit;
+            baseRadio.disabled = isEdit;
             if (!allowNested) {
                 nestedRadio.checked = false;
                 baseRadio.checked = true;
@@ -1229,11 +1615,18 @@
                 utils.clearHelpText(parentHelp);
             }
 
+            if (isEdit) {
+                const isBaseOriginal = locationMode.original.parentId === null || locationMode.original.parentId === undefined;
+                baseRadio.checked = isBaseOriginal;
+                nestedRadio.checked = !isBaseOriginal;
+            }
+
             const isBase = baseRadio.checked;
             setCollapseVisibility(baseFields, isBase);
             setCollapseVisibility(nestedFields, !isBase);
             utils.toggleDisabled([baseNameInput, baseNotesInput], !isBase);
             utils.toggleDisabled([parentSelect, nestedNameInput, nestedNotesInput], isBase);
+            if (isEdit && parentSelect) parentSelect.disabled = true;
             updateInlineHelp();
         }
 
@@ -1250,7 +1643,8 @@
                 const hasDuplicateBase = name
                     ? cachedLocations.some((loc) => (loc.parentId === null || loc.parentId === undefined)
                         && loc.name
-                        && loc.name.trim().toLowerCase() === name.toLowerCase())
+                        && loc.name.trim().toLowerCase() === name.toLowerCase()
+                        && (!locationMode.original || loc.id !== locationMode.original.id))
                     : false;
                 if (hasDuplicateBase) errors.push('A base storage location with this name already exists.');
                 if (baseNotesInput.value.trim().length > 2000) errors.push('Notes must be 2000 characters or fewer.');
@@ -1284,6 +1678,7 @@
                 resetButton
             ], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
+            if (locationMode.mode === 'edit') updateChangeSummary();
         };
 
         const save = async () => {
@@ -1296,7 +1691,15 @@
                 notes: isBase ? (baseNotesInput.value.trim() || null) : (nestedNotesInput.value.trim() || null)
             };
             try {
-                const response = await apiFetch('/storagelocation', { method: 'POST', body: JSON.stringify(payload) });
+                const response = await apiFetch(
+                    locationMode.mode === 'edit' ? `/storagelocation/${locationMode.original?.id}` : '/storagelocation',
+                    {
+                        method: locationMode.mode === 'edit' ? 'PUT' : 'POST',
+                        body: JSON.stringify(locationMode.mode === 'edit'
+                            ? { name: payload.name, notes: payload.notes }
+                            : payload)
+                    }
+                );
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add location.', data.errors || []);
@@ -1304,14 +1707,19 @@
                 }
                 const created = data.data || {};
                 const detail = {
-                    id: created.id,
+                    id: created.id || locationMode.original?.id,
                     name: created.name || payload.name,
                     path: created.path || payload.name,
                     notes: created.notes || payload.notes,
-                    parentId: created.parentId || payload.parentId
+                    parentId: created.parentId ?? payload.parentId
                 };
-                dispatchEvent('location:created', detail);
-                cachedLocations = cachedLocations.concat(detail);
+                if (locationMode.mode === 'edit') {
+                    dispatchEvent('location:updated', detail);
+                    cachedLocations = cachedLocations.map((loc) => (loc.id === detail.id ? { ...loc, ...detail } : loc));
+                } else {
+                    dispatchEvent('location:created', detail);
+                    cachedLocations = cachedLocations.concat(detail);
+                }
                 utils.clearModalValues('addLocationModal', [
                     baseNameInput,
                     baseNotesInput,
@@ -1331,18 +1739,32 @@
         };
 
         const reset = () => {
-            utils.clearModalValues('addLocationModal', [
-                baseNameInput,
-                baseNotesInput,
-                parentSelect,
-                nestedNameInput,
-                nestedNotesInput,
-                baseRadio,
-                nestedRadio
-            ]);
-            baseRadio.checked = true;
-            applyLocationMode();
+            if (locationMode.mode === 'edit' && locationMode.original) {
+                const original = locationMode.original;
+                const isBaseOriginal = original.parentId === null || original.parentId === undefined;
+                baseRadio.checked = isBaseOriginal;
+                nestedRadio.checked = !isBaseOriginal;
+                baseNameInput.value = isBaseOriginal ? (original.name || '') : '';
+                baseNotesInput.value = isBaseOriginal ? (original.notes || '') : '';
+                parentSelect.value = !isBaseOriginal && original.parentId ? String(original.parentId) : 'none';
+                nestedNameInput.value = !isBaseOriginal ? (original.name || '') : '';
+                nestedNotesInput.value = !isBaseOriginal ? (original.notes || '') : '';
+                applyLocationMode();
+            } else {
+                utils.clearModalValues('addLocationModal', [
+                    baseNameInput,
+                    baseNotesInput,
+                    parentSelect,
+                    nestedNameInput,
+                    nestedNotesInput,
+                    baseRadio,
+                    nestedRadio
+                ]);
+                baseRadio.checked = true;
+                applyLocationMode();
+            }
             utils.hideAlert(errorAlert);
+            updateChangeSummary();
         };
 
         baseRadio.addEventListener('change', applyLocationMode);
@@ -1354,6 +1776,10 @@
         parentSelect.addEventListener('change', updateInlineHelp);
         nestedNameInput.addEventListener('input', updateInlineHelp);
         nestedNotesInput.addEventListener('input', updateInlineHelp);
+        baseNameInput.addEventListener('input', updateChangeSummary);
+        baseNotesInput.addEventListener('input', updateChangeSummary);
+        nestedNameInput.addEventListener('input', updateChangeSummary);
+        nestedNotesInput.addEventListener('input', updateChangeSummary);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
             utils.cacheModalValues('addLocationModal', [
@@ -1392,7 +1818,20 @@
                 baseRadio,
                 nestedRadio
             ]);
-            if (!hasCache) {
+            if (locationMode.mode === 'edit' && locationMode.original) {
+                const original = locationMode.original;
+                const isBaseOriginal = original.parentId === null || original.parentId === undefined;
+                baseRadio.checked = isBaseOriginal;
+                nestedRadio.checked = !isBaseOriginal;
+                baseNameInput.value = isBaseOriginal ? (original.name || '') : '';
+                baseNotesInput.value = isBaseOriginal ? (original.notes || '') : '';
+                if (!isBaseOriginal && parentSelect) {
+                    const hasOption = Array.from(parentSelect.options).some((opt) => opt.value === String(original.parentId));
+                    if (hasOption) parentSelect.value = String(original.parentId);
+                }
+                nestedNameInput.value = !isBaseOriginal ? (original.name || '') : '';
+                nestedNotesInput.value = !isBaseOriginal ? (original.notes || '') : '';
+            } else if (!hasCache) {
                 const defaultParentId = window.sharedAddModalsConfig?.defaultLocationParentId ?? null;
                 if (defaultParentId && parentSelect) {
                     const hasOption = Array.from(parentSelect.options).some((opt) => opt.value === String(defaultParentId));
@@ -1408,6 +1847,7 @@
             }
             utils.hideAlert(errorAlert);
             applyLocationMode();
+            updateChangeSummary();
             if (window.sharedAddModalsConfig && 'defaultLocationParentId' in window.sharedAddModalsConfig) {
                 window.sharedAddModalsConfig.defaultLocationParentId = null;
             }
@@ -1445,6 +1885,39 @@
             const modalEl = document.getElementById('addSeriesModal');
             if (modalEl) {
                 modalEl.dispatchEvent(new CustomEvent('shared:seriesMode', {
+                    detail: {
+                        mode: options.mode === 'edit' ? 'edit' : 'add',
+                        original: options.initial || null
+                    }
+                }));
+            }
+        }
+        if (String(type || '').toLowerCase() === 'author') {
+            const modalEl = document.getElementById('addAuthorModal');
+            if (modalEl) {
+                modalEl.dispatchEvent(new CustomEvent('shared:authorMode', {
+                    detail: {
+                        mode: options.mode === 'edit' ? 'edit' : 'add',
+                        original: options.initial || null
+                    }
+                }));
+            }
+        }
+        if (String(type || '').toLowerCase() === 'publisher') {
+            const modalEl = document.getElementById('addPublisherModal');
+            if (modalEl) {
+                modalEl.dispatchEvent(new CustomEvent('shared:publisherMode', {
+                    detail: {
+                        mode: options.mode === 'edit' ? 'edit' : 'add',
+                        original: options.initial || null
+                    }
+                }));
+            }
+        }
+        if (String(type || '').toLowerCase() === 'location') {
+            const modalEl = document.getElementById('addLocationModal');
+            if (modalEl) {
+                modalEl.dispatchEvent(new CustomEvent('shared:locationMode', {
                     detail: {
                         mode: options.mode === 'edit' ? 'edit' : 'add',
                         original: options.initial || null

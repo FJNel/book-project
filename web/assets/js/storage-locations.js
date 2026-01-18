@@ -60,15 +60,6 @@
     renameBtn: document.getElementById('renameBtn'),
     moveBtn: document.getElementById('moveBtn'),
     deleteBtn: document.getElementById('deleteBtn'),
-    locationModal: document.getElementById('locationModal'),
-    locationModalTitle: document.getElementById('locationModalTitle'),
-    locationNameInput: document.getElementById('locationNameInput'),
-    locationNotesInput: document.getElementById('locationNotesInput'),
-    locationParentLabel: document.getElementById('locationParentLabel'),
-    locationModalError: document.getElementById('locationModalError'),
-    locationModalChangeSummary: document.getElementById('locationModalChangeSummary'),
-    locationModalResetBtn: document.getElementById('locationModalResetBtn'),
-    locationModalSaveBtn: document.getElementById('locationModalSaveBtn'),
     moveLocationModal: document.getElementById('moveLocationModal'),
     moveLocationSelect: document.getElementById('moveLocationSelect'),
     moveLocationError: document.getElementById('moveLocationError'),
@@ -80,9 +71,7 @@
     feedbackContainer: document.getElementById('feedbackContainer')
   };
 
-  let locationModalMode = 'create';
   let modalLocationId = null;
-  let locationModalOriginal = null;
   let selectionRequestId = 0;
   let booksRequestId = 0;
 
@@ -106,70 +95,6 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-  const attachButtonSpinner = (button) => {
-    if (!button) return null;
-    if (button.querySelector('.spinner-border')) {
-      return {
-        spinner: button.querySelector('.spinner-border'),
-        label: button.textContent.trim() || 'Submit'
-      };
-    }
-    const label = button.textContent.trim() || 'Submit';
-    button.textContent = '';
-    const spinner = document.createElement('span');
-    spinner.className = 'spinner-border spinner-border-sm d-none';
-    spinner.setAttribute('role', 'status');
-    spinner.setAttribute('aria-hidden', 'true');
-    button.appendChild(spinner);
-    button.appendChild(document.createTextNode(' '));
-    button.appendChild(document.createTextNode(label));
-    return { spinner, label };
-  };
-
-  const setButtonLabel = (button, label) => {
-    if (!button) return;
-    const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-    if (textNode) {
-      textNode.nodeValue = ` ${label}`;
-    } else {
-      button.textContent = label;
-    }
-  };
-
-  const setButtonLoading = (button, spinner, isLoading) => {
-    if (!button || !spinner) return;
-    spinner.classList.toggle('d-none', !isLoading);
-    button.disabled = isLoading;
-  };
-
-  const toggleDisabled = (elements, disabled) => {
-    if (!elements) return;
-    elements.forEach((el) => {
-      if (el) el.disabled = disabled;
-    });
-  };
-
-  const bindModalLock = (modalEl, state) => {
-    if (!modalEl || modalEl.dataset.lockBound === 'true') return;
-    modalEl.dataset.lockBound = 'true';
-    modalEl.addEventListener('hide.bs.modal', (event) => {
-      if (state.locked) event.preventDefault();
-    });
-  };
-
-  const setModalLocked = (modalEl, locked) => {
-    if (!modalEl) return;
-    modalEl.dataset.locked = locked ? 'true' : 'false';
-    const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-    closeButtons.forEach((btn) => {
-      btn.disabled = locked;
-    });
-  };
-
-  const locationModalState = { locked: false };
-  const locationModalSpinner = attachButtonSpinner(dom.locationModalSaveBtn);
-
-  bindModalLock(dom.locationModal, locationModalState);
 
   const placeholderCover = (title) => {
     const text = encodeURIComponent(title || 'Book Cover');
@@ -805,144 +730,24 @@
     return true;
   };
 
-  const openLocationModal = ({ mode, locationId = null }) => {
-    if (mode !== 'rename') return;
-    locationModalMode = mode;
-    modalLocationId = locationId;
-    const selected = state.locations.find((loc) => loc.id === locationId);
-    const selectedParent = selected?.parentId ? state.locations.find((loc) => loc.id === selected.parentId) : null;
-
-    locationModalOriginal = {
-      name: selected?.name || '',
-      notes: selected?.notes || ''
-    };
-
-    if (dom.locationModalTitle) dom.locationModalTitle.textContent = 'Rename Location';
-    if (dom.locationNameInput) dom.locationNameInput.value = selected?.name || '';
-    if (dom.locationNotesInput) dom.locationNotesInput.value = selected?.notes || '';
-    if (dom.locationParentLabel) {
-      dom.locationParentLabel.value = selected?.parentId ? (selectedParent?.name || 'Parent') : 'Root location';
-    }
-    if (dom.locationModalError) {
-      dom.locationModalError.classList.add('d-none');
-      dom.locationModalError.textContent = '';
-    }
-    if (dom.locationModalResetBtn) dom.locationModalResetBtn.textContent = 'Revert';
-    setButtonLabel(dom.locationModalSaveBtn, 'Save changes');
-    updateLocationModalChangeSummary();
-
-    if (dom.locationModal) {
-      bootstrap.Modal.getOrCreateInstance(dom.locationModal).show();
-    }
-  };
-
-  function updateLocationModalChangeSummary() {
-    if (!dom.locationModalChangeSummary) return;
-    if (locationModalMode !== 'rename' || !locationModalOriginal) {
-      dom.locationModalChangeSummary.textContent = '';
-      return;
-    }
-    const name = dom.locationNameInput?.value.trim() || '';
-    const notes = dom.locationNotesInput?.value.trim() || '';
-    const changes = [];
-    if (name !== (locationModalOriginal.name || '')) {
-      changes.push(`Renamed "${locationModalOriginal.name || 'Untitled'}" to "${name || 'Untitled'}".`);
-    }
-    if (notes !== (locationModalOriginal.notes || '')) {
-      if (locationModalOriginal.notes && !notes) {
-        changes.push('Cleared notes.');
-      } else if (!locationModalOriginal.notes && notes) {
-        changes.push('Added notes.');
-      } else {
-        changes.push('Updated notes.');
-      }
-    }
-    dom.locationModalChangeSummary.textContent = changes.length
-      ? `Changing ${locationModalOriginal.name || 'this location'}: ${changes.join(' ')}`
-      : 'No changes yet.';
-    if (dom.locationModalSaveBtn) dom.locationModalSaveBtn.disabled = locationModalState.locked || changes.length === 0;
-  }
-
-  function setLocationModalLocked(locked) {
-    locationModalState.locked = locked;
-    setModalLocked(dom.locationModal, locked);
-    toggleDisabled([
-      dom.locationNameInput,
-      dom.locationNotesInput,
-      dom.locationModalResetBtn
-    ], locked);
-    if (locationModalSpinner) setButtonLoading(dom.locationModalSaveBtn, locationModalSpinner.spinner, locked);
-    updateLocationModalChangeSummary();
-  }
-
-  function resetLocationModal() {
-    if (locationModalMode !== 'rename' || !locationModalOriginal) return;
-    if (dom.locationNameInput) dom.locationNameInput.value = locationModalOriginal.name || '';
-    if (dom.locationNotesInput) dom.locationNotesInput.value = locationModalOriginal.notes || '';
-    if (dom.locationModalError) {
-      dom.locationModalError.classList.add('d-none');
-      dom.locationModalError.textContent = '';
-    }
-    updateLocationModalChangeSummary();
-  }
-
   const openSharedLocationModal = (parentId = null) => {
     window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
     window.sharedAddModalsConfig.defaultLocationParentId = parentId || null;
     window.sharedAddModals?.open('location');
   };
 
-  const saveLocationModal = async () => {
-    const name = dom.locationNameInput?.value.trim() || '';
-    const notes = dom.locationNotesInput?.value.trim() || '';
-
-    if (!name) {
-      if (dom.locationModalError) {
-        dom.locationModalError.textContent = 'Location name is required.';
-        dom.locationModalError.classList.remove('d-none');
+  const openSharedLocationEditModal = (locationId) => {
+    const selected = state.locations.find((loc) => loc.id === locationId);
+    if (!selected) return;
+    window.sharedAddModals?.open('location', {
+      mode: 'edit',
+      initial: {
+        id: selected.id,
+        name: selected.name || '',
+        notes: selected.notes || '',
+        parentId: selected.parentId ?? null
       }
-      return;
-    }
-
-    setLocationModalLocked(true);
-    try {
-      if (locationModalMode !== 'rename' || !modalLocationId) return;
-      const current = state.locations.find((loc) => loc.id === modalLocationId);
-      if (current && (current.parentId === null || current.parentId === undefined)) {
-        const duplicate = state.locations.some((loc) => loc.id !== modalLocationId
-          && (loc.parentId === null || loc.parentId === undefined)
-          && loc.name
-          && loc.name.trim().toLowerCase() === name.toLowerCase());
-        if (duplicate) {
-          if (dom.locationModalError) {
-            dom.locationModalError.textContent = 'A base storage location with this name already exists.';
-            dom.locationModalError.classList.remove('d-none');
-          }
-          return;
-        }
-      }
-      log('Renaming location.', { id: modalLocationId, name });
-      const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name, notes })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const details = Array.isArray(payload.errors) ? payload.errors : [];
-        throw new Error(details.join(' ') || payload.message || 'Rename failed.');
-      }
-
-      bootstrap.Modal.getInstance(dom.locationModal)?.hide();
-      await loadLocations();
-    } catch (error) {
-      errorLog('Location save failed.', error);
-      if (dom.locationModalError) {
-        dom.locationModalError.textContent = error.message || 'Unable to save location.';
-        dom.locationModalError.classList.remove('d-none');
-      }
-    } finally {
-      setLocationModalLocked(false);
-    }
+    });
   };
 
   const openMoveModal = (locationId) => {
@@ -1119,7 +924,7 @@
           openSharedLocationModal(id);
         } else if (action === 'rename') {
           event.stopPropagation();
-          openLocationModal({ mode: 'rename', locationId: id });
+          openSharedLocationEditModal(id);
         } else if (action === 'move') {
           event.stopPropagation();
           openMoveModal(id);
@@ -1128,22 +933,6 @@
           openDeleteModal(id);
         }
       });
-    }
-
-    if (dom.locationModalSaveBtn) {
-      dom.locationModalSaveBtn.addEventListener('click', saveLocationModal);
-    }
-
-    if (dom.locationModalResetBtn) {
-      dom.locationModalResetBtn.addEventListener('click', resetLocationModal);
-    }
-
-    if (dom.locationNameInput) {
-      dom.locationNameInput.addEventListener('input', updateLocationModalChangeSummary);
-    }
-
-    if (dom.locationNotesInput) {
-      dom.locationNotesInput.addEventListener('input', updateLocationModalChangeSummary);
     }
 
     if (dom.moveLocationConfirmBtn) {
@@ -1216,7 +1005,7 @@
     if (dom.renameBtn) {
       dom.renameBtn.addEventListener('click', () => {
         if (!state.selectedId) return;
-        openLocationModal({ mode: 'rename', locationId: state.selectedId });
+        openSharedLocationEditModal(state.selectedId);
       });
     }
 
@@ -1272,6 +1061,12 @@
     const sharedEvents = window.sharedAddModals?.events;
     if (sharedEvents) {
       sharedEvents.addEventListener('location:created', async (event) => {
+        await loadLocations();
+        if (event?.detail?.id) {
+          await selectLocation(event.detail.id, { openPanel: true });
+        }
+      });
+      sharedEvents.addEventListener('location:updated', async (event) => {
         await loadLocations();
         if (event?.detail?.id) {
           await selectLocation(event.detail.id, { openPanel: true });
