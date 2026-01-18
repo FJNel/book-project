@@ -257,6 +257,9 @@
       </div>
 
       <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary btn-sm" type="button" id="addAuthorBtn" data-bs-toggle="modal" data-bs-target="#addAuthorModal">
+          Add Author
+        </button>
         <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshButton" title="Refresh results" aria-label="Refresh results">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -376,6 +379,61 @@
       </div>
     </div>
   </main>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="addAuthorModal" aria-labelledby="addAuthorModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="addAuthorModalLabel">Add a New Author</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="authorAddErrorAlert"></div>
+          <form id="authorAddForm">
+            <div class="mb-3">
+              <label class="form-label" for="authorAddDisplayName"><strong>Display Name</strong></label>
+              <input class="form-control" type="text" id="authorAddDisplayName" autocomplete="off" maxlength="150">
+              <small class="form-text" id="authorAddDisplayNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="authorAddFirstNames"><strong>First Name(s)</strong></label>
+              <input class="form-control" type="text" id="authorAddFirstNames" autocomplete="off" maxlength="150">
+              <small class="form-text" id="authorAddFirstNamesHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="authorAddLastName"><strong>Last Name</strong></label>
+              <input class="form-control" type="text" id="authorAddLastName" autocomplete="off" maxlength="100">
+              <small class="form-text" id="authorAddLastNameHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="authorAddBirthDate"><strong>Birth Date</strong></label>
+              <input class="form-control" type="text" id="authorAddBirthDate" autocomplete="off" maxlength="50">
+              <small class="form-text" id="authorAddBirthDateHelp"></small>
+            </div>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" id="authorAddDeceased">
+              <label class="form-check-label" for="authorAddDeceased">Mark as deceased</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="authorAddDeathDate"><strong>Death Date</strong></label>
+              <input class="form-control" type="text" id="authorAddDeathDate" autocomplete="off" maxlength="50">
+              <small class="form-text" id="authorAddDeathDateHelp"></small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="authorAddBio"><strong>Bio</strong></label>
+              <textarea class="form-control" id="authorAddBio" rows="4" maxlength="1000"></textarea>
+              <small class="form-text" id="authorAddBioHelp"></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" id="authorAddResetBtn" type="button">Reset</button>
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="authorAddSaveBtn" type="button">Add Author</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
     <div class="modal-dialog modal-dialog-centered" role="document">

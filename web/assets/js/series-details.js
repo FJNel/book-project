@@ -22,6 +22,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidSeriesModalMessage');
   const invalidModalClose = document.getElementById('invalidSeriesModalClose');
   const defaultInvalidSeriesMessage = "This link doesn't seem to lead to a series in your library. Try going back to your series list and selecting it again.";
+  const editSeriesBtn = document.getElementById('editSeriesBtn');
+  const deleteSeriesBtn = document.getElementById('deleteSeriesBtn');
+  const editSeriesModal = document.getElementById('editSeriesModal');
+  const seriesEditName = document.getElementById('seriesEditName');
+  const seriesEditWebsite = document.getElementById('seriesEditWebsite');
+  const seriesEditStartDate = document.getElementById('seriesEditStartDate');
+  const seriesEditEndDate = document.getElementById('seriesEditEndDate');
+  const seriesEditDescription = document.getElementById('seriesEditDescription');
+  const seriesEditNameHelp = document.getElementById('seriesEditNameHelp');
+  const seriesEditWebsiteHelp = document.getElementById('seriesEditWebsiteHelp');
+  const seriesEditStartDateHelp = document.getElementById('seriesEditStartDateHelp');
+  const seriesEditEndDateHelp = document.getElementById('seriesEditEndDateHelp');
+  const seriesEditDescriptionHelp = document.getElementById('seriesEditDescriptionHelp');
+  const seriesEditSaveBtn = document.getElementById('seriesEditSaveBtn');
+  const seriesEditErrorAlert = document.getElementById('seriesEditErrorAlert');
+  const deleteSeriesModal = document.getElementById('deleteSeriesModal');
+  const deleteSeriesName = document.getElementById('deleteSeriesName');
+  const seriesDeleteConfirmBtn = document.getElementById('seriesDeleteConfirmBtn');
+  const seriesDeleteErrorAlert = document.getElementById('seriesDeleteErrorAlert');
+  const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
+  const seriesOrderInput = document.getElementById('seriesOrderInput');
+  const seriesOrderSummary = document.getElementById('seriesOrderSummary');
+  const seriesOrderSaveBtn = document.getElementById('seriesOrderSaveBtn');
+  const seriesOrderErrorAlert = document.getElementById('seriesOrderErrorAlert');
+  const removeSeriesBookModal = document.getElementById('removeSeriesBookModal');
+  const removeSeriesBookText = document.getElementById('removeSeriesBookText');
+  const removeSeriesBookConfirmBtn = document.getElementById('removeSeriesBookConfirmBtn');
+  const removeSeriesBookError = document.getElementById('removeSeriesBookError');
+
+  let seriesRecord = null;
+  let bookRecords = [];
+  let orderEditTarget = null;
+  let removeTarget = null;
 
   const formatPartialDate = (date) => {
     if (!date) return null;
@@ -54,6 +87,16 @@ document.addEventListener('DOMContentLoaded', () => {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const parsePartialDateInput = (value) => {
+    if (!value || !value.trim()) return { value: null };
+    if (!window.partialDateParser || typeof window.partialDateParser.parsePartialDate !== 'function') {
+      return { error: 'Date parser is unavailable.' };
+    }
+    const parsed = window.partialDateParser.parsePartialDate(value.trim());
+    if (!parsed || !parsed.text) return { error: 'Please enter a valid date.' };
+    return { value: parsed };
+  };
+
   const normalizeUrl = (value) => {
     if (!value) return null;
     const trimmed = value.trim();
@@ -67,6 +110,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
   };
+
+  const setHelpText = (el, message, isError = false) => {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(message) && isError);
+  };
+
+  const clearHelpText = (el) => setHelpText(el, '', false);
 
   const renderLink = (url, text) => {
     const normalized = normalizeUrl(url);
@@ -131,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderSeries = (series) => {
     log('Rendering series details.');
+    seriesRecord = series;
     const name = series.name || 'Untitled series';
     const description = series.description ? series.description.trim() : '';
     const start = formatPartialDate(series.startDate) || 'Unknown';
@@ -208,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (emptyState) emptyState.classList.add('d-none');
+    bookRecords = books;
 
     books.forEach((book) => {
       const row = document.createElement('tr');
@@ -228,7 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const orderLabel = order !== null && order !== undefined ? String(order) : '—';
 
       row.innerHTML = `
-        <td class="list-col-order"><span class="text-muted">${escapeHtml(orderLabel)}</span></td>
+        <td class="list-col-order">
+          <div class="d-flex flex-column gap-1">
+            <span class="text-muted">${escapeHtml(orderLabel)}</span>
+            <div class="d-flex gap-2">
+              <button class="btn btn-link btn-sm p-0" type="button" data-order-edit="${book.id}">Edit order</button>
+              <button class="btn btn-link btn-sm text-danger p-0" type="button" data-order-remove="${book.id}">Remove</button>
+            </div>
+          </div>
+        </td>
         <td class="list-col-book">
           <div class="d-flex align-items-center gap-3">
             <img src="${cover}" alt="${escapeHtml(book.title || 'Book cover')}" class="cover-thumb" />
@@ -249,6 +310,291 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       body.appendChild(row);
     });
+
+    body.querySelectorAll('[data-order-edit]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const bookId = Number(button.getAttribute('data-order-edit'));
+        if (Number.isInteger(bookId)) openOrderModal(bookId);
+      });
+    });
+    body.querySelectorAll('[data-order-remove]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const bookId = Number(button.getAttribute('data-order-remove'));
+        if (Number.isInteger(bookId)) openRemoveModal(bookId);
+      });
+    });
+  };
+
+  const openEditModal = () => {
+    if (!seriesRecord) return;
+    if (seriesEditName) seriesEditName.value = seriesRecord.name || '';
+    if (seriesEditWebsite) seriesEditWebsite.value = seriesRecord.website || '';
+    if (seriesEditStartDate) seriesEditStartDate.value = seriesRecord.startDate?.text || '';
+    if (seriesEditEndDate) seriesEditEndDate.value = seriesRecord.endDate?.text || '';
+    if (seriesEditDescription) seriesEditDescription.value = seriesRecord.description || '';
+    [seriesEditNameHelp, seriesEditWebsiteHelp, seriesEditStartDateHelp, seriesEditEndDateHelp, seriesEditDescriptionHelp]
+      .forEach((el) => clearHelpText(el));
+    if (seriesEditErrorAlert) {
+      seriesEditErrorAlert.classList.add('d-none');
+      seriesEditErrorAlert.textContent = '';
+    }
+    showModal(editSeriesModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const validateEditForm = () => {
+    let valid = true;
+    const name = seriesEditName?.value.trim() || '';
+    if (!name) {
+      setHelpText(seriesEditNameHelp, 'Series name is required.', true);
+      valid = false;
+    } else if (name.length < 2 || name.length > 150) {
+      setHelpText(seriesEditNameHelp, 'Series name must be between 2 and 150 characters.', true);
+      valid = false;
+    } else {
+      clearHelpText(seriesEditNameHelp);
+    }
+
+    const websiteRaw = seriesEditWebsite?.value.trim() || '';
+    if (websiteRaw && !normalizeUrl(websiteRaw)) {
+      setHelpText(seriesEditWebsiteHelp, 'Website must be a valid URL.', true);
+      valid = false;
+    } else {
+      clearHelpText(seriesEditWebsiteHelp);
+    }
+
+    const startRaw = seriesEditStartDate?.value.trim() || '';
+    if (startRaw) {
+      const parsed = parsePartialDateInput(startRaw);
+      if (parsed.error) {
+        setHelpText(seriesEditStartDateHelp, parsed.error, true);
+        valid = false;
+      } else {
+        clearHelpText(seriesEditStartDateHelp);
+      }
+    } else {
+      clearHelpText(seriesEditStartDateHelp);
+    }
+
+    const endRaw = seriesEditEndDate?.value.trim() || '';
+    if (endRaw) {
+      const parsed = parsePartialDateInput(endRaw);
+      if (parsed.error) {
+        setHelpText(seriesEditEndDateHelp, parsed.error, true);
+        valid = false;
+      } else {
+        clearHelpText(seriesEditEndDateHelp);
+      }
+    } else {
+      clearHelpText(seriesEditEndDateHelp);
+    }
+
+    const descRaw = seriesEditDescription?.value.trim() || '';
+    if (descRaw && descRaw.length > 1000) {
+      setHelpText(seriesEditDescriptionHelp, 'Description must be 1000 characters or fewer.', true);
+      valid = false;
+    } else {
+      clearHelpText(seriesEditDescriptionHelp);
+    }
+
+    return valid;
+  };
+
+  const saveSeriesEdits = async () => {
+    if (!seriesRecord) return;
+    if (!validateEditForm()) return;
+    const name = seriesEditName.value.trim();
+    const websiteRaw = seriesEditWebsite.value.trim();
+    const startRaw = seriesEditStartDate.value.trim();
+    const endRaw = seriesEditEndDate.value.trim();
+    const descRaw = seriesEditDescription.value.trim();
+    const payload = {
+      id: seriesRecord.id,
+      name,
+      website: websiteRaw ? normalizeUrl(websiteRaw) : null,
+      description: descRaw || null,
+      startDate: startRaw ? parsePartialDateInput(startRaw).value : null,
+      endDate: endRaw ? parsePartialDateInput(endRaw).value : null
+    };
+    log('Updating series.', { id: seriesRecord.id });
+    seriesEditSaveBtn.disabled = true;
+    try {
+      const response = await apiFetch('/bookseries', { method: 'PUT', body: JSON.stringify(payload) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (seriesEditErrorAlert) {
+          seriesEditErrorAlert.classList.remove('d-none');
+          seriesEditErrorAlert.textContent = data.message || 'Unable to update series.';
+        }
+        warn('Series update failed.', { status: response.status, data });
+        return;
+      }
+      await hideModal(editSeriesModal);
+      log('Series updated successfully.');
+      await loadSeries();
+    } catch (error) {
+      errorLog('Series update failed.', error);
+      if (seriesEditErrorAlert) {
+        seriesEditErrorAlert.classList.remove('d-none');
+        seriesEditErrorAlert.textContent = 'Unable to update series right now.';
+      }
+    } finally {
+      seriesEditSaveBtn.disabled = false;
+    }
+  };
+
+  const openDeleteModal = () => {
+    if (!seriesRecord) return;
+    if (deleteSeriesName) deleteSeriesName.textContent = seriesRecord.name || 'this series';
+    if (seriesDeleteErrorAlert) {
+      seriesDeleteErrorAlert.classList.add('d-none');
+      seriesDeleteErrorAlert.textContent = '';
+    }
+    showModal(deleteSeriesModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!seriesRecord) return;
+    seriesDeleteConfirmBtn.disabled = true;
+    try {
+      const response = await apiFetch('/bookseries', { method: 'DELETE', body: JSON.stringify({ id: seriesRecord.id }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (seriesDeleteErrorAlert) {
+          seriesDeleteErrorAlert.classList.remove('d-none');
+          seriesDeleteErrorAlert.textContent = data.message || 'Unable to delete series.';
+        }
+        warn('Series delete failed.', { status: response.status, data });
+        return;
+      }
+      sessionStorage.setItem('seriesFlash', 'Series deleted successfully.');
+      window.location.href = 'series';
+    } catch (error) {
+      errorLog('Series delete failed.', error);
+      if (seriesDeleteErrorAlert) {
+        seriesDeleteErrorAlert.classList.remove('d-none');
+        seriesDeleteErrorAlert.textContent = 'Unable to delete series right now.';
+      }
+    } finally {
+      seriesDeleteConfirmBtn.disabled = false;
+    }
+  };
+
+  const updateOrderSummary = (book, currentOrder, nextOrder) => {
+    if (!seriesOrderSummary || !seriesRecord) return;
+    const current = currentOrder !== null && currentOrder !== undefined ? String(currentOrder) : 'No order';
+    const next = nextOrder !== null && nextOrder !== undefined ? String(nextOrder) : 'No order';
+    seriesOrderSummary.textContent = `Changing ${book.title || 'this book'}'s order in ${seriesRecord.name || 'this series'} from ${current} to ${next}.`;
+  };
+
+  const openOrderModal = (bookId) => {
+    const book = bookRecords.find((entry) => entry.id === bookId);
+    if (!book || !seriesRecord) return;
+    const currentOrder = getSeriesOrder(book);
+    orderEditTarget = { book, currentOrder };
+    if (seriesOrderInput) seriesOrderInput.value = currentOrder || '';
+    if (seriesOrderErrorAlert) {
+      seriesOrderErrorAlert.classList.add('d-none');
+      seriesOrderErrorAlert.textContent = '';
+    }
+    updateOrderSummary(book, currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+    showModal(editSeriesOrderModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const saveOrderChange = async () => {
+    if (!orderEditTarget || !seriesRecord) return;
+    const { book, currentOrder } = orderEditTarget;
+    const rawValue = seriesOrderInput.value.trim();
+    const nextOrder = rawValue ? Number(rawValue) : null;
+    if (rawValue && (!Number.isInteger(nextOrder) || nextOrder <= 0)) {
+      if (seriesOrderErrorAlert) {
+        seriesOrderErrorAlert.classList.remove('d-none');
+        seriesOrderErrorAlert.textContent = 'Order must be a positive whole number.';
+      }
+      return;
+    }
+    seriesOrderSaveBtn.disabled = true;
+    try {
+      const response = await apiFetch('/bookseries/link', {
+        method: 'PUT',
+        body: JSON.stringify({
+          seriesId: seriesRecord.id,
+          bookId: book.id,
+          bookOrder: nextOrder
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (seriesOrderErrorAlert) {
+          seriesOrderErrorAlert.classList.remove('d-none');
+          seriesOrderErrorAlert.textContent = data.message || 'Unable to update order.';
+        }
+        warn('Order update failed.', { status: response.status, data });
+        return;
+      }
+      log('Order updated.', { bookId: book.id, from: currentOrder, to: nextOrder });
+      await hideModal(editSeriesOrderModal);
+      const books = await loadBooks();
+      renderBooks(books);
+    } catch (error) {
+      errorLog('Order update failed.', error);
+      if (seriesOrderErrorAlert) {
+        seriesOrderErrorAlert.classList.remove('d-none');
+        seriesOrderErrorAlert.textContent = 'Unable to update order right now.';
+      }
+    } finally {
+      seriesOrderSaveBtn.disabled = false;
+    }
+  };
+
+  const openRemoveModal = (bookId) => {
+    const book = bookRecords.find((entry) => entry.id === bookId);
+    if (!book || !seriesRecord) return;
+    removeTarget = { book };
+    if (removeSeriesBookText) {
+      removeSeriesBookText.textContent = `Removing ${book.title || 'this book'} from ${seriesRecord.name || 'this series'}.`;
+    }
+    if (removeSeriesBookError) {
+      removeSeriesBookError.classList.add('d-none');
+      removeSeriesBookError.textContent = '';
+    }
+    showModal(removeSeriesBookModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget || !seriesRecord) return;
+    const { book } = removeTarget;
+    removeSeriesBookConfirmBtn.disabled = true;
+    try {
+      const response = await apiFetch('/bookseries/link', {
+        method: 'DELETE',
+        body: JSON.stringify({
+          seriesId: seriesRecord.id,
+          bookId: book.id
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (removeSeriesBookError) {
+          removeSeriesBookError.classList.remove('d-none');
+          removeSeriesBookError.textContent = data.message || 'Unable to remove book from series.';
+        }
+        warn('Remove book failed.', { status: response.status, data });
+        return;
+      }
+      await hideModal(removeSeriesBookModal);
+      const books = await loadBooks();
+      renderBooks(books);
+    } catch (error) {
+      errorLog('Remove book failed.', error);
+      if (removeSeriesBookError) {
+        removeSeriesBookError.classList.remove('d-none');
+        removeSeriesBookError.textContent = 'Unable to remove book right now.';
+      }
+    } finally {
+      removeSeriesBookConfirmBtn.disabled = false;
+    }
   };
 
   const handleResponseError = async (response) => {
@@ -322,6 +668,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   };
+
+  if (editSeriesBtn) {
+    editSeriesBtn.addEventListener('click', openEditModal);
+  }
+  if (seriesEditSaveBtn) {
+    seriesEditSaveBtn.addEventListener('click', saveSeriesEdits);
+  }
+  if (deleteSeriesBtn) {
+    deleteSeriesBtn.addEventListener('click', openDeleteModal);
+  }
+  if (seriesDeleteConfirmBtn) {
+    seriesDeleteConfirmBtn.addEventListener('click', confirmDelete);
+  }
+  if (seriesOrderSaveBtn) {
+    seriesOrderSaveBtn.addEventListener('click', saveOrderChange);
+  }
+  if (removeSeriesBookConfirmBtn) {
+    removeSeriesBookConfirmBtn.addEventListener('click', confirmRemove);
+  }
+  if (seriesOrderInput) {
+    seriesOrderInput.addEventListener('input', () => {
+      if (!orderEditTarget) return;
+      updateOrderSummary(orderEditTarget.book, orderEditTarget.currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+    });
+  }
 
   loadPage();
 });

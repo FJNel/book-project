@@ -37,6 +37,18 @@
   };
 
   const dom = {
+    addSeriesBtn: document.getElementById('addSeriesBtn'),
+    addSeriesModal: document.getElementById('addSeriesModal'),
+    seriesAddForm: document.getElementById('seriesAddForm'),
+    seriesAddErrorAlert: document.getElementById('seriesAddErrorAlert'),
+    seriesAddName: document.getElementById('seriesAddName'),
+    seriesAddWebsite: document.getElementById('seriesAddWebsite'),
+    seriesAddDescription: document.getElementById('seriesAddDescription'),
+    seriesAddNameHelp: document.getElementById('seriesAddNameHelp'),
+    seriesAddWebsiteHelp: document.getElementById('seriesAddWebsiteHelp'),
+    seriesAddDescriptionHelp: document.getElementById('seriesAddDescriptionHelp'),
+    seriesAddResetBtn: document.getElementById('seriesAddResetBtn'),
+    seriesAddSaveBtn: document.getElementById('seriesAddSaveBtn'),
     searchInput: document.getElementById('searchInput'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     sortSelect: document.getElementById('sortSelect'),
@@ -108,6 +120,49 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const normalizeUrl = (value) => {
+    if (!value) return null;
+    const raw = value.trim();
+    if (!raw || /\s/.test(raw)) return null;
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      return url.href;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const setHelpText = (el, message, isError = false) => {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(message) && isError);
+  };
+
+  const clearHelpText = (el) => setHelpText(el, '', false);
+
+  const showModal = async (target, options) => {
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+      await window.modalManager.showModal(target, options);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+  };
+
+  const hideModal = async (target) => {
+    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+      await window.modalManager.hideModal(target);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    const instance = bootstrap.Modal.getInstance(element);
+    if (instance) instance.hide();
+  };
+
   const updateOffcanvasPlacement = () => {
     const offcanvasEl = document.getElementById('filtersOffcanvas');
     if (!offcanvasEl) return;
@@ -137,6 +192,105 @@
     `;
     dom.feedbackContainer.innerHTML = '';
     dom.feedbackContainer.appendChild(alert);
+  };
+
+  const showModalAlert = (message, details = []) => {
+    if (!dom.seriesAddErrorAlert) return;
+    const content = details.length
+      ? `<strong>${escapeHtml(message || 'Please check the following')}</strong><div>${escapeHtml(details.join(' '))}</div>`
+      : `<strong>${escapeHtml(message || 'Please check the following')}</strong>`;
+    dom.seriesAddErrorAlert.innerHTML = content;
+    dom.seriesAddErrorAlert.classList.remove('d-none');
+  };
+
+  const hideModalAlert = () => {
+    if (!dom.seriesAddErrorAlert) return;
+    dom.seriesAddErrorAlert.classList.add('d-none');
+    dom.seriesAddErrorAlert.innerHTML = '';
+  };
+
+  const resetAddSeriesForm = () => {
+    if (dom.seriesAddForm) dom.seriesAddForm.reset();
+    [dom.seriesAddNameHelp, dom.seriesAddWebsiteHelp, dom.seriesAddDescriptionHelp]
+      .forEach((el) => clearHelpText(el));
+    hideModalAlert();
+  };
+
+  const validateSeriesForm = () => {
+    hideModalAlert();
+    let valid = true;
+    const errors = [];
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+    const name = dom.seriesAddName?.value.trim() || '';
+    if (!name) {
+      setHelpText(dom.seriesAddNameHelp, 'Series Name is required.', true);
+      valid = false;
+      errors.push('Series Name is required.');
+    } else if (name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+      setHelpText(dom.seriesAddNameHelp, 'Series Name must be 2-150 characters and valid.', true);
+      valid = false;
+      errors.push('Series Name must be 2-150 characters and valid.');
+    } else {
+      clearHelpText(dom.seriesAddNameHelp);
+    }
+
+    const websiteRaw = dom.seriesAddWebsite?.value.trim() || '';
+    if (websiteRaw && !normalizeUrl(websiteRaw)) {
+      setHelpText(dom.seriesAddWebsiteHelp, 'Enter a valid URL.', true);
+      valid = false;
+      errors.push('Enter a valid URL.');
+    } else {
+      clearHelpText(dom.seriesAddWebsiteHelp);
+    }
+
+    const description = dom.seriesAddDescription?.value.trim() || '';
+    if (description && description.length > 1000) {
+      setHelpText(dom.seriesAddDescriptionHelp, 'Description must be 1000 characters or fewer.', true);
+      valid = false;
+      errors.push('Description must be 1000 characters or fewer.');
+    } else {
+      clearHelpText(dom.seriesAddDescriptionHelp);
+    }
+
+    if (!valid) {
+      showModalAlert('Please fix the following:', errors);
+    }
+    return valid;
+  };
+
+  const submitSeries = async () => {
+    if (!validateSeriesForm()) return;
+    const name = dom.seriesAddName.value.trim();
+    const payload = {
+      name,
+      description: dom.seriesAddDescription.value.trim() || undefined
+    };
+    const websiteRaw = dom.seriesAddWebsite.value.trim();
+    if (websiteRaw) payload.website = normalizeUrl(websiteRaw);
+
+    log('Creating series.', { name });
+    dom.seriesAddSaveBtn.disabled = true;
+    try {
+      const response = await apiFetch('/bookseries', { method: 'POST', body: JSON.stringify(payload) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const details = data.errors || [];
+        showModalAlert(data.message || 'Unable to add series.', details);
+        warn('Series create failed.', { status: response.status, data });
+        return;
+      }
+      await hideModal(dom.addSeriesModal);
+      resetAddSeriesForm();
+      showAlert({ message: 'Series added successfully.', type: 'success' });
+      state.page = 1;
+      await loadSeries();
+    } catch (error) {
+      errorLog('Series create failed.', error);
+      showModalAlert('Unable to add series right now.');
+    } finally {
+      dom.seriesAddSaveBtn.disabled = false;
+    }
   };
 
   const parseNumber = (value) => {
@@ -658,6 +812,18 @@
       });
     }
 
+    if (dom.seriesAddResetBtn) {
+      dom.seriesAddResetBtn.addEventListener('click', resetAddSeriesForm);
+    }
+
+    if (dom.seriesAddSaveBtn) {
+      dom.seriesAddSaveBtn.addEventListener('click', submitSeries);
+    }
+
+    if (dom.addSeriesModal) {
+      dom.addSeriesModal.addEventListener('hidden.bs.modal', resetAddSeriesForm);
+    }
+
     window.addEventListener('resize', () => {
       updateOffcanvasPlacement();
     });
@@ -679,6 +845,12 @@
     syncControlsFromState();
     renderActiveFilters();
     attachListeners();
+
+    const flash = sessionStorage.getItem('seriesFlash');
+    if (flash) {
+      showAlert({ message: flash, type: 'success' });
+      sessionStorage.removeItem('seriesFlash');
+    }
 
     await loadSeries();
 

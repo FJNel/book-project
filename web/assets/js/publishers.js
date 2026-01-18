@@ -35,6 +35,20 @@
   };
 
   const dom = {
+    addPublisherBtn: document.getElementById('addPublisherBtn'),
+    addPublisherModal: document.getElementById('addPublisherModal'),
+    publisherAddForm: document.getElementById('publisherAddForm'),
+    publisherAddErrorAlert: document.getElementById('publisherAddErrorAlert'),
+    publisherAddName: document.getElementById('publisherAddName'),
+    publisherAddFoundedDate: document.getElementById('publisherAddFoundedDate'),
+    publisherAddWebsite: document.getElementById('publisherAddWebsite'),
+    publisherAddNotes: document.getElementById('publisherAddNotes'),
+    publisherAddNameHelp: document.getElementById('publisherAddNameHelp'),
+    publisherAddFoundedDateHelp: document.getElementById('publisherAddFoundedDateHelp'),
+    publisherAddWebsiteHelp: document.getElementById('publisherAddWebsiteHelp'),
+    publisherAddNotesHelp: document.getElementById('publisherAddNotesHelp'),
+    publisherAddResetBtn: document.getElementById('publisherAddResetBtn'),
+    publisherAddSaveBtn: document.getElementById('publisherAddSaveBtn'),
     searchInput: document.getElementById('searchInput'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     sortSelect: document.getElementById('sortSelect'),
@@ -104,6 +118,59 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const parsePartialDateInput = (value) => {
+    if (!value || !value.trim()) return { value: null };
+    if (!window.partialDateParser || typeof window.partialDateParser.parsePartialDate !== 'function') {
+      return { error: 'Date parser is unavailable.' };
+    }
+    const parsed = window.partialDateParser.parsePartialDate(value.trim());
+    if (!parsed || !parsed.text) return { error: 'Please enter a valid date.' };
+    return { value: parsed };
+  };
+
+  const setHelpText = (el, message, isError = false) => {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(message) && isError);
+  };
+
+  const clearHelpText = (el) => setHelpText(el, '', false);
+
+  const normalizeUrl = (value) => {
+    if (!value) return null;
+    const raw = value.trim();
+    if (!raw || /\s/.test(raw)) return null;
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      const url = new URL(withScheme);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      return url.href;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const showModal = async (target, options) => {
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+      await window.modalManager.showModal(target, options);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+  };
+
+  const hideModal = async (target) => {
+    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+      await window.modalManager.hideModal(target);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    const instance = bootstrap.Modal.getInstance(element);
+    if (instance) instance.hide();
+  };
+
   const normalizeUrl = (value) => {
     if (!value) return null;
     const trimmed = value.trim();
@@ -147,6 +214,121 @@
     `;
     dom.feedbackContainer.innerHTML = '';
     dom.feedbackContainer.appendChild(alert);
+  };
+
+  const showModalAlert = (message, details = []) => {
+    if (!dom.publisherAddErrorAlert) return;
+    const content = details.length
+      ? `<strong>${escapeHtml(message || 'Please check the following')}</strong><div>${escapeHtml(details.join(' '))}</div>`
+      : `<strong>${escapeHtml(message || 'Please check the following')}</strong>`;
+    dom.publisherAddErrorAlert.innerHTML = content;
+    dom.publisherAddErrorAlert.classList.remove('d-none');
+  };
+
+  const hideModalAlert = () => {
+    if (!dom.publisherAddErrorAlert) return;
+    dom.publisherAddErrorAlert.classList.add('d-none');
+    dom.publisherAddErrorAlert.innerHTML = '';
+  };
+
+  const resetAddPublisherForm = () => {
+    if (dom.publisherAddForm) dom.publisherAddForm.reset();
+    [dom.publisherAddNameHelp, dom.publisherAddFoundedDateHelp, dom.publisherAddWebsiteHelp, dom.publisherAddNotesHelp]
+      .forEach((el) => clearHelpText(el));
+    hideModalAlert();
+  };
+
+  const validatePublisherForm = () => {
+    hideModalAlert();
+    let valid = true;
+    const errors = [];
+    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+    const name = dom.publisherAddName?.value.trim() || '';
+    if (!name) {
+      setHelpText(dom.publisherAddNameHelp, 'Publisher Name is required.', true);
+      valid = false;
+      errors.push('Publisher Name is required.');
+    } else if (name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+      setHelpText(dom.publisherAddNameHelp, 'Publisher Name must be 2-150 characters and valid.', true);
+      valid = false;
+      errors.push('Publisher Name must be 2-150 characters and valid.');
+    } else {
+      clearHelpText(dom.publisherAddNameHelp);
+    }
+
+    const foundedRaw = dom.publisherAddFoundedDate?.value.trim() || '';
+    if (foundedRaw) {
+      const parsed = parsePartialDateInput(foundedRaw);
+      if (parsed.error) {
+        setHelpText(dom.publisherAddFoundedDateHelp, parsed.error, true);
+        valid = false;
+        errors.push(parsed.error);
+      } else {
+        clearHelpText(dom.publisherAddFoundedDateHelp);
+      }
+    } else {
+      clearHelpText(dom.publisherAddFoundedDateHelp);
+    }
+
+    const websiteRaw = dom.publisherAddWebsite?.value.trim() || '';
+    if (websiteRaw && !normalizeUrl(websiteRaw)) {
+      setHelpText(dom.publisherAddWebsiteHelp, 'Enter a valid URL.', true);
+      valid = false;
+      errors.push('Enter a valid URL.');
+    } else {
+      clearHelpText(dom.publisherAddWebsiteHelp);
+    }
+
+    const notes = dom.publisherAddNotes?.value.trim() || '';
+    if (notes && notes.length > 1000) {
+      setHelpText(dom.publisherAddNotesHelp, 'Notes must be 1000 characters or fewer.', true);
+      valid = false;
+      errors.push('Notes must be 1000 characters or fewer.');
+    } else {
+      clearHelpText(dom.publisherAddNotesHelp);
+    }
+
+    if (!valid) {
+      showModalAlert('Please fix the following:', errors);
+    }
+    return valid;
+  };
+
+  const submitPublisher = async () => {
+    if (!validatePublisherForm()) return;
+    const name = dom.publisherAddName.value.trim();
+    const payload = {
+      name,
+      notes: dom.publisherAddNotes.value.trim() || undefined
+    };
+    const foundedRaw = dom.publisherAddFoundedDate.value.trim();
+    if (foundedRaw) payload.foundedDate = parsePartialDateInput(foundedRaw).value;
+    const websiteRaw = dom.publisherAddWebsite.value.trim();
+    if (websiteRaw) payload.website = normalizeUrl(websiteRaw);
+
+    log('Creating publisher.', { name });
+    dom.publisherAddSaveBtn.disabled = true;
+    try {
+      const response = await apiFetch('/publisher', { method: 'POST', body: JSON.stringify(payload) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const details = data.errors || [];
+        showModalAlert(data.message || 'Unable to add publisher.', details);
+        warn('Publisher create failed.', { status: response.status, data });
+        return;
+      }
+      await hideModal(dom.addPublisherModal);
+      resetAddPublisherForm();
+      showAlert({ message: 'Publisher added successfully.', type: 'success' });
+      state.page = 1;
+      await loadPublishers();
+    } catch (error) {
+      errorLog('Publisher create failed.', error);
+      showModalAlert('Unable to add publisher right now.');
+    } finally {
+      dom.publisherAddSaveBtn.disabled = false;
+    }
   };
 
   const parseNumber = (value) => {
@@ -646,6 +828,18 @@
       });
     }
 
+    if (dom.publisherAddResetBtn) {
+      dom.publisherAddResetBtn.addEventListener('click', resetAddPublisherForm);
+    }
+
+    if (dom.publisherAddSaveBtn) {
+      dom.publisherAddSaveBtn.addEventListener('click', submitPublisher);
+    }
+
+    if (dom.addPublisherModal) {
+      dom.addPublisherModal.addEventListener('hidden.bs.modal', resetAddPublisherForm);
+    }
+
     window.addEventListener('resize', () => {
       updateOffcanvasPlacement();
     });
@@ -667,6 +861,12 @@
     syncControlsFromState();
     renderActiveFilters();
     attachListeners();
+
+    const flash = sessionStorage.getItem('publishersFlash');
+    if (flash) {
+      showAlert({ message: flash, type: 'success' });
+      sessionStorage.removeItem('publishersFlash');
+    }
 
     await loadPublishers();
 
