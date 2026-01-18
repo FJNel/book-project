@@ -3622,7 +3622,7 @@ paths:
             examples:
               default:
                 value:
-                  fields: ["seriesBreakdown", "mostCollectedSeries"]
+                  fields: ["breakdownPerSeries", "largestSeries", "total", "withBooks"]
       responses:
         '200':
           description: Stats
@@ -3639,28 +3639,14 @@ paths:
                     message: Series stats retrieved successfully.
                     data:
                       stats:
-                        newestSeriesAdded:
-                          id: 12
-                          name: The Cosmere
-                          createdAt: "2025-02-01T12:00:00.000Z"
-                        oldestSeriesAdded:
-                          id: 8
-                          name: The Lord of the Rings
-                          createdAt: "2025-01-02T10:00:00.000Z"
-                        seriesBreakdown:
-                          - id: 8
-                            name: The Lord of the Rings
-                            bookCount: 3
-                            percentage: 12.0
-                          - id: 12
-                            name: The Cosmere
-                            bookCount: 5
-                            percentage: 20.0
-                        mostCollectedSeries:
+                        total: 8
+                        withBooks: 5
+                        avgBooksPerSeries: 2.8
+                        largestSeries:
                           id: 12
                           name: The Cosmere
                           bookCount: 5
-                          percentage: 20.0
+                          percentageOfBooks: 20.0
                         breakdownPerSeries:
                           - id: 8
                             name: The Lord of the Rings
@@ -3811,7 +3797,13 @@ paths:
                     message: Language stats retrieved successfully.
                     data:
                       stats:
-                        topLanguages:
+                        languagesInLibrary: 4
+                        mostCommonLanguage:
+                          id: 1
+                          name: English
+                          bookCount: 45
+                          percentage: 45.0
+                        mostCommonLanguages:
                           - id: 1
                             name: English
                             bookCount: 45
@@ -3820,24 +3812,23 @@ paths:
                             name: Afrikaans
                             bookCount: 20
                             percentage: 20.0
-                        mostCommonLanguages:
-                          - id: 1
-                            name: English
-                            bookCount: 45
-                            percentage: 45.0
                         rarestLanguage:
                           id: 5
                           name: Latin
                           bookCount: 2
                           percentage: 2.0
-                        languageCombinations:
-                          - languages: ["English", "Afrikaans"]
-                            bookCount: 6
-                            percentage: 6.0
-                          - languages: ["English", "French"]
-                            bookCount: 3
-                            percentage: 3.0
-                        languageCoveragePercentage: 92.3
+                        languageBreakdown:
+                          - id: 1
+                            name: English
+                            bookCount: 45
+                            percentage: 45.0
+                          - id: 2
+                            name: Afrikaans
+                            bookCount: 20
+                            percentage: 20.0
+                        booksMissingLanguage:
+                          count: 3
+                          percentage: 6.0
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -4793,7 +4784,7 @@ paths:
             examples:
               default:
                 value:
-                  fields: ["locationBreakdown", "mostUsedLocation"]
+                  fields: ["breakdownPerLocation", "largestLocation", "totalLocations"]
       responses:
         '200':
           description: Stats
@@ -4810,32 +4801,25 @@ paths:
                     message: Storage stats retrieved successfully.
                     data:
                       stats:
-                        mostUsedLocation:
+                        totalLocations: 6
+                        largestLocation:
                           id: 3
                           name: Living Room
-                          copyCount: 42
+                          path: Home -> Living Room
                           directCopyCount: 30
-                          nestedCopyCount: 12
-                          percentageOfCopies: 35.0
-                        locationBreakdown:
+                        breakdownPerLocation:
                           - id: 3
-                            name: Living Room
-                            copyCount: 42
+                            path: Home -> Living Room
                             directCopyCount: 30
                             nestedCopyCount: 12
-                            percentageOfCopies: 35.0
+                            directPercentage: 25.0
+                            nestedPercentage: 10.0
                           - id: 7
-                            name: Study
-                            copyCount: 25
+                            path: Home -> Study
                             directCopyCount: 18
                             nestedCopyCount: 7
-                            percentageOfCopies: 20.8
-                          - id: 10
-                            name: Archive Boxes
-                            copyCount: 12
-                            directCopyCount: 12
-                            nestedCopyCount: 0
-                            percentageOfCopies: 10.0
+                            directPercentage: 15.0
+                            nestedPercentage: 5.8
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -5334,13 +5318,12 @@ paths:
                     message: Tag stats retrieved successfully.
                     data:
                       stats:
-                        topTags:
-                          - name: Fantasy
-                            count: 34
-                            percentageOfBooks: 28.3
-                          - name: Sci-Fi
-                            count: 20
-                            percentageOfBooks: 16.7
+                        totalTags: 12
+                        mostUsedTag:
+                          id: 4
+                          name: Fantasy
+                          bookCount: 34
+                          percentageOfBooks: 28.3
                         leastUsedTags:
                           - id: 9
                             name: Essays
@@ -5349,7 +5332,9 @@ paths:
                         unusedTags:
                           - id: 12
                             name: Wishlist
-                        totalTags: 12
+                        tagGrowth:
+                          last30Days: 3
+                          last90Days: 7
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'

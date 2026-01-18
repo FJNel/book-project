@@ -533,8 +533,8 @@
         ]
       }, 'book-stats'),
       fetchStatsSafe('/booktype/stats', { fields: ['bookTypeBreakdown'] }, 'booktype-stats'),
-      fetchStatsSafe('/languages/stats', null, 'language-stats'),
-      fetchStatsSafe('/tags/stats', null, 'tag-stats'),
+      fetchStatsSafe('/languages/stats', { fields: ['languageBreakdown', 'booksMissingLanguage'] }, 'language-stats'),
+      fetchStatsSafe('/tags/stats', { fields: ['mostUsedTag', 'leastUsedTags', 'unusedTags', 'totalTags'] }, 'tag-stats'),
       fetchStatsSafe('/booktags/stats', null, 'booktag-stats')
     ]);
 
@@ -582,9 +582,11 @@
       options: { responsive: true, maintainAspectRatio: false }
     } : null, dom.books.typeEmpty);
 
-    const languageBreakdown = Array.isArray(languageStats?.topLanguages)
-      ? languageStats.topLanguages
-      : [];
+    const languageBreakdown = Array.isArray(languageStats?.languageBreakdown)
+      ? languageStats.languageBreakdown
+      : Array.isArray(languageStats?.breakdownPerLanguage)
+        ? languageStats.breakdownPerLanguage
+        : [];
     const languageLabels = languageBreakdown.map((entry) => entry.name);
     const languageCounts = languageBreakdown.map((entry) => Number(entry.bookCount) || 0);
     renderChart(dom.books.languageChart, languageLabels.length ? {
@@ -599,11 +601,9 @@
       options: { responsive: true, maintainAspectRatio: false }
     } : null, dom.books.languageEmpty);
 
-    const tagBreakdown = Array.isArray(tagStats?.topTags)
-      ? tagStats.topTags
-      : [];
+    const tagBreakdown = tagStats?.mostUsedTag ? [tagStats.mostUsedTag] : [];
     const tagLabels = tagBreakdown.map((entry) => entry.name);
-    const tagCounts = tagBreakdown.map((entry) => Number(entry.count ?? entry.bookCount) || 0);
+    const tagCounts = tagBreakdown.map((entry) => Number(entry.bookCount) || 0);
     renderChart(dom.books.tagChart, tagLabels.length ? {
       type: 'bar',
       data: {
@@ -625,7 +625,9 @@
     const totalBooks = Number(bookStats?.total ?? bookStats?.totalBooks ?? 0);
     const missingPublished = Math.max(totalBooks - Number(bookStats?.withPublicationDate ?? 0), 0);
     const missingType = Math.max(totalBooks - Number(bookStats?.withBookType ?? 0), 0);
-    const missingLanguage = Math.max(totalBooks - Number(bookStats?.withLanguages ?? 0), 0);
+    const missingLanguage = languageStats?.booksMissingLanguage?.count !== undefined
+      ? Number(languageStats.booksMissingLanguage.count)
+      : Math.max(totalBooks - Number(bookStats?.withLanguages ?? 0), 0);
     const missingTags = bookTagStats?.untaggedBooks?.count !== undefined
       ? Number(bookTagStats.untaggedBooks.count)
       : Math.max(totalBooks - Number(bookStats?.withTags ?? 0), 0);
@@ -681,6 +683,12 @@
       highlights.push({
         label: 'Untagged books',
         detail: formatNumber(bookTagStats.untaggedBooks.count)
+      });
+    }
+    if (tagStats?.mostUsedTag?.name) {
+      highlights.push({
+        label: 'Most used tag',
+        detail: `${tagStats.mostUsedTag.name} (${formatNumber(tagStats.mostUsedTag.bookCount)} books)`
       });
     }
     renderListItems(dom.books.highlights, highlights);
@@ -870,7 +878,7 @@
 
   const renderSeriesSection = async () => {
     const [seriesStats, seriesBookStats] = await Promise.all([
-      fetchStatsSafe('/bookseries/stats', { fields: ['seriesBreakdown', 'breakdownPerSeries', 'mostCollectedSeries'] }, 'series-stats'),
+      fetchStatsSafe('/bookseries/stats', { fields: ['breakdownPerSeries', 'largestSeries', 'total', 'withBooks'] }, 'series-stats'),
       fetchStatsSafe('/bookseriesbooks/stats', null, 'series-books-stats')
     ]);
 
@@ -890,11 +898,9 @@
       options: { responsive: true, maintainAspectRatio: false }
     } : null, dom.series.vsEmpty);
 
-    const seriesBreakdown = Array.isArray(seriesStats?.seriesBreakdown)
-      ? seriesStats.seriesBreakdown
-      : Array.isArray(seriesStats?.breakdownPerSeries)
-        ? seriesStats.breakdownPerSeries
-        : [];
+    const seriesBreakdown = Array.isArray(seriesStats?.breakdownPerSeries)
+      ? seriesStats.breakdownPerSeries
+      : [];
     const topSeries = seriesBreakdown.slice(0, 8);
     const seriesLabels = topSeries.map((entry) => entry.name);
     const seriesCounts = topSeries.map((entry) => Number(entry.bookCount) || 0);
@@ -923,6 +929,13 @@
         detail: formatNumber(seriesBookStats.outOfOrderEntries.gapCount ?? 0)
       });
     }
+    if (seriesStats?.withBooks !== undefined) {
+      const withoutBooks = Math.max(Number(seriesStats.total ?? 0) - Number(seriesStats.withBooks ?? 0), 0);
+      healthItems.push({
+        label: 'Series without books',
+        detail: formatNumber(withoutBooks)
+      });
+    }
     if (Array.isArray(seriesStats?.breakdownPerSeries)) {
       const totalGaps = seriesStats.breakdownPerSeries.reduce((sum, item) => sum + Number(item.gapCount || 0), 0);
       const totalDuplicates = seriesStats.breakdownPerSeries.reduce((sum, item) => sum + Number(item.duplicateOrderNumbers || 0), 0);
@@ -946,15 +959,15 @@
   };
 
   const renderStorageSection = async () => {
-    const storageStats = await fetchStatsSafe('/storagelocation/stats', { fields: ['locationBreakdown', 'mostUsedLocation'] }, 'storage-stats');
-    const breakdown = Array.isArray(storageStats?.locationBreakdown)
-      ? storageStats.locationBreakdown
+    const storageStats = await fetchStatsSafe('/storagelocation/stats', { fields: ['breakdownPerLocation', 'largestLocation', 'totalLocations'] }, 'storage-stats');
+    const breakdown = Array.isArray(storageStats?.breakdownPerLocation)
+      ? storageStats.breakdownPerLocation
       : [];
     const topLocations = breakdown.slice(0, 8);
-    const locationLabels = topLocations.map((entry) => entry.name);
-    const copyCounts = topLocations.map((entry) => Number(entry.copyCount) || 0);
+    const locationLabels = topLocations.map((entry) => entry.path || entry.name || 'Unknown');
     const directCounts = topLocations.map((entry) => Number(entry.directCopyCount) || 0);
     const nestedCounts = topLocations.map((entry) => Number(entry.nestedCopyCount) || 0);
+    const copyCounts = topLocations.map((_, index) => directCounts[index] + nestedCounts[index]);
     const hasDirectNested = directCounts.some((value) => value > 0) || nestedCounts.some((value) => value > 0);
     const datasets = hasDirectNested
       ? [
@@ -977,12 +990,14 @@
     } : null, dom.storage.locationEmpty);
 
     if (dom.storage.highlights) {
-      const mostUsed = storageStats?.mostUsedLocation;
+      const mostUsed = storageStats?.largestLocation;
       if (mostUsed?.name) {
+        const pathLabel = mostUsed.path || mostUsed.name;
+        const directCount = Number(mostUsed.directCopyCount ?? 0);
         dom.storage.highlights.innerHTML = `
-          <div class="stat-label">${escapeHtml(mostUsed.name)}</div>
-          <div class="stat-value">${escapeHtml(formatNumber(mostUsed.copyCount))}</div>
-          <div class="text-muted small">Direct: ${escapeHtml(formatNumber(mostUsed.directCopyCount ?? 0))} | Nested: ${escapeHtml(formatNumber(mostUsed.nestedCopyCount ?? 0))}</div>
+          <div class="stat-label">${escapeHtml(pathLabel)}</div>
+          <div class="stat-value">${escapeHtml(formatNumber(directCount))}</div>
+          <div class="text-muted small">Direct copies in this location.</div>
           <div class="mt-3">
             <a class="btn btn-sm btn-outline-secondary" href="storage-locations?id=${encodeURIComponent(mostUsed.id)}">Open location</a>
           </div>
@@ -992,14 +1007,17 @@
       }
     }
 
-    const breakdownRows = breakdown.map((entry) => `
-      <tr>
-        <td><a href="storage-locations?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.name || 'Unknown')}</a></td>
-        <td class="text-end">${escapeHtml(formatNumber(entry.copyCount))}</td>
-        <td class="text-end">${escapeHtml(formatNumber(entry.directCopyCount ?? 0))}</td>
-        <td class="text-end">${escapeHtml(formatNumber(entry.nestedCopyCount ?? 0))}</td>
-      </tr>
-    `);
+    const breakdownRows = breakdown.map((entry) => {
+      const totalCopies = Number(entry.directCopyCount ?? 0) + Number(entry.nestedCopyCount ?? 0);
+      return `
+        <tr>
+          <td><a href="storage-locations?id=${encodeURIComponent(entry.id)}">${escapeHtml(entry.path || 'Unknown')}</a></td>
+          <td class="text-end">${escapeHtml(formatNumber(totalCopies))}</td>
+          <td class="text-end">${escapeHtml(formatNumber(entry.directCopyCount ?? 0))}</td>
+          <td class="text-end">${escapeHtml(formatNumber(entry.nestedCopyCount ?? 0))}</td>
+        </tr>
+      `;
+    });
     renderTableRows(dom.storage.breakdownTable, breakdownRows, 4);
 
     return Boolean(storageStats);
