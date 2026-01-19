@@ -11,6 +11,7 @@ const { logToFile } = require("../utils/logging");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { enqueueEmail } = require("../utils/email-queue");
+const email = require("../utils/email");
 const config = require("../config");
 const pool = require("../db");
 
@@ -54,6 +55,22 @@ const MAX_REASON_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 255;
 const VALID_ROLES = new Set(["user", "admin"]);
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+const TOKEN_EMAIL_TYPES = new Set([
+	"verification",
+	"password_reset",
+	"account_disable_verification",
+	"account_delete_verification",
+	"email_change_verification",
+	"admin_account_setup"
+]);
+const TOKEN_EXPIRY_DEFAULTS = {
+	verification: 30,
+	password_reset: 30,
+	account_disable_verification: 60,
+	account_delete_verification: 60,
+	email_change_verification: 60,
+	admin_account_setup: 60
+};
 let lastTokenCleanupAt = 0;
 
 function normalizeText(value) {
@@ -109,6 +126,89 @@ function parseDateFilter(value, fieldLabel) {
 		return { error: `${fieldLabel} must be a valid ISO 8601 date.` };
 	}
 	return { value: new Date(parsed).toISOString() };
+}
+
+function resolveDefaultExpiry(emailType) {
+	return TOKEN_EXPIRY_DEFAULTS[emailType] || 60;
+}
+
+const EMAIL_TYPE_HANDLERS = {
+	verification: async (payload) => email.sendVerificationEmail(payload.toEmail, payload.token, payload.preferredName, payload.expiresIn),
+	password_reset: async (payload) => email.sendPasswordResetEmail(payload.toEmail, payload.token, payload.preferredName, payload.expiresIn),
+	welcome: async (payload) => email.sendWelcomeEmail(payload.toEmail, payload.preferredName),
+	password_reset_success: async (payload) => email.sendPasswordResetSuccessEmail(payload.toEmail, payload.preferredName),
+	account_disable_verification: async (payload) => email.sendAccountDisableVerificationEmail(payload.toEmail, payload.preferredName, payload.token, payload.expiresIn),
+	account_disable_confirmation: async (payload) => email.sendAccountDisableConfirmationEmail(payload.toEmail, payload.preferredName),
+	account_delete_verification: async (payload) => email.sendAccountDeletionVerificationEmail(payload.toEmail, payload.preferredName, payload.token, payload.expiresIn),
+	account_delete_admin_notice: async (payload) => email.sendAccountDeletionAdminEmail(payload),
+	email_change_verification: async (payload) => email.sendEmailChangeVerificationEmail(payload.toEmail, payload.preferredName, payload.token, payload.expiresIn),
+	email_change_confirmation: async (payload) => email.sendEmailChangeConfirmationEmail(payload.toEmail, payload.newEmail, payload.preferredName),
+	admin_profile_update: async (payload) => email.sendAdminProfileUpdateEmail(payload.toEmail, payload.preferredName, payload.changes),
+	admin_account_disabled: async (payload) => email.sendAdminAccountDisabledEmail(payload.toEmail, payload.preferredName),
+	admin_account_enabled: async (payload) => email.sendAdminAccountEnabledEmail(payload.toEmail, payload.preferredName),
+	admin_email_unverified: async (payload) => email.sendAdminEmailUnverifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
+	admin_email_verified: async (payload) => email.sendAdminEmailVerifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
+	admin_account_setup: async (payload) => email.sendAdminAccountSetupEmail(payload.toEmail, payload.preferredName, payload.verificationToken, payload.resetToken, payload.verificationExpiresIn, payload.resetExpiresIn)
+};
+
+function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInMinutes, context = {}, fallbackIp = null) {
+	const preferredName = typeof context.preferredName === "string" && context.preferredName.trim().length > 0
+		? context.preferredName.trim()
+		: "Test User";
+	const token = typeof tokenValue === "string" && tokenValue.trim() ? tokenValue.trim() : "test";
+	const reason = typeof context.reason === "string" && context.reason.trim() ? context.reason.trim() : "Admin test email";
+	const newEmail = typeof context.newEmail === "string" && context.newEmail.trim() ? context.newEmail.trim() : `test+new@${normalizedEmail.split("@")[1] || "example.com"}`;
+	const changes = context.changes && typeof context.changes === "object" ? context.changes : { role: "user" };
+	switch (emailType) {
+		case "verification":
+			return { toEmail: normalizedEmail, token, preferredName, expiresIn: expiresInMinutes };
+		case "password_reset":
+			return { toEmail: normalizedEmail, token, preferredName, expiresIn: expiresInMinutes };
+		case "welcome":
+			return { toEmail: normalizedEmail, preferredName };
+		case "password_reset_success":
+			return { toEmail: normalizedEmail, preferredName };
+		case "account_disable_verification":
+			return { toEmail: normalizedEmail, preferredName, token, expiresIn: expiresInMinutes };
+		case "account_disable_confirmation":
+			return { toEmail: normalizedEmail, preferredName };
+		case "account_delete_verification":
+			return { toEmail: normalizedEmail, preferredName, token, expiresIn: expiresInMinutes };
+		case "account_delete_admin_notice":
+			return {
+				userEmail: normalizedEmail,
+				userFullName: context.userFullName || preferredName,
+				userPreferredName: context.userPreferredName || preferredName,
+				userId: context.userId || 0,
+				requestedAt: context.requestedAt || new Date().toISOString(),
+				requestIp: context.requestIp || fallbackIp || "127.0.0.1"
+			};
+		case "email_change_verification":
+			return { toEmail: normalizedEmail, preferredName, token, expiresIn: expiresInMinutes };
+		case "email_change_confirmation":
+			return { toEmail: normalizedEmail, newEmail, preferredName };
+		case "admin_profile_update":
+			return { toEmail: normalizedEmail, preferredName, changes };
+		case "admin_account_disabled":
+			return { toEmail: normalizedEmail, preferredName };
+		case "admin_account_enabled":
+			return { toEmail: normalizedEmail, preferredName };
+		case "admin_email_unverified":
+			return { toEmail: normalizedEmail, preferredName, reason };
+		case "admin_email_verified":
+			return { toEmail: normalizedEmail, preferredName, reason };
+		case "admin_account_setup":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				verificationToken: token,
+				resetToken: `${token}-reset`,
+				verificationExpiresIn: expiresInMinutes,
+				resetExpiresIn: expiresInMinutes
+			};
+		default:
+			return null;
+	}
 }
 
 function validateRole(role) {
@@ -1511,6 +1611,88 @@ router.post("/users/send-verification", [...adminAuth, emailCostLimiter], async 
 		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
 	return handleSendVerification(req, res, resolved.id);
+});
+
+router.get("/emails/types", adminAuth, async (req, res) => {
+	const types = Object.keys(EMAIL_TYPE_HANDLERS);
+	logToFile("ADMIN_EMAIL_TYPES", {
+		status: "SUCCESS",
+		admin_id: req.user.id,
+		count: types.length,
+		ip: req.ip,
+		user_agent: req.get("user-agent")
+	}, "info");
+	return successResponse(res, 200, "Email types retrieved.", { types });
+});
+
+router.post("/emails/send-test", [...adminAuth, emailCostLimiter], async (req, res) => {
+	const adminId = req.user.id;
+	const emailType = typeof req.body?.emailType === "string" ? req.body.emailType.trim() : "";
+	const toEmail = normalizeEmail(req.body?.toEmail);
+	const tokenInput = typeof req.body?.token === "string" && req.body.token.trim() ? req.body.token.trim() : "test";
+	const tokenExpiry = req.body?.tokenExpiry ?? req.body?.duration ?? null;
+	const context = req.body?.context && typeof req.body.context === "object" ? req.body.context : {};
+
+	const errors = [];
+	if (!emailType) {
+		errors.push("emailType is required.");
+	} else if (!EMAIL_TYPE_HANDLERS[emailType]) {
+		errors.push("Unsupported emailType.");
+	}
+
+	errors.push(...validateEmail(toEmail));
+
+	let expiresInMinutes = null;
+	if (TOKEN_EMAIL_TYPES.has(emailType)) {
+		const durationResult = normalizeDurationMinutes(tokenExpiry, resolveDefaultExpiry(emailType));
+		if (durationResult.error) {
+			errors.push(durationResult.error);
+		} else {
+			expiresInMinutes = durationResult.value;
+		}
+	}
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const params = buildTestEmailParams(emailType, toEmail, tokenInput, expiresInMinutes, context, req.ip);
+	if (!params) {
+		return errorResponse(res, 400, "Validation Error", ["Unable to build email payload for this emailType."]);
+	}
+
+	try {
+		const sent = await EMAIL_TYPE_HANDLERS[emailType](params);
+		logToFile("ADMIN_EMAIL_TEST", {
+			status: sent ? "SUCCESS" : "FAILURE",
+			admin_id: adminId,
+			email_type: emailType,
+			to_email: toEmail,
+			expires_in_minutes: expiresInMinutes,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, sent ? "info" : "error");
+		if (!sent) {
+			return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
+		}
+		return successResponse(res, 200, "Test email sent.", {
+			emailType,
+			toEmail,
+			token: tokenInput,
+			expiresInMinutes
+		});
+	} catch (error) {
+		logToFile("ADMIN_EMAIL_TEST", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			email_type: emailType,
+			to_email: toEmail,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
+	}
 });
 
 async function handleResetPassword(req, res, targetId) {

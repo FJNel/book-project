@@ -6042,11 +6042,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminUserActionFlexible'
+              $ref: '#/components/schemas/AdminUnverifyRequest'
             examples:
               unverify:
                 value:
                   id: 12
+                  email: user@example.com
+                  reason: Admin review required.
       responses:
         '200':
           description: Unverified
@@ -6060,7 +6062,7 @@ paths:
                     status: success
                     httpCode: 200
                     responseTime: "2.30"
-                    message: User unverified successfully.
+                    message: User marked as unverified.
                     data:
                       id: 12
                     errors: []
@@ -6075,6 +6077,17 @@ paths:
       operationId: adminUnverifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUnverifyRequest'
+            examples:
+              unverifyById:
+                value:
+                  reason: Email bounce detected.
+                  email: user@example.com
       responses:
         '200':
           description: Unverified
@@ -6106,11 +6119,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminUserActionFlexible'
+              $ref: '#/components/schemas/AdminVerifyRequest'
             examples:
               verify:
                 value:
                   email: user@example.com
+                  reason: Identity confirmed by support.
       responses:
         '200':
           description: Verified
@@ -6124,7 +6138,7 @@ paths:
                     status: success
                     httpCode: 200
                     responseTime: "2.30"
-                    message: User verified successfully.
+                    message: User marked as verified.
                     data:
                       id: 12
                     errors: []
@@ -6139,6 +6153,17 @@ paths:
       operationId: adminVerifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminVerifyRequest'
+            examples:
+              verifyById:
+                value:
+                  reason: Documented proof received.
+                  email: user@example.com
       responses:
         '200':
           description: Verified
@@ -6174,11 +6199,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminUserActionFlexible'
+              $ref: '#/components/schemas/AdminSendVerificationRequest'
             examples:
               send:
                 value:
                   email: user@example.com
+                  duration: 45
       responses:
         '200':
           description: Email sent
@@ -6192,9 +6218,10 @@ paths:
                     status: success
                     httpCode: 200
                     responseTime: "2.60"
-                    message: Verification email sent.
+                    message: Verification email sent successfully.
                     data:
                       id: 12
+                      expiresInMinutes: 45
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -6210,6 +6237,17 @@ paths:
         window: 5m
       parameters:
         - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSendVerificationRequest'
+            examples:
+              sendById:
+                value:
+                  email: user@example.com
+                  duration: 30
       responses:
         '200':
           description: Email sent
@@ -6217,6 +6255,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.60"
+                    message: Verification email sent successfully.
+                    data:
+                      id: 12
+                      expiresInMinutes: 30
+                    errors: []
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
@@ -6235,11 +6284,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminUserActionFlexible'
+              $ref: '#/components/schemas/AdminResetPasswordRequest'
             examples:
               reset:
                 value:
                   id: 12
+                  email: user@example.com
+                  duration: 30
       responses:
         '200':
           description: Email sent
@@ -6253,9 +6304,10 @@ paths:
                     status: success
                     httpCode: 200
                     responseTime: "2.60"
-                    message: Password reset email sent.
+                    message: Password reset email sent successfully.
                     data:
                       id: 12
+                      expiresInMinutes: 30
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -6271,6 +6323,17 @@ paths:
         window: 5m
       parameters:
         - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetPasswordRequest'
+            examples:
+              resetById:
+                value:
+                  email: user@example.com
+                  duration: 45
       responses:
         '200':
           description: Email sent
@@ -6278,10 +6341,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.60"
+                    message: Password reset email sent successfully.
+                    data:
+                      id: 12
+                      expiresInMinutes: 45
+                    errors: []
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /admin/emails/types:
+    get:
+      tags: [Admin]
+      summary: List available email types
+      operationId: adminListEmailTypes
+      responses:
+        '200':
+          description: Email types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.10"
+                    message: Email types retrieved.
+                    data:
+                      types:
+                        - verification
+                        - password_reset
+                        - welcome
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /admin/emails/send-test:
+    post:
+      tags: [Admin]
+      summary: Send a test email
+      operationId: adminSendTestEmail
+      description: Sends a test email using an existing template without mutating user state.
+      x-rateLimit:
+        limit: 5
+        window: minute
+        note: emailCostLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminEmailTestRequest'
+            examples:
+              verification:
+                value:
+                  emailType: verification
+                  toEmail: admin@example.com
+                  token: test
+                  tokenExpiry: 30
+                  context:
+                    preferredName: Admin Tester
+      responses:
+        '200':
+          description: Test email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.10"
+                    message: Test email sent.
+                    data:
+                      emailType: verification
+                      toEmail: admin@example.com
+                      token: test
+                      expiresInMinutes: 30
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '429':
+          $ref: '#/components/responses/RateLimit'
   /admin/users/sessions:
     post:
       tags: [Admin]
@@ -8973,6 +9127,76 @@ components:
           type: integer
         email:
           type: string
+    AdminVerifyRequest:
+      type: object
+      required: [reason]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        reason:
+          type: string
+          maxLength: 500
+    AdminUnverifyRequest:
+      type: object
+      required: [reason]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        reason:
+          type: string
+          maxLength: 500
+    AdminSendVerificationRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          description: Token expiry in minutes. Defaults to 30 if omitted.
+    AdminResetPasswordRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          description: Token expiry in minutes. Defaults to 30 if omitted.
+    AdminEmailTestRequest:
+      type: object
+      required: [emailType, toEmail]
+      properties:
+        emailType:
+          type: string
+        toEmail:
+          type: string
+          format: email
+        token:
+          type: string
+          description: Defaults to "test" if omitted.
+        tokenExpiry:
+          type: integer
+          description: Token expiry in minutes. Defaults to template-specific value if omitted.
+          minimum: 1
+          maximum: 1440
+        context:
+          type: object
+          additionalProperties: true
     AdminDeletionRequest:
       type: object
       properties:

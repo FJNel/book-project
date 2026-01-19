@@ -176,6 +176,7 @@
       <li class="nav-item"><button class="nav-link active" type="button" data-section="overview">Overview</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="users">Users</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="languages">Languages</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="emails">Emails</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="logs">Logs</button></li>
     </ul>
 
@@ -274,6 +275,7 @@
             <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshUsersBtn">Refresh</button>
           </div>
         </div>
+      <div class="alert alert-success d-none" id="usersSuccess"></div>
       <div class="alert alert-warning d-none" id="usersAlert"></div>
       <div class="table-responsive">
         <table class="table table-sm align-middle table-hover table-striped table-fixed-sm">
@@ -313,6 +315,7 @@
           <button class="btn btn-primary btn-sm" type="button" id="openCreateLanguageBtnSecondary">Create language</button>
         </div>
       </div>
+      <div class="alert alert-success d-none" id="languagesSuccess"></div>
       <div class="alert alert-warning d-none" id="languagesAlert"></div>
       <div class="card admin-card">
         <div class="card-body">
@@ -332,6 +335,65 @@
                 <tr><td colspan="6" class="text-center text-muted py-3">Loading languages…</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4 admin-section d-none" id="emailsSection" data-section-content="emails">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Emails</p>
+          <h2 class="h5 mb-0">Admin Email Tools</h2>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="emailTypesRefreshBtn">Refresh types</button>
+        </div>
+      </div>
+      <div class="alert alert-success d-none" id="emailsSuccess"></div>
+      <div class="alert alert-warning d-none" id="emailsAlert"></div>
+      <div class="card admin-card">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="emailTypeSelect">Email type</label>
+              <select class="form-select" id="emailTypeSelect">
+                <option value="">Select an email type</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="emailRecipientInput">Recipient email</label>
+              <input class="form-control" type="email" id="emailRecipientInput" placeholder="admin@example.com" />
+              <div class="form-text text-danger" id="emailRecipientHelp"></div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="emailTokenExpirySelect">Token expiry</label>
+              <div class="d-flex gap-2">
+                <select class="form-select" id="emailTokenExpirySelect">
+                  <option value="">Use default (select an email type)</option>
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                  <option value="1440">24 hours</option>
+                  <option value="custom">Custom</option>
+                </select>
+                <input class="form-control d-none" type="number" id="emailTokenExpiryCustom" min="1" max="1440" step="1" placeholder="Minutes" style="width: 130px" />
+              </div>
+              <div class="form-text">Controls how long the link in the email remains valid.</div>
+              <div class="form-text text-danger" id="emailTokenExpiryHelp"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="emailContextInput">Optional context (JSON)</label>
+              <textarea class="form-control" id="emailContextInput" rows="3" placeholder='{"preferredName":"Test"}'></textarea>
+              <div class="form-text text-danger" id="emailContextHelp"></div>
+            </div>
+            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="text-muted small">This is a test email. Tokens inside the email will not be valid.</div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" type="button" id="emailResetBtn">Clear</button>
+                <button class="btn btn-primary" type="button" id="emailSendTestBtn" disabled>Send test email</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -483,6 +545,12 @@
                 <input class="form-control" type="password" id="createPassword" autocomplete="new-password" />
                 <div class="form-text text-danger" id="createPasswordHelp"></div>
               </div>
+              <div class="col-md-6">
+                <label class="form-label" for="createTokenExpiry">Token expiry (minutes)</label>
+                <input class="form-control" type="number" id="createTokenExpiry" min="1" max="1440" placeholder="Default 60" />
+                <div class="form-text">Controls how long the link in the email remains valid.</div>
+                <div class="form-text text-danger" id="createTokenExpiryHelp"></div>
+              </div>
               <div class="col-md-6 d-flex align-items-center pt-4">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" id="createNoPassword" />
@@ -565,12 +633,17 @@
               <span class="label">Action</span>
               <span class="fw-semibold" id="confirmActionSummaryAction">—</span>
             </div>
+            <div class="d-flex justify-content-between align-items-center mb-1 d-none" id="confirmActionSummaryExpiryRow">
+              <span class="label">Token expiry</span>
+              <span class="fw-semibold" id="confirmActionSummaryExpiry">Default</span>
+            </div>
             <div class="mb-1">
               <span class="label d-block">Result</span>
               <span id="confirmActionSummaryImpact">—</span>
             </div>
             <div class="badge text-bg-warning-subtle border border-warning text-warning-emphasis d-none" id="confirmActionNotifyBadge">This action will notify the user by email.</div>
             <div class="text-danger small mt-1 d-none" id="confirmActionSummaryWarning">This action is destructive and cannot be undone.</div>
+            <div class="mt-2 d-none" id="confirmActionSummaryMeta"></div>
           </div>
           <p class="mb-3 text-muted" id="confirmActionMessage">Review and confirm this action.</p>
           <div class="mb-3 d-none" id="confirmActionReasonWrap">
@@ -582,6 +655,22 @@
             <label class="form-label" for="confirmActionEmail">User email</label>
             <input class="form-control" type="email" id="confirmActionEmail" />
             <div class="form-text text-danger" id="confirmActionEmailHelp"></div>
+          </div>
+          <div class="mb-3 d-none" id="confirmActionExpiryWrap">
+            <label class="form-label" for="confirmActionExpirySelect">Token expiry</label>
+            <div class="d-flex gap-2">
+              <select class="form-select" id="confirmActionExpirySelect">
+                <option value="">Use default</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="1440">24 hours</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input class="form-control d-none" type="number" id="confirmActionExpiryCustom" min="1" max="1440" step="1" placeholder="Minutes" style="width: 130px" />
+            </div>
+            <div class="form-text">Controls how long the link in the email remains valid.</div>
+            <div class="form-text text-danger" id="confirmActionExpiryHelp"></div>
           </div>
           <div class="mb-0 d-none" id="confirmActionInputWrap">
             <label class="form-label" for="confirmActionInput">Type to confirm</label>

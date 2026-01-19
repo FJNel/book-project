@@ -28,6 +28,7 @@
     refreshUsersBtn: document.getElementById('refreshUsersBtn'),
     usersTbody: document.getElementById('usersTbody'),
     usersAlert: document.getElementById('usersAlert'),
+    usersSuccess: document.getElementById('usersSuccess'),
     usersPrevBtn: document.getElementById('usersPrevBtn'),
     usersNextBtn: document.getElementById('usersNextBtn'),
     usersSummary: document.getElementById('usersSummary'),
@@ -36,6 +37,7 @@
     openCreateLanguageBtnSecondary: document.getElementById('openCreateLanguageBtnSecondary'),
     languagesTbody: document.getElementById('languagesTbody'),
     languagesAlert: document.getElementById('languagesAlert'),
+    languagesSuccess: document.getElementById('languagesSuccess'),
     logsTbody: document.getElementById('logsTbody'),
     logsAlert: document.getElementById('logsAlert'),
     logsSearchInput: document.getElementById('logsSearchInput'),
@@ -59,6 +61,19 @@
     logsDetailAlert: document.getElementById('logsDetailAlert'),
     logsCopyJsonBtn: document.getElementById('logsCopyJsonBtn'),
     logsDetailTitle: document.getElementById('logsDetailTitle'),
+    emailsAlert: document.getElementById('emailsAlert'),
+    emailsSuccess: document.getElementById('emailsSuccess'),
+    emailTypeSelect: document.getElementById('emailTypeSelect'),
+    emailRecipientInput: document.getElementById('emailRecipientInput'),
+    emailRecipientHelp: document.getElementById('emailRecipientHelp'),
+    emailTokenExpirySelect: document.getElementById('emailTokenExpirySelect'),
+    emailTokenExpiryCustom: document.getElementById('emailTokenExpiryCustom'),
+    emailTokenExpiryHelp: document.getElementById('emailTokenExpiryHelp'),
+    emailContextInput: document.getElementById('emailContextInput'),
+    emailContextHelp: document.getElementById('emailContextHelp'),
+    emailTypesRefreshBtn: document.getElementById('emailTypesRefreshBtn'),
+    emailResetBtn: document.getElementById('emailResetBtn'),
+    emailSendTestBtn: document.getElementById('emailSendTestBtn'),
     createUserModal: document.getElementById('createUserModal'),
     createUserAlert: document.getElementById('createUserAlert'),
     createUserSubmit: document.getElementById('createUserSubmit'),
@@ -67,6 +82,8 @@
     createEmail: document.getElementById('createEmail'),
     createRole: document.getElementById('createRole'),
     createPassword: document.getElementById('createPassword'),
+    createTokenExpiry: document.getElementById('createTokenExpiry'),
+    createTokenExpiryHelp: document.getElementById('createTokenExpiryHelp'),
     createNoPassword: document.getElementById('createNoPassword'),
     createFullNameHelp: document.getElementById('createFullNameHelp'),
     createPreferredNameHelp: document.getElementById('createPreferredNameHelp'),
@@ -89,6 +106,9 @@
     confirmActionSummaryUser: document.getElementById('confirmActionSummaryUser'),
     confirmActionSummaryAction: document.getElementById('confirmActionSummaryAction'),
     confirmActionSummaryImpact: document.getElementById('confirmActionSummaryImpact'),
+    confirmActionSummaryExpiryRow: document.getElementById('confirmActionSummaryExpiryRow'),
+    confirmActionSummaryExpiry: document.getElementById('confirmActionSummaryExpiry'),
+    confirmActionSummaryMeta: document.getElementById('confirmActionSummaryMeta'),
     confirmActionNotifyBadge: document.getElementById('confirmActionNotifyBadge'),
     confirmActionSummaryWarning: document.getElementById('confirmActionSummaryWarning'),
     confirmActionReasonWrap: document.getElementById('confirmActionReasonWrap'),
@@ -97,6 +117,10 @@
     confirmActionEmailWrap: document.getElementById('confirmActionEmailWrap'),
     confirmActionEmail: document.getElementById('confirmActionEmail'),
     confirmActionEmailHelp: document.getElementById('confirmActionEmailHelp'),
+    confirmActionExpiryWrap: document.getElementById('confirmActionExpiryWrap'),
+    confirmActionExpirySelect: document.getElementById('confirmActionExpirySelect'),
+    confirmActionExpiryCustom: document.getElementById('confirmActionExpiryCustom'),
+    confirmActionExpiryHelp: document.getElementById('confirmActionExpiryHelp'),
     confirmActionInputWrap: document.getElementById('confirmActionInputWrap'),
     confirmActionInput: document.getElementById('confirmActionInput'),
     confirmActionInputHelp: document.getElementById('confirmActionInputHelp'),
@@ -145,8 +169,42 @@
     logsLiveEnabled: false,
     currentLogDetail: null,
     authorized: false,
-    actionCooldowns: new Map()
+    actionCooldowns: new Map(),
+    emailTypes: [],
+    emailTypesLoaded: false,
+    emailTypesLoading: false,
+    emailDefaultExpiryMinutes: null,
+    emailDefaultExpiryLabel: 'Default',
+    successTimers: new Map()
   };
+
+  const emailTokenDefaults = {
+    verification: 30,
+    password_reset: 30,
+    account_disable_verification: 60,
+    account_delete_verification: 60,
+    email_change_verification: 60,
+    admin_account_setup: 60
+  };
+
+  function getEmailDefaultExpiryMinutes(emailType) {
+    if (!emailType) return null;
+    return emailTokenDefaults[emailType] ?? null;
+  }
+
+  function updateEmailDefaultExpiryOption(emailType) {
+    const defaultMinutes = getEmailDefaultExpiryMinutes(emailType);
+    state.emailDefaultExpiryMinutes = defaultMinutes;
+    state.emailDefaultExpiryLabel = defaultMinutes ? `${defaultMinutes} minutes` : 'Default';
+    const option = dom.emailTokenExpirySelect?.querySelector('option[value=""]');
+    if (option) {
+      if (emailType) {
+        option.textContent = defaultMinutes ? `Use default (${defaultMinutes} minutes)` : 'Use default';
+      } else {
+        option.textContent = 'Use default (select an email type)';
+      }
+    }
+  }
 
   const johannesburgFormatter = new Intl.DateTimeFormat('en-ZA', {
     timeZone: 'Africa/Johannesburg',
@@ -239,6 +297,39 @@
     if (!el) return;
     el.classList.add('d-none');
     el.textContent = '';
+  }
+
+  function showSuccess(el, message) {
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('d-none');
+  }
+
+  function clearSuccess(el) {
+    if (!el) return;
+    el.classList.add('d-none');
+    el.textContent = '';
+  }
+
+  function announceSuccess(target, message, timeoutMs = 6000) {
+    const map = {
+      users: dom.usersSuccess,
+      languages: dom.languagesSuccess,
+      emails: dom.emailsSuccess,
+      logs: dom.logsAlert
+    };
+    const el = map[target];
+    if (!el) return;
+    showSuccess(el, message);
+    const key = `${target}-success`;
+    if (state.successTimers.has(key)) {
+      clearTimeout(state.successTimers.get(key));
+    }
+    const timer = setTimeout(() => {
+      clearSuccess(el);
+      state.successTimers.delete(key);
+    }, timeoutMs);
+    state.successTimers.set(key, timer);
   }
 
   async function parseResponse(response) {
@@ -502,6 +593,8 @@
 
     if (section === 'logs' && state.authorized) {
       ensureLogsInitialized().catch(() => {});
+    } else if (section === 'emails' && state.authorized) {
+      ensureEmailTypesLoaded().catch(() => {});
     } else if (state.logsLiveEnabled) {
       stopLogsLive();
       if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
@@ -512,6 +605,7 @@
     const hash = window.location.hash.toLowerCase();
     if (hash.includes('users')) return 'users';
     if (hash.includes('language')) return 'languages';
+    if (hash.includes('email')) return 'emails';
     if (hash.includes('log')) return 'logs';
     return null;
   }
@@ -519,7 +613,7 @@
   function resolveSectionFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const section = (params.get('section') || '').toLowerCase();
-    if (['overview', 'users', 'languages', 'logs'].includes(section)) return section;
+    if (['overview', 'users', 'languages', 'emails', 'logs'].includes(section)) return section;
     return null;
   }
 
@@ -535,7 +629,7 @@
       return;
     }
     const stored = window.localStorage.getItem('adminSection');
-    const target = ['overview', 'users', 'languages', 'logs'].includes(stored) ? stored : 'overview';
+    const target = ['overview', 'users', 'languages', 'emails', 'logs'].includes(stored) ? stored : 'overview';
     setSection(target);
   }
 
@@ -575,11 +669,13 @@
     dom.createEmail.value = '';
     dom.createRole.value = 'user';
     dom.createPassword.value = '';
+    if (dom.createTokenExpiry) dom.createTokenExpiry.value = '';
     dom.createNoPassword.checked = false;
     dom.createFullNameHelp.textContent = '';
     dom.createPreferredNameHelp.textContent = '';
     dom.createEmailHelp.textContent = '';
     dom.createPasswordHelp.textContent = '';
+    if (dom.createTokenExpiryHelp) dom.createTokenExpiryHelp.textContent = '';
     toggleSubmit(dom.createUserSubmit, false);
   }
 
@@ -600,15 +696,25 @@
       fullName: validateName(fullName),
       preferredName: '',
       email: validateEmail(email),
-      password: validatePassword(password, noPassword)
+      password: validatePassword(password, noPassword),
+      duration: ''
     };
+
+    const durationValue = dom.createTokenExpiry?.value.trim();
+    if (durationValue) {
+      const parsedDuration = Number.parseInt(durationValue, 10);
+      if (!Number.isInteger(parsedDuration) || parsedDuration < 1 || parsedDuration > 1440) {
+        errors.duration = 'Token expiry must be between 1 and 1440 minutes.';
+      }
+    }
 
     dom.createFullNameHelp.textContent = errors.fullName;
     dom.createPreferredNameHelp.textContent = errors.preferredName;
     dom.createEmailHelp.textContent = errors.email;
     dom.createPasswordHelp.textContent = errors.password;
+    if (dom.createTokenExpiryHelp) dom.createTokenExpiryHelp.textContent = errors.duration;
 
-    const valid = !errors.fullName && !errors.email && !errors.password && (password || noPassword);
+    const valid = !errors.fullName && !errors.email && !errors.password && !errors.duration && (password || noPassword);
     toggleSubmit(dom.createUserSubmit, valid);
     return valid;
   }
@@ -624,6 +730,8 @@
       email: dom.createEmail.value.trim(),
       role: dom.createRole.value || 'user'
     };
+    const durationRaw = dom.createTokenExpiry?.value.trim();
+    if (durationRaw) body.duration = Number.parseInt(durationRaw, 10);
     if (dom.createNoPassword.checked) {
       body.noPassword = true;
     } else {
@@ -635,6 +743,7 @@
       await parseResponse(response);
       bootstrap.Modal.getInstance(dom.createUserModal)?.hide();
       await fetchUsers(getUserFilters());
+      announceSuccess('users', 'User created successfully.');
     } catch (err) {
       showApiError(dom.createUserAlert, err);
     } finally {
@@ -702,6 +811,7 @@
       await parseResponse(response);
       bootstrap.Modal.getInstance(dom.editUserModal)?.hide();
       await fetchUsers(getUserFilters());
+      announceSuccess('users', 'User updated successfully.');
     } catch (err) {
       showApiError(dom.editUserAlert, err);
     } finally {
@@ -722,6 +832,61 @@
     }
   }
 
+  function resetConfirmExpiry() {
+    if (!dom.confirmActionExpiryWrap) return;
+    dom.confirmActionExpiryWrap.classList.add('d-none');
+    if (dom.confirmActionExpirySelect) dom.confirmActionExpirySelect.value = '';
+    if (dom.confirmActionExpiryCustom) {
+      dom.confirmActionExpiryCustom.value = '';
+      dom.confirmActionExpiryCustom.classList.add('d-none');
+    }
+    if (dom.confirmActionExpiryHelp) dom.confirmActionExpiryHelp.textContent = '';
+    if (dom.confirmActionSummaryExpiryRow) dom.confirmActionSummaryExpiryRow.classList.add('d-none');
+    if (dom.confirmActionSummaryExpiry) dom.confirmActionSummaryExpiry.textContent = 'Default';
+  }
+
+  function configureConfirmExpiry(config) {
+    resetConfirmExpiry();
+    if (!config?.expiryEnabled || !dom.confirmActionExpiryWrap) return;
+    dom.confirmActionExpiryWrap.classList.remove('d-none');
+    if (dom.confirmActionSummaryExpiryRow) dom.confirmActionSummaryExpiryRow.classList.remove('d-none');
+    const defaultMinutes = Number.isFinite(config.expiryDefaultMinutes) ? config.expiryDefaultMinutes : null;
+    const defaultLabel = defaultMinutes ? `Use default (${defaultMinutes} minutes)` : 'Use default';
+    const defaultOption = dom.confirmActionExpirySelect?.querySelector('option[value=""]');
+    if (defaultOption) defaultOption.textContent = defaultLabel;
+    if (dom.confirmActionSummaryExpiry) dom.confirmActionSummaryExpiry.textContent = 'Default';
+  }
+
+  function resolveConfirmExpirySelection() {
+    if (dom.confirmActionExpiryWrap?.classList.contains('d-none')) {
+      return { valid: true, minutes: null, label: 'Default', isDefault: true };
+    }
+    const choice = dom.confirmActionExpirySelect?.value || '';
+    let minutes = null;
+    let label = 'Default';
+    if (choice === 'custom') {
+      const customValue = Number.parseInt(dom.confirmActionExpiryCustom?.value, 10);
+      if (!Number.isInteger(customValue) || customValue < 1 || customValue > 1440) {
+        dom.confirmActionExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
+        return { valid: false };
+      }
+      minutes = customValue;
+      label = `${customValue} minutes`;
+    } else if (choice) {
+      const parsed = Number.parseInt(choice, 10);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1440) {
+        dom.confirmActionExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
+        return { valid: false };
+      }
+      minutes = parsed;
+      label = `${parsed} minutes`;
+    }
+
+    if (dom.confirmActionExpiryHelp) dom.confirmActionExpiryHelp.textContent = '';
+    if (dom.confirmActionSummaryExpiry) dom.confirmActionSummaryExpiry.textContent = label || 'Default';
+    return { valid: true, minutes, label: label || 'Default', isDefault: minutes === null };
+  }
+
   function openConfirmAction(config) {
     const resolvedUser = config.user || state.users.find((u) => u.id === config.userId);
     const userLabel = resolvedUser
@@ -736,6 +901,10 @@
       willNotify: Boolean(config.willNotify),
       destructive: Boolean(config.destructive || config.confirmText),
       confirmLabel: config.confirmLabel || 'Confirm',
+      expiryEnabled: Boolean(config.expiryEnabled),
+      expiryDefaultMinutes: config.expiryDefaultMinutes,
+      summaryItems: Array.isArray(config.summaryItems) ? config.summaryItems : [],
+      baseBody: config.baseBody,
       ...config,
       user: resolvedUser
     };
@@ -748,6 +917,15 @@
     if (dom.confirmActionSummaryImpact) dom.confirmActionSummaryImpact.textContent = state.confirmActionConfig.impact;
     dom.confirmActionNotifyBadge?.classList.toggle('d-none', !state.confirmActionConfig.willNotify);
     dom.confirmActionSummaryWarning?.classList.toggle('d-none', !state.confirmActionConfig.destructive);
+    if (dom.confirmActionSummaryMeta) {
+      dom.confirmActionSummaryMeta.innerHTML = '';
+      dom.confirmActionSummaryMeta.classList.add('d-none');
+      if (state.confirmActionConfig.summaryItems.length) {
+        const metaRows = state.confirmActionConfig.summaryItems.map((item) => `<div class="d-flex justify-content-between small"><span class="text-muted">${escapeHtml(item.label)}:</span><span class="fw-semibold">${escapeHtml(item.value)}</span></div>`).join('');
+        dom.confirmActionSummaryMeta.innerHTML = metaRows;
+        dom.confirmActionSummaryMeta.classList.remove('d-none');
+      }
+    }
     if (dom.confirmActionSubmit) {
       dom.confirmActionSubmit.textContent = state.confirmActionConfig.confirmLabel;
       dom.confirmActionSubmit.classList.toggle('btn-danger', state.confirmActionConfig.destructive);
@@ -756,6 +934,7 @@
 
     dom.confirmActionReasonWrap.classList.toggle('d-none', !state.confirmActionConfig.reasonRequired);
     dom.confirmActionEmailWrap.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
+    configureConfirmExpiry(state.confirmActionConfig);
     dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
     dom.confirmActionReason.value = '';
     dom.confirmActionEmail.value = state.confirmActionConfig.prefillEmail || '';
@@ -767,6 +946,7 @@
     toggleSubmit(dom.confirmActionSubmit, !state.confirmActionConfig.confirmText && !state.confirmActionConfig.reasonRequired && !state.confirmActionConfig.emailRequired);
     const instance = bootstrap.Modal.getOrCreateInstance(dom.confirmActionModal);
     instance.show();
+    validateConfirmAction();
   }
 
   function validateConfirmAction() {
@@ -783,6 +963,12 @@
       const emailError = validateEmail(email);
       dom.confirmActionEmailHelp.textContent = emailError;
       valid = valid && !emailError;
+    }
+    const expirySelection = resolveConfirmExpirySelection();
+    if (expirySelection?.valid === false) {
+      valid = false;
+    } else if (cfg) {
+      cfg.expirySelection = expirySelection;
     }
     if (cfg.confirmText) {
       const value = dom.confirmActionInput.value.trim();
@@ -801,10 +987,21 @@
     setConfirmModalBusy(true);
     hideAlert(dom.confirmActionAlert);
 
-    const body = { id: cfg.userId };
+    const body = cfg.baseBody ? { ...cfg.baseBody } : { id: cfg.userId };
     if (cfg.reasonRequired) body.reason = dom.confirmActionReason.value.trim();
-    if (cfg.emailRequired) body.userToBeDeletedEmail = dom.confirmActionEmail.value.trim();
+    if (cfg.emailRequired) {
+      const emailValue = dom.confirmActionEmail.value.trim();
+      if (cfg.emailFieldName) {
+        body[cfg.emailFieldName] = emailValue;
+      } else {
+        body.userToBeDeletedEmail = emailValue;
+      }
+    }
     if (cfg.confirmFlag) body.confirm = true;
+    const expirySelection = cfg.expirySelection;
+    if (cfg.expiryEnabled && expirySelection && expirySelection.minutes !== null) {
+      body.duration = expirySelection.minutes;
+    }
 
     log(`Admin action started`, { action: cfg.actionLabel || cfg.title, userId: cfg.userId });
 
@@ -817,6 +1014,8 @@
       bootstrap.Modal.getInstance(dom.confirmActionModal)?.hide();
       if (cfg.onSuccess === 'users') await fetchUsers(getUserFilters());
       if (cfg.onSuccess === 'sessions') await loadSessions(cfg.userId);
+      if (cfg.successMessage) announceSuccess(cfg.successTarget || cfg.onSuccess || 'users', cfg.successMessage);
+      if (typeof cfg.afterSuccess === 'function') cfg.afterSuccess();
     } catch (err) {
       errorLog('Admin action failed', { action: cfg.actionLabel || cfg.title, userId: cfg.userId, error: err });
       showApiError(dom.confirmActionAlert, err);
@@ -908,7 +1107,8 @@
         method: isDisabled ? 'POST' : 'DELETE',
         reasonRequired: false,
         emailRequired: false,
-        onSuccess: 'users'
+        onSuccess: 'users',
+        successMessage: isDisabled ? 'User enabled successfully.' : 'User disabled and sessions revoked.'
       });
       return;
     }
@@ -925,7 +1125,11 @@
         url: `/admin/users/${userId}/verify`,
         method: 'POST',
         reasonRequired: true,
-        onSuccess: 'users'
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        onSuccess: 'users',
+        successMessage: 'User verified successfully.'
       });
       return;
     }
@@ -942,7 +1146,11 @@
         url: `/admin/users/${userId}/unverify`,
         method: 'POST',
         reasonRequired: true,
-        onSuccess: 'users'
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        onSuccess: 'users',
+        successMessage: 'User unverified successfully.'
       });
       return;
     }
@@ -964,7 +1172,13 @@
         url: `/admin/users/${userId}/send-verification`,
         method: 'POST',
         onSuccess: 'users',
-        cooldownKey
+        cooldownKey,
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        expiryEnabled: true,
+        expiryDefaultMinutes: 30,
+        successMessage: 'Verification email sent successfully.'
       });
       return;
     }
@@ -986,7 +1200,13 @@
         url: `/admin/users/${userId}/reset-password`,
         method: 'POST',
         onSuccess: 'users',
-        cooldownKey
+        cooldownKey,
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        expiryEnabled: true,
+        expiryDefaultMinutes: 30,
+        successMessage: 'Password reset email sent successfully.'
       });
       return;
     }
@@ -1003,7 +1223,8 @@
         userId,
         url: `/admin/users/${userId}/force-logout`,
         method: 'POST',
-        onSuccess: 'users'
+        onSuccess: 'users',
+        successMessage: 'All sessions revoked successfully.'
       });
       return;
     }
@@ -1024,12 +1245,24 @@
         confirmText: 'DELETE',
         confirmFlag: true,
         prefillEmail: user?.email || '',
-        onSuccess: 'users'
+        onSuccess: 'users',
+        successMessage: 'Account deletion flow submitted.'
       });
     }
   }
 
   function handleConfirmActionModalInput() {
+    validateConfirmAction();
+  }
+
+  function handleConfirmExpirySelectChange() {
+    if (!dom.confirmActionExpirySelect) return;
+    const isCustom = dom.confirmActionExpirySelect.value === 'custom';
+    if (dom.confirmActionExpiryCustom) dom.confirmActionExpiryCustom.classList.toggle('d-none', !isCustom);
+    validateConfirmAction();
+  }
+
+  function handleConfirmExpiryCustomInput() {
     validateConfirmAction();
   }
 
@@ -1054,7 +1287,8 @@
       userId: state.sessionsUser.id,
       url: `/admin/users/${state.sessionsUser.id}/force-logout`,
       method: 'POST',
-      onSuccess: 'sessions'
+      onSuccess: 'sessions',
+      successMessage: 'All sessions revoked successfully.'
     });
   }
 
@@ -1095,9 +1329,11 @@
       if (mode === 'edit' && id) {
         const response = await apiFetch(`/admin/languages/${id}`, { method: 'PUT', body: { name } });
         await parseResponse(response);
+        announceSuccess('languages', 'Language updated successfully.');
       } else {
         const response = await apiFetch('/admin/languages', { method: 'POST', body: { name } });
         await parseResponse(response);
+        announceSuccess('languages', 'Language created successfully.');
       }
       bootstrap.Modal.getInstance(dom.languageModal)?.hide();
       await fetchLanguages();
@@ -1137,6 +1373,7 @@
       const response = await apiFetch(`/admin/languages/${id}`, { method: 'DELETE' });
       await parseResponse(response);
       bootstrap.Modal.getInstance(dom.languageDeleteModal)?.hide();
+      announceSuccess('languages', 'Language deleted successfully.');
       await fetchLanguages();
     } catch (err) {
       showApiError(dom.languageDeleteAlert, err);
@@ -1435,6 +1672,170 @@
     }
   }
 
+  function renderEmailTypes(types) {
+    state.emailTypes = Array.isArray(types) ? types : [];
+    if (!dom.emailTypeSelect) return;
+    const options = ['<option value="">Select an email type</option>', ...state.emailTypes.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`)];
+    dom.emailTypeSelect.innerHTML = options.join('');
+  }
+
+  async function fetchEmailTypes(force = false) {
+    if (state.emailTypesLoading) return;
+    if (!force && state.emailTypesLoaded) return;
+    state.emailTypesLoading = true;
+    hideAlert(dom.emailsAlert);
+    try {
+      const response = await apiFetch('/admin/emails/types', { method: 'GET' });
+      const data = await parseResponse(response);
+      renderEmailTypes(data?.types || data?.emailTypes || []);
+      state.emailTypesLoaded = true;
+    } catch (err) {
+      state.emailTypesLoaded = false;
+      showApiError(dom.emailsAlert, err);
+      throw err;
+    } finally {
+      state.emailTypesLoading = false;
+    }
+  }
+
+  async function ensureEmailTypesLoaded() {
+    if (state.emailTypesLoaded || state.emailTypesLoading) return;
+    await fetchEmailTypes(true);
+  }
+
+  function resetEmailForm() {
+    clearSuccess(dom.emailsSuccess);
+    hideAlert(dom.emailsAlert);
+    if (dom.emailTypeSelect) dom.emailTypeSelect.value = '';
+    if (dom.emailRecipientInput) dom.emailRecipientInput.value = '';
+    if (dom.emailRecipientHelp) dom.emailRecipientHelp.textContent = '';
+    if (dom.emailContextInput) dom.emailContextInput.value = '';
+    if (dom.emailContextHelp) dom.emailContextHelp.textContent = '';
+    if (dom.emailTokenExpirySelect) dom.emailTokenExpirySelect.value = '';
+    if (dom.emailTokenExpiryCustom) {
+      dom.emailTokenExpiryCustom.value = '';
+      dom.emailTokenExpiryCustom.classList.add('d-none');
+    }
+    if (dom.emailTokenExpiryHelp) dom.emailTokenExpiryHelp.textContent = '';
+    updateEmailDefaultExpiryOption('');
+    toggleSubmit(dom.emailSendTestBtn, false);
+  }
+
+  function resolveEmailExpirySelection() {
+    const defaultLabel = state.emailDefaultExpiryLabel || 'Default';
+    if (!dom.emailTokenExpirySelect) return { valid: true, minutes: null, label: defaultLabel, isDefault: true };
+    const value = dom.emailTokenExpirySelect.value;
+    if (value === 'custom') {
+      const customVal = Number.parseInt(dom.emailTokenExpiryCustom?.value, 10);
+      if (!Number.isInteger(customVal) || customVal < 1 || customVal > 1440) {
+        dom.emailTokenExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
+        return { valid: false };
+      }
+      dom.emailTokenExpiryHelp.textContent = '';
+      return { valid: true, minutes: customVal, label: `${customVal} minutes`, isDefault: false };
+    }
+    if (value) {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1440) {
+        dom.emailTokenExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
+        return { valid: false };
+      }
+      dom.emailTokenExpiryHelp.textContent = '';
+      return { valid: true, minutes: parsed, label: `${parsed} minutes`, isDefault: false };
+    }
+    dom.emailTokenExpiryHelp.textContent = '';
+    return { valid: true, minutes: null, label: defaultLabel, isDefault: true };
+  }
+
+  function validateEmailTestForm() {
+    const emailType = dom.emailTypeSelect?.value || '';
+    const recipient = dom.emailRecipientInput?.value.trim() || '';
+    const emailError = validateEmail(recipient);
+    if (dom.emailRecipientHelp) dom.emailRecipientHelp.textContent = recipient ? emailError : '';
+    const expirySelection = resolveEmailExpirySelection();
+    let contextValid = true;
+    if (dom.emailContextHelp) dom.emailContextHelp.textContent = '';
+    const contextRaw = dom.emailContextInput?.value.trim();
+    if (contextRaw) {
+      try {
+        JSON.parse(contextRaw);
+      } catch (err) {
+        if (dom.emailContextHelp) dom.emailContextHelp.textContent = 'Context must be valid JSON.';
+        contextValid = false;
+      }
+    }
+    const valid = !!emailType && !emailError && expirySelection?.valid !== false && contextValid;
+    toggleSubmit(dom.emailSendTestBtn, valid);
+    return { valid, emailType, recipient, expirySelection, contextRaw };
+  }
+
+  function handleEmailFormChange() {
+    const selectedType = dom.emailTypeSelect?.value || '';
+    updateEmailDefaultExpiryOption(selectedType);
+    validateEmailTestForm();
+  }
+
+  function handleEmailExpirySelectChange() {
+    if (!dom.emailTokenExpirySelect) return;
+    const isCustom = dom.emailTokenExpirySelect.value === 'custom';
+    if (dom.emailTokenExpiryCustom) dom.emailTokenExpiryCustom.classList.toggle('d-none', !isCustom);
+    validateEmailTestForm();
+  }
+
+  function handleEmailExpiryCustomInput() {
+    validateEmailTestForm();
+  }
+
+  function handleEmailReset() {
+    resetEmailForm();
+  }
+
+  function parseContextValue(raw) {
+    if (!raw) return undefined;
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      return undefined;
+    }
+  }
+
+  function handleEmailSendTest() {
+    const validation = validateEmailTestForm();
+    if (!validation.valid) return;
+    const { emailType, recipient, expirySelection, contextRaw } = validation;
+    const contextObj = parseContextValue(contextRaw);
+    const baseBody = {
+      emailType,
+      toEmail: recipient,
+      token: 'test',
+      context: contextObj
+    };
+    if (expirySelection?.minutes !== null) {
+      baseBody.tokenExpiry = expirySelection.minutes;
+    }
+
+    openConfirmAction({
+      title: 'Send test email',
+      actionLabel: 'Send test email',
+      message: 'Send a test email using this template?',
+      impact: 'This email is for testing only and does not change any user state.',
+      willNotify: true,
+      user: { id: '—', fullName: 'Email tools', email: recipient },
+      baseBody,
+      url: '/admin/emails/send-test',
+      method: 'POST',
+      summaryItems: [
+        { label: 'Email type', value: emailType },
+        { label: 'Recipient', value: recipient },
+        { label: 'Token', value: 'test' },
+        { label: 'Token expiry', value: expirySelection?.label || 'Default' }
+      ],
+      successTarget: 'emails',
+      successMessage: `Test email sent successfully to ${recipient}.`,
+      afterSuccess: () => resetEmailForm()
+    });
+  }
+
   function bindEvents() {
     dom.refreshStatusBtn?.addEventListener('click', () => fetchStatus().catch(() => {}));
 
@@ -1481,6 +1882,8 @@
     dom.confirmActionReason?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionEmail?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionInput?.addEventListener('input', handleConfirmActionModalInput);
+    dom.confirmActionExpirySelect?.addEventListener('change', handleConfirmExpirySelectChange);
+    dom.confirmActionExpiryCustom?.addEventListener('input', handleConfirmExpiryCustomInput);
     dom.confirmActionSubmit?.addEventListener('click', handleConfirmActionSubmit);
 
     dom.sessionsForceLogoutBtn?.addEventListener('click', handleSessionsForceLogout);
@@ -1490,6 +1893,7 @@
     dom.createEmail?.addEventListener('input', handleCreateUserInput);
     dom.createRole?.addEventListener('change', handleCreateUserInput);
     dom.createPassword?.addEventListener('input', handleCreateUserInput);
+    dom.createTokenExpiry?.addEventListener('input', handleCreateUserInput);
     dom.createNoPassword?.addEventListener('change', handleCreateUserInput);
     dom.createUserSubmit?.addEventListener('click', submitCreateUser);
     dom.openCreateUserBtn?.addEventListener('click', openCreateUserModal);
@@ -1590,6 +1994,15 @@
     });
 
     dom.logsCopyJsonBtn?.addEventListener('click', copyLogJson);
+
+    dom.emailTypesRefreshBtn?.addEventListener('click', () => fetchEmailTypes(true).catch(() => {}));
+    dom.emailTypeSelect?.addEventListener('change', handleEmailFormChange);
+    dom.emailRecipientInput?.addEventListener('input', handleEmailFormChange);
+    dom.emailTokenExpirySelect?.addEventListener('change', handleEmailExpirySelectChange);
+    dom.emailTokenExpiryCustom?.addEventListener('input', handleEmailExpiryCustomInput);
+    dom.emailContextInput?.addEventListener('input', handleEmailFormChange);
+    dom.emailResetBtn?.addEventListener('click', handleEmailReset);
+    dom.emailSendTestBtn?.addEventListener('click', handleEmailSendTest);
   }
 
   function denyAccess() {
@@ -1623,6 +2036,9 @@
     if (state.currentSection === 'logs') {
       ensureLogsInitialized().catch(() => {});
     }
+    if (state.currentSection === 'emails') {
+      ensureEmailTypesLoaded().catch(() => {});
+    }
     return true;
   }
 
@@ -1650,6 +2066,9 @@
         fetchUsers(getUserFilters()),
         fetchLanguages()
       ]);
+      if (state.currentSection === 'emails') {
+        ensureEmailTypesLoaded().catch(() => {});
+      }
       if (window.pageContentReady?.resolve) {
         window.pageContentReady.resolve({ success: true });
       }
