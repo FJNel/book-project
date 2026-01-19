@@ -1084,11 +1084,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const validateEditBook = () => {
+    let valid = true;
+    const titlePattern = /^[\p{L}0-9 .,'":;!?()&\/-]+$/u;
+
+    const title = editBookTitle?.value.trim() || '';
+    if (!title) {
+      setHelpText(editBookTitleHelp, 'This field is required.', true);
+      valid = false;
+    } else if (title.length < 2 || title.length > 255) {
+      setHelpText(editBookTitleHelp, 'Title must be between 2 and 255 characters.', true);
+      valid = false;
+    } else if (!titlePattern.test(title)) {
+      setHelpText(editBookTitleHelp, 'Title contains unsupported characters.', true);
+      valid = false;
+    } else {
+      clearHelpText(editBookTitleHelp);
+    }
+
+    const subtitle = editBookSubtitle?.value.trim() || '';
+    if (!subtitle) {
+      clearHelpText(editBookSubtitleHelp);
+    } else if (subtitle.length > 255) {
+      setHelpText(editBookSubtitleHelp, 'Subtitle must be 255 characters or fewer.', true);
+      valid = false;
+    } else if (!titlePattern.test(subtitle)) {
+      setHelpText(editBookSubtitleHelp, 'Subtitle contains unsupported characters.', true);
+      valid = false;
+    } else {
+      clearHelpText(editBookSubtitleHelp);
+    }
+
+    const rawIsbn = editBookIsbn?.value.trim() || '';
+    if (!rawIsbn) {
+      clearHelpText(editBookIsbnHelp);
+    } else {
+      const cleaned = rawIsbn.replace(/[^0-9xX]/g, '').toUpperCase();
+      const isValid = (cleaned.length === 10 && /^[0-9]{9}[0-9X]$/.test(cleaned))
+        || (cleaned.length === 13 && /^[0-9]{13}$/.test(cleaned));
+      if (!isValid) {
+        setHelpText(editBookIsbnHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
+        valid = false;
+      } else {
+        setHelpText(editBookIsbnHelp, `This ISBN will be stored as: ${cleaned}`, false);
+      }
+    }
+
+    const publicationRaw = editBookPublication?.value.trim() || '';
+    if (!publicationRaw) {
+      clearHelpText(editBookPublicationHelp);
+    } else {
+      const parsed = parsePartialDateInput(publicationRaw);
+      if (parsed.error) {
+        setHelpText(editBookPublicationHelp, parsed.error, true);
+        valid = false;
+      } else {
+        setHelpText(editBookPublicationHelp, `This date will be saved as: ${parsed.value.text}`, false);
+      }
+    }
+
+    const pagesRaw = editBookPages?.value.trim() || '';
+    if (!pagesRaw) {
+      clearHelpText(editBookPagesHelp);
+    } else {
+      const numeric = Number.parseInt(pagesRaw, 10);
+      if (!Number.isInteger(numeric) || numeric < 1 || numeric > 10000) {
+        setHelpText(editBookPagesHelp, 'Number of pages must be between 1 and 10000.', true);
+        valid = false;
       } else {
         clearHelpText(editBookPagesHelp);
       }
-    } else {
-      clearHelpText(editBookPagesHelp);
     }
 
     const coverRaw = editBookCover?.value.trim() || '';
