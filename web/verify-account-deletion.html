@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <title>The Book Project</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/css/Navbar-With-Button-icons.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+
+<body>
+  <section class="py-4 py-xl-5">
+    <div class="container h-100">
+      <div class="row h-100">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4 text-center d-flex d-sm-flex d-md-flex justify-content-center align-items-center justify-content-md-start align-items-md-center justify-content-xl-center mx-auto">
+          <div>
+            <h1 class="fw-bold mb-0">The Book Project</h1>
+            <h2 class="fw-bold mt-2 mb-3 text-danger">Confirm account deletion</h2>
+            <p class="lead mb-4">Request permanent deletion of your account. Please confirm with your password.</p>
+          </div>
+        </div>
+      </div>
+      <div class="row h-100">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4 text-center mx-auto">
+          <div class="card shadow">
+            <div class="card-body">
+              <div class="alert alert-success text-start" role="alert" id="successAlert"><span><strong>Alert</strong> text.</span></div>
+              <div class="alert alert-danger text-start pb-3" role="alert" id="errorAlert"><span><strong>Alert</strong> text.</span></div>
+              <form id="verifyDeletionForm" method="post">
+                <div class="text-start mb-3"><label class="form-label" for="email"><strong>Email</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="For security, please re-enter your email address." tabindex="-1">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                  </svg><input class="form-control form-control" type="text" autocomplete="on" autofocus="" id="email" inputmode="email" maxlength="255" minlength="5" name="email" pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" placeholder="you@example.com" required=""><small class="form-text" id="emailHelp"></small></div>
+                <div class="text-start mb-3"><label class="form-label text-start" for="password"><strong>Password</strong></label><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Enter your current password to confirm deletion." tabindex="-1">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+                  </svg><input class="form-control form-control" type="password" autocomplete="current-password" id="password" maxlength="100" minlength="1" name="password" placeholder="Current password" required=""><small class="form-text" id="passwordHelp"></small></div>
+                <div class="form-check mb-3 text-start"><input class="form-check-input" type="checkbox" id="confirm" required=""><label class="form-check-label" for="confirm">I understand this will delete my account.</label></div><button class="btn btn-danger" id="submitBtn" type="submit"><span class="spinner-border spinner-border-sm" role="status" id="submitSpinner"></span></button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center" data-lang="page_loading_heading">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center" data-lang="page_loading_text">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="apiErrorModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="api_error_heading">API Connection Error</h4>
+        </div>
+        <div class="modal-body">
+          <h5 data-lang="api_error_heading_2_1">Unable to Connect</h5>
+          <p data-lang="api_error_1">We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
+          <h5 data-lang="api_error_heading_2_2">What you can do</h5>
+          <ul>
+            <li data-lang="api_error_li1"><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
+            <li data-lang="api_error_li2"><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
+          </ul>
+          <p class="mb-0" data-lang="api_error_footer"><em>If the problem continues, please contact the System Administrator at </em><a href="mailto:support@fjnel.co.za?subject=The%20Book%20Project%3A%20API%20Connection%20Error">support@fjnel.co.za</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="desktopErrorModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Desktop View Recommended</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p>For the best experience, please enable "Desktop site" mode in your browser's settings. This site works best on a desktop or in a browser's "Desktop site" mode. Some features might not work as well on smaller screens.</p>
+          <h5>How to enable "Desktop site" mode:</h5>
+          <ul>
+            <li><strong>Chrome:</strong> Tap the three-dot menu, then select "Desktop site".</li>
+            <li><strong>Safari:</strong> Tap the "aA" icon in the address bar and choose "Request Desktop Website".</li>
+            <li><strong>Other browsers:</strong> Look for a "Desktop site" or "Desktop view" option in the browser's menu.</li>
+          </ul>
+          <p class="mb-0"><em>Note: You can close this window, but your experience might not be optimal.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="session_expired_heading">Session Expired!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0" data-lang="session_expired_text">Your session has ended for security reasons. This might happen due to:</p>
+          <ul>
+            <li data-lang="session_expired_li1"><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+            <li data-lang="session_expired_li2"><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+            <li data-lang="session_expired_li3"><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+          </ul>
+          <p class="mb-0" data-lang="session_expired_footer"><em>Close this window to go back to the page where you can log in.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="notLoggedInModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="not_logged_in_heading">Not Logged In!</h4><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2" data-lang="not_logged_in_text">To access <strong>The Book Project</strong>, please log in to your account. If you don’t have an account yet, you can sign up using "Continue with Google" or create a new account on the home page.</p>
+          <p class="mb-0" data-lang="not_logged_in_footer"><em>Close this window to go to the login or registration page.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="invalidLinkModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Invalid Deletion Link</h4><button class="btn-close" type="button" aria-label="Close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>It looks like the link you used to confirm deletion is missing a necessary token. This token helps us verify that it's really you. Please check your email for the correct link and use it to proceed. If you can't find the email, request a new deletion link from your account settings. If you're here by mistake, no worries!</p>
+          <p class="mb-0"><em>Close this window to go back to the page where you can log in or request a new link.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="recaptcha-root" class="hidden" data-sitekey="6LeedsorAAAAALv_xUltcVyeYvCInfhGVl7qkeMA"></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/bs-init.js"></script>
+  <!-- Include the API Interceptor first! -->
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/maintenance.js"></script>
+  <script src="assets/js/recaptcha-v3.js"></script>
+  <script src="assets/js/verify-account-deletion.js"></script>
+  
+</body>
+
+</html>
