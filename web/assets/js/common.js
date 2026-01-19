@@ -30,24 +30,116 @@ window.pageContentReady.reset = () => {
 window.pageContentReady.resolve({ success: true, default: true });
 
 window.modalLock = window.modalLock || {};
+window.modalLock.registry = window.modalLock.registry || {};
+window.modalLock.getElement = (modal) => (typeof modal === 'string' ? document.getElementById(modal) : modal);
+window.modalLock.countDisabled = (element) => {
+	if (!element) return 0;
+	return element.querySelectorAll('button:disabled, input:disabled, select:disabled, textarea:disabled').length;
+};
+window.modalLock.collectControls = (element) => (element
+	? Array.from(element.querySelectorAll('button, input, select, textarea'))
+	: []);
 window.modalLock.lock = (modal, action) => {
-	const element = typeof modal === 'string' ? document.getElementById(modal) : modal;
+	const element = window.modalLock.getElement(modal);
 	const id = element?.id || (typeof modal === 'string' ? modal : 'unknown');
-	console.log(`[ModalLock] Locking modal ${id} for action ${action || 'unknown'}`);
+	const registry = window.modalLock.registry;
+	const entry = registry[id] || { lockCount: 0, locked: false };
+	const wasLocked = entry.lockCount > 0;
+	entry.lockCount += 1;
+	entry.locked = true;
+	entry.lockedAt = new Date().toISOString();
+	entry.actionName = action || entry.actionName || 'unknown';
+	registry[id] = entry;
+	let disabledCount = window.modalLock.countDisabled(element);
+	const closeButtons = element ? element.querySelectorAll('[data-bs-dismiss="modal"], .btn-close') : [];
+	if (element && !wasLocked) {
+		const controls = window.modalLock.collectControls(element);
+		controls.forEach((control) => {
+			if (!control.disabled) {
+				control.dataset.modalLock = 'true';
+				control.disabled = true;
+			}
+		});
+		closeButtons.forEach((btn) => {
+			if (!btn.disabled) {
+				btn.dataset.modalLockClose = 'true';
+				btn.disabled = true;
+			}
+		});
+		element.dataset.modalLocked = 'true';
+		disabledCount = window.modalLock.countDisabled(element);
+	}
+	console.log(`[ModalLock] Locking modal ${id} for action ${entry.actionName}`, {
+		found: Boolean(element),
+		lockCount: entry.lockCount,
+		disabledCount,
+		closeButtons: closeButtons.length,
+		appliedDataset: element ? { modalLocked: element.dataset.modalLocked } : null
+	});
+	console.log('[ModalLock] Registry state', JSON.parse(JSON.stringify(registry)));
 };
 window.modalLock.unlock = (modal, reason = 'finally') => {
-	const element = typeof modal === 'string' ? document.getElementById(modal) : modal;
+	const element = window.modalLock.getElement(modal);
 	const id = element?.id || (typeof modal === 'string' ? modal : 'unknown');
-	console.log(`[ModalLock] Unlocking modal ${id} (reason: ${reason})`);
+	const registry = window.modalLock.registry;
+	const entry = registry[id] || { lockCount: 0, locked: false };
+	entry.lockCount = Math.max(0, (entry.lockCount || 0) - 1);
+	if (entry.lockCount === 0) {
+		entry.locked = false;
+		entry.unlockedAt = new Date().toISOString();
+	}
+	registry[id] = entry;
+	try {
+		let disabledCount = window.modalLock.countDisabled(element);
+		const closeButtons = element ? element.querySelectorAll('[data-bs-dismiss="modal"], .btn-close') : [];
+		if (element && entry.lockCount === 0) {
+			const controls = window.modalLock.collectControls(element);
+			let restoredCount = 0;
+			controls.forEach((control) => {
+				if (control.dataset.modalLock === 'true') {
+					control.disabled = false;
+					delete control.dataset.modalLock;
+					restoredCount += 1;
+				}
+			});
+			closeButtons.forEach((btn) => {
+				if (btn.dataset.modalLockClose === 'true') {
+					btn.disabled = false;
+					delete btn.dataset.modalLockClose;
+				}
+			});
+			delete element.dataset.modalLocked;
+			disabledCount = window.modalLock.countDisabled(element);
+			console.log('[ModalLock] Restored controls', { id, restoredCount });
+		}
+		console.log(`[ModalLock] Unlocking modal ${id} (reason: ${reason})`, {
+			found: Boolean(element),
+			lockCount: entry.lockCount,
+			disabledCount,
+			closeButtons: closeButtons.length,
+			removedDataset: element ? { modalLocked: element.dataset.modalLocked } : null
+		});
+		if (!element) {
+			console.warn('[ModalLock] Unlock invoked but modal element not found.', { id, reason });
+		}
+	} catch (error) {
+		console.error('[ModalLock] Unlock threw an exception.', { id, reason, error });
+	} finally {
+		console.log('[ModalLock] Registry state', JSON.parse(JSON.stringify(registry)));
+	}
 };
 window.modalLock.withLock = async function withLock({ modal, action, lock, unlock }, fn) {
 	if (typeof lock === 'function') lock(true);
-	if (window.modalLock?.lock) window.modalLock.lock(modal, action);
+	window.modalLock.lock(modal, action);
 	try {
 		return await fn();
 	} finally {
-		if (typeof unlock === 'function') unlock(false);
-		if (window.modalLock?.unlock) window.modalLock.unlock(modal, 'finally');
+		try {
+			if (typeof unlock === 'function') unlock(false);
+		} catch (error) {
+			console.error('[ModalLock] Unlock handler threw.', { action, error });
+		}
+		window.modalLock.unlock(modal, 'finally');
 	}
 };
 

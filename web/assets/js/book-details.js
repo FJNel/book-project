@@ -2419,7 +2419,12 @@ document.addEventListener('DOMContentLoaded', () => {
         editCopyErrorAlert.textContent = 'Unable to save copy right now.';
       }
     } finally {
-      setCopyLocked(false);
+      log('Copy save finally executing.', { mode: copyEditTarget?.mode || 'unknown' });
+      try {
+        setCopyLocked(false);
+      } catch (unlockError) {
+        errorLog('Copy save unlock failed.', unlockError);
+      }
       window.modalLock?.unlock(editCopyModal, 'finally');
     }
   };
