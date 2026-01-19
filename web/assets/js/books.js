@@ -588,8 +588,12 @@
     }
     if (f.tagIds.length) {
       const names = f.tagIds.map((id) => tagMap.get(id)).filter(Boolean);
-      body.filterTag = names.length ? names : f.tagIds.map(String);
-      body.filterTagMode = f.tagMode || 'and';
+      if (names.length > 0) {
+        body.filterTag = names;
+        body.filterTagMode = f.tagMode || 'and';
+      } else {
+        warn('Tag filters present but tag names are unavailable; skipping tag filter until tags load.');
+      }
     }
     if (f.bookTypeIds.length) {
       body.filterBookTypeId = f.bookTypeIds;
@@ -1020,6 +1024,10 @@
     clearAlerts();
     showLoading();
 
+    if (state.filters.tagIds.length > 0 && (!tagMap || tagMap.size === 0)) {
+      log('Tag filters detected; loading tag map before fetching books.');
+      await loadTags();
+    }
     const body = buildBookBody();
     debugLog('Requesting /book with JSON body', body);
     try {

@@ -429,6 +429,27 @@ document.addEventListener('DOMContentLoaded', () => {
     row.addEventListener('click', () => toggleDetails({ row, wrap, chevron }));
   };
 
+  const bindBookTypeCard = () => {
+    const row = document.getElementById('bookTypeRow');
+    if (!row || row.dataset.bound === 'true') return;
+    row.dataset.bound = 'true';
+    const navigate = () => {
+      const id = Number.parseInt(row.dataset.bookTypeId, 10);
+      if (!Number.isInteger(id)) return;
+      window.location.href = `books?filterBookTypeId=${encodeURIComponent(id)}&filterBookTypeMode=or`;
+    };
+    row.addEventListener('click', (event) => {
+      if (event?.target?.closest && event.target.closest('a')) return;
+      navigate();
+    });
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        navigate();
+      }
+    });
+  };
+
   const renderAuthors = (authors) => {
     log('Rendering authors.', { count: authors ? authors.length : 0 });
     const list = document.getElementById('authorsList');
@@ -688,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (Number.isInteger(tagId)) {
         const badge = document.createElement('a');
         badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1 text-decoration-none';
-        badge.href = `books?tags=${encodeURIComponent(tagId)}`;
+        badge.href = `books?tags=${encodeURIComponent(tagId)}&filterTagMode=and`;
         badge.textContent = tagName;
         tagsWrap.appendChild(badge);
         return;
@@ -810,17 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookTypeRow = document.getElementById('bookTypeRow');
     const bookTypeName = book.bookType?.name || 'Format unknown';
     const bookTypeNameEl = document.getElementById('bookTypeName');
+    if (bookTypeRow) {
+      bookTypeRow.dataset.bookTypeId = Number.isInteger(book.bookType?.id) ? String(book.bookType.id) : '';
+      bookTypeRow.dataset.bookTypeName = book.bookType?.name || '';
+      bookTypeRow.setAttribute('aria-label', book.bookType?.name ? `Filter books by ${book.bookType.name}` : 'Book type');
+      bookTypeRow.setAttribute('aria-disabled', Number.isInteger(book.bookType?.id) ? 'false' : 'true');
+      bindBookTypeCard();
+    }
     if (bookTypeNameEl) {
-      bookTypeNameEl.innerHTML = '';
-      if (Number.isInteger(book.bookType?.id)) {
-        const link = document.createElement('a');
-        link.href = `books?filterBookTypeId=${encodeURIComponent(book.bookType.id)}`;
-        link.className = 'text-decoration-none';
-        link.textContent = book.bookType.name;
-        bookTypeNameEl.appendChild(link);
-      } else {
-        bookTypeNameEl.textContent = bookTypeName;
-      }
+      bookTypeNameEl.textContent = bookTypeName;
       bookTypeNameEl.classList.toggle('text-muted', !book.bookType?.name);
     }
 
@@ -911,14 +930,22 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const fetchList = async (url, options) => {
+    const bodyPreview = options?.body ? options.body : null;
+    log('List request starting.', { url, method: options?.method || 'GET', body: bodyPreview });
     const response = await apiFetch(url, options);
     const data = await response.json().catch(() => ({}));
+    log('List request completed.', { url, status: response.status, ok: response.ok, data });
     if (!response.ok) {
       const message = data.message || 'Request failed.';
-      throw new Error(message);
+      const err = new Error(message);
+      err.status = response.status;
+      err.details = Array.isArray(data.errors) ? data.errors : [];
+      throw err;
     }
     if (!data || data.status !== 'success') {
-      throw new Error('Invalid response.');
+      const err = new Error('Invalid response.');
+      err.status = response.status;
+      throw err;
     }
     return data.data || {};
   };
@@ -952,7 +979,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Loading authors list.');
     const payload = await fetchList('/author/list', {
       method: 'POST',
-      body: JSON.stringify({ sortBy: 'displayName', order: 'asc', limit: 500, offset: 0 })
+      body: JSON.stringify({ sortBy: 'displayName', order: 'asc', limit: 200, offset: 0, includeDeleted: false, nameOnly: true })
     });
     referenceData.authors = payload.authors || [];
     return referenceData.authors;
@@ -963,7 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Loading series list.');
     const payload = await fetchList('/bookseries/list', {
       method: 'POST',
-      body: JSON.stringify({ sortBy: 'name', order: 'asc', limit: 500, offset: 0 })
+      body: JSON.stringify({ sortBy: 'name', order: 'asc', limit: 200, offset: 0, includeDeleted: false, nameOnly: true })
     });
     referenceData.series = payload.series || [];
     return referenceData.series;
@@ -1251,6 +1278,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const showListLoadError = (alertEl, label, error) => {
+    if (!alertEl) return;
+    const status = error?.status ? ` (HTTP ${error.status})` : '';
+    const details = Array.isArray(error?.details) && error.details.length
+      ? ` ${error.details.join(' ')}`
+      : '';
+    const message = error?.message || 'Unable to load data.';
+    alertEl.classList.remove('d-none');
+    alertEl.textContent = `Couldn’t load ${label}${status}. ${message}${details} Try refreshing and try again.`.trim();
+  };
+
   const openManageAuthorsModal = async () => {
     if (!bookRecord) return;
     if (manageAuthorsError) {
@@ -1265,6 +1303,8 @@ document.addEventListener('DOMContentLoaded', () => {
       await showModal(manageAuthorsModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
       errorLog('Failed to load authors.', error);
+      showListLoadError(manageAuthorsError, 'authors', error);
+      await showModal(manageAuthorsModal, { backdrop: 'static', keyboard: false });
     }
   };
 
@@ -1477,6 +1517,8 @@ document.addEventListener('DOMContentLoaded', () => {
       await showModal(manageSeriesModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
       errorLog('Failed to load series.', error);
+      showListLoadError(manageSeriesError, 'series', error);
+      await showModal(manageSeriesModal, { backdrop: 'static', keyboard: false });
     }
   };
 

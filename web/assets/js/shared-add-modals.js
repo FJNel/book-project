@@ -2,6 +2,10 @@
 (function () {
     if (window.sharedAddModals) return;
 
+    const log = (...args) => console.log('[Shared Add Modals]', ...args);
+    const warn = (...args) => console.warn('[Shared Add Modals]', ...args);
+    const errorLog = (...args) => console.error('[Shared Add Modals]', ...args);
+
     const events = new EventTarget();
     const addBook = window.addBook;
 
@@ -372,6 +376,18 @@
         const modalState = { locked: false };
         const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
 
+        const setMode = (mode, original) => {
+            bookTypeMode = { mode, original: original || null };
+            const title = modalEl.querySelector('.modal-title');
+            if (title) title.textContent = mode === 'edit' ? 'Edit Book Type' : 'Create a New Book Type';
+            if (saveButton) setButtonLabel(saveButton, mode === 'edit' ? 'Save changes' : 'Add Book Type');
+            if (resetButton) resetButton.textContent = mode === 'edit' ? 'Revert' : 'Reset';
+            if (mode === 'edit' && original) {
+                nameInput.value = (original.name || '').trim();
+                descInput.value = (original.description || '').trim();
+            }
+        };
+
         utils.bindModalLock(modalEl, modalState);
         setMode('add');
 
@@ -408,7 +424,12 @@
             setLocked(true);
             const payload = { name: nameInput.value.trim(), description: descInput.value.trim() || null };
             try {
-                const response = await apiFetch('/booktype', { method: 'POST', body: JSON.stringify(payload) });
+                const response = await apiFetch('/booktype', {
+                    method: bookTypeMode.mode === 'edit' ? 'PUT' : 'POST',
+                    body: JSON.stringify(bookTypeMode.mode === 'edit'
+                        ? { id: bookTypeMode.original?.id, ...payload }
+                        : payload)
+                });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add book type.', data.errors || []);
@@ -431,7 +452,12 @@
         };
 
         const reset = () => {
-            utils.clearModalValues('addBookTypeModal', [nameInput, descInput]);
+            if (bookTypeMode.mode === 'edit') {
+                nameInput.value = (bookTypeMode.original?.name || '').trim();
+                descInput.value = (bookTypeMode.original?.description || '').trim();
+            } else {
+                utils.clearModalValues('addBookTypeModal', [nameInput, descInput]);
+            }
             utils.clearHelpText(nameHelp);
             utils.clearHelpText(descHelp);
             utils.hideAlert(errorAlert);
@@ -471,15 +497,13 @@
         resetButton.addEventListener('click', reset);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
-            if (locationMode.mode === 'edit') {
-                locationMode = { mode: 'add', original: null };
+            if (bookTypeMode.mode === 'edit') {
+                bookTypeMode = { mode: 'add', original: null };
                 setMode('add');
-                const changeSummary = utils.byId('eightLocationChangeSummary');
-                if (changeSummary) changeSummary.textContent = '';
             }
         });
 
-        modalEl.addEventListener('shared:locationMode', (event) => {
+        modalEl.addEventListener('shared:bookTypeMode', (event) => {
             const mode = event.detail?.mode || 'add';
             const original = event.detail?.original || null;
             setMode(mode, original);
@@ -1180,6 +1204,7 @@
         });
     }
 
+    let bookTypeMode = { mode: 'add', original: null };
     let authorMode = { mode: 'add', original: null };
     let publisherMode = { mode: 'add', original: null };
     let seriesMode = { mode: 'add', original: null };
@@ -1876,11 +1901,19 @@
         if (typeof window.initializeTooltips === 'function') {
             window.initializeTooltips();
         }
-        setupBookTypeModal();
-        setupAuthorModal();
-        setupPublisherModal();
-        setupSeriesModal();
-        setupLocationModal();
+        const safeSetup = (label, fn) => {
+            try {
+                fn();
+                log(`Initialized ${label} modal.`);
+            } catch (error) {
+                errorLog(`Failed to initialize ${label} modal.`, error);
+            }
+        };
+        safeSetup('book type', setupBookTypeModal);
+        safeSetup('author', setupAuthorModal);
+        safeSetup('publisher', setupPublisherModal);
+        safeSetup('series', setupSeriesModal);
+        safeSetup('location', setupLocationModal);
     }
 
     function open(type, options = {}) {
@@ -1932,6 +1965,17 @@
             const modalEl = document.getElementById('addLocationModal');
             if (modalEl) {
                 modalEl.dispatchEvent(new CustomEvent('shared:locationMode', {
+                    detail: {
+                        mode: options.mode === 'edit' ? 'edit' : 'add',
+                        original: options.initial || null
+                    }
+                }));
+            }
+        }
+        if (String(type || '').toLowerCase() === 'booktype') {
+            const modalEl = document.getElementById('addBookTypeModal');
+            if (modalEl) {
+                modalEl.dispatchEvent(new CustomEvent('shared:bookTypeMode', {
                     detail: {
                         mode: options.mode === 'edit' ? 'edit' : 'add',
                         original: options.initial || null
