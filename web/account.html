@@ -9,34 +9,74 @@
   <link rel="stylesheet" href="assets/css/Navbar-With-Button-icons.css" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <style>
+    :root {
+      --bp-surface: #fff;
+      --bp-soft: #f8f9fb;
+      --bp-border: rgba(0, 0, 0, 0.07);
+      --bp-radius: 14px;
+      --bp-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+      --bp-muted: #6c757d;
+      --bp-focus: 0 0 0 0.15rem rgba(13, 110, 253, 0.35);
+    }
+
     .account-section { display: none; }
     .account-section.active { display: block; }
+
+    .page-header-title { letter-spacing: -0.01em; }
+    .page-header-subtitle { color: var(--bp-muted); }
+
     .stats-nav .nav-link {
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--bp-border);
       border-radius: 999px;
-      font-weight: 500;
-      color: #495057;
+      font-weight: 600;
+      color: #334155;
+      background: var(--bp-surface);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+      transition: all 0.15s ease;
     }
+    .stats-nav .nav-link:hover { color: #0d6efd; border-color: #0d6efd33; }
+    .stats-nav .nav-link:focus-visible { outline: none; box-shadow: var(--bp-focus); }
     .stats-nav .nav-link.active {
-      background: var(--bs-primary);
-      border-color: var(--bs-primary);
+      background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+      border-color: transparent;
       color: #fff;
-      font-weight: 700;
-      box-shadow: 0 6px 14px rgba(13, 110, 253, 0.18);
+      box-shadow: 0 12px 26px rgba(13, 110, 253, 0.26);
     }
     @media (max-width: 767.98px) {
       .stats-nav { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 0.25rem; }
       .stats-nav .nav-link { white-space: nowrap; }
     }
-    .stat-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid rgba(0,0,0,0.08); background: #f8f9fa; font-weight: 600; font-size: 0.9rem; }
-    .muted-label { color: #6c757d; font-size: 0.9rem; }
-    .progress-sm { height: 10px; }
+
+    .account-card { border: 1px solid var(--bp-border); border-radius: var(--bp-radius); background: var(--bp-surface); box-shadow: var(--bp-shadow); }
+    .muted-label { color: var(--bp-muted); font-size: 0.92rem; }
+    .progress-sm { height: 10px; border-radius: 999px; background: var(--bp-soft); }
+    .progress-sm .progress-bar { border-radius: 999px; }
+
+    .stat-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--bp-border); background: var(--bp-soft); font-weight: 600; font-size: 0.9rem; }
+
+    .stat-card { border: 1px solid var(--bp-border); border-radius: var(--bp-radius); padding: 1rem; background: linear-gradient(180deg, #fff, #f9fbff); box-shadow: var(--bp-shadow); min-height: 104px; display: flex; flex-direction: column; justify-content: center; gap: 0.35rem; transition: transform 0.12s ease, box-shadow 0.15s ease; }
+    .stat-card.is-link { cursor: pointer; }
+    .stat-card.is-link:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(0, 0, 0, 0.08); }
+    .stat-card:focus-visible { outline: none; box-shadow: var(--bp-focus); }
+    .stat-value { font-size: 1.5rem; font-weight: 700; }
+    .stat-label { color: var(--bp-muted); font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; }
+
+    .detail-label { color: var(--bp-muted); font-size: 0.9rem; }
+    .detail-value { font-weight: 600; word-break: break-word; }
+    .detail-value.small-text { font-size: 0.95rem; }
+
     .table-sm td, .table-sm th { vertical-align: middle; }
-    .card-section { border: 1px solid rgba(0,0,0,0.05); }
-    .api-secret-box { font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #0d6efd10; border: 1px dashed #0d6efd; padding: 0.75rem 1rem; border-radius: 0.5rem; word-break: break-all; }
-    .clickable-card { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.12s ease; }
-    .clickable-card:hover { box-shadow: 0 0.85rem 1.6rem rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+    .table thead th { color: #334155; font-weight: 700; border-bottom-width: 1px; }
+    .table-hover tbody tr:hover { background: #f8fafc; }
+
+    .empty-state { border: 1px dashed var(--bp-border); background: var(--bp-soft); border-radius: var(--bp-radius); padding: 1.25rem; }
+
     .device-icon { width: 18px; height: 18px; margin-right: 6px; }
+
+    .danger-card { border: 1px solid rgba(220, 53, 69, 0.18); background: #fff5f5; }
+    .danger-soft { color: #b42318; }
+
+    .focus-ring:focus-visible { outline: none; box-shadow: var(--bp-focus); }
   </style>
 </head>
 <body>
@@ -122,8 +162,8 @@
     <div class="container">
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
         <div>
-          <h1 class="h3 mb-1">Account</h1>
-          <p class="text-muted mb-0">Manage your profile, security, sessions, and account actions.</p>
+          <h1 class="h3 mb-1 page-header-title">Account</h1>
+          <p class="text-muted mb-0 page-header-subtitle">Manage your profile, security, sessions, and account actions.</p>
         </div>
       </div>
 
@@ -137,7 +177,7 @@
       <section class="account-section active" data-section-content="overview">
         <div class="row g-3">
           <div class="col-12 col-lg-7">
-            <div class="card card-section shadow-sm">
+            <div class="card account-card shadow-sm">
               <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                   <div>
@@ -154,6 +194,17 @@
                   <div class="progress progress-sm">
                     <div class="progress-bar" id="profileScoreBar" role="progressbar" style="width: 0%"></div>
                   </div>
+                  <div class="text-muted small mt-2" id="profileScoreHint">Keep your profile up to date for faster support.</div>
+                  <div class="empty-state mt-3 d-none" id="profileChecklist">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                      <div>
+                        <div class="fw-semibold">Complete your profile</div>
+                        <div class="text-muted small" id="profileChecklistText">Add missing details to reach 100%.</div>
+                      </div>
+                      <button class="btn btn-primary btn-sm focus-ring" type="button" id="completeProfileBtn">Complete profile</button>
+                    </div>
+                    <ul class="mb-0 small" id="profileChecklistItems"></ul>
+                  </div>
                 </div>
                 <div class="row g-3">
                   <div class="col-12 col-md-6">
@@ -169,13 +220,13 @@
             </div>
           </div>
           <div class="col-12 col-lg-5">
-            <div class="card card-section shadow-sm h-100">
+            <div class="card account-card shadow-sm h-100">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <h3 class="h6 mb-0">Library snapshot</h3>
                 </div>
-                <div class="row g-2" id="statsTiles">
-                  <div class="col-6"><div class="border rounded p-2 text-center small text-muted">Loading…</div></div>
+                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3" id="statsTiles">
+                  <div class="col"><div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Loading…</div></div></div>
                 </div>
               </div>
             </div>
@@ -184,7 +235,7 @@
       </section>
 
                   <section class="account-section" data-section-content="profile">
-                    <div class="card card-section shadow-sm mb-3">
+                    <div class="card account-card shadow-sm mb-3">
                       <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-3">
                           <div>
@@ -202,28 +253,29 @@
                         </div>
                         <div class="row g-3" id="profileDetails">
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Email</div>
-                            <div class="fw-semibold" id="profileEmail">—</div>
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value text-break" id="profileEmail">—</div>
                           </div>
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Preferred name</div>
-                            <div class="fw-semibold" id="profilePreferred">—</div>
+                            <div class="detail-label">Preferred name</div>
+                            <div class="detail-value" id="profilePreferred">—</div>
+                            <div class="text-muted small">Used for greetings.</div>
                           </div>
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Full name</div>
-                            <div class="fw-semibold" id="profileFull">—</div>
+                            <div class="detail-label">Full name</div>
+                            <div class="detail-value" id="profileFull">—</div>
                           </div>
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Last login</div>
-                            <div class="fw-semibold" id="profileLastLogin">—</div>
+                            <div class="detail-label">Last login</div>
+                            <div class="detail-value small-text" id="profileLastLogin">—</div>
                           </div>
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Created</div>
-                            <div class="fw-semibold" id="profileCreated">—</div>
+                            <div class="detail-label">Created</div>
+                            <div class="detail-value small-text" id="profileCreated">—</div>
                           </div>
                           <div class="col-12 col-md-6">
-                            <div class="muted-label">Updated</div>
-                            <div class="fw-semibold" id="profileUpdated">—</div>
+                            <div class="detail-label">Updated</div>
+                            <div class="detail-value small-text" id="profileUpdated">—</div>
                           </div>
                         </div>
                       </div>
@@ -233,12 +285,12 @@
                   <section class="account-section" data-section-content="security">
                     <div class="row g-3 mb-3">
                       <div class="col-12 col-lg-6">
-                        <div class="card card-section shadow-sm h-100">
+                        <div class="card account-card danger-card shadow-sm h-100">
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <div class="text-muted small">Password</div>
                               <h3 class="h5 mb-1">Password</h3>
-                              <div class="text-muted small">Use a strong password. Changing it will sign you out on other devices.</div>
+                              <div class="text-muted small">Changing your password signs you out on other devices.</div>
                               <div class="text-muted small" id="passwordInfo">Loading…</div>
                             </div>
                             <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="changePasswordBtn" type="button">
@@ -253,14 +305,14 @@
                         </div>
                       </div>
                       <div class="col-12 col-lg-6">
-                        <div class="card card-section shadow-sm h-100">
+                        <div class="card account-card danger-card shadow-sm h-100">
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <div class="text-muted small">Email</div>
                               <h3 class="h5 mb-1">Email</h3>
-                              <div class="text-muted small">Request an email change. We will send a confirmation link to the new address.</div>
+                              <div class="text-muted small">Request an email change; we will send a confirmation link to the new address.</div>
                             </div>
-                            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="changeEmailBtn" type="button">
+                            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" id="changeEmailBtn" type="button">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-arrow-down-fill" viewBox="0 0 16 16">
                                 <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zm.192 8.159 6.57-4.027L8 9.586l1.239-.757.367.225A4.49 4.49 0 0 0 8 12.5c0 .526.09 1.03.256 1.5H2a2 2 0 0 1-1.808-1.144M16 4.697v4.974A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-1.965.45l-.338-.207z"/>
                                 <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m.354-1.646a.5.5 0 0 1-.722-.016l-1.149-1.25a.5.5 0 1 1 .737-.676l.28.305V11a.5.5 0 0 1 1 0v1.793l.396-.397a.5.5 0 0 1 .708.708z"/>
@@ -272,7 +324,7 @@
                       </div>
                     </div>
 
-                    <div class="card card-section shadow-sm">
+                    <div class="card account-card shadow-sm">
                       <div class="card-body">
                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
                           <div>
@@ -280,7 +332,7 @@
                             <h3 class="h5 mb-1">Devices & sessions</h3>
                             <p class="text-muted small mb-0">Devices and sessions show where you’re currently signed in. Logging out of a session invalidates its refresh token.</p>
                           </div>
-                          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" id="logoutAllBtn" type="button">
+                          <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" id="logoutAllBtn" type="button">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-slash-circle" viewBox="0 0 16 16">
                               <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                               <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
@@ -289,17 +341,18 @@
                           </button>
                         </div>
                         <div class="table-responsive">
-                          <table class="table table-sm align-middle" id="sessionsTable">
+                          <table class="table table-sm table-hover align-middle" id="sessionsTable">
                             <thead>
                               <tr>
                                 <th>Device</th>
                                 <th>Issued</th>
+                                <th>Location / IP</th>
                                 <th>Expires</th>
                                 <th class="text-end"></th>
                               </tr>
                             </thead>
                             <tbody>
-                              <tr><td colspan="4" class="text-muted">Loading sessions…</td></tr>
+                              <tr><td colspan="5" class="text-muted">Loading sessions…</td></tr>
                             </tbody>
                           </table>
                         </div>
@@ -310,7 +363,7 @@
                   <section class="account-section" data-section-content="danger">
                     <div class="row g-3 mb-3">
                       <div class="col-12 col-lg-6">
-                        <div class="card card-section shadow-sm h-100">
+                        <div class="card account-card danger-card shadow-sm h-100">
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <h3 class="h5 mb-1 text-danger">Request account disable</h3>
@@ -326,7 +379,7 @@
                         </div>
                       </div>
                       <div class="col-12 col-lg-6">
-                        <div class="card card-section shadow-sm h-100">
+                        <div class="card account-card danger-card shadow-sm h-100">
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <h3 class="h5 mb-1 text-danger">Request account deletion</h3>
@@ -344,18 +397,26 @@
                       </div>
                     </div>
 
-                    <div class="card card-section shadow-sm">
+                    <div class="card account-card shadow-sm">
                       <div class="card-body">
                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                           <div>
                             <div class="text-muted small">Programmatic access</div>
                             <h3 class="h5 mb-1">API keys</h3>
-                            <p class="text-muted small mb-0">API keys allow programmatic access to your library via the API. Only use this if you know what you’re doing. See <a href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">API docs</a>.</p>
+                            <p class="text-muted small mb-0">API keys allow programmatic access to your library via the API. Keep them secret and rotate regularly. See <a href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">API docs</a>.</p>
                           </div>
-                          <button class="btn btn-outline-primary" id="createApiKeyBtn" type="button">Create API key</button>
+                          <button class="btn btn-outline-primary js-create-api-key" id="createApiKeyBtn" type="button">Create API key</button>
+                        </div>
+                        <div class="empty-state d-none" id="apiKeysEmpty">
+                          <div class="fw-semibold mb-1">No API keys yet</div>
+                          <p class="text-muted small mb-3">Create an API key to integrate The Book Project with other tools or scripts. You can revoke keys anytime.</p>
+                          <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-primary btn-sm js-create-api-key" type="button" data-create-api-key>Create API key</button>
+                            <a class="btn btn-link btn-sm" href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">Read API docs</a>
+                          </div>
                         </div>
                         <div class="table-responsive">
-                          <table class="table table-sm align-middle" id="apiKeysTable">
+                          <table class="table table-sm table-hover align-middle" id="apiKeysTable">
                             <thead>
                               <tr>
                                 <th>Name</th>
@@ -375,11 +436,6 @@
                       </div>
                     </div>
                   </section>
-                </div>
-              </main>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -493,6 +549,26 @@
     </div>
   </div>
 
+  <!-- Log Out All Modal -->
+  <div class="modal fade" id="logoutAllModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Log out of all devices</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">This signs you out everywhere. Active refresh tokens will be invalidated.</p>
+          <div class="alert alert-danger d-none" id="logoutAllError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" id="confirmLogoutAllBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Log out everywhere</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Create API Key Modal -->
   <div class="modal fade" id="createApiKeyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
@@ -579,11 +655,13 @@
         </div>
         <div class="modal-body">
           <p class="mb-2">We will email you a confirmation link. After you confirm, support will permanently delete your account and library data.</p>
+          <p class="text-muted small mb-3">Type <strong>DELETE</strong> to continue.</p>
+          <input class="form-control mb-2" id="deleteAccountConfirmInput" type="text" autocomplete="off" placeholder="Type DELETE to confirm" />
           <div class="alert alert-danger d-none" id="deleteAccountError"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-danger" type="button" id="confirmDeleteAccountBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send request</button>
+          <button class="btn btn-danger" type="button" id="confirmDeleteAccountBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send request</button>
         </div>
       </div>
     </div>

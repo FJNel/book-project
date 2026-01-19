@@ -28,6 +28,10 @@
     statusChips: document.getElementById('statusChips'),
     profileScoreLabel: document.getElementById('profileScoreLabel'),
     profileScoreBar: document.getElementById('profileScoreBar'),
+    profileScoreHint: document.getElementById('profileScoreHint'),
+    profileChecklist: document.getElementById('profileChecklist'),
+    profileChecklistItems: document.getElementById('profileChecklistItems'),
+    profileChecklistText: document.getElementById('profileChecklistText'),
     statsTiles: document.getElementById('statsTiles'),
     profileEmail: document.getElementById('profileEmail'),
     profilePreferred: document.getElementById('profilePreferred'),
@@ -44,6 +48,7 @@
     logoutAllBtn: document.getElementById('logoutAllBtn'),
     sessionsTable: document.getElementById('sessionsTable'),
     createApiKeyBtn: document.getElementById('createApiKeyBtn'),
+    apiKeysEmpty: document.getElementById('apiKeysEmpty'),
     apiKeysTable: document.getElementById('apiKeysTable'),
     disableAccountBtn: document.getElementById('disableAccountBtn'),
     deleteAccountBtn: document.getElementById('deleteAccountBtn')
@@ -54,6 +59,7 @@
     changePassword: document.getElementById('changePasswordModal'),
     changeEmail: document.getElementById('changeEmailModal'),
     revokeSession: document.getElementById('revokeSessionModal'),
+    logoutAll: document.getElementById('logoutAllModal'),
     createApiKey: document.getElementById('createApiKeyModal'),
     revokeApiKey: document.getElementById('revokeApiKeyModal'),
     disableAccount: document.getElementById('disableAccountModal'),
@@ -67,6 +73,7 @@
     editProfileResetBtn: document.getElementById('editProfileResetBtn'),
     editProfileSaveBtn: document.getElementById('editProfileSaveBtn'),
     editProfileChanges: document.getElementById('editProfileChanges'),
+    completeProfileBtn: document.getElementById('completeProfileBtn'),
     changePasswordError: document.getElementById('changePasswordError'),
     currentPassword: document.getElementById('currentPassword'),
     newPassword: document.getElementById('newPassword'),
@@ -80,6 +87,8 @@
     revokeSessionDetail: document.getElementById('revokeSessionDetail'),
     revokeSessionError: document.getElementById('revokeSessionError'),
     confirmRevokeSessionBtn: document.getElementById('confirmRevokeSessionBtn'),
+    logoutAllError: document.getElementById('logoutAllError'),
+    confirmLogoutAllBtn: document.getElementById('confirmLogoutAllBtn'),
     apiKeyName: document.getElementById('apiKeyName'),
     apiKeyExpiresAt: document.getElementById('apiKeyExpiresAt'),
     apiKeySecretWrap: document.getElementById('apiKeySecretWrap'),
@@ -93,6 +102,7 @@
     disableAccountError: document.getElementById('disableAccountError'),
     confirmDisableAccountBtn: document.getElementById('confirmDisableAccountBtn'),
     deleteAccountError: document.getElementById('deleteAccountError'),
+    deleteAccountConfirmInput: document.getElementById('deleteAccountConfirmInput'),
     confirmDeleteAccountBtn: document.getElementById('confirmDeleteAccountBtn')
   };
 
@@ -182,7 +192,14 @@
   }
 
   function renderStatusChips(profile) {
-    elements.statusChips.innerHTML = '';
+    const chips = [];
+    if (profile.isVerified) chips.push({ label: 'Email verified', className: 'bg-success-subtle text-success fw-semibold' });
+    else chips.push({ label: 'Email not verified', className: 'bg-warning-subtle text-warning fw-semibold' });
+    if (profile.role) chips.push({ label: profile.role, className: 'bg-light text-secondary fw-semibold' });
+
+    elements.statusChips.innerHTML = chips
+      .map((chip) => `<span class="stat-chip ${chip.className}">${chip.label}</span>`)
+      .join('');
   }
 
   function computeProfileScore(profile) {
@@ -195,6 +212,30 @@
     const score = state.stats?.profileCompletenessScore ?? computeProfileScore(state.profile || {});
     elements.profileScoreLabel.textContent = Number.isFinite(score) ? `${score}%` : '0%';
     elements.profileScoreBar.style.width = Number.isFinite(score) ? `${score}%` : '0%';
+    if (elements.profileScoreHint) {
+      elements.profileScoreHint.textContent = score >= 100 ? 'Profile is complete.' : 'Finish the missing items to reach 100%.';
+    }
+  }
+
+  function renderProfileChecklist(profile) {
+    if (!elements.profileChecklist) return;
+    const missing = [];
+    if (!profile.fullName) missing.push('Add your full name.');
+    if (!profile.preferredName) missing.push('Add a preferred name for greetings.');
+    if (profile.isVerified === false) missing.push('Verify your email address.');
+    if (!profile.passwordUpdated) missing.push('Set a password.');
+
+    if (missing.length === 0) {
+      elements.profileChecklist.classList.add('d-none');
+      elements.profileChecklistItems.innerHTML = '';
+      return;
+    }
+
+    elements.profileChecklistItems.innerHTML = missing.map((item) => `<li>${item}</li>`).join('');
+    if (elements.profileChecklistText) {
+      elements.profileChecklistText.textContent = `Complete ${missing.length} item${missing.length > 1 ? 's' : ''} to boost security and personalization.`;
+    }
+    elements.profileChecklist.classList.remove('d-none');
   }
 
   function validateFullNameInput(value) {
@@ -253,6 +294,8 @@
 
     controls.editFullName.value = profile.fullName || '';
     controls.editPreferredName.value = profile.preferredName || '';
+
+    renderProfileChecklist(profile);
   }
 
   function renderStats(stats) {
@@ -269,7 +312,12 @@
       { label: 'API keys', value: stats.apiKeys, href: '#danger' }
     ];
     elements.statsTiles.innerHTML = tiles
-      .map((tile) => `<div class="col-6"><div class="border rounded p-3 text-center clickable-card" data-href="${tile.href}"><div class="h5 mb-0">${tile.value ?? 0}</div><div class="text-muted small">${tile.label}</div></div></div>`)
+      .map((tile) => {
+        const clickable = !!tile.href;
+        const attrs = clickable ? `data-href="${tile.href}" role="button" tabindex="0"` : '';
+        const zeroHint = !tile.value ? '<div class="text-muted small mb-0">No items yet</div>' : '';
+        return `<div class="col"><div class="stat-card ${clickable ? 'is-link' : ''}" ${attrs}><div class="stat-value">${tile.value ?? 0}</div><div class="stat-label">${tile.label}</div>${zeroHint}</div></div>`;
+      })
       .join('');
     updateProfileScore();
   }
@@ -310,8 +358,9 @@
       const location = s.locationHint || (s.ipAddress ? `IP ${s.ipAddress}` : 'Unknown');
       const icon = deviceIcon(s);
       return `<tr data-fp="${s.fingerprint}">
-        <td>${icon}<span class="fw-semibold">${device}</span>${currentBadge}${status}<div class="text-muted small">${location}</div></td>
+        <td>${icon}<span class="fw-semibold">${device}</span>${currentBadge}${status}</td>
         <td>${formatDate(s.issuedAt)}</td>
+        <td>${location}</td>
         <td>${formatDate(s.expiresAt)}</td>
         <td class="text-end">
           <button class="btn btn-outline-danger btn-sm js-revoke-session d-inline-flex align-items-center gap-2" data-fp="${s.fingerprint}">
@@ -330,20 +379,29 @@
     const tbody = elements.apiKeysTable.querySelector('tbody');
     if (!keys || keys.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No API keys yet.</td></tr>';
+      elements.apiKeysTable.classList.add('d-none');
+      if (elements.apiKeysEmpty) elements.apiKeysEmpty.classList.remove('d-none');
       return;
     }
+    elements.apiKeysTable.classList.remove('d-none');
+    if (elements.apiKeysEmpty) elements.apiKeysEmpty.classList.add('d-none');
     tbody.innerHTML = keys.map((k) => {
       const now = Date.now();
       const isRevoked = !!k.revokedAt;
       const isExpired = k.expiresAt ? new Date(k.expiresAt).getTime() < now : false;
       const statusLabel = isRevoked ? 'Revoked' : isExpired ? 'Expired' : 'Active';
+      const statusClass = isRevoked
+        ? 'badge bg-danger-subtle text-danger'
+        : isExpired
+          ? 'badge bg-secondary'
+          : 'badge bg-success-subtle text-success';
       return `<tr data-id="${k.id}">
         <td>${k.name || '—'}</td>
         <td>${k.prefix || '—'}</td>
         <td>${formatDate(k.createdAt)}</td>
         <td>${formatDate(k.expiresAt)}</td>
         <td>${formatDate(k.lastUsedAt)}</td>
-        <td>${statusLabel}</td>
+        <td><span class="${statusClass}">${statusLabel}</span></td>
         <td class="text-end">
           <button class="btn btn-outline-danger btn-sm js-revoke-api-key" data-id="${k.id}" data-name="${k.name || ''}" data-prefix="${k.prefix || ''}">Revoke</button>
         </td>
@@ -567,17 +625,33 @@
   }
 
   async function handleLogoutAll() {
-    setButtonLoading(elements.logoutAllBtn, true);
-    try {
+    if (controls.logoutAllError) controls.logoutAllError.classList.add('d-none');
+    await modalLock.withLock({ modal: modals.logoutAll, action: 'logout-all' }, async () => {
+      setButtonLoading(controls.confirmLogoutAllBtn, true);
+      setModalDisabled(modals.logoutAll, true);
       await fetchJson('/auth/logout', { method: 'POST', body: JSON.stringify({ allDevices: true }) });
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      if (modalManager) await modalManager.hideModal(modals.logoutAll);
       window.location.href = 'https://bookproject.fjnel.co.za?action=login';
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setButtonLoading(elements.logoutAllBtn, false);
-    }
+    }).catch((err) => {
+      if (controls.logoutAllError) {
+        controls.logoutAllError.textContent = err.message;
+        controls.logoutAllError.classList.remove('d-none');
+      }
+    }).finally(() => {
+      setButtonLoading(controls.confirmLogoutAllBtn, false);
+      setModalDisabled(modals.logoutAll, false);
+    });
+  }
+
+  function openCreateApiKeyModal() {
+    controls.createApiKeyError.classList.add('d-none');
+    controls.apiKeySecretWrap.classList.add('d-none');
+    controls.apiKeyName.value = '';
+    controls.apiKeyExpiresAt.value = '';
+    validateApiKeyInput();
+    modalManager?.showModal(modals.createApiKey);
   }
 
   async function handleCreateApiKey() {
@@ -657,8 +731,20 @@
     });
   }
 
+  function updateDeleteConfirmState() {
+    const value = (controls.deleteAccountConfirmInput?.value || '').trim();
+    const ok = value.toUpperCase() === 'DELETE';
+    if (controls.confirmDeleteAccountBtn) controls.confirmDeleteAccountBtn.disabled = !ok;
+    return ok;
+  }
+
   async function handleDeleteAccount() {
     controls.deleteAccountError.classList.add('d-none');
+    if (!updateDeleteConfirmState()) {
+      controls.deleteAccountError.textContent = 'Please type DELETE to confirm.';
+      controls.deleteAccountError.classList.remove('d-none');
+      return;
+    }
     await modalLock.withLock({ modal: modals.deleteAccount, action: 'delete-account' }, async () => {
       setButtonLoading(controls.confirmDeleteAccountBtn, true);
       setModalDisabled(modals.deleteAccount, true);
@@ -694,11 +780,20 @@
         window.location.href = card.dataset.href;
       }
     });
+    elements.statsTiles?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const card = event.target.closest('[data-href]');
+      if (card?.dataset?.href) {
+        event.preventDefault();
+        window.location.href = card.dataset.href;
+      }
+    });
 
     elements.editProfileBtn?.addEventListener('click', () => {
       resetEditProfile();
       modalManager?.showModal(modals.editProfile);
     });
+    controls.completeProfileBtn?.addEventListener('click', () => setActiveSection('profile'));
     controls.editProfileSaveBtn?.addEventListener('click', handleEditProfileSave);
     controls.editProfileResetBtn?.addEventListener('click', resetEditProfile);
     controls.editFullName?.addEventListener('input', updateProfileValidationState);
@@ -725,15 +820,14 @@
       if (btn) openRevokeSession(btn.dataset.fp);
     });
     controls.confirmRevokeSessionBtn?.addEventListener('click', handleRevokeSession);
-    elements.logoutAllBtn?.addEventListener('click', handleLogoutAll);
+    elements.logoutAllBtn?.addEventListener('click', () => {
+      if (controls.logoutAllError) controls.logoutAllError.classList.add('d-none');
+      modalManager?.showModal(modals.logoutAll);
+    });
+    controls.confirmLogoutAllBtn?.addEventListener('click', handleLogoutAll);
 
-    elements.createApiKeyBtn?.addEventListener('click', () => {
-      controls.createApiKeyError.classList.add('d-none');
-      controls.apiKeySecretWrap.classList.add('d-none');
-      controls.apiKeyName.value = '';
-      controls.apiKeyExpiresAt.value = '';
-      validateApiKeyInput();
-      modalManager?.showModal(modals.createApiKey);
+    document.querySelectorAll('.js-create-api-key').forEach((btn) => {
+      btn.addEventListener('click', openCreateApiKeyModal);
     });
     controls.apiKeyName?.addEventListener('input', validateApiKeyInput);
     controls.apiKeyExpiresAt?.addEventListener('input', validateApiKeyInput);
@@ -752,7 +846,12 @@
     elements.disableAccountBtn?.addEventListener('click', () => modalManager?.showModal(modals.disableAccount));
     controls.confirmDisableAccountBtn?.addEventListener('click', handleDisableAccount);
 
-    elements.deleteAccountBtn?.addEventListener('click', () => modalManager?.showModal(modals.deleteAccount));
+    elements.deleteAccountBtn?.addEventListener('click', () => {
+      if (controls.deleteAccountConfirmInput) controls.deleteAccountConfirmInput.value = '';
+      updateDeleteConfirmState();
+      modalManager?.showModal(modals.deleteAccount);
+    });
+    controls.deleteAccountConfirmInput?.addEventListener('input', updateDeleteConfirmState);
     controls.confirmDeleteAccountBtn?.addEventListener('click', handleDeleteAccount);
   }
 
