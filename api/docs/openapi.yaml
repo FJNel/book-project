@@ -5788,6 +5788,8 @@ paths:
       tags: [Admin]
       summary: Admin update user (flexible)
       operationId: adminUpdateUser
+      description: |
+        Update a user's profile (name, preferred name, email, role) using id or email. Changing email sets `isVerified=false`, issues a new verification token, and sends the admin profile update notice to both the old and new email addresses. Admins cannot change their own role; that attempt returns 403.
       requestBody:
         required: true
         content:
@@ -5827,12 +5829,27 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/ForbiddenError'
+          description: Forbidden (self-role change or other restriction)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                selfRoleChange:
+                  summary: Cannot change own role
+                  value:
+                    status: error
+                    httpCode: 403
+                    responseTime: "0.20"
+                    message: Forbidden
+                    data: {}
+                    errors:
+                      - You cannot change your own role.
     delete:
       tags: [Admin]
       summary: Admin disable user (flexible)
       operationId: adminDeleteUser
-      description: Soft-disable user by id or email.
+      description: Soft-disable user by id or email. Admins cannot disable their own account; that attempt returns 403.
       requestBody:
         required: true
         content:
@@ -5865,7 +5882,22 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/ForbiddenError'
+          description: Forbidden (self-disable rejected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                selfDisable:
+                  summary: Cannot disable own account
+                  value:
+                    status: error
+                    httpCode: 403
+                    responseTime: "0.18"
+                    message: Forbidden
+                    data: {}
+                    errors:
+                      - You cannot disable your own account.
   /admin/users/{id}:
     get:
       tags: [Admin]
@@ -5925,6 +5957,8 @@ paths:
       operationId: adminUpdateUserById
       parameters:
         - $ref: '#/components/parameters/id'
+      description: |
+        Update a specific user's profile by id. Changing email sets `isVerified=false`, issues a new verification token, and sends the admin profile update notice to both the old and new email addresses. Admins cannot change their own role; that attempt returns 403.
       requestBody:
         required: true
         content:
@@ -5941,13 +5975,29 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/ForbiddenError'
+          description: Forbidden (self-role change or other restriction)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                selfRoleChange:
+                  summary: Cannot change own role
+                  value:
+                    status: error
+                    httpCode: 403
+                    responseTime: "0.20"
+                    message: Forbidden
+                    data: {}
+                    errors:
+                      - You cannot change your own role.
     delete:
       tags: [Admin]
       summary: Admin disable user by id
       operationId: adminDeleteUserById
       parameters:
         - $ref: '#/components/parameters/id'
+      description: Soft-disable a user account by id. Admins cannot disable their own account; that attempt returns 403.
       responses:
         '200':
           description: Disabled
@@ -5958,7 +6008,22 @@ paths:
         '401':
           $ref: '#/components/responses/AuthError'
         '403':
-          $ref: '#/components/responses/ForbiddenError'
+          description: Forbidden (self-disable rejected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                selfDisable:
+                  summary: Cannot disable own account
+                  value:
+                    status: error
+                    httpCode: 403
+                    responseTime: "0.18"
+                    message: Forbidden
+                    data: {}
+                    errors:
+                      - You cannot disable your own account.
   /admin/users/enable:
     post:
       tags: [Admin]

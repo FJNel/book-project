@@ -53,6 +53,8 @@
     .progress-sm .progress-bar { border-radius: 999px; }
 
     .stat-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--bp-border); background: var(--bp-soft); font-weight: 600; font-size: 0.9rem; }
+    .stat-chip.is-action { cursor: pointer; }
+    .stat-chip.is-action:focus-visible { outline: none; box-shadow: var(--bp-focus); }
 
     .stat-card { border: 1px solid var(--bp-border); border-radius: var(--bp-radius); padding: 1rem; background: linear-gradient(180deg, #fff, #f9fbff); box-shadow: var(--bp-shadow); min-height: 104px; display: flex; flex-direction: column; justify-content: center; gap: 0.35rem; transition: transform 0.12s ease, box-shadow 0.15s ease; }
     .stat-card.is-link { cursor: pointer; }

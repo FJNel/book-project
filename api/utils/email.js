@@ -16,6 +16,16 @@ const VERIFY_DISABLE_PATH = config.frontend.verifyDisablePath || '/verify-delete
 const VERIFY_ACCOUNT_DELETION_PATH = config.frontend.verifyAccountDeletionPath || '/verify-account-deletion';
 const VERIFY_EMAIL_CHANGE_PATH = config.frontend.verifyEmailChangePath || '/verify-email-change';
 
+function escapeHtml(value) {
+	if (value === null || value === undefined) return '';
+	return String(value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 function logEmailAttempt(type, toEmail, details = {}) {
 	logToFile("EMAIL_SEND_ATTEMPT", { type, to: toEmail, ...details }, "info");
 }
@@ -745,9 +755,24 @@ async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = [])
 
 	const subject = "Your Book Project profile was updated";
 	const year = new Date().getFullYear();
-	const changeItems = Array.isArray(changes) && changes.length > 0
+	const formatValue = (value) => {
+		if (value === null || value === undefined || String(value).trim() === "") return "(not set)";
+		return escapeHtml(value);
+	};
+
+	const formattedChanges = (Array.isArray(changes) ? changes : []).map((item) => {
+		if (item && typeof item === "object" && (item.label || item.oldValue !== undefined || item.newValue !== undefined)) {
+			const label = escapeHtml(item.label || "Field");
+			const from = formatValue(item.oldValue);
+			const to = formatValue(item.newValue);
+			return `<li><strong>${label}:</strong> ${from} &rarr; ${to}</li>`;
+		}
+		return `<li>${escapeHtml(String(item || "Profile updated."))}</li>`;
+	});
+
+	const changeItems = formattedChanges.length > 0
 		? `<ul style="font-size: 15px; color: #4a5568; line-height: 1.5; padding-left: 20px;">
-			${changes.map((item) => `<li>${item}</li>`).join("")}
+			${formattedChanges.join("")}
 		  </ul>`
 		: "<p style=\"font-size: 15px; color: #4a5568; line-height: 1.5;\">Your account details were updated.</p>";
 

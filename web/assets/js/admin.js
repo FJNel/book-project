@@ -169,6 +169,7 @@
     logsLiveEnabled: false,
     currentLogDetail: null,
     authorized: false,
+    currentUserId: null,
     actionCooldowns: new Map(),
     emailTypes: [],
     emailTypesLoaded: false,
@@ -440,6 +441,7 @@
     }
 
     const rows = state.users.map((user) => {
+      const isSelf = state.currentUserId && user.id === state.currentUserId;
       const name = user.preferredName || user.fullName || '—';
       const verified = user.isVerified ? '<span class="badge text-bg-success">Yes</span>' : '<span class="badge text-bg-secondary">No</span>';
       const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Yes</span>' : '<span class="badge text-bg-success">No</span>';
@@ -450,6 +452,8 @@
         ? '<span class="badge text-bg-danger">Admin</span>'
         : '<span class="badge text-bg-secondary">User</span>';
       const disableTextClass = user.isDisabled ? 'text-success' : 'text-warning';
+      const disableAttrs = isSelf ? 'disabled aria-disabled="true" title="You cannot disable your own account."' : '';
+      const disableClasses = `${disableTextClass} js-toggle-disable${isSelf ? ' disabled' : ''}`;
       return `
         <tr data-user-id="${user.id}">
           <td>${user.id ?? '—'}</td>
@@ -469,7 +473,7 @@
                   <button class="dropdown-item ${verificationActionClass}" type="button" data-user-id="${user.id}">${verifyLabel}</button>
                   <button class="dropdown-item js-send-verification" type="button" data-user-id="${user.id}">Send verification email</button>
                   <button class="dropdown-item js-reset-password" type="button" data-user-id="${user.id}">Send password reset</button>
-                  <button class="dropdown-item ${disableTextClass} js-toggle-disable" type="button" data-user-id="${user.id}" data-disabled="${user.isDisabled}">${disableLabel}</button>
+                  <button class="dropdown-item ${disableClasses}" type="button" data-user-id="${user.id}" data-disabled="${user.isDisabled}" ${disableAttrs}>${disableLabel}</button>
                   <button class="dropdown-item js-force-logout" type="button" data-user-id="${user.id}">Force logout</button>
                   <div class="dropdown-divider"></div>
                   <button class="dropdown-item text-danger js-delete-user" type="button" data-user-id="${user.id}">Handle deletion</button>
@@ -762,6 +766,11 @@
     dom.editPreferredName.value = user.preferredName || '';
     dom.editEmail.value = user.email || '';
     dom.editRole.value = user.role || 'user';
+    const isSelf = state.currentUserId && user.id === state.currentUserId;
+    if (dom.editRole) {
+      dom.editRole.disabled = Boolean(isSelf);
+      dom.editRole.title = isSelf ? 'You cannot change your own role.' : '';
+    }
     dom.editFullNameHelp.textContent = '';
     dom.editPreferredNameHelp.textContent = '';
     dom.editEmailHelp.textContent = '';
@@ -830,18 +839,31 @@
       summaryItems.push(roleChange);
     }
 
+    const emailChanged = Boolean(emailChange);
+    const noticeItems = [];
+    if (emailChanged) {
+      noticeItems.push('The new email address will be marked as unverified. You can verify it manually after saving.');
+      noticeItems.push('This action will notify the user by email.');
+    }
+    const mergedSummaryItems = summaryItems.length ? [...summaryItems] : [{ label: 'Changes', value: 'No field changes detected.' }];
+    noticeItems.forEach((note) => mergedSummaryItems.push({ label: 'Notice', value: note }));
+
+    const impactBase = 'Profile fields will be updated and a notification email will be sent.';
+    const impact = noticeItems.length ? `${impactBase} ${noticeItems.join(' ')}` : impactBase;
+    const message = noticeItems.length ? `Update this user? ${noticeItems.join(' ')}` : 'Update this user? They will be notified by email after you confirm.';
+
     openConfirmAction({
       title: 'Confirm user update',
       actionLabel: 'Save changes',
-      message: 'Update this user? They will be notified by email after you confirm.',
-      impact: 'Profile fields will be updated and a notification email will be sent.',
+      message,
+      impact,
       willNotify: true,
       user: before,
       userId: before.id,
       url: `/admin/users/${before.id}`,
       method: 'PUT',
       baseBody: body,
-      summaryItems: summaryItems.length ? summaryItems : [{ label: 'Changes', value: 'No field changes detected.' }],
+      summaryItems: mergedSummaryItems,
       onSuccess: 'users',
       successMessage: 'User updated successfully.',
       afterSuccess: () => {
@@ -1123,6 +1145,10 @@
 
     if (btn.classList.contains('js-toggle-disable')) {
       const isDisabled = btn.dataset.disabled === 'true';
+      if (state.currentUserId && userId === state.currentUserId) {
+        showAlert(dom.usersAlert, 'You cannot disable your own account.');
+        return;
+      }
       openConfirmAction({
         title: `${isDisabled ? 'Enable' : 'Disable'} user`,
         actionLabel: isDisabled ? 'Enable user' : 'Disable user',
@@ -2054,6 +2080,7 @@
       return false;
     }
     const profile = parseUserProfile();
+    state.currentUserId = profile?.id || null;
     updateRolePill(profile);
     const isAdmin = profile?.role === 'admin';
     setAdminNavVisibility(isAdmin);

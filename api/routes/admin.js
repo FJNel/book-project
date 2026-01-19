@@ -996,7 +996,7 @@ async function handleUserUpdate(req, res, targetId) {
 
 		const existingUser = existingRes.rows[0];
 		if (hasRole && targetId === adminId && role !== existingUser.role) {
-			return errorResponse(res, 403, "Forbidden", ["Admins cannot change their own role."]);
+			return errorResponse(res, 403, "Forbidden", ["You cannot change your own role."]);
 		}
 
 		const emailChanged = hasEmail && normalizedEmail !== existingUser.email;
@@ -1013,31 +1013,37 @@ async function handleUserUpdate(req, res, targetId) {
 		const updates = [];
 		const values = [];
 		let paramIndex = 1;
-		const changeSummary = [];
+		const changeEntries = [];
+		const recordChange = (label, oldValue, newValue) => {
+			changeEntries.push({ label, oldValue, newValue });
+		};
 
 		if (hasFullName && fullName !== existingUser.full_name) {
 			updates.push(`full_name = $${paramIndex++}`);
 			values.push(fullName);
-			changeSummary.push(`Full name updated.`);
+			recordChange("Full name", existingUser.full_name, fullName);
 		}
 		if (hasPreferredName) {
 			const preferredValue = preferredName || null;
 			if (preferredValue !== existingUser.preferred_name) {
 				updates.push(`preferred_name = $${paramIndex++}`);
 				values.push(preferredValue);
-				changeSummary.push("Preferred name updated.");
+				recordChange("Preferred name", existingUser.preferred_name, preferredValue);
 			}
 		}
 		if (hasEmail && normalizedEmail !== existingUser.email) {
 			updates.push(`email = $${paramIndex++}`);
 			values.push(normalizedEmail);
 			updates.push(`is_verified = false`);
-			changeSummary.push("Email address updated.");
+			recordChange("Email", existingUser.email, normalizedEmail);
+			if (existingUser.is_verified) {
+				recordChange("Verification status", "Verified", "Not verified");
+			}
 		}
 		if (hasRole && role !== existingUser.role) {
 			updates.push(`role = $${paramIndex++}`);
 			values.push(role);
-			changeSummary.push("Role updated.");
+			recordChange("Role", existingUser.role, role);
 		}
 
 		if (updates.length === 0) {
@@ -1081,16 +1087,23 @@ async function handleUserUpdate(req, res, targetId) {
 				});
 			}
 
-			if (changeSummary.length > 0) {
-				enqueueEmail({
-					type: "admin_profile_update",
-					params: {
-						toEmail: updatedUser.email,
-						preferredName: updatedUser.preferred_name,
-						changes: changeSummary
-					},
-					context: "ADMIN_UPDATE_USER",
-					userId: updatedUser.id
+			if (changeEntries.length > 0) {
+				const recipients = new Set();
+				recipients.add(updatedUser.email);
+				if (emailChanged && existingUser.email) {
+					recipients.add(existingUser.email);
+				}
+				recipients.forEach((toEmail) => {
+					enqueueEmail({
+						type: "admin_profile_update",
+						params: {
+							toEmail,
+							preferredName: updatedUser.preferred_name,
+							changes: changeEntries
+						},
+						context: "ADMIN_UPDATE_USER",
+						userId: updatedUser.id
+					});
 				});
 			}
 
@@ -1098,7 +1111,7 @@ async function handleUserUpdate(req, res, targetId) {
 				status: "SUCCESS",
 				admin_id: adminId,
 				user_id: updatedUser.id,
-				changes: changeSummary,
+				changes: changeEntries,
 				ip: req.ip,
 				user_agent: req.get("user-agent")
 			}, "info");
@@ -1155,6 +1168,9 @@ router.put("/users", adminAuth, async (req, res) => {
 
 async function handleDisableUser(req, res, targetId) {
 	const adminId = req.user.id;
+	if (targetId === adminId) {
+		return errorResponse(res, 403, "Forbidden", ["You cannot disable your own account."]);
+	}
 	try {
 		const client = await pool.connect();
 		try {

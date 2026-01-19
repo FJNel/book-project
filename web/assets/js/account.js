@@ -244,11 +244,31 @@
     if (profile.isVerified) chips.push({ label: 'Email verified', className: 'bg-success-subtle text-success fw-semibold' });
     else chips.push({ label: 'Email not verified', className: 'bg-warning-subtle text-warning fw-semibold' });
     const roleDisplay = formatRoleDisplay(profile.role);
-    chips.push({ label: roleDisplay.label, className: roleDisplay.className });
+    chips.push({ label: roleDisplay.label, className: roleDisplay.className, isAdmin: roleDisplay.label === 'Admin' });
 
     elements.statusChips.innerHTML = chips
-      .map((chip) => `<span class="stat-chip ${chip.className}">${chip.label}</span>`)
+      .map((chip) => {
+        const actionClass = chip.isAdmin ? ' is-action' : '';
+        return `<span class="stat-chip${actionClass} ${chip.className}"${chip.isAdmin ? ' role="button" tabindex="0" aria-label="Go to admin page"' : ''}>${chip.label}</span>`;
+      })
       .join('');
+
+    if (roleDisplay.label === 'Admin' && elements.statusChips) {
+      const adminChip = Array.from(elements.statusChips.querySelectorAll('.stat-chip')).find((el) => el.textContent.includes('Admin'));
+      if (adminChip && !adminChip.dataset.boundAdminNav) {
+        const navigateToAdmin = () => {
+          window.location.href = 'admin';
+        };
+        adminChip.dataset.boundAdminNav = 'true';
+        adminChip.addEventListener('click', navigateToAdmin);
+        adminChip.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            navigateToAdmin();
+          }
+        });
+      }
+    }
   }
 
   function buildProfileCompleteness(profile) {
