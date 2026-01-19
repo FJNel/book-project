@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   submitBtn.appendChild(submitButtonText);
 
   const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
+  const token = (params.get('token') || '').trim();
 
   const API_BASE_URL = 'https://api.fjnel.co.za';
   let lang = {};
@@ -44,6 +44,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
   const getQueryParam = (param) => params.get(param);
+
+  async function showInvalidLinkModal(modalEl) {
+    if (!modalEl) return false;
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+      await window.modalManager.showModal(modalEl);
+      return true;
+    }
+    if (window.bootstrap?.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      return true;
+    }
+    // Fallback: force display if Bootstrap isn't available
+    modalEl.classList.add('show');
+    modalEl.style.display = 'block';
+    modalEl.removeAttribute('aria-hidden');
+    return true;
+  }
 
   function setFormDisabledState(disabled) {
     [emailInput, passwordInput, confirmCheckbox, submitBtn].forEach((el) => { if (el) el.disabled = disabled; });
@@ -71,11 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const invalidLinkModalEl = document.getElementById('invalidLinkModal');
     if (!invalidLinkModalEl) return;
     if (!token) {
-      if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-        await window.modalManager.showModal(invalidLinkModalEl);
-      } else if (window.bootstrap?.Modal) {
-        window.bootstrap.Modal.getOrCreateInstance(invalidLinkModalEl).show();
-      }
+      await showInvalidLinkModal(invalidLinkModalEl);
       invalidLinkModalEl.addEventListener('hidden.bs.modal', () => {
         window.location.href = 'https://bookproject.fjnel.co.za?action=login';
       }, { once: true });
