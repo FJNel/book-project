@@ -402,6 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
     await showModal(invalidModal, { backdrop: 'static', keyboard: false });
   };
 
+  const toggleDetails = ({ row, wrap, chevron }) => {
+    if (!row || !wrap || !chevron) return;
+    const isOpen = row.getAttribute('data-expanded') === 'true';
+    wrap.classList.toggle('d-none', isOpen);
     row.setAttribute('data-expanded', isOpen ? 'false' : 'true');
   };
 
@@ -588,6 +592,31 @@ document.addEventListener('DOMContentLoaded', () => {
         `);
       }
 
+      const storyNotesSection = (story || notes)
+        ? `
+              <div class="col-12 col-lg-6">
+                ${story
+                  ? `
+                    <div class="border rounded p-3">
+                      <div class="fw-semibold mb-1">Story</div>
+                      <p class="mb-0">${story}</p>
+                    </div>
+                  `
+                  : ''
+                }
+                ${notes
+                  ? `
+                    <div class="border rounded p-3 ${story ? 'mt-3' : ''}">
+                      <div class="fw-semibold mb-1">Notes</div>
+                      <p class="mb-0">${notes}</p>
+                    </div>
+                  `
+                  : ''
+                }
+              </div>
+            `
+        : '';
+
       const item = document.createElement('div');
       item.className = 'accordion-item';
       item.innerHTML = `
@@ -617,17 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : ''
               }
 
-              <div class="col-12 col-lg-6">
-                <div class="border rounded p-3">
-                  <div class="fw-semibold mb-1">Story</div>
-                  <p class="mb-0">${story || '(none)'}</p>
-                </div>
-
-                <div class="border rounded p-3 mt-3">
-                  <div class="fw-semibold mb-1">Notes</div>
-                  <p class="mb-0">${notes || '(none)'}</p>
-                </div>
-              </div>
+              ${storyNotesSection}
 
               <div class="col-12">
                 <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
@@ -644,7 +663,11 @@ document.addEventListener('DOMContentLoaded', () => {
                       </svg>
                       <span>Edit Copy</span>
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" type="button" data-copy-delete="${copy.id}" ${disableDelete ? 'disabled aria-disabled="true"' : ''}>
+                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center" type="button" data-copy-delete="${copy.id}" ${disableDelete ? 'disabled aria-disabled="true"' : ''}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash me-1" viewBox="0 0 16 16">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                      </svg>
                       Remove Copy
                     </button>
                   </div>
@@ -1251,15 +1274,17 @@ document.addEventListener('DOMContentLoaded', () => {
       manageAuthorsError.textContent = '';
     }
 
+    const requestPayload = { id: bookRecord.id, authors };
+    log('Adding author to book.', { request: requestPayload, authorId: author.id });
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, authors }) });
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (manageAuthorsError) {
           manageAuthorsError.classList.remove('d-none');
           manageAuthorsError.textContent = data.message || 'Unable to add author.';
         }
-        warn('Add author failed.', { status: response.status, data });
+        warn('Add author failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       log('Author added from search.', { authorId: author.id, authorName: author.displayName });
@@ -1425,16 +1450,18 @@ document.addEventListener('DOMContentLoaded', () => {
       authorId: entry.authorId,
       authorRole: entry.authorId === authorRoleTarget.author.authorId ? (nextRole || null) : (entry.authorRole || null)
     }));
+    const requestPayload = { id: bookRecord.id, authors };
+    log('Updating author role.', { request: requestPayload, authorId: authorRoleTarget.author.authorId });
     setAuthorRoleLocked(true);
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, authors }) });
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (authorRoleErrorAlert) {
           authorRoleErrorAlert.classList.remove('d-none');
           authorRoleErrorAlert.textContent = data.message || 'Unable to update role.';
         }
-        warn('Author role update failed.', { status: response.status, data });
+        warn('Author role update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(editAuthorRoleModal);
@@ -1469,17 +1496,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmRemoveAuthor = async () => {
     if (!removeAuthorTarget || !bookRecord) return;
     const remainingAuthors = (bookRecord.authors || []).filter((entry) => entry.authorId !== removeAuthorTarget.authorId);
+    const requestPayload = {
+      id: bookRecord.id,
+      authors: remainingAuthors.map((entry) => ({
+        authorId: entry.authorId,
+        authorRole: entry.authorRole || null
+      }))
+    };
+    log('Removing author from book.', { request: requestPayload, authorId: removeAuthorTarget.authorId });
     removeAuthorConfirmBtn.disabled = true;
     try {
       const response = await apiFetch('/book', {
         method: 'PUT',
-        body: JSON.stringify({
-          id: bookRecord.id,
-          authors: remainingAuthors.map((entry) => ({
-            authorId: entry.authorId,
-            authorRole: entry.authorRole || null
-          }))
-        })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1487,7 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
           removeAuthorError.classList.remove('d-none');
           removeAuthorError.textContent = data.message || 'Unable to remove author.';
         }
-        warn('Remove author failed.', { status: response.status, data });
+        warn('Remove author failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(removeAuthorModal);
@@ -1605,15 +1634,17 @@ document.addEventListener('DOMContentLoaded', () => {
       manageSeriesError.textContent = '';
     }
 
+    const requestPayload = { id: bookRecord.id, series: payload };
+    log('Adding series to book.', { request: requestPayload, seriesId: series.id });
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, series: payload }) });
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (manageSeriesError) {
           manageSeriesError.classList.remove('d-none');
           manageSeriesError.textContent = data.message || 'Unable to add series.';
         }
-        warn('Add series failed.', { status: response.status, data });
+        warn('Add series failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       log('Series added from search.', { seriesId: series.id, seriesName: series.name });
@@ -1720,15 +1751,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     }
+    const requestPayload = {
+      seriesId: seriesOrderTarget.seriesEntry.seriesId,
+      bookId: bookRecord.id,
+      bookOrder: nextOrder
+    };
+    log('Updating series order.', { request: requestPayload });
     setSeriesOrderLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'PUT',
-        body: JSON.stringify({
-          seriesId: seriesOrderTarget.seriesEntry.seriesId,
-          bookId: bookRecord.id,
-          bookOrder: nextOrder
-        })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1736,7 +1769,7 @@ document.addEventListener('DOMContentLoaded', () => {
           seriesOrderErrorAlert.classList.remove('d-none');
           seriesOrderErrorAlert.textContent = data.message || 'Unable to update order.';
         }
-        warn('Series order update failed.', { status: response.status, data });
+        warn('Series order update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(editSeriesOrderModal);
@@ -1769,11 +1802,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const confirmRemoveSeries = async () => {
     if (!removeSeriesTarget || !bookRecord) return;
+    const requestPayload = { seriesId: removeSeriesTarget.seriesId, bookId: bookRecord.id };
+    log('Removing series from book.', { request: requestPayload });
     removeSeriesConfirmBtn.disabled = true;
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'DELETE',
-        body: JSON.stringify({ seriesId: removeSeriesTarget.seriesId, bookId: bookRecord.id })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1781,7 +1816,7 @@ document.addEventListener('DOMContentLoaded', () => {
           removeSeriesError.classList.remove('d-none');
           removeSeriesError.textContent = data.message || 'Unable to remove series.';
         }
-        warn('Remove series failed.', { status: response.status, data });
+        warn('Remove series failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(removeSeriesModal);
@@ -1856,11 +1891,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const updateBookTags = async () => {
     if (!bookRecord) return;
-    log('Updating book tags.', { tags: tagDraft });
+    const requestPayload = { id: bookRecord.id, tags: tagDraft };
+    log('Updating book tags.', { request: requestPayload });
     try {
       const response = await apiFetch('/book', {
         method: 'PUT',
-        body: JSON.stringify({ id: bookRecord.id, tags: tagDraft })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1868,7 +1904,7 @@ document.addEventListener('DOMContentLoaded', () => {
           manageTagsError.classList.remove('d-none');
           manageTagsError.textContent = data.message || 'Unable to update tags.';
         }
-        warn('Tag update failed.', { status: response.status, data });
+        warn('Tag update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await loadBook();

@@ -701,7 +701,7 @@
       const isDeceased = Boolean(author.deceased) || Boolean(author.deathDate);
       const diedText = formatPartialDate(author.deathDate);
       const bornLabel = bornText ? `Born ${bornText}` : '';
-      const deathLabel = isDeceased ? (diedText ? `† ${diedText}` : '†') : '';
+      const deathLabel = isDeceased ? (diedText ? `Died ${diedText}` : 'Died Unknown') : '';
       const mobileMetaParts = [bornLabel, deathLabel].filter(Boolean);
       const mobileMeta = mobileMetaParts.join(' • ');
 
@@ -717,7 +717,7 @@
           <span class="text-muted">${escapeHtml(bornText || '')}</span>
         </td>
         <td class="list-col-died">
-          <span class="text-muted">${escapeHtml(isDeceased ? (deathLabel || '†') : '')}</span>
+          <span class="text-muted">${escapeHtml(isDeceased ? (diedText || 'Unknown') : '')}</span>
         </td>
         <td class="list-col-updated">
           <span class="text-muted">${escapeHtml(formatTimestamp(author.updatedAt) || '—')}</span>

@@ -7814,21 +7814,38 @@ components:
           type: string
     SeriesLinkRequest:
       type: object
-      required: [seriesId, bookId]
       properties:
         seriesId:
           type: integer
+        seriesName:
+          type: string
+        name:
+          type: string
         bookId:
           type: integer
         bookOrder:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: 'null'
+      anyOf:
+        - required: [seriesId, bookId]
+        - required: [seriesName, bookId]
+        - required: [name, bookId]
     SeriesLinkDelete:
       type: object
       properties:
         seriesId:
           type: integer
+        seriesName:
+          type: string
+        name:
+          type: string
         bookId:
           type: integer
+      anyOf:
+        - required: [seriesId, bookId]
+        - required: [seriesName, bookId]
+        - required: [name, bookId]
     SeriesStatsRequest:
       type: object
       properties:
@@ -8278,12 +8295,14 @@ components:
             - type: array
               items:
                 type: integer
+            - type: 'null'
         publisherId:
           oneOf:
             - type: integer
             - type: array
               items:
                 type: integer
+            - type: 'null'
         authors:
           type: array
           items:
@@ -8293,8 +8312,12 @@ components:
                 properties:
                   authorId:
                     type: integer
+                  id:
+                    type: integer
                   authorRole:
-                    type: string
+                    oneOf:
+                      - type: string
+                      - type: 'null'
         languageIds:
           type: array
           items:
@@ -8316,8 +8339,12 @@ components:
                 properties:
                   seriesId:
                     type: integer
-                  bookOrder:
+                  id:
                     type: integer
+                  bookOrder:
+                    oneOf:
+                      - type: integer
+                      - type: 'null'
         bookCopy:
           $ref: '#/components/schemas/BookCopyCreate'
         bookCopies:
@@ -8704,55 +8731,88 @@ components:
           type: string
     BookCopyCreate:
       type: object
+      required: [bookId]
       properties:
         bookId:
           type: integer
         storageLocationId:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: 'null'
         storageLocationPath:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
         acquisitionStory:
-          type: string
-        acquisitionDate:
-          $ref: '#/components/schemas/PartialDate'
-        acquiredFrom:
-          type: string
-        acquisitionType:
-          type: string
-        acquisitionLocation:
-          type: string
-        notes:
-          type: string
-    BookCopyUpdate:
-      type: object
-      properties:
-        storageLocationId:
-          type: integer
-        storageLocationPath:
-          type: string
-        acquisitionStory:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
         acquisitionDate:
           oneOf:
             - $ref: '#/components/schemas/PartialDate'
             - type: 'null'
         acquiredFrom:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
         acquisitionType:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
         acquisitionLocation:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
         notes:
-          type: string
+          oneOf:
+            - type: string
+            - type: 'null'
+    BookCopyUpdate:
+      type: object
+      properties:
+        storageLocationId:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        storageLocationPath:
+          oneOf:
+            - type: string
+            - type: 'null'
+        acquisitionStory:
+          oneOf:
+            - type: string
+            - type: 'null'
+        acquisitionDate:
+          oneOf:
+            - $ref: '#/components/schemas/PartialDate'
+            - type: 'null'
+        acquiredFrom:
+          oneOf:
+            - type: string
+            - type: 'null'
+        acquisitionType:
+          oneOf:
+            - type: string
+            - type: 'null'
+        acquisitionLocation:
+          oneOf:
+            - type: string
+            - type: 'null'
+        notes:
+          oneOf:
+            - type: string
+            - type: 'null'
     BookCopyUpdateFlexible:
       allOf:
         - $ref: '#/components/schemas/BookCopyUpdate'
         - type: object
+          required: [id]
           properties:
             id:
               type: integer
     BookCopyDeleteFlexible:
       type: object
+      required: [id]
       properties:
         id:
           type: integer

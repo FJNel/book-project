@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const seriesDeleteErrorAlert = document.getElementById('seriesDeleteErrorAlert');
   const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
   const seriesOrderInput = document.getElementById('seriesOrderInput');
-  const seriesOrderSummary = document.getElementById('seriesOrderSummary');
+  const seriesOrderResetBtn = document.getElementById('seriesOrderResetBtn');
   const seriesOrderChangeSummary = document.getElementById('seriesOrderChangeSummary');
   const seriesOrderSaveBtn = document.getElementById('seriesOrderSaveBtn');
   const seriesOrderErrorAlert = document.getElementById('seriesOrderErrorAlert');
@@ -318,28 +318,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const published = formatPartialDate(book.publicationDate) || '—';
       const bookType = book.bookType?.name || book.bookTypeName || '—';
       const order = getSeriesOrder(book);
-      const orderLabel = order !== null && order !== undefined ? String(order) : '—';
+      const orderLabel = order !== null && order !== undefined ? String(order) : '?';
 
       row.innerHTML = `
         <td class="list-col-order">
-          <div class="d-flex flex-column gap-1">
-            <span class="text-muted">${escapeHtml(orderLabel)}</span>
-            <div class="d-flex gap-2 list-row-actions" aria-label="Row actions">
-              <button class="btn btn-sm p-0 border-0 text-muted" type="button" data-order-edit="${book.id}" aria-label="Edit order" title="Edit order">
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708z"/>
-                  <path d="M12.5 6.207 9.793 3.5 4 9.293V12h2.707z"/>
-                  <path fill-rule="evenodd" d="M1 13.5a.5.5 0 0 0 .5.5H5l8.5-8.5-3-3L2 11.5V13.5z"/>
-                </svg>
-              </button>
-              <button class="btn btn-sm p-0 border-0 text-danger" type="button" data-order-remove="${book.id}" aria-label="Remove from series" title="Remove from series">
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2h3.11a1 1 0 0 1 .98-.804h2.82a1 1 0 0 1 .98.804h3.11a1 1 0 0 1 1 1"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+          <span class="text-muted">${escapeHtml(orderLabel)}</span>
         </td>
         <td class="list-col-book">
           <div class="d-flex align-items-center gap-3">
@@ -355,6 +338,21 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel)}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
         <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
+        <td class="list-col-actions text-end">
+          <div class="row-actions d-inline-flex gap-1" aria-label="Row actions">
+            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center p-2" type="button" data-order-edit="${book.id}" aria-label="Edit series order" title="Edit series order" data-bs-toggle="tooltip">
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center p-2" type="button" data-order-remove="${book.id}" aria-label="Remove book from this series" title="Remove book from this series" data-bs-toggle="tooltip">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+              </svg>
+            </button>
+          </div>
+        </td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;
@@ -364,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     body.querySelectorAll('[data-order-edit]').forEach((button) => {
       button.addEventListener('click', (event) => {
+        event.preventDefault();
         event.stopPropagation();
         const bookId = Number(button.getAttribute('data-order-edit'));
         if (Number.isInteger(bookId)) openOrderModal(bookId);
@@ -371,11 +370,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     body.querySelectorAll('[data-order-remove]').forEach((button) => {
       button.addEventListener('click', (event) => {
+        event.preventDefault();
         event.stopPropagation();
         const bookId = Number(button.getAttribute('data-order-remove'));
         if (Number.isInteger(bookId)) openRemoveModal(bookId);
       });
     });
+
+    if (typeof window.initializeTooltips === 'function') {
+      window.initializeTooltips();
+    }
   };
 
   const openEditModal = () => {
@@ -434,34 +438,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const updateOrderSummary = (book, currentOrder, nextOrder) => {
-    if (!seriesRecord) return;
-    const current = currentOrder !== null && currentOrder !== undefined ? String(currentOrder) : 'No order';
-    const next = nextOrder !== null && nextOrder !== undefined ? String(nextOrder) : 'No order';
-    if (seriesOrderSummary) {
-      seriesOrderSummary.textContent = `Changing ${book.title || 'this book'}'s order in ${seriesRecord.name || 'this series'} from ${current} to ${next}.`;
-    }
-    if (seriesOrderChangeSummary) {
-      seriesOrderChangeSummary.textContent = current === next
-        ? 'No changes yet.'
-        : `Updated order from ${current} to ${next}.`;
-    }
+  const updateOrderChangeSummary = () => {
+    if (!orderEditTarget || !seriesRecord || !seriesOrderChangeSummary) return;
+    const currentLabel = orderEditTarget.originalInputValue || 'No order';
+    const nextInput = seriesOrderInput.value.trim();
+    const nextLabel = nextInput ? nextInput : 'No order';
+    const hasChanges = nextInput !== orderEditTarget.originalInputValue;
+    seriesOrderChangeSummary.textContent = hasChanges
+      ? `Changing ${orderEditTarget.book.title || 'this book'}'s order in ${seriesRecord.name || 'this series'} from ${currentLabel} to ${nextLabel}.`
+      : 'No changes yet.';
     if (seriesOrderSaveBtn) {
-      seriesOrderSaveBtn.disabled = orderModalState.locked || current === next;
+      seriesOrderSaveBtn.disabled = orderModalState.locked || !hasChanges;
     }
+  };
+
+  const resetOrderModal = () => {
+    if (!orderEditTarget) return;
+    seriesOrderInput.value = orderEditTarget.originalInputValue || '';
+    if (seriesOrderErrorAlert) {
+      seriesOrderErrorAlert.classList.add('d-none');
+      seriesOrderErrorAlert.textContent = '';
+    }
+    updateOrderChangeSummary();
   };
 
   const openOrderModal = (bookId) => {
     const book = bookRecords.find((entry) => entry.id === bookId);
     if (!book || !seriesRecord) return;
     const currentOrder = getSeriesOrder(book);
-    orderEditTarget = { book, currentOrder };
-    if (seriesOrderInput) seriesOrderInput.value = currentOrder || '';
+    const originalInputValue = currentOrder !== null && currentOrder !== undefined ? String(currentOrder) : '';
+    orderEditTarget = { book, currentOrder, originalInputValue };
+    if (seriesOrderInput) seriesOrderInput.value = originalInputValue;
     if (seriesOrderErrorAlert) {
       seriesOrderErrorAlert.classList.add('d-none');
       seriesOrderErrorAlert.textContent = '';
     }
-    updateOrderSummary(book, currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+    updateOrderChangeSummary();
     showModal(editSeriesOrderModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -477,19 +489,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     }
+    const requestPayload = {
+      seriesId: seriesRecord.id,
+      bookId: book.id,
+      bookOrder: nextOrder
+    };
+    log('Updating series order.', { request: requestPayload });
     seriesOrderSaveBtn.disabled = true;
     orderModalState.locked = true;
     setModalLocked(editSeriesOrderModal, true);
     setButtonLoading(seriesOrderSaveBtn, orderSpinner?.spinner, true);
-    toggleDisabled([seriesOrderInput], true);
+    toggleDisabled([seriesOrderInput, seriesOrderResetBtn], true);
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'PUT',
-        body: JSON.stringify({
-          seriesId: seriesRecord.id,
-          bookId: book.id,
-          bookOrder: nextOrder
-        })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -497,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
           seriesOrderErrorAlert.classList.remove('d-none');
           seriesOrderErrorAlert.textContent = data.message || 'Unable to update order.';
         }
-        warn('Order update failed.', { status: response.status, data });
+        warn('Order update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       log('Order updated.', { bookId: book.id, from: currentOrder, to: nextOrder });
@@ -514,8 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
       orderModalState.locked = false;
       setModalLocked(editSeriesOrderModal, false);
       setButtonLoading(seriesOrderSaveBtn, orderSpinner?.spinner, false);
-      toggleDisabled([seriesOrderInput], false);
-      updateOrderSummary(orderEditTarget.book, orderEditTarget.currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+      toggleDisabled([seriesOrderInput, seriesOrderResetBtn], false);
+      updateOrderChangeSummary();
     }
   };
 
@@ -541,12 +555,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setModalLocked(removeSeriesBookModal, true);
     setButtonLoading(removeSeriesBookConfirmBtn, removeSpinner?.spinner, true);
     try {
+      const requestPayload = {
+        seriesId: seriesRecord.id,
+        bookId: book.id
+      };
+      log('Removing book from series.', { request: requestPayload });
       const response = await apiFetch('/bookseries/link', {
         method: 'DELETE',
-        body: JSON.stringify({
-          seriesId: seriesRecord.id,
-          bookId: book.id
-        })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -554,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
           removeSeriesBookError.classList.remove('d-none');
           removeSeriesBookError.textContent = data.message || 'Unable to remove book from series.';
         }
-        warn('Remove book failed.', { status: response.status, data });
+        warn('Remove book failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(removeSeriesBookModal);
@@ -658,13 +674,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (seriesOrderSaveBtn) {
     seriesOrderSaveBtn.addEventListener('click', saveOrderChange);
   }
+  if (seriesOrderResetBtn) {
+    seriesOrderResetBtn.addEventListener('click', resetOrderModal);
+  }
   if (removeSeriesBookConfirmBtn) {
     removeSeriesBookConfirmBtn.addEventListener('click', confirmRemove);
   }
   if (seriesOrderInput) {
     seriesOrderInput.addEventListener('input', () => {
       if (!orderEditTarget) return;
-      updateOrderSummary(orderEditTarget.book, orderEditTarget.currentOrder, seriesOrderInput.value ? Number(seriesOrderInput.value) : null);
+      updateOrderChangeSummary();
     });
   }
 

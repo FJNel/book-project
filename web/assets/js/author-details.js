@@ -29,8 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const authorDeleteConfirmBtn = document.getElementById('authorDeleteConfirmBtn');
   const authorDeleteErrorAlert = document.getElementById('authorDeleteErrorAlert');
   const editAuthorRoleModal = document.getElementById('editAuthorRoleModal');
-  const authorRoleInput = document.getElementById('authorRoleInput');
-  const authorRoleSummary = document.getElementById('authorRoleSummary');
+  const authorRoleSelect = document.getElementById('authorRoleSelect');
+  const authorRoleOtherWrap = document.getElementById('authorRoleOtherWrap');
+  const authorRoleOtherInput = document.getElementById('authorRoleOtherInput');
+  const authorRoleHelp = document.getElementById('authorRoleHelp');
+  const authorRoleChangeSummary = document.getElementById('authorRoleChangeSummary');
+  const authorRoleResetBtn = document.getElementById('authorRoleResetBtn');
   const authorRoleSaveBtn = document.getElementById('authorRoleSaveBtn');
   const authorRoleErrorAlert = document.getElementById('authorRoleErrorAlert');
   const removeAuthorBookModal = document.getElementById('removeAuthorBookModal');
@@ -41,6 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let authorRecord = null;
   let bookRecords = [];
   let roleEditTarget = null;
+  const authorRolePattern = /^[\p{L}0-9 .,'":;!?()&\/-]+$/u;
+  const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator']);
+  const authorRoleModalState = { locked: false };
   let removeTarget = null;
 
   const formatPartialDate = (date) => {
@@ -254,24 +261,57 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td class="list-col-role">
-          <div class="d-flex flex-column gap-1">
-            <span class="text-muted">${escapeHtml(role)}</span>
-            <div class="d-flex gap-2">
-              <button class="btn btn-link btn-sm p-0" type="button" data-role-edit="${book.id}">Edit role</button>
-              <button class="btn btn-link btn-sm text-danger p-0" type="button" data-role-remove="${book.id}">Remove</button>
-            </div>
-          </div>
+          <span class="text-muted">${escapeHtml(role)}</span>
         </td>
         <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
         <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel)}</span></td>
         <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
         <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
+        <td class="list-col-actions text-end">
+          <div class="row-actions d-inline-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center p-2" type="button" data-role-edit="${book.id}" data-bs-toggle="tooltip" title="Edit author role" aria-label="Edit author role">
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center p-2" type="button" data-role-remove="${book.id}" data-bs-toggle="tooltip" title="Remove author from this book" aria-label="Remove author from this book">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+              </svg>
+            </button>
+          </div>
+        </td>
       `;
       row.addEventListener('click', () => {
         window.location.href = `book-details?id=${book.id}`;
       });
       body.appendChild(row);
     });
+
+    body.querySelectorAll('[data-role-edit]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = Number.parseInt(button.getAttribute('data-role-edit'), 10);
+        if (!Number.isInteger(id)) return;
+        openRoleModal(id);
+      });
+    });
+
+    body.querySelectorAll('[data-role-remove]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = Number.parseInt(button.getAttribute('data-role-remove'), 10);
+        if (!Number.isInteger(id)) return;
+        openRemoveModal(id);
+      });
+    });
+
+    if (typeof window.initializeTooltips === 'function') {
+      window.initializeTooltips();
+    }
   };
 
   const openEditModal = () => {
@@ -328,45 +368,114 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const updateRoleSummary = (book, currentRole, nextRole) => {
-    if (!authorRoleSummary || !authorRecord) return;
-    const safeCurrent = currentRole || 'No role';
-    const safeNext = nextRole || 'No role';
-    authorRoleSummary.textContent = `Changing ${authorRecord.displayName || 'this author'}'s role on ${book.title || 'this book'} from ${safeCurrent} to ${safeNext}.`;
+  const getAuthorRoleValue = () => {
+    if (!authorRoleSelect) return '';
+    const selected = authorRoleSelect.value;
+    if (selected === 'none') return '';
+    if (selected === 'Other') return authorRoleOtherInput?.value.trim() || '';
+    return selected || '';
+  };
+
+  const applyAuthorRoleFields = (role) => {
+    if (!authorRoleSelect) return;
+    if (!role) {
+      authorRoleSelect.value = 'none';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.add('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = '';
+      return;
+    }
+    if (authorRoleOptions.has(role)) {
+      authorRoleSelect.value = role;
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.add('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = '';
+    } else {
+      authorRoleSelect.value = 'Other';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.remove('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = role;
+    }
+  };
+
+  const updateAuthorRoleChangeSummary = () => {
+    if (!authorRoleChangeSummary || !roleEditTarget || !authorRecord) return;
+    const currentLabel = roleEditTarget.originalInputValue || 'No role';
+    const nextInput = getAuthorRoleValue();
+    const nextLabel = nextInput || 'No role';
+    const hasChanges = nextInput !== roleEditTarget.originalInputValue;
+    authorRoleChangeSummary.textContent = hasChanges
+      ? `Changing ${authorRecord.displayName || 'this author'}'s role on ${roleEditTarget.book.title || 'this book'} from ${currentLabel} to ${nextLabel}.`
+      : 'No changes yet.';
+    if (authorRoleSaveBtn) authorRoleSaveBtn.disabled = authorRoleModalState.locked || !hasChanges;
+  };
+
+  const setAuthorRoleLocked = (locked) => {
+    authorRoleModalState.locked = locked;
+    if (authorRoleSelect) authorRoleSelect.disabled = locked;
+    if (authorRoleOtherInput) authorRoleOtherInput.disabled = locked;
+    if (authorRoleResetBtn) authorRoleResetBtn.disabled = locked;
+    updateAuthorRoleChangeSummary();
+  };
+
+  const resetAuthorRoleModal = () => {
+    if (!roleEditTarget) return;
+    applyAuthorRoleFields(roleEditTarget.originalInputValue || '');
+    if (authorRoleErrorAlert) {
+      authorRoleErrorAlert.classList.add('d-none');
+      authorRoleErrorAlert.textContent = '';
+    }
+    if (authorRoleHelp) {
+      authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+      authorRoleHelp.classList.remove('text-danger');
+    }
+    updateAuthorRoleChangeSummary();
   };
 
   const openRoleModal = (bookId) => {
     const book = bookRecords.find((entry) => entry.id === bookId);
     if (!book || !authorRecord) return;
     const currentRole = extractAuthorRole(book);
-    roleEditTarget = { book, currentRole };
-    if (authorRoleInput) authorRoleInput.value = currentRole === 'Contributor' ? '' : currentRole;
+    const originalInputValue = currentRole === 'Contributor' ? '' : (currentRole || '');
+    roleEditTarget = { book, currentRole, originalInputValue };
+    applyAuthorRoleFields(originalInputValue);
     if (authorRoleErrorAlert) {
       authorRoleErrorAlert.classList.add('d-none');
       authorRoleErrorAlert.textContent = '';
     }
-    updateRoleSummary(book, currentRole, authorRoleInput.value.trim());
+    if (authorRoleHelp) {
+      authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+      authorRoleHelp.classList.remove('text-danger');
+    }
+    updateAuthorRoleChangeSummary();
     showModal(editAuthorRoleModal, { backdrop: 'static', keyboard: false });
   };
 
   const saveRoleChange = async () => {
     if (!roleEditTarget) return;
     const { book, currentRole } = roleEditTarget;
-    const nextRole = authorRoleInput.value.trim();
+    const selectedRole = authorRoleSelect?.value || 'none';
+    const nextRole = getAuthorRoleValue();
+    if (selectedRole === 'Other' && (!nextRole || nextRole.length < 2 || nextRole.length > 100 || !authorRolePattern.test(nextRole))) {
+      if (authorRoleHelp) {
+        authorRoleHelp.textContent = 'Custom role must be 2-100 characters and use letters, numbers, and basic punctuation.';
+        authorRoleHelp.classList.add('text-danger');
+      }
+      return;
+    }
     const authors = Array.isArray(book.authors) ? book.authors.map((entry) => ({
       authorId: entry.authorId,
       authorRole: entry.authorId === authorId ? (nextRole || null) : (entry.authorRole || null)
     })) : [];
-    authorRoleSaveBtn.disabled = true;
+    const requestPayload = { id: book.id, authors };
+    log('Updating author role on book.', { request: requestPayload, bookId: book.id });
+    setAuthorRoleLocked(true);
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: book.id, authors }) });
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         if (authorRoleErrorAlert) {
           authorRoleErrorAlert.classList.remove('d-none');
           authorRoleErrorAlert.textContent = data.message || 'Unable to update role.';
         }
-        warn('Role update failed.', { status: response.status, data });
+        warn('Role update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       log('Role updated.', { bookId: book.id, from: currentRole, to: nextRole || null });
@@ -380,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
         authorRoleErrorAlert.textContent = 'Unable to update role right now.';
       }
     } finally {
-      authorRoleSaveBtn.disabled = false;
+      setAuthorRoleLocked(false);
     }
   };
 
@@ -413,15 +522,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     removeAuthorBookConfirmBtn.disabled = true;
     try {
+      const requestPayload = {
+        id: book.id,
+        authors: remainingAuthors.map((entry) => ({
+          authorId: entry.authorId,
+          authorRole: entry.authorRole || null
+        }))
+      };
+      log('Removing author from book.', { request: requestPayload, bookId: book.id });
       const response = await apiFetch('/book', {
         method: 'PUT',
-        body: JSON.stringify({
-          id: book.id,
-          authors: remainingAuthors.map((entry) => ({
-            authorId: entry.authorId,
-            authorRole: entry.authorRole || null
-          }))
-        })
+        body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -429,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
           removeAuthorBookError.classList.remove('d-none');
           removeAuthorBookError.textContent = data.message || 'Unable to remove author.';
         }
-        warn('Remove author failed.', { status: response.status, data });
+        warn('Remove author failed.', { status: response.status, data, request: requestPayload });
         return;
       }
       await hideModal(removeAuthorBookModal);
@@ -529,12 +640,37 @@ document.addEventListener('DOMContentLoaded', () => {
   if (authorDeleteConfirmBtn) {
     authorDeleteConfirmBtn.addEventListener('click', confirmDelete);
   }
-  if (authorRoleInput) {
-    authorRoleInput.addEventListener('input', () => {
-      if (roleEditTarget) {
-        updateRoleSummary(roleEditTarget.book, roleEditTarget.currentRole, authorRoleInput.value.trim());
+  if (authorRoleSelect) {
+    authorRoleSelect.addEventListener('change', () => {
+      if (!roleEditTarget) return;
+      const showOther = authorRoleSelect.value === 'Other';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.toggle('d-none', !showOther);
+      if (!showOther && authorRoleOtherInput) authorRoleOtherInput.value = '';
+      if (authorRoleHelp) {
+        authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+        authorRoleHelp.classList.remove('text-danger');
       }
+      updateAuthorRoleChangeSummary();
     });
+  }
+  if (authorRoleOtherInput) {
+    authorRoleOtherInput.addEventListener('input', () => {
+      if (!roleEditTarget) return;
+      const nextRole = authorRoleOtherInput.value.trim();
+      if (authorRoleSelect?.value === 'Other' && nextRole && (!authorRolePattern.test(nextRole) || nextRole.length < 2 || nextRole.length > 100)) {
+        if (authorRoleHelp) {
+          authorRoleHelp.textContent = 'Custom role must be 2-100 characters and use letters, numbers, and basic punctuation.';
+          authorRoleHelp.classList.add('text-danger');
+        }
+      } else if (authorRoleHelp) {
+        authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+        authorRoleHelp.classList.remove('text-danger');
+      }
+      updateAuthorRoleChangeSummary();
+    });
+  }
+  if (authorRoleResetBtn) {
+    authorRoleResetBtn.addEventListener('click', resetAuthorRoleModal);
   }
   if (authorRoleSaveBtn) {
     authorRoleSaveBtn.addEventListener('click', saveRoleChange);
@@ -551,22 +687,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const booksTable = document.getElementById('booksTableBody');
-  if (booksTable) {
-    booksTable.addEventListener('click', (event) => {
-      const roleEdit = event.target.closest('[data-role-edit]');
-      const roleRemove = event.target.closest('[data-role-remove]');
-      if (roleEdit) {
-        event.stopPropagation();
-        const bookId = Number.parseInt(roleEdit.getAttribute('data-role-edit'), 10);
-        if (Number.isInteger(bookId)) openRoleModal(bookId);
-        return;
-      }
-      if (roleRemove) {
-        event.stopPropagation();
-        const bookId = Number.parseInt(roleRemove.getAttribute('data-role-remove'), 10);
-        if (Number.isInteger(bookId)) openRemoveModal(bookId);
-      }
-    });
-  }
 });
