@@ -9,13 +9,34 @@
   <link rel="stylesheet" href="assets/css/Navbar-With-Button-icons.css" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <style>
+    .account-section { display: none; }
+    .account-section.active { display: block; }
+    .stats-nav .nav-link {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 999px;
+      font-weight: 500;
+      color: #495057;
+    }
+    .stats-nav .nav-link.active {
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 6px 14px rgba(13, 110, 253, 0.18);
+    }
+    @media (max-width: 767.98px) {
+      .stats-nav { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 0.25rem; }
+      .stats-nav .nav-link { white-space: nowrap; }
+    }
     .stat-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid rgba(0,0,0,0.08); background: #f8f9fa; font-weight: 600; font-size: 0.9rem; }
     .muted-label { color: #6c757d; font-size: 0.9rem; }
     .progress-sm { height: 10px; }
     .table-sm td, .table-sm th { vertical-align: middle; }
-    .pill-nav .nav-link { font-weight: 600; }
     .card-section { border: 1px solid rgba(0,0,0,0.05); }
     .api-secret-box { font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #0d6efd10; border: 1px dashed #0d6efd; padding: 0.75rem 1rem; border-radius: 0.5rem; word-break: break-all; }
+    .clickable-card { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.12s ease; }
+    .clickable-card:hover { box-shadow: 0 0.85rem 1.6rem rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+    .device-icon { width: 18px; height: 18px; margin-right: 6px; }
   </style>
 </head>
 <body>
@@ -91,243 +112,265 @@
             <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
             <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
             <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
-          </ul>
-          <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <main class="py-4">
-    <div class="container">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-        <div>
-          <h1 class="h3 mb-1">Account</h1>
-          <p class="text-muted mb-0">Manage your profile, security, sessions, API keys, and account actions.</p>
-        </div>
-        <ul class="nav nav-pills pill-nav" id="accountTabNav" role="tablist">
-          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overviewTab" type="button" role="tab">Overview</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#profileTab" type="button" role="tab">Profile</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#securityTab" type="button" role="tab">Security</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sessionsTab" type="button" role="tab">Sessions</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#apiKeysTab" type="button" role="tab">API Keys</button></li>
-          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dangerTab" type="button" role="tab">Danger Zone</button></li>
-        </ul>
-      </div>
-
-      <div class="tab-content" id="accountTabs">
-        <div class="tab-pane fade show active" id="overviewTab" role="tabpanel">
-          <div class="row g-3">
-            <div class="col-12 col-lg-7">
-              <div class="card card-section shadow-sm">
-                <div class="card-body">
-                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <main class="py-4">
+                <div class="container">
+                  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
                     <div>
-                      <div class="text-muted small">Welcome</div>
-                      <h2 class="h4 mb-0" id="welcomeName">Loading…</h2>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2" id="statusChips"></div>
-                  </div>
-                  <div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="muted-label">Profile completeness</span>
-                      <span class="fw-semibold" id="profileScoreLabel">0%</span>
-                    </div>
-                    <div class="progress progress-sm">
-                      <div class="progress-bar" id="profileScoreBar" role="progressbar" style="width: 0%"></div>
+                      <h1 class="h3 mb-1">Account</h1>
+                      <p class="text-muted mb-0">Manage your profile, security, sessions, and account actions.</p>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-            <div class="col-12 col-lg-5">
-              <div class="card card-section shadow-sm h-100">
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h3 class="h6 mb-0">Library snapshot</h3>
-                    <button class="btn btn-link btn-sm p-0" id="refreshStatsBtn" type="button">Refresh</button>
-                  </div>
-                  <div class="row g-2" id="statsTiles">
-                    <div class="col-6"><div class="border rounded p-2 text-center small text-muted">Loading…</div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="tab-pane fade" id="profileTab" role="tabpanel">
-          <div class="card card-section shadow-sm mb-3">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start mb-3">
-                <div>
-                  <div class="text-muted small">Account details</div>
-                  <h3 class="h5 mb-0">Profile</h3>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" id="editProfileBtn" type="button">Edit profile</button>
-              </div>
-              <div class="row g-3" id="profileDetails">
-                <div class="col-12 col-md-6">
-                  <div class="muted-label">Email</div>
-                  <div class="fw-semibold" id="profileEmail">—</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="muted-label">Preferred name</div>
-                  <div class="fw-semibold" id="profilePreferred">—</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="muted-label">Full name</div>
-                  <div class="fw-semibold" id="profileFull">—</div>
-                </div>
-                <div class="col-6 col-md-3">
-                  <div class="muted-label">Role</div>
-                  <div class="fw-semibold" id="profileRole">—</div>
-                </div>
-                <div class="col-6 col-md-3">
-                  <div class="muted-label">Verified</div>
-                  <div class="fw-semibold" id="profileVerified">—</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="muted-label">Last login</div>
-                  <div class="fw-semibold" id="profileLastLogin">—</div>
-                </div>
-                <div class="col-12 col-md-3">
-                  <div class="muted-label">Created</div>
-                  <div class="fw-semibold" id="profileCreated">—</div>
-                </div>
-                <div class="col-12 col-md-3">
-                  <div class="muted-label">Updated</div>
-                  <div class="fw-semibold" id="profileUpdated">—</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                  <ul class="nav nav-pills flex-column flex-md-row gap-2 mb-4 stats-nav" id="accountSectionNav">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-section="overview" aria-current="page">Overview</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-section="profile" aria-current="false">Profile</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-section="security" aria-current="false">Security</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-section="danger" aria-current="false">Danger zone</button></li>
+                  </ul>
 
-        <div class="tab-pane fade" id="securityTab" role="tabpanel">
-          <div class="row g-3">
-            <div class="col-12 col-lg-6">
-              <div class="card card-section shadow-sm h-100">
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                      <div class="text-muted small">Password</div>
-                      <h3 class="h5 mb-0">Change password</h3>
+                  <section class="account-section active" data-section-content="overview">
+                    <div class="row g-3">
+                      <div class="col-12 col-lg-7">
+                        <div class="card card-section shadow-sm">
+                          <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                              <div>
+                                <div class="text-muted small">Welcome</div>
+                                <h2 class="h4 mb-0" id="welcomeName">Loading…</h2>
+                              </div>
+                              <div class="d-flex flex-wrap gap-2" id="statusChips"></div>
+                            </div>
+                            <div class="mb-3">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="muted-label">Profile completeness</span>
+                                <span class="fw-semibold" id="profileScoreLabel">0%</span>
+                              </div>
+                              <div class="progress progress-sm">
+                                <div class="progress-bar" id="profileScoreBar" role="progressbar" style="width: 0%"></div>
+                              </div>
+                            </div>
+                            <div class="row g-3">
+                              <div class="col-12 col-md-6">
+                                <div class="muted-label">Last login</div>
+                                <div class="fw-semibold" id="overviewLastLogin">—</div>
+                              </div>
+                              <div class="col-12 col-md-6">
+                                <div class="muted-label">Member since</div>
+                                <div class="fw-semibold" id="overviewCreated">—</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-lg-5">
+                        <div class="card card-section shadow-sm h-100">
+                          <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                              <h3 class="h6 mb-0">Library snapshot</h3>
+                            </div>
+                            <div class="row g-2" id="statsTiles">
+                              <div class="col-6"><div class="border rounded p-2 text-center small text-muted">Loading…</div></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <button class="btn btn-outline-primary btn-sm" id="changePasswordBtn" type="button">Change</button>
-                  </div>
-                  <div id="passwordInfo" class="text-muted small">Loading…</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-12 col-lg-6">
-              <div class="card card-section shadow-sm h-100">
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                      <div class="text-muted small">Email</div>
-                      <h3 class="h5 mb-0">Change email</h3>
-                    </div>
-                    <button class="btn btn-outline-primary btn-sm" id="changeEmailBtn" type="button">Request change</button>
-                  </div>
-                  <div class="text-muted small">Request an email change. We will send a confirmation link to the new address.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                  </section>
 
-        <div class="tab-pane fade" id="sessionsTab" role="tabpanel">
-          <div class="card card-section shadow-sm mb-3">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <div class="text-muted small">Active sessions</div>
-                  <h3 class="h5 mb-0">Devices & sessions</h3>
-                </div>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-outline-secondary btn-sm" id="logoutAllBtn" type="button">Log out all devices</button>
-                  <button class="btn btn-outline-secondary btn-sm" id="refreshSessionsBtn" type="button">Refresh</button>
-                </div>
-              </div>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle" id="sessionsTable">
-                  <thead>
-                    <tr>
-                      <th>Device</th>
-                      <th>IP</th>
-                      <th>Issued</th>
-                      <th>Expires</th>
-                      <th class="text-end">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colspan="5" class="text-muted">Loading sessions…</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane fade" id="apiKeysTab" role="tabpanel">
-          <div class="card card-section shadow-sm mb-3">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <div class="text-muted small">Programmatic access</div>
-                  <h3 class="h5 mb-0">API Keys</h3>
-                </div>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-outline-primary btn-sm" id="createApiKeyBtn" type="button">Create API key</button>
-                  <button class="btn btn-outline-secondary btn-sm" id="refreshApiKeysBtn" type="button">Refresh</button>
-                </div>
-              </div>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle" id="apiKeysTable">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Prefix</th>
-                      <th>Created</th>
-                      <th>Expires</th>
-                      <th>Last used</th>
-                      <th>Status</th>
-                      <th class="text-end">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colspan="7" class="text-muted">Loading API keys…</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-pane fade" id="dangerTab" role="tabpanel">
-          <div class="card card-section shadow-sm">
-            <div class="card-body">
-              <h3 class="h5 mb-3 text-danger">Danger Zone</h3>
-              <div class="d-flex flex-column gap-3">
-                <div class="border rounded p-3">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div class="fw-semibold">Disable account</div>
-                      <div class="text-muted small">Request to disable your account. A confirmation email will be sent.</div>
+                  <section class="account-section" data-section-content="profile">
+                    <div class="card card-section shadow-sm mb-3">
+                      <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                          <div>
+                            <div class="text-muted small">Account details</div>
+                            <h3 class="h5 mb-0">Profile</h3>
+                          </div>
+                          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" id="editProfileBtn" type="button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                              <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293z"/>
+                              <path d="M13.752 4.396 11.604 2.248 4.939 8.913a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.518z"/>
+                              <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                            </svg>
+                            Edit profile
+                          </button>
+                        </div>
+                        <div class="row g-3" id="profileDetails">
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Email</div>
+                            <div class="fw-semibold" id="profileEmail">—</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Preferred name</div>
+                            <div class="fw-semibold" id="profilePreferred">—</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Full name</div>
+                            <div class="fw-semibold" id="profileFull">—</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Last login</div>
+                            <div class="fw-semibold" id="profileLastLogin">—</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Created</div>
+                            <div class="fw-semibold" id="profileCreated">—</div>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <div class="muted-label">Updated</div>
+                            <div class="fw-semibold" id="profileUpdated">—</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <button class="btn btn-outline-warning btn-sm" id="disableAccountBtn" type="button">Disable</button>
-                  </div>
-                </div>
-                <div class="border rounded p-3">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                      <div class="fw-semibold">Request account deletion</div>
-                      <div class="text-muted small">Begin the deletion process. A confirmation email is required, and support will finalize it.</div>
+                  </section>
+
+                  <section class="account-section" data-section-content="security">
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-lg-6">
+                        <div class="card card-section shadow-sm h-100">
+                          <div class="card-body d-flex flex-column gap-2">
+                            <div>
+                              <div class="text-muted small">Password</div>
+                              <h3 class="h5 mb-1">Password</h3>
+                              <div class="text-muted small">Use a strong password. Changing it will sign you out on other devices.</div>
+                              <div class="text-muted small" id="passwordInfo">Loading…</div>
+                            </div>
+                            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="changePasswordBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293z"/>
+                                <path d="M13.752 4.396 11.604 2.248 4.939 8.913a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.518z"/>
+                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                              </svg>
+                              Change password
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-lg-6">
+                        <div class="card card-section shadow-sm h-100">
+                          <div class="card-body d-flex flex-column gap-2">
+                            <div>
+                              <div class="text-muted small">Email</div>
+                              <h3 class="h5 mb-1">Email</h3>
+                              <div class="text-muted small">Request an email change. We will send a confirmation link to the new address.</div>
+                            </div>
+                            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="changeEmailBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-arrow-down-fill" viewBox="0 0 16 16">
+                                <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zm.192 8.159 6.57-4.027L8 9.586l1.239-.757.367.225A4.49 4.49 0 0 0 8 12.5c0 .526.09 1.03.256 1.5H2a2 2 0 0 1-1.808-1.144M16 4.697v4.974A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-1.965.45l-.338-.207z"/>
+                                <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m.354-1.646a.5.5 0 0 1-.722-.016l-1.149-1.25a.5.5 0 1 1 .737-.676l.28.305V11a.5.5 0 0 1 1 0v1.793l.396-.397a.5.5 0 0 1 .708.708z"/>
+                              </svg>
+                              Request email change
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <button class="btn btn-outline-danger btn-sm" id="deleteAccountBtn" type="button">Request deletion</button>
-                  </div>
+
+                    <div class="card card-section shadow-sm">
+                      <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                          <div>
+                            <div class="text-muted small">Active sessions</div>
+                            <h3 class="h5 mb-1">Devices & sessions</h3>
+                            <p class="text-muted small mb-0">Devices and sessions show where you’re currently signed in. Logging out of a session invalidates its refresh token.</p>
+                          </div>
+                          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" id="logoutAllBtn" type="button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-slash-circle" viewBox="0 0 16 16">
+                              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                              <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
+                            </svg>
+                            Log out of all devices
+                          </button>
+                        </div>
+                        <div class="table-responsive">
+                          <table class="table table-sm align-middle" id="sessionsTable">
+                            <thead>
+                              <tr>
+                                <th>Device</th>
+                                <th>Issued</th>
+                                <th>Expires</th>
+                                <th class="text-end"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr><td colspan="4" class="text-muted">Loading sessions…</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="account-section" data-section-content="danger">
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-lg-6">
+                        <div class="card card-section shadow-sm h-100">
+                          <div class="card-body d-flex flex-column gap-2">
+                            <div>
+                              <h3 class="h5 mb-1 text-danger">Request account disable</h3>
+                              <p class="text-muted small mb-0">Temporarily disable your account. We’ll email you a confirmation link. Once confirmed, you’ll be signed out and won’t be able to log in until re-enabled by support.</p>
+                            </div>
+                            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="disableAccountBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-x-fill" viewBox="0 0 16 16">
+                                <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0M9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1M6.854 7.146 8 8.293l1.146-1.147a.5.5 0 1 1 .708.708L8.707 9l1.147 1.146a.5.5 0 0 1-.708.708L8 9.707l-1.146 1.147a.5.5 0 0 1-.708-.708L7.293 9 6.146 7.854a.5.5 0 1 1 .708-.708"/>
+                              </svg>
+                              Request account disable
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-lg-6">
+                        <div class="card card-section shadow-sm h-100">
+                          <div class="card-body d-flex flex-column gap-2">
+                            <div>
+                              <h3 class="h5 mb-1 text-danger">Request account deletion</h3>
+                              <p class="text-muted small mb-0">Start the deletion process. You’ll receive a confirmation email. After confirmation, support will permanently delete your account and library data.</p>
+                            </div>
+                            <button class="btn btn-danger d-inline-flex align-items-center gap-2" id="deleteAccountBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                              </svg>
+                              Request account deletion
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card card-section shadow-sm">
+                      <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                          <div>
+                            <div class="text-muted small">Programmatic access</div>
+                            <h3 class="h5 mb-1">API keys</h3>
+                            <p class="text-muted small mb-0">API keys allow programmatic access to your library via the API. Only use this if you know what you’re doing. See <a href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">API docs</a>.</p>
+                          </div>
+                          <button class="btn btn-outline-primary" id="createApiKeyBtn" type="button">Create API key</button>
+                        </div>
+                        <div class="table-responsive">
+                          <table class="table table-sm align-middle" id="apiKeysTable">
+                            <thead>
+                              <tr>
+                                <th>Name</th>
+                                <th>Prefix</th>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th>Last used</th>
+                                <th>Status</th>
+                                <th class="text-end"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr><td colspan="7" class="text-muted">Loading API keys…</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
                 </div>
+              </main>
               </div>
             </div>
           </div>
@@ -355,6 +398,7 @@
             <label class="form-label" for="editPreferredName">Preferred name</label>
             <input class="form-control" id="editPreferredName" type="text" maxlength="100" />
             <small class="form-text text-muted" id="editPreferredNameHelp"></small>
+            <div class="form-text text-muted mt-2" id="editProfileChanges">No changes yet.</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -427,17 +471,17 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Revoke session</h5>
+          <h5 class="modal-title">Log out of this device</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">Are you sure you want to revoke this session?</p>
+          <p class="mb-2">You will be logged out on this device. You can log back in anytime.</p>
           <div class="text-muted small" id="revokeSessionDetail"></div>
           <div class="alert alert-danger d-none mt-3" id="revokeSessionError"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-danger" type="button" id="confirmRevokeSessionBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Revoke</button>
+          <button class="btn btn-danger" type="button" id="confirmRevokeSessionBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Log out</button>
         </div>
       </div>
     </div>
@@ -508,7 +552,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">We will email you a confirmation link. Your account remains active until you confirm.</p>
+          <p class="mb-2">We will email you a confirmation link. After you confirm, you will be signed out and the account will stay disabled until support re-enables it.</p>
           <div class="alert alert-danger d-none" id="disableAccountError"></div>
         </div>
         <div class="modal-footer">
@@ -528,7 +572,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">We will email you a confirmation link. Support will finalize the deletion after you confirm.</p>
+          <p class="mb-2">We will email you a confirmation link. After you confirm, support will permanently delete your account and library data.</p>
           <div class="alert alert-danger d-none" id="deleteAccountError"></div>
         </div>
         <div class="modal-footer">
