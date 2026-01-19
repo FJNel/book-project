@@ -626,6 +626,21 @@ function showPageLoadingModal() {
 
 async function hidePageLoadingModal() {
     console.log('[Modal] Hiding Page Loading Modal');
+	const focusTarget = document.querySelector('[data-focus-default]')
+		|| document.querySelector('.navbar-brand')
+		|| document.querySelector('main')
+		|| document.body;
+	if (focusTarget && typeof focusTarget.focus === 'function') {
+		let addedTabIndex = false;
+		if (!focusTarget.hasAttribute('tabindex')) {
+			focusTarget.setAttribute('tabindex', '-1');
+			addedTabIndex = true;
+		}
+		focusTarget.focus({ preventScroll: true });
+		if (addedTabIndex) {
+			focusTarget.addEventListener('blur', () => focusTarget.removeAttribute('tabindex'), { once: true });
+		}
+	}
     await new Promise(resolve => setTimeout(resolve, 500)); // UX delay
 
     if (window.modalManager && typeof window.modalManager.hideModal === 'function') {

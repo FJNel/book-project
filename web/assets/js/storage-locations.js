@@ -33,7 +33,6 @@
     expandAllBtn: document.getElementById('expandAllBtn'),
     collapseAllBtn: document.getElementById('collapseAllBtn'),
     addRootBtn: document.getElementById('addRootBtn'),
-    refreshLocationsBtn: document.getElementById('refreshLocationsBtn'),
     detailsOffcanvas: document.getElementById('detailsOffcanvas'),
     detailsContent: document.getElementById('detailsContent'),
     detailsEmptyState: document.getElementById('detailsEmptyState'),
@@ -425,43 +424,69 @@
     dom.booksPaginationInfo.textContent = `${start} to ${end} of ${total}`;
 
     books.forEach((book) => {
+      const coverUrl = book.cover_url || book.coverImageUrl || placeholderCover(book.title);
+      const authors = Array.isArray(book.authors)
+        ? book.authors.map((author) => {
+          if (typeof author === 'string') return author;
+          return author?.name || author?.fullName || author?.displayName || null;
+        }).filter(Boolean)
+        : [];
+      const publicationDate = book.publicationDate || book.published_date || null;
+      const pubDateText = formatPartialDate(publicationDate) || '';
+      const publisherName = typeof book.publisher === 'string' ? book.publisher : (book.publisher?.name || '');
+      const bookTypeName = typeof book.bookType === 'string'
+        ? book.bookType
+        : (book.bookType?.name || book.book_type_name || '');
+      const languages = Array.isArray(book.languages)
+        ? book.languages.map((lang) => (typeof lang === 'string' ? lang : (lang?.name || lang?.language || null))).filter(Boolean)
+        : [];
+      const tags = Array.isArray(book.tags)
+        ? book.tags.map((tag) => (typeof tag === 'string' ? tag : (tag?.name || tag?.label || null))).filter(Boolean)
+        : [];
+
       const tr = document.createElement('tr');
+
       const coverTd = document.createElement('td');
       coverTd.className = 'align-middle text-center';
       coverTd.style.width = '70px';
       coverTd.innerHTML = `
-        <img src="${escapeHtml(book.cover_url || placeholderCover(book.title))}" alt="${escapeHtml(book.title)}" class="img-thumbnail" style="max-width:64px;" loading="lazy" />
+        <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(book.title)}" class="img-thumbnail" style="max-width:64px;" loading="lazy" />
       `;
 
       const titleTd = document.createElement('td');
       titleTd.className = 'align-middle';
       titleTd.innerHTML = `
         <a href="/book-details.html?id=${book.id}" class="fw-semibold text-decoration-none">${escapeHtml(book.title)}</a>
-        <div class="small text-muted">${book.authors?.join(', ') || 'Unknown author'}</div>
+        <div class="small text-muted">${authors.join(', ') || 'Unknown author'}</div>
       `;
+
+      const typeTd = document.createElement('td');
+      typeTd.className = 'align-middle list-col-type';
+      typeTd.textContent = bookTypeName || '—';
+
+      const langTd = document.createElement('td');
+      langTd.className = 'align-middle list-col-language';
+      langTd.textContent = languages.join(', ') || '—';
 
       const pubTd = document.createElement('td');
-      pubTd.className = 'align-middle';
-      const pubDateText = formatPartialDate(book.published_date) || '';
+      pubTd.className = 'align-middle list-col-published';
       pubTd.innerHTML = `
         <div>${pubDateText}</div>
-        <div class="small text-muted">${escapeHtml(book.publisher || '')}</div>
+        <div class="small text-muted">${escapeHtml(publisherName || '')}</div>
       `;
 
-      const locationTd = document.createElement('td');
-      locationTd.className = 'align-middle';
-      const locPath = book.storage_location_path || book.storage_location_name || '';
-      locationTd.textContent = locPath || '';
-
-      const addedTd = document.createElement('td');
-      addedTd.className = 'align-middle small text-muted';
-      addedTd.textContent = formatTimestamp(book.added_at) || '';
+      const tagsTd = document.createElement('td');
+      tagsTd.className = 'align-middle list-col-tags';
+      tagsTd.innerHTML = `
+        <div class="small text-muted">${tags.map((tag) => `<span class=\"badge bg-light text-dark border me-1 mb-1\">${escapeHtml(tag)}</span>`).join('') || '<span class="text-muted">None</span>'}</div>
+      `;
 
       tr.appendChild(coverTd);
       tr.appendChild(titleTd);
+      tr.appendChild(typeTd);
+      tr.appendChild(langTd);
       tr.appendChild(pubTd);
-      tr.appendChild(locationTd);
-      tr.appendChild(addedTd);
+      tr.appendChild(tagsTd);
       dom.booksTableBody.appendChild(tr);
     });
 
@@ -507,7 +532,7 @@
 
   const renderBreadcrumb = (loc) => {
     if (!dom.locationBreadcrumb || !loc) return;
-    const parts = (loc.path || '').split('/').filter(Boolean);
+    const parts = (loc.path || '').split('->').map((part) => part.trim()).filter(Boolean);
     dom.locationBreadcrumb.innerHTML = parts.map((part) => `<span class="badge text-bg-light border text-dark me-1">${escapeHtml(part)}</span>`).join('');
     dom.copyPathBtn?.classList.remove('d-none');
     state.lastBreadcrumbParts = parts;
@@ -572,11 +597,15 @@
   const fetchLocations = async () => {
     try {
       dom.treeContainer?.classList.add('opacity-50');
-      const response = await apiFetch('/api/storage-locations');
+      const response = await apiFetch('/storagelocation/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeCounts: true, limit: 200 })
+      });
       if (await handleRateLimit(response)) return;
       if (!response.ok) throw response;
       const result = await response.json();
-      state.locations = result.data?.locations || [];
+      state.locations = result.data?.storageLocations || [];
       log('Loaded locations:', state.locations.length);
       renderTree();
       if (state.selectedId) {
@@ -598,11 +627,11 @@
       dom.detailsContent?.classList.add('d-none');
       dom.detailsEmptyState?.classList.add('d-none');
 
-      const response = await apiFetch(`/api/storage-locations/${locationId}`);
+      const response = await apiFetch(`/storagelocation?id=${locationId}&returnStats=true`);
       if (await handleRateLimit(response)) return null;
       if (!response.ok) throw response;
       const result = await response.json();
-      return result?.data?.location || null;
+      return result?.data || null;
     } catch (err) {
       errorLog('Failed to load location details', err);
       showAlert({ message: 'Failed to load location', type: 'danger' });
@@ -625,7 +654,22 @@
       params.set('page', String(state.booksPage));
       params.set('limit', String(state.booksLimit));
 
-      const response = await apiFetch(`/api/storage-locations/${locationId}/books?${params.toString()}`);
+      const sortMap = {
+        title: 'title',
+        books_count: 'title',
+        published_date: 'publicationDate',
+        added_at: 'createdAt'
+      };
+      const mappedSort = sortMap[state.booksSort.field] || 'title';
+      const apiParams = new URLSearchParams();
+      apiParams.set('filterStorageLocationId', String(locationId));
+      apiParams.set('includeSubtree', state.includeSubtreeBooks ? 'true' : 'false');
+      apiParams.set('sortBy', mappedSort);
+      apiParams.set('order', state.booksSort.order || 'asc');
+      apiParams.set('limit', String(state.booksLimit));
+      apiParams.set('offset', String((state.booksPage - 1) * state.booksLimit));
+
+      const response = await apiFetch(`/book?${apiParams.toString()}`);
       if (await handleRateLimit(response)) return;
       if (!response.ok) throw response;
       const result = await response.json();
@@ -790,7 +834,7 @@
         notes: dom.addNotesInput.value.trim(),
         parentId: state.forms.add.parentId
       };
-      const response = await apiFetch('/api/storage-locations', {
+      const response = await apiFetch('/storagelocation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -824,7 +868,7 @@
         name: dom.editNameInput.value.trim(),
         notes: dom.editNotesInput.value.trim()
       };
-      const response = await apiFetch(`/api/storage-locations/${state.forms.edit.locationId}`, {
+      const response = await apiFetch(`/storagelocation/${state.forms.edit.locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -855,8 +899,8 @@
     setButtonLoading(dom.moveLocationConfirmBtn, spinnerObj, true);
     setModalLocked(dom.moveLocationModal, true);
     try {
-      const response = await apiFetch(`/api/storage-locations/${state.forms.move.locationId}/move`, {
-        method: 'POST',
+      const response = await apiFetch(`/storagelocation/${state.forms.move.locationId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parentId: newParentId })
       });
@@ -885,7 +929,7 @@
     setButtonLoading(dom.deleteLocationConfirmBtn, spinnerObj, true);
     setModalLocked(dom.deleteLocationModal, true);
     try {
-      const response = await apiFetch(`/api/storage-locations/${state.forms.delete.locationId}`, { method: 'DELETE' });
+      const response = await apiFetch(`/storagelocation/${state.forms.delete.locationId}`, { method: 'DELETE' });
       if (await handleRateLimit(response)) return;
       if (!response.ok) throw await response.json();
       await fetchLocations();
@@ -930,8 +974,6 @@
     });
 
     dom.addRootBtn?.addEventListener('click', () => openAddModal(null));
-    dom.refreshLocationsBtn?.addEventListener('click', fetchLocations);
-
     dom.addChildBtn?.addEventListener('click', () => {
       if (!state.selectedId) return;
       openAddModal(state.selectedId);
