@@ -112,70 +112,76 @@
             <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
             <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
             <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
-              <main class="py-4">
-                <div class="container">
-                  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
-                    <div>
-                      <h1 class="h3 mb-1">Account</h1>
-                      <p class="text-muted mb-0">Manage your profile, security, sessions, and account actions.</p>
-                    </div>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="py-4">
+    <div class="container">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+        <div>
+          <h1 class="h3 mb-1">Account</h1>
+          <p class="text-muted mb-0">Manage your profile, security, sessions, and account actions.</p>
+        </div>
+      </div>
+
+      <ul class="nav nav-pills flex-column flex-md-row gap-2 mb-4 stats-nav" id="accountSectionNav">
+        <li class="nav-item"><button class="nav-link active" type="button" data-section="overview" aria-current="page">Overview</button></li>
+        <li class="nav-item"><button class="nav-link" type="button" data-section="profile" aria-current="false">Profile</button></li>
+        <li class="nav-item"><button class="nav-link" type="button" data-section="security" aria-current="false">Security</button></li>
+        <li class="nav-item"><button class="nav-link" type="button" data-section="danger" aria-current="false">Danger zone</button></li>
+      </ul>
+
+      <section class="account-section active" data-section-content="overview">
+        <div class="row g-3">
+          <div class="col-12 col-lg-7">
+            <div class="card card-section shadow-sm">
+              <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                  <div>
+                    <div class="text-muted small">Welcome</div>
+                    <h2 class="h4 mb-0" id="welcomeName">Loading…</h2>
                   </div>
-
-                  <ul class="nav nav-pills flex-column flex-md-row gap-2 mb-4 stats-nav" id="accountSectionNav">
-                    <li class="nav-item"><button class="nav-link active" type="button" data-section="overview" aria-current="page">Overview</button></li>
-                    <li class="nav-item"><button class="nav-link" type="button" data-section="profile" aria-current="false">Profile</button></li>
-                    <li class="nav-item"><button class="nav-link" type="button" data-section="security" aria-current="false">Security</button></li>
-                    <li class="nav-item"><button class="nav-link" type="button" data-section="danger" aria-current="false">Danger zone</button></li>
-                  </ul>
-
-                  <section class="account-section active" data-section-content="overview">
-                    <div class="row g-3">
-                      <div class="col-12 col-lg-7">
-                        <div class="card card-section shadow-sm">
-                          <div class="card-body">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                              <div>
-                                <div class="text-muted small">Welcome</div>
-                                <h2 class="h4 mb-0" id="welcomeName">Loading…</h2>
-                              </div>
-                              <div class="d-flex flex-wrap gap-2" id="statusChips"></div>
-                            </div>
-                            <div class="mb-3">
-                              <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="muted-label">Profile completeness</span>
-                                <span class="fw-semibold" id="profileScoreLabel">0%</span>
-                              </div>
-                              <div class="progress progress-sm">
-                                <div class="progress-bar" id="profileScoreBar" role="progressbar" style="width: 0%"></div>
-                              </div>
-                            </div>
-                            <div class="row g-3">
-                              <div class="col-12 col-md-6">
-                                <div class="muted-label">Last login</div>
-                                <div class="fw-semibold" id="overviewLastLogin">—</div>
-                              </div>
-                              <div class="col-12 col-md-6">
-                                <div class="muted-label">Member since</div>
-                                <div class="fw-semibold" id="overviewCreated">—</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="col-12 col-lg-5">
-                        <div class="card card-section shadow-sm h-100">
-                          <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                              <h3 class="h6 mb-0">Library snapshot</h3>
-                            </div>
-                            <div class="row g-2" id="statsTiles">
-                              <div class="col-6"><div class="border rounded p-2 text-center small text-muted">Loading…</div></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
+                  <div class="d-flex flex-wrap gap-2" id="statusChips"></div>
+                </div>
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="muted-label">Profile completeness</span>
+                    <span class="fw-semibold" id="profileScoreLabel">0%</span>
+                  </div>
+                  <div class="progress progress-sm">
+                    <div class="progress-bar" id="profileScoreBar" role="progressbar" style="width: 0%"></div>
+                  </div>
+                </div>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <div class="muted-label">Last login</div>
+                    <div class="fw-semibold" id="overviewLastLogin">—</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="muted-label">Member since</div>
+                    <div class="fw-semibold" id="overviewCreated">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <div class="card card-section shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h3 class="h6 mb-0">Library snapshot</h3>
+                </div>
+                <div class="row g-2" id="statsTiles">
+                  <div class="col-6"><div class="border rounded p-2 text-center small text-muted">Loading…</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
                   <section class="account-section" data-section-content="profile">
                     <div class="card card-section shadow-sm mb-3">
