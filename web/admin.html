@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <title>The Book Project · Admin</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <style>
+    .stats-nav .nav-link {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 999px;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .stats-nav .nav-link.active {
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 6px 14px rgba(13, 110, 253, 0.18);
+    }
+
+    .stats-nav {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .stats-nav .nav-link { white-space: nowrap; }
+
+    .admin-card {
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    }
+    .stat-pill {
+      min-width: 92px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .table-fixed-sm td { white-space: nowrap; }
+    .muted-label { font-size: 0.9rem; color: #6c757d; }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" href="dashboard">The Book Project</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="books">Books</a></li>
+          <li class="nav-item"><a class="nav-link" href="publishers">Publishers</a></li>
+          <li class="nav-item"><a class="nav-link" href="authors">Authors</a></li>
+          <li class="nav-item"><a class="nav-link" href="series">Series</a></li>
+          <li class="nav-item"><a class="nav-link" href="storage-locations">Storage Locations</a></li>
+          <li class="nav-item"><a class="nav-link" href="statistics">Statistics</a></li>
+          <li class="nav-item js-admin-nav d-none"><a class="nav-link active" aria-current="page" href="admin">Admin</a></li>
+        </ul>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary btn-sm" href="/account">Account</a>
+          <button class="btn btn-outline-danger btn-sm js-logout-btn" type="button">Log out</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="apiErrorModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" data-lang="api_error_heading">API Connection Error</h4>
+        </div>
+        <div class="modal-body">
+          <h5 data-lang="api_error_heading_2_1">Unable to Connect</h5>
+          <p data-lang="api_error_1">We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
+          <h5 data-lang="api_error_heading_2_2">What you can do</h5>
+          <ul>
+            <li data-lang="api_error_li1"><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
+            <li data-lang="api_error_li2"><strong>Please try again in a few minutes: </strong>This may be a temporary issue.</li>
+          </ul>
+          <p class="mb-0" data-lang="api_error_footer"><em>If the problem continues, please contact the System Administrator at </em><a href="mailto:support@fjnel.co.za?subject=The%20Book%20Project%3A%20API%20Connection%20Error">support@fjnel.co.za</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Please Slow Down for a Moment</h4>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information isn’t available right now.</p>
+          <p class="mb-3">Nothing is wrong, and there’s nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+          <p class="mb-2 text-muted">Preparing to continue…</p>
+          <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container py-4">
+    <div class="mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2 small">
+          <li class="breadcrumb-item"><a href="dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Admin</li>
+        </ol>
+      </nav>
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <h1 class="mb-1">Admin</h1>
+          <p class="text-muted mb-0">Manage users, languages, and system status.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button class="btn btn-primary btn-sm" type="button" id="openCreateUserBtn">Create user</button>
+          <button class="btn btn-outline-primary btn-sm" type="button" id="openCreateLanguageBtn">Create language</button>
+          <span class="stat-pill bg-light text-body" id="adminRolePill">Role: unknown</span>
+          <span class="stat-pill bg-light text-body" id="adminStatusPill">Status: checking…</span>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-pills flex-row gap-2 mb-4 stats-nav" id="adminSectionNav">
+      <li class="nav-item"><button class="nav-link active" type="button" data-section="overview">Overview</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="users">Users</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="languages">Languages</button></li>
+    </ul>
+
+    <div class="alert alert-danger d-none" role="alert" id="adminAccessAlert">
+      You need an administrator account to view this page. Redirecting to Dashboard…
+    </div>
+
+    <section class="mb-4 admin-section" id="overviewSection" data-section-content="overview">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <p class="mb-1 text-uppercase text-muted small fw-semibold">System Status</p>
+                  <h2 class="h5 mb-0">API &amp; Services</h2>
+                </div>
+                <span class="badge text-bg-secondary" id="statusBadge">Checking…</span>
+              </div>
+              <div class="d-flex flex-column gap-2">
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">API</span>
+                  <span id="apiStatusText" class="fw-semibold">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Database latency</span>
+                  <span class="fw-semibold" id="dbLatencyText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Email queue</span>
+                  <span class="fw-semibold" id="queueText">—</span>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted small" id="statusUpdatedAt">Last checked just now</div>
+                <div class="btn-group">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshStatusBtn">Refresh</button>
+                </div>
+              </div>
+              <div class="alert alert-warning d-none mt-3" id="statusAlert"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <p class="mb-1 text-uppercase text-muted small fw-semibold">Quick Tools</p>
+                  <h2 class="h5 mb-0">Admin Shortcuts</h2>
+                </div>
+                <span class="badge text-bg-primary">Admin</span>
+              </div>
+              <div class="d-flex flex-column gap-3">
+                <div>
+                  <p class="mb-1 fw-semibold">User Management</p>
+                  <p class="text-muted mb-2 small">Search users, review status, and manage access.</p>
+                  <a class="btn btn-outline-primary btn-sm" href="#usersSection">Go to Users</a>
+                </div>
+                <div>
+                  <p class="mb-1 fw-semibold">Languages</p>
+                  <p class="text-muted mb-2 small">Maintain the shared language list for the library.</p>
+                  <a class="btn btn-outline-primary btn-sm" href="#languagesSection">Manage Languages</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-5 admin-section d-none" id="usersSection" data-section-content="users">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <div>
+            <p class="mb-1 text-uppercase text-muted small fw-semibold">Users</p>
+            <h2 class="h5 mb-0">User Directory</h2>
+          </div>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <input class="form-control form-control-sm" type="search" placeholder="Search email…" aria-label="Search email" id="userSearchInput" style="min-width: 200px" />
+            <select class="form-select form-select-sm" id="userRoleFilter" aria-label="Filter role" style="min-width: 130px">
+              <option value="">Role: any</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+            </select>
+            <select class="form-select form-select-sm" id="userVerifiedFilter" aria-label="Filter verified" style="min-width: 140px">
+              <option value="">Verified: any</option>
+              <option value="true">Verified</option>
+              <option value="false">Not verified</option>
+            </select>
+            <select class="form-select form-select-sm" id="userDisabledFilter" aria-label="Filter disabled" style="min-width: 150px">
+              <option value="">Disabled: any</option>
+              <option value="false">Active</option>
+              <option value="true">Disabled</option>
+            </select>
+            <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="usersPerPage" aria-label="Users per page" style="width: 90px" />
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshUsersBtn">Refresh</button>
+          </div>
+        </div>
+      <div class="alert alert-warning d-none" id="usersAlert"></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle table-hover table-striped table-fixed-sm">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Role</th>
+              <th scope="col">Verified</th>
+              <th scope="col">Disabled</th>
+              <th scope="col">Last Login</th>
+                <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTbody">
+            <tr><td colspan="8" class="text-center text-muted py-3">Loading users…</td></tr>
+          </tbody>
+        </table>
+      </div>
+        <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+          <div class="text-muted small" id="usersSummary">Showing users</div>
+          <div class="btn-group" role="group" aria-label="Users pagination">
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="usersPrevBtn">Previous</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="usersNextBtn">Next</button>
+          </div>
+        </div>
+    </section>
+
+    <section class="mb-4 admin-section d-none" id="languagesSection" data-section-content="languages">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Languages</p>
+          <h2 class="h5 mb-0">Manage Languages</h2>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-primary btn-sm" type="button" id="openCreateLanguageBtnSecondary">Create language</button>
+        </div>
+      </div>
+      <div class="alert alert-warning d-none" id="languagesAlert"></div>
+      <div class="card admin-card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-hover table-striped">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Updated</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="languagesTbody">
+                <tr><td colspan="5" class="text-center text-muted py-3">Loading languages…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Session Expired!</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
+          <ul>
+            <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+            <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
+            <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
+          </ul>
+          <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create User Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="createUserModal" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createUserModalLabel">Create user</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="createUserAlert"></div>
+          <form id="createUserForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="createFullName">Full name</label>
+                <input class="form-control" type="text" id="createFullName" required />
+                <div class="form-text text-danger" id="createFullNameHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="createPreferredName">Preferred name</label>
+                <input class="form-control" type="text" id="createPreferredName" />
+                <div class="form-text text-danger" id="createPreferredNameHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="createEmail">Email</label>
+                <input class="form-control" type="email" id="createEmail" required />
+                <div class="form-text text-danger" id="createEmailHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="createRole">Role</label>
+                <select class="form-select" id="createRole" required>
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="createPassword">Password</label>
+                <input class="form-control" type="password" id="createPassword" autocomplete="new-password" />
+                <div class="form-text text-danger" id="createPasswordHelp"></div>
+              </div>
+              <div class="col-md-6 d-flex align-items-center pt-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="createNoPassword" />
+                  <label class="form-check-label" for="createNoPassword">Send setup email instead</label>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" id="createUserSubmit" disabled>Create user</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="editUserModal" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editUserModalLabel">Edit user</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="editUserAlert"></div>
+          <form id="editUserForm" novalidate>
+            <input type="hidden" id="editUserId" />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="editFullName">Full name</label>
+                <input class="form-control" type="text" id="editFullName" />
+                <div class="form-text text-danger" id="editFullNameHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="editPreferredName">Preferred name</label>
+                <input class="form-control" type="text" id="editPreferredName" />
+                <div class="form-text text-danger" id="editPreferredNameHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="editEmail">Email</label>
+                <input class="form-control" type="email" id="editEmail" />
+                <div class="form-text text-danger" id="editEmailHelp"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="editRole">Role</label>
+                <select class="form-select" id="editRole">
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" id="editUserSubmit" disabled>Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple Action Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="confirmActionModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmActionTitle">Confirm action</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="confirmActionAlert"></div>
+          <p class="mb-3" id="confirmActionMessage">Are you sure?</p>
+          <div class="mb-3 d-none" id="confirmActionReasonWrap">
+            <label class="form-label" for="confirmActionReason">Reason</label>
+            <textarea class="form-control" id="confirmActionReason" rows="2"></textarea>
+            <div class="form-text text-danger" id="confirmActionReasonHelp"></div>
+          </div>
+          <div class="mb-3 d-none" id="confirmActionEmailWrap">
+            <label class="form-label" for="confirmActionEmail">User email</label>
+            <input class="form-control" type="email" id="confirmActionEmail" />
+            <div class="form-text text-danger" id="confirmActionEmailHelp"></div>
+          </div>
+          <div class="mb-0 d-none" id="confirmActionInputWrap">
+            <label class="form-label" for="confirmActionInput">Type to confirm</label>
+            <input class="form-control" type="text" id="confirmActionInput" />
+            <div class="form-text text-danger" id="confirmActionInputHelp"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" id="confirmActionSubmit" disabled>Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sessions Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionsModal" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="sessionsModalTitle">Sessions</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="sessionsAlert"></div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-hover table-striped">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Fingerprint</th>
+                  <th scope="col">Issued</th>
+                  <th scope="col">Expires</th>
+                </tr>
+              </thead>
+              <tbody id="sessionsTbody">
+                <tr><td colspan="3" class="text-center text-muted py-3">Loading sessions…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
+          <button class="btn btn-outline-danger" type="button" id="sessionsForceLogoutBtn">Force logout all</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Language Modals -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="languageModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="languageModalTitle">Language</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="languageModalAlert"></div>
+          <form id="languageForm" novalidate>
+            <input type="hidden" id="languageModalId" />
+            <label class="form-label" for="languageModalName">Name</label>
+            <input class="form-control" type="text" id="languageModalName" required />
+            <div class="form-text text-danger" id="languageModalNameHelp"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" id="languageModalSubmit" disabled>Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="languageDeleteModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete language</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger d-none" id="languageDeleteAlert"></div>
+          <p class="mb-3">This will remove the language from the list. Type DELETE to confirm.</p>
+          <input class="form-control" type="text" id="languageDeleteInput" />
+          <div class="form-text text-danger" id="languageDeleteHelp"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" id="languageDeleteSubmit" disabled>Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>

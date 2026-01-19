@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let captchaToken;
     try {
-      captchaToken = await window.recaptchaV3.getToken('verify_disable');
+      captchaToken = await window.recaptchaV3.getToken('verify_delete');
     } catch (e) {
       console.error('[reCAPTCHA] Failed to obtain token for verify-disable:', e);
       showAlert('error', SECURITY_CHECK_ERROR_HTML);
