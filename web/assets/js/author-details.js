@@ -410,12 +410,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDelete = async () => {
     if (!authorRecord) return;
     authorDeleteConfirmBtn.disabled = true;
+    window.modalLock?.lock(deleteAuthorModal, 'Delete author');
     deleteModalState.locked = true;
     setModalLocked(deleteAuthorModal, true);
     setButtonLoading(authorDeleteConfirmBtn, deleteSpinner?.spinner, true);
     try {
       const response = await apiFetch('/author', { method: 'DELETE', body: JSON.stringify({ id: authorRecord.id }) });
       const data = await response.json().catch(() => ({}));
+      log('Author delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (authorDeleteErrorAlert) {
           authorDeleteErrorAlert.classList.remove('d-none');
@@ -437,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(deleteAuthorModal, false);
       setButtonLoading(authorDeleteConfirmBtn, deleteSpinner?.spinner, false);
       authorDeleteConfirmBtn.disabled = false;
+      window.modalLock?.unlock(deleteAuthorModal, 'finally');
     }
   };
 
@@ -539,10 +542,12 @@ document.addEventListener('DOMContentLoaded', () => {
     })) : [];
     const requestPayload = { id: book.id, authors };
     log('Updating author role on book.', { request: requestPayload, bookId: book.id });
+    window.modalLock?.lock(editAuthorRoleModal, 'Update author role');
     setAuthorRoleLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
+      log('Author role response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (authorRoleErrorAlert) {
           authorRoleErrorAlert.classList.remove('d-none');
@@ -563,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setAuthorRoleLocked(false);
+      window.modalLock?.unlock(editAuthorRoleModal, 'finally');
     }
   };
 
@@ -597,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     removeAuthorBookConfirmBtn.disabled = true;
+    window.modalLock?.lock(removeAuthorBookModal, 'Remove author');
     removeModalState.locked = true;
     setModalLocked(removeAuthorBookModal, true);
     setButtonLoading(removeAuthorBookConfirmBtn, removeSpinner?.spinner, true);
@@ -614,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Remove author response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (removeAuthorBookError) {
           removeAuthorBookError.classList.remove('d-none');
@@ -636,6 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(removeAuthorBookModal, false);
       setButtonLoading(removeAuthorBookConfirmBtn, removeSpinner?.spinner, false);
       removeAuthorBookConfirmBtn.disabled = false;
+      window.modalLock?.unlock(removeAuthorBookModal, 'finally');
     }
   };
 

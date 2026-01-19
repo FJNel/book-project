@@ -29,6 +29,28 @@ window.pageContentReady.reset = () => {
 };
 window.pageContentReady.resolve({ success: true, default: true });
 
+window.modalLock = window.modalLock || {};
+window.modalLock.lock = (modal, action) => {
+	const element = typeof modal === 'string' ? document.getElementById(modal) : modal;
+	const id = element?.id || (typeof modal === 'string' ? modal : 'unknown');
+	console.log(`[ModalLock] Locking modal ${id} for action ${action || 'unknown'}`);
+};
+window.modalLock.unlock = (modal, reason = 'finally') => {
+	const element = typeof modal === 'string' ? document.getElementById(modal) : modal;
+	const id = element?.id || (typeof modal === 'string' ? modal : 'unknown');
+	console.log(`[ModalLock] Unlocking modal ${id} (reason: ${reason})`);
+};
+window.modalLock.withLock = async function withLock({ modal, action, lock, unlock }, fn) {
+	if (typeof lock === 'function') lock(true);
+	if (window.modalLock?.lock) window.modalLock.lock(modal, action);
+	try {
+		return await fn();
+	} finally {
+		if (typeof unlock === 'function') unlock(false);
+		if (window.modalLock?.unlock) window.modalLock.unlock(modal, 'finally');
+	}
+};
+
 window.authGuard = window.authGuard || {};
 window.authGuard.waitForMaintenance = async function waitForMaintenance() {
 	const maintenancePromise = window.maintenanceModalPromise;

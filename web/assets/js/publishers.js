@@ -194,16 +194,6 @@
       state.searchDriven = true;
     }
   };
-    if (params.get('includeDeleted') === 'true') f.includeDeleted = true;
-
-    if (f.name) {
-      state.search = f.name;
-      state.searchDriven = false;
-    } else if (state.search) {
-      f.name = state.search;
-      state.searchDriven = true;
-    }
-  };
 
   const updateUrl = () => {
     const params = new URLSearchParams();
@@ -669,7 +659,7 @@
   };
 
   const init = async () => {
-    log('Initializing publishers page');
+    log('Initializing...');
     hydrateStateFromUrl();
     updateOffcanvasPlacement();
 
@@ -709,6 +699,7 @@
     if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
       window.pageContentReady.resolve({ success: true });
     }
+    log('Ready.');
   };
 
   document.addEventListener('DOMContentLoaded', init);

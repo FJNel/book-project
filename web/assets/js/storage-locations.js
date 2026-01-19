@@ -876,6 +876,7 @@
     const parentId = parentIdRaw ? Number.parseInt(parentIdRaw, 10) : null;
 
     log('Moving location.', { id: modalLocationId, parentId });
+    window.modalLock?.lock(dom.moveLocationModal, 'Move location');
     moveModalState.locked = true;
     setModalLocked(dom.moveLocationModal, true);
     setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, true);
@@ -886,6 +887,7 @@
         body: JSON.stringify({ parentId })
       });
       const payload = await response.json().catch(() => ({}));
+      log('Move location response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         throw new Error(details.join(' ') || payload.message || 'Move failed.');
@@ -903,6 +905,7 @@
       setModalLocked(dom.moveLocationModal, false);
       setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, false);
       toggleDisabled([dom.moveLocationSelect], false);
+      window.modalLock?.unlock(dom.moveLocationModal, 'finally');
     }
   };
 
@@ -937,6 +940,7 @@
   const confirmDelete = async () => {
     if (!modalLocationId) return;
     log('Deleting location.', { id: modalLocationId });
+    window.modalLock?.lock(dom.deleteLocationModal, 'Delete location');
     deleteModalState.locked = true;
     setModalLocked(dom.deleteLocationModal, true);
     setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, true);
@@ -945,6 +949,7 @@
         method: 'DELETE'
       });
       const payload = await response.json().catch(() => ({}));
+      log('Delete location response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         throw new Error(details.join(' ') || payload.message || 'Delete failed.');
@@ -962,6 +967,7 @@
       deleteModalState.locked = false;
       setModalLocked(dom.deleteLocationModal, false);
       setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, false);
+      window.modalLock?.unlock(dom.deleteLocationModal, 'finally');
     }
   };
 

@@ -1318,10 +1318,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDeleteBook = async () => {
     if (!bookRecord) return;
     deleteBookConfirmBtn.disabled = true;
+    window.modalLock?.lock(deleteBookModal, 'Delete book');
     setDeleteBookLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'DELETE', body: JSON.stringify({ id: bookRecord.id }) });
       const data = await response.json().catch(() => ({}));
+      log('Delete book response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (deleteBookErrorAlert) {
           deleteBookErrorAlert.classList.remove('d-none');
@@ -1341,6 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       deleteBookConfirmBtn.disabled = false;
       setDeleteBookLocked(false);
+      window.modalLock?.unlock(deleteBookModal, 'finally');
     }
   };
 
@@ -1427,10 +1430,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const requestPayload = { id: bookRecord.id, authors };
     log('Adding author to book.', { request: requestPayload, authorId: author.id });
+    window.modalLock?.lock(manageAuthorsModal, 'Add author');
     setManageAuthorsLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
+      log('Add author response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (manageAuthorsError) {
           manageAuthorsError.classList.remove('d-none');
@@ -1454,6 +1459,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setManageAuthorsLocked(false);
+      window.modalLock?.unlock(manageAuthorsModal, 'finally');
     }
   };
 
@@ -1609,10 +1615,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     const requestPayload = { id: bookRecord.id, authors };
     log('Updating author role.', { request: requestPayload, authorId: authorRoleTarget.author.authorId });
+    window.modalLock?.lock(editAuthorRoleModal, 'Update author role');
     setAuthorRoleLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
+      log('Author role response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (authorRoleErrorAlert) {
           authorRoleErrorAlert.classList.remove('d-none');
@@ -1632,6 +1640,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setAuthorRoleLocked(false);
+      window.modalLock?.unlock(editAuthorRoleModal, 'finally');
     }
   };
 
@@ -1664,6 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     log('Removing author from book.', { request: requestPayload, authorId: removeAuthorTarget.authorId });
     removeAuthorConfirmBtn.disabled = true;
+    window.modalLock?.lock(removeAuthorModal, 'Remove author');
     setRemoveAuthorLocked(true);
     try {
       const response = await apiFetch('/book', {
@@ -1671,6 +1681,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Remove author response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (removeAuthorError) {
           removeAuthorError.classList.remove('d-none');
@@ -1691,6 +1702,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       removeAuthorConfirmBtn.disabled = false;
       setRemoveAuthorLocked(false);
+      window.modalLock?.unlock(removeAuthorModal, 'finally');
     }
   };
 
@@ -1799,10 +1811,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const requestPayload = { id: bookRecord.id, series: payload };
     log('Adding series to book.', { request: requestPayload, seriesId: series.id });
+    window.modalLock?.lock(manageSeriesModal, 'Add series');
     setManageSeriesLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
+      log('Add series response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (manageSeriesError) {
           manageSeriesError.classList.remove('d-none');
@@ -1826,6 +1840,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setManageSeriesLocked(false);
+      window.modalLock?.unlock(manageSeriesModal, 'finally');
     }
   };
 
@@ -1924,6 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bookOrder: nextOrder
     };
     log('Updating series order.', { request: requestPayload });
+    window.modalLock?.lock(editSeriesOrderModal, 'Update series order');
     setSeriesOrderLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
@@ -1931,6 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Series order response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (seriesOrderErrorAlert) {
           seriesOrderErrorAlert.classList.remove('d-none');
@@ -1950,6 +1967,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setSeriesOrderLocked(false);
+      window.modalLock?.unlock(editSeriesOrderModal, 'finally');
     }
   };
 
@@ -1974,6 +1992,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestPayload = { seriesId: removeSeriesTarget.seriesId, bookId: bookRecord.id };
     log('Removing series from book.', { request: requestPayload });
     removeSeriesConfirmBtn.disabled = true;
+    window.modalLock?.lock(removeSeriesModal, 'Remove series');
     setRemoveSeriesLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
@@ -1981,6 +2000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Remove series response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (removeSeriesError) {
           removeSeriesError.classList.remove('d-none');
@@ -2001,6 +2021,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       removeSeriesConfirmBtn.disabled = false;
       setRemoveSeriesLocked(false);
+      window.modalLock?.unlock(removeSeriesModal, 'finally');
     }
   };
 
@@ -2066,6 +2087,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!bookRecord) return;
     const requestPayload = { id: bookRecord.id, tags: tagDraft };
     log('Updating book tags.', { request: requestPayload });
+    window.modalLock?.lock(manageTagsModal, 'Update tags');
     setManageTagsLocked(true);
     try {
       const response = await apiFetch('/book', {
@@ -2073,6 +2095,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Tag update response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (manageTagsError) {
           manageTagsError.classList.remove('d-none');
@@ -2091,6 +2114,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setManageTagsLocked(false);
+      window.modalLock?.unlock(manageTagsModal, 'finally');
     }
   };
 
@@ -2351,6 +2375,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     }
+    window.modalLock?.lock(editCopyModal, copyEditTarget.mode === 'edit' ? 'Edit copy' : 'Add copy');
     setCopyLocked(true);
     try {
       const acquisitionTypeValue = copyAcquisitionType?.value ? copyAcquisitionType.value.trim() : '';
@@ -2376,6 +2401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       const data = await response.json().catch(() => ({}));
+      log('Copy save response parsed.', { ok: response.ok, status: response.status, mode: copyEditTarget.mode });
       if (!response.ok) {
         if (editCopyErrorAlert) {
           editCopyErrorAlert.classList.remove('d-none');
@@ -2394,6 +2420,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       setCopyLocked(false);
+      window.modalLock?.unlock(editCopyModal, 'finally');
     }
   };
 
@@ -2422,6 +2449,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDeleteCopy = async () => {
     if (!bookRecord || !copyEditTarget || copyEditTarget.mode !== 'delete') return;
     deleteCopyConfirmBtn.disabled = true;
+    window.modalLock?.lock(deleteCopyModal, 'Delete copy');
     setDeleteCopyLocked(true);
     try {
       const response = await apiFetch('/bookcopy', {
@@ -2429,6 +2457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ id: copyEditTarget.copyId })
       });
       const data = await response.json().catch(() => ({}));
+      log('Copy delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (deleteCopyErrorAlert) {
           deleteCopyErrorAlert.classList.remove('d-none');
@@ -2449,6 +2478,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const lockedOut = (bookRecord?.bookCopies || []).length <= 1;
       deleteCopyConfirmBtn.disabled = lockedOut;
       setDeleteCopyLocked(false);
+      window.modalLock?.unlock(deleteCopyModal, 'finally');
     }
   };
 

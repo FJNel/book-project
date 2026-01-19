@@ -413,6 +413,12 @@
         };
 
         const setLocked = (locked) => {
+            const actionName = `${modalEl.id || 'shared-modal'} save`;
+            if (locked) {
+                window.modalLock?.lock(modalEl, actionName);
+            } else {
+                window.modalLock?.unlock(modalEl, 'finally');
+            }
             modalState.locked = locked;
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, descInput, resetButton], locked);
@@ -423,6 +429,7 @@
             if (!validate()) return;
             setLocked(true);
             const payload = { name: nameInput.value.trim(), description: descInput.value.trim() || null };
+            log('Saving book type.', { mode: bookTypeMode.mode, payload: { name: payload.name } });
             try {
                 const response = await apiFetch('/booktype', {
                     method: bookTypeMode.mode === 'edit' ? 'PUT' : 'POST',
@@ -431,6 +438,7 @@
                         : payload)
                 });
                 const data = await response.json().catch(() => ({}));
+                log('Book type response parsed.', { ok: response.ok, status: response.status });
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add book type.', data.errors || []);
                     return;
@@ -633,6 +641,12 @@
         };
 
         const setLocked = (locked) => {
+            const actionName = `${modalEl.id || 'shared-modal'} save`;
+            if (locked) {
+                window.modalLock?.lock(modalEl, actionName);
+            } else {
+                window.modalLock?.unlock(modalEl, 'finally');
+            }
             modalState.locked = locked;
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, foundedInput, websiteInput, notesInput, resetButton], locked);
@@ -650,6 +664,7 @@
                 website: utils.normalizeUrl(websiteInput.value.trim()) || null,
                 notes: notesInput.value.trim() || null
             };
+            log('Saving publisher.', { mode: publisherMode.mode, payload: { name: payload.name } });
             try {
                 const response = await apiFetch('/publisher', {
                     method: publisherMode.mode === 'edit' ? 'PUT' : 'POST',
@@ -658,6 +673,7 @@
                         : payload)
                 });
                 const data = await response.json().catch(() => ({}));
+                log('Publisher response parsed.', { ok: response.ok, status: response.status });
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add publisher.', data.errors || []);
                     return;
@@ -978,6 +994,12 @@
         };
 
         const setLocked = (locked) => {
+            const actionName = `${modalEl.id || 'shared-modal'} save`;
+            if (locked) {
+                window.modalLock?.lock(modalEl, actionName);
+            } else {
+                window.modalLock?.unlock(modalEl, 'finally');
+            }
             modalState.locked = locked;
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([
@@ -1008,6 +1030,7 @@
                 deathDate: deceasedToggle.checked ? (deathParsed.value || null) : null,
                 bio: bioInput.value.trim() || null
             };
+            log('Saving author.', { mode: authorMode.mode, payload: { displayName: payload.displayName } });
             try {
                 const response = await apiFetch('/author', {
                     method: authorMode.mode === 'edit' ? 'PUT' : 'POST',
@@ -1016,6 +1039,7 @@
                         : payload)
                 });
                 const data = await response.json().catch(() => ({}));
+                log('Author response parsed.', { ok: response.ok, status: response.status });
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add author.', data.errors || []);
                     return;
@@ -1328,6 +1352,12 @@
         };
 
         const setLocked = (locked) => {
+            const actionName = `${modalEl.id || 'shared-modal'} save`;
+            if (locked) {
+                window.modalLock?.lock(modalEl, actionName);
+            } else {
+                window.modalLock?.unlock(modalEl, 'finally');
+            }
             modalState.locked = locked;
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, websiteInput, descInput, resetButton], locked);
@@ -1345,6 +1375,7 @@
                 website: utils.normalizeUrl(websiteInput.value.trim()) || null,
                 description: descInput.value.trim() || null
             };
+            log('Saving series.', { mode: seriesMode.mode, payload: { name: payload.name } });
             try {
                 const response = await apiFetch('/bookseries', {
                     method: seriesMode.mode === 'edit' ? 'PUT' : 'POST',
@@ -1353,6 +1384,7 @@
                         : payload)
                 });
                 const data = await response.json().catch(() => ({}));
+                log('Series response parsed.', { ok: response.ok, status: response.status });
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add series.', data.errors || []);
                     return;
@@ -1704,6 +1736,12 @@
         }
 
         const setLocked = (locked) => {
+            const actionName = `${modalEl.id || 'shared-modal'} save`;
+            if (locked) {
+                window.modalLock?.lock(modalEl, actionName);
+            } else {
+                window.modalLock?.unlock(modalEl, 'finally');
+            }
             modalState.locked = locked;
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([
@@ -1729,6 +1767,7 @@
                 parentId: isBase ? null : Number.parseInt(parentSelect.value, 10),
                 notes: isBase ? (baseNotesInput.value.trim() || null) : (nestedNotesInput.value.trim() || null)
             };
+            log('Saving storage location.', { mode: locationMode.mode, payload: { name: payload.name, parentId: payload.parentId } });
             try {
                 const response = await apiFetch(
                     locationMode.mode === 'edit' ? `/storagelocation/${locationMode.original?.id}` : '/storagelocation',
@@ -1740,6 +1779,7 @@
                     }
                 );
                 const data = await response.json().catch(() => ({}));
+                log('Storage location response parsed.', { ok: response.ok, status: response.status });
                 if (!response.ok) {
                     utils.showAlertWithDetails(errorAlert, data.message || 'Failed to add location.', data.errors || []);
                     return;

@@ -361,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmRemovePublisherBook = async () => {
     if (!removePublisherBookTarget) return;
     removePublisherBookConfirmBtn.disabled = true;
+    window.modalLock?.lock(removePublisherBookModal, 'Remove publisher');
     removeModalState.locked = true;
     setModalLocked(removePublisherBookModal, true);
     setButtonLoading(removePublisherBookConfirmBtn, removeSpinner?.spinner, true);
@@ -372,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Remove publisher response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (removePublisherBookError) {
           removePublisherBookError.classList.remove('d-none');
@@ -394,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(removePublisherBookModal, false);
       setButtonLoading(removePublisherBookConfirmBtn, removeSpinner?.spinner, false);
       removePublisherBookConfirmBtn.disabled = false;
+      window.modalLock?.unlock(removePublisherBookModal, 'finally');
     }
   };
 
@@ -427,12 +430,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDelete = async () => {
     if (!publisherRecord) return;
     publisherDeleteConfirmBtn.disabled = true;
+    window.modalLock?.lock(deletePublisherModal, 'Delete publisher');
     deleteModalState.locked = true;
     setModalLocked(deletePublisherModal, true);
     setButtonLoading(publisherDeleteConfirmBtn, deleteSpinner?.spinner, true);
     try {
       const response = await apiFetch('/publisher', { method: 'DELETE', body: JSON.stringify({ id: publisherRecord.id }) });
       const data = await response.json().catch(() => ({}));
+      log('Publisher delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (publisherDeleteErrorAlert) {
           publisherDeleteErrorAlert.classList.remove('d-none');
@@ -454,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(deletePublisherModal, false);
       setButtonLoading(publisherDeleteConfirmBtn, deleteSpinner?.spinner, false);
       publisherDeleteConfirmBtn.disabled = false;
+      window.modalLock?.unlock(deletePublisherModal, 'finally');
     }
   };
 

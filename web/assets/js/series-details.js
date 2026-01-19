@@ -411,12 +411,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDelete = async () => {
     if (!seriesRecord) return;
     seriesDeleteConfirmBtn.disabled = true;
+    window.modalLock?.lock(deleteSeriesModal, 'Delete series');
     deleteModalState.locked = true;
     setModalLocked(deleteSeriesModal, true);
     setButtonLoading(seriesDeleteConfirmBtn, deleteSpinner?.spinner, true);
     try {
       const response = await apiFetch('/bookseries', { method: 'DELETE', body: JSON.stringify({ id: seriesRecord.id }) });
       const data = await response.json().catch(() => ({}));
+      log('Series delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (seriesDeleteErrorAlert) {
           seriesDeleteErrorAlert.classList.remove('d-none');
@@ -438,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(deleteSeriesModal, false);
       setButtonLoading(seriesDeleteConfirmBtn, deleteSpinner?.spinner, false);
       seriesDeleteConfirmBtn.disabled = false;
+      window.modalLock?.unlock(deleteSeriesModal, 'finally');
     }
   };
 
@@ -498,6 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
       bookOrder: nextOrder
     };
     log('Updating series order.', { request: requestPayload });
+    window.modalLock?.lock(editSeriesOrderModal, 'Update series order');
     seriesOrderSaveBtn.disabled = true;
     orderModalState.locked = true;
     setModalLocked(editSeriesOrderModal, true);
@@ -509,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Series order response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (seriesOrderErrorAlert) {
           seriesOrderErrorAlert.classList.remove('d-none');
@@ -533,6 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonLoading(seriesOrderSaveBtn, orderSpinner?.spinner, false);
       toggleDisabled([seriesOrderInput, seriesOrderResetBtn], false);
       updateOrderChangeSummary();
+      window.modalLock?.unlock(editSeriesOrderModal, 'finally');
     }
   };
 
@@ -554,6 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!removeTarget || !seriesRecord) return;
     const { book } = removeTarget;
     removeSeriesBookConfirmBtn.disabled = true;
+    window.modalLock?.lock(removeSeriesBookModal, 'Remove book from series');
     removeModalState.locked = true;
     setModalLocked(removeSeriesBookModal, true);
     setButtonLoading(removeSeriesBookConfirmBtn, removeSpinner?.spinner, true);
@@ -568,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestPayload)
       });
       const data = await response.json().catch(() => ({}));
+      log('Remove series book response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (removeSeriesBookError) {
           removeSeriesBookError.classList.remove('d-none');
@@ -590,6 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setModalLocked(removeSeriesBookModal, false);
       setButtonLoading(removeSeriesBookConfirmBtn, removeSpinner?.spinner, false);
       removeSeriesBookConfirmBtn.disabled = false;
+      window.modalLock?.unlock(removeSeriesBookModal, 'finally');
     }
   };
 
