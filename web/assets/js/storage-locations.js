@@ -1,16 +1,9 @@
 // Storage Locations page logic: tree browsing, CRUD, and book list by location.
 (function () {
-  const log = (...args) => console.log('[Storage Locations]', ...args);
-  const warn = (...args) => console.warn('[Storage Locations]', ...args);
-  const errorLog = (...args) => console.error('[Storage Locations]', ...args);
-
-  if (window.pageContentReady && typeof window.pageContentReady.reset === 'function') {
-    window.pageContentReady.reset();
-  }
-
-  const debugLog = (...args) => {
-    console.log('[Storage Locations][debug]', ...args);
-  };
+  const log = (...args) => console.log('[StorageLocations]', ...args);
+  const warn = (...args) => console.warn('[StorageLocations]', ...args);
+  const errorLog = (...args) => console.error('[StorageLocations]', ...args);
+  const debugLog = (...args) => console.log('[StorageLocations][debug]', ...args);
 
   const STORAGE_EXPANDED_KEY = 'storageLocationsExpanded';
 
@@ -23,7 +16,13 @@
     booksSort: { field: 'title', order: 'asc' },
     booksLimit: 10,
     booksPage: 1,
-    lastBreadcrumbParts: []
+    lastBreadcrumbParts: [],
+    forms: {
+      add: { parentId: null, locked: false },
+      edit: { locationId: null, initialName: '', initialNotes: '', locked: false },
+      move: { locationId: null, locked: false },
+      delete: { locationId: null, locked: false }
+    }
   };
 
   const dom = {
@@ -57,30 +56,62 @@
     booksSummaryLine: document.getElementById('booksSummaryLine'),
     locationTimestampLine: document.getElementById('locationTimestampLine'),
     addChildBtn: document.getElementById('addChildBtn'),
-    renameBtn: document.getElementById('renameBtn'),
+    editBtn: document.getElementById('editBtn'),
     moveBtn: document.getElementById('moveBtn'),
     deleteBtn: document.getElementById('deleteBtn'),
+    feedbackContainer: document.getElementById('feedbackContainer'),
+    headerActions: document.getElementById('headerActions'),
+    // Add modal
+    addLocationModal: document.getElementById('addLocationModal'),
+    addNameInput: document.getElementById('addNameInput'),
+    addNameHelp: document.getElementById('addNameHelp'),
+    addNotesInput: document.getElementById('addNotesInput'),
+    addNotesHelp: document.getElementById('addNotesHelp'),
+    addParentLine: document.getElementById('addParentLine'),
+    addLocationError: document.getElementById('addLocationError'),
+    addLocationSaveBtn: document.getElementById('addLocationSaveBtn'),
+    // Edit modal
+    editLocationModal: document.getElementById('editLocationModal'),
+    editNameInput: document.getElementById('editNameInput'),
+    editNameHelp: document.getElementById('editNameHelp'),
+    editNotesInput: document.getElementById('editNotesInput'),
+    editNotesHelp: document.getElementById('editNotesHelp'),
+    editChangesSummary: document.getElementById('editChangesSummary'),
+    editLocationError: document.getElementById('editLocationError'),
+    editLocationSaveBtn: document.getElementById('editLocationSaveBtn'),
+    // Move modal
     moveLocationModal: document.getElementById('moveLocationModal'),
     moveLocationSelect: document.getElementById('moveLocationSelect'),
+    moveLocationHelp: document.getElementById('moveLocationHelp'),
     moveLocationError: document.getElementById('moveLocationError'),
+    moveSummaryText: document.getElementById('moveSummaryText'),
     moveLocationConfirmBtn: document.getElementById('moveLocationConfirmBtn'),
+    // Delete modal
     deleteLocationModal: document.getElementById('deleteLocationModal'),
     deleteLocationMessage: document.getElementById('deleteLocationMessage'),
+    deleteImpactNote: document.getElementById('deleteImpactNote'),
+    deleteConfirmInput: document.getElementById('deleteConfirmInput'),
     deleteLocationError: document.getElementById('deleteLocationError'),
-    deleteLocationConfirmBtn: document.getElementById('deleteLocationConfirmBtn'),
-    feedbackContainer: document.getElementById('feedbackContainer')
+    deleteLocationConfirmBtn: document.getElementById('deleteLocationConfirmBtn')
   };
 
-  let modalLocationId = null;
-  let selectionRequestId = 0;
-  let booksRequestId = 0;
-  const moveModalState = { locked: false };
-  const deleteModalState = { locked: false };
-  const moveSpinner = attachButtonSpinner(dom.moveLocationConfirmBtn);
-  const deleteSpinner = attachButtonSpinner(dom.deleteLocationConfirmBtn);
+  const attachButtonSpinner = (button) => {
+    if (!button) return null;
+    const spinner = button.querySelector('.spinner-border');
+    const label = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE)?.textContent?.trim() || '';
+    return { spinner, label: label || button.textContent.trim() };
+  };
 
-  bindModalLock(dom.moveLocationModal, moveModalState);
-  bindModalLock(dom.deleteLocationModal, deleteModalState);
+  const setButtonLoading = (button, spinnerObj, isLoading) => {
+    if (!button || !spinnerObj) return;
+    if (spinnerObj.spinner) spinnerObj.spinner.classList.toggle('d-none', !isLoading);
+    button.disabled = isLoading;
+  };
+
+  const toggleDisabled = (elements, disabled) => {
+    if (!elements) return;
+    elements.forEach((el) => { if (el) el.disabled = disabled; });
+  };
 
   const debounce = (fn, delay = 350) => {
     let timer;
@@ -95,13 +126,12 @@
     return Number.isFinite(parsed) ? parsed : null;
   };
 
-  const escapeHtml = (value) => String(value)
+  const escapeHtml = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
 
   const placeholderCover = (title) => {
     const text = encodeURIComponent(title || 'Book Cover');
@@ -113,9 +143,7 @@
     if (date.text) return date.text;
     const parts = [];
     if (date.day) parts.push(String(date.day));
-    if (date.month) {
-      parts.push(new Date(2000, date.month - 1, 1).toLocaleString(undefined, { month: 'long' }));
-    }
+    if (date.month) parts.push(new Date(2000, date.month - 1, 1).toLocaleString(undefined, { month: 'long' }));
     if (date.year) parts.push(String(date.year));
     return parts.length ? parts.join(' ') : null;
   };
@@ -137,9 +165,12 @@
     const alert = document.createElement('div');
     alert.className = `alert alert-${type} alert-dismissible fade show`;
     alert.role = 'alert';
+    const detailList = Array.isArray(details) && details.length
+      ? `<ul class="mb-1 small text-muted">${details.map((err) => `<li>${escapeHtml(err)}</li>`).join('')}</ul>`
+      : '';
     alert.innerHTML = `
       <div class="fw-semibold mb-1">${escapeHtml(message || 'Something went wrong.')}</div>
-      ${Array.isArray(details) && details.length ? `<ul class="mb-1 small text-muted">${details.map((err) => `<li>${escapeHtml(err)}</li>`).join('')}</ul>` : ''}
+      ${detailList}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     dom.feedbackContainer.innerHTML = '';
@@ -150,74 +181,19 @@
     if (dom.feedbackContainer) dom.feedbackContainer.innerHTML = '';
   };
 
-  const attachButtonSpinner = (button) => {
-    if (!button) return null;
-    if (button.querySelector('.spinner-border')) {
-      return {
-        spinner: button.querySelector('.spinner-border'),
-        label: button.textContent.trim() || 'Submit'
-      };
-    }
-    const label = button.textContent.trim() || 'Submit';
-    button.textContent = '';
-    const spinner = document.createElement('span');
-    spinner.className = 'spinner-border spinner-border-sm d-none';
-    spinner.setAttribute('role', 'status');
-    spinner.setAttribute('aria-hidden', 'true');
-    button.appendChild(spinner);
-    button.appendChild(document.createTextNode(' '));
-    button.appendChild(document.createTextNode(label));
-    return { spinner, label };
-  };
-
-  const setButtonLoading = (button, spinner, isLoading) => {
-    if (!button || !spinner) return;
-    spinner.classList.toggle('d-none', !isLoading);
-    button.disabled = isLoading;
-  };
-
-  const toggleDisabled = (elements, disabled) => {
-    if (!elements) return;
-    elements.forEach((el) => {
-      if (el) el.disabled = disabled;
-    });
-  };
-
-  const bindModalLock = (modalEl, state) => {
-    if (!modalEl || modalEl.dataset.lockBound === 'true') return;
-    modalEl.dataset.lockBound = 'true';
-    modalEl.addEventListener('hide.bs.modal', () => {
-      if (state.locked) {
-        state.locked = false;
-        warn('Modal hide triggered while locked; allowing hide to proceed.', { id: modalEl.id });
-      }
-    });
-  };
-
   const setModalLocked = (modalEl, locked) => {
     if (!modalEl) return;
-    modalEl.dataset.locked = locked ? 'true' : 'false';
     const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-    closeButtons.forEach((btn) => {
-      btn.disabled = locked;
-    });
+    closeButtons.forEach((btn) => { btn.disabled = locked; });
   };
 
   const showModal = async (target, options) => {
-    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-      await window.modalManager.showModal(target, options);
-      return;
-    }
     const element = typeof target === 'string' ? document.getElementById(target) : target;
     if (!element) return;
     bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
   };
 
   const hideModal = async (target) => {
-    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
-      await window.modalManager.hideModal(target);
-      return;
-    }
     const element = typeof target === 'string' ? document.getElementById(target) : target;
     if (!element) return;
     const instance = bootstrap.Modal.getInstance(element);
@@ -355,13 +331,7 @@
       caret.className = `btn btn-sm btn-link text-muted p-0 tree-caret ${hasChildren ? '' : 'invisible'}`;
       caret.setAttribute('data-action', 'toggle');
       caret.setAttribute('data-id', String(loc.id));
-      caret.innerHTML = isExpanded
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-          </svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M6.646 2.646a.5.5 0 0 1 .708 0l4.5 4.5a.5.5 0 0 1 0 .708l-4.5 4.5a.5.5 0 0 1-.708-.708L10.293 8 6.646 4.354a.5.5 0 0 1 0-.708"/>
-          </svg>`;
+      caret.innerHTML = isExpanded ? '<i class="bi bi-chevron-down"></i>' : '<i class="bi bi-chevron-right"></i>';
 
       const name = document.createElement('div');
       name.className = 'fw-semibold';
@@ -376,39 +346,21 @@
       left.appendChild(name);
       left.appendChild(badge);
 
-      const actions = document.createElement('div');
-      actions.className = 'node-actions d-flex align-items-center gap-1';
-      actions.innerHTML = `
-        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="add-child" data-id="${loc.id}" title="Add child">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-plus" viewBox="0 0 16 16">
-            <path d="M8 4a.5.5 0 0 1 .5.5V7.5H12a.5.5 0 0 1 0 1H8.5V12a.5.5 0 0 1-1 0V8.5H4a.5.5 0 0 1 0-1h3.5V4.5A.5.5 0 0 1 8 4"/>
-          </svg>
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="rename" data-id="${loc.id}" title="Rename">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
-            <path d="M12.146.146a.5.5 0 0 1 .708 0l2.999 2.999a.5.5 0 0 1 0 .708l-9.5 9.5a.5.5 0 0 1-.168.11l-4 1.333a.5.5 0 0 1-.633-.633l1.333-4a.5.5 0 0 1 .11-.168z"/>
-            <path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/>
-          </svg>
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" type="button" data-action="move" data-id="${loc.id}" title="Move">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrows-move" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V6.5h4.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L13.293 8.5H8.5v4.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 13.293V8.5H2.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2a.5.5 0 0 1 0-.708l2-2a.5.5 0 0 1 .708.708L2.707 7.5H7.5V2.707L6.354 3.854a.5.5 0 1 1-.708-.708z"/>
-          </svg>
-        </button>
-        <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" data-id="${loc.id}" title="Delete">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-            <path d="M5.5 5.5A.5.5 0 0 1 6 6v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v7a.5.5 0 0 0 1 0z"/>
-            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1z"/>
-          </svg>
-        </button>
-      `;
-
       row.appendChild(left);
-      row.appendChild(actions);
       row.addEventListener('click', (event) => {
-        if (event.target.closest('[data-action=\"toggle\"]')) return;
-        if (event.target.closest('.node-actions')) return;
+        if (event.target.closest('[data-action="toggle"]')) return;
         selectLocation(loc.id, { openPanel: true });
+      });
+
+      caret.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (state.expandedIds.has(loc.id)) {
+          state.expandedIds.delete(loc.id);
+        } else {
+          state.expandedIds.add(loc.id);
+        }
+        saveExpanded();
+        renderTree();
       });
 
       nodeWrap.appendChild(row);
@@ -422,774 +374,653 @@
     (childrenMap.get('root') || []).forEach((root) => renderNode(root, 0));
   };
 
-  const buildBreadcrumbParts = (location) => {
-    const parts = [];
-    let current = location;
-    while (current) {
-      parts.unshift({ id: current.id, name: current.name || 'Untitled location' });
-      current = state.locations.find((loc) => loc.id === current.parentId);
-    }
-    return parts;
+  const getBookSortOptions = () => {
+    if (!state.includeSubtreeBooks) return [
+      { value: 'title:asc', label: 'Title A to Z' },
+      { value: 'title:desc', label: 'Title Z to A' },
+      { value: 'published_date:desc', label: 'Newest published' },
+      { value: 'published_date:asc', label: 'Oldest published' },
+      { value: 'added_at:desc', label: 'Newest added' },
+      { value: 'added_at:asc', label: 'Oldest added' }
+    ];
+    return [
+      { value: 'title:asc', label: 'Title A to Z' },
+      { value: 'title:desc', label: 'Title Z to A' },
+      { value: 'books_count:desc', label: 'Most books' },
+      { value: 'books_count:asc', label: 'Fewest books' },
+      { value: 'published_date:desc', label: 'Newest published' },
+      { value: 'published_date:asc', label: 'Oldest published' },
+      { value: 'added_at:desc', label: 'Newest added' },
+      { value: 'added_at:asc', label: 'Oldest added' }
+    ];
   };
 
-  const renderBreadcrumb = (location) => {
-    if (!dom.locationBreadcrumb) return;
-    dom.locationBreadcrumb.innerHTML = '';
-    if (!location) {
-      dom.locationBreadcrumb.innerHTML = '<li class="breadcrumb-item text-muted">No path available.</li>';
-      return;
-    }
-    const parts = buildBreadcrumbParts(location);
-    state.lastBreadcrumbParts = parts.map((part) => part.name);
-    parts.forEach((part, index) => {
-      const li = document.createElement('li');
-      li.className = `breadcrumb-item${index === parts.length - 1 ? ' active' : ''}`;
-      if (index === parts.length - 1) {
-        li.textContent = part.name;
-      } else {
-        const link = document.createElement('button');
-        link.type = 'button';
-        link.className = 'btn btn-link btn-sm p-0 text-decoration-none';
-        link.textContent = part.name;
-        link.addEventListener('click', () => selectLocation(part.id, { openPanel: true }));
-        li.appendChild(link);
-      }
-      dom.locationBreadcrumb.appendChild(li);
-    });
+  const populateSortSelect = () => {
+    if (!dom.booksSortSelect) return;
+    const options = getBookSortOptions();
+    dom.booksSortSelect.innerHTML = options
+      .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+      .join('');
+    const currentValue = `${state.booksSort.field}:${state.booksSort.order}`;
+    const hasValue = options.some((opt) => opt.value === currentValue);
+    dom.booksSortSelect.value = hasValue ? currentValue : options[0].value;
   };
 
-  const renderDetails = (location, stats) => {
-    if (!dom.detailsContent || !dom.detailsEmptyState) return;
-    if (!location) {
-      dom.detailsContent.classList.add('d-none');
-      dom.detailsEmptyState.classList.remove('d-none');
-      if (dom.detailsLoadingState) dom.detailsLoadingState.classList.add('d-none');
-      return;
-    }
-    dom.detailsEmptyState.classList.add('d-none');
-    dom.detailsContent.classList.remove('d-none');
-    if (dom.detailsLoadingState) dom.detailsLoadingState.classList.add('d-none');
-
-    const notesLine = location.notes ? location.notes.trim() : '';
-
-    if (dom.locationNameHeading) dom.locationNameHeading.textContent = location.name || 'Untitled location';
-    if (dom.locationNotesHeading) {
-      if (notesLine) {
-        dom.locationNotesHeading.textContent = notesLine;
-        dom.locationNotesHeading.classList.remove('d-none');
-      } else {
-        dom.locationNotesHeading.textContent = '';
-        dom.locationNotesHeading.classList.add('d-none');
-      }
-    }
-
-    renderBreadcrumb(location);
-
-    if (dom.booksDirectStat) dom.booksDirectStat.textContent = stats?.directCopyCount ?? location.booksDirectCount ?? 0;
-    if (dom.booksTotalStat) dom.booksTotalStat.textContent = stats?.nestedCopyCount ?? location.booksTotalCount ?? 0;
-    if (dom.childrenCountStat) dom.childrenCountStat.textContent = stats?.childLocations ?? location.childrenCount ?? 0;
-
-    if (dom.locationTimestampLine) {
-      const created = formatTimestamp(location.createdAt) || '—';
-      const updated = formatTimestamp(location.updatedAt) || '—';
-      dom.locationTimestampLine.textContent = `Created ${created} • Updated ${updated}`;
-    }
-  };
-
-  const updateBooksToggle = () => {
-    if (!dom.directOnlyBtn || !dom.includeSubtreeBtn) return;
-    dom.directOnlyBtn.classList.toggle('btn-primary', !state.includeSubtreeBooks);
-    dom.directOnlyBtn.classList.toggle('btn-outline-secondary', state.includeSubtreeBooks);
-    dom.includeSubtreeBtn.classList.toggle('btn-primary', state.includeSubtreeBooks);
-    dom.includeSubtreeBtn.classList.toggle('btn-outline-secondary', !state.includeSubtreeBooks);
-  };
-
-  const showDetailsLoading = () => {
-    if (dom.detailsEmptyState) dom.detailsEmptyState.classList.add('d-none');
-    if (dom.detailsContent) dom.detailsContent.classList.add('d-none');
-    if (dom.detailsLoadingState) dom.detailsLoadingState.classList.remove('d-none');
-    if (dom.booksSummaryLine) dom.booksSummaryLine.textContent = '';
-    if (dom.booksTableBody) dom.booksTableBody.innerHTML = '';
-    if (dom.booksEmptyState) dom.booksEmptyState.classList.add('d-none');
-    if (dom.booksPaginationNav) dom.booksPaginationNav.innerHTML = '';
-    if (dom.booksPaginationInfo) dom.booksPaginationInfo.textContent = '';
-  };
-
-  const renderBooks = (books) => {
-    if (!dom.booksTableBody) return;
+  const renderBooksTable = (result) => {
+    if (!dom.booksTableBody || !dom.booksEmptyState || !dom.booksPaginationNav || !dom.booksPaginationInfo) return;
+    const books = result?.data?.books || [];
     dom.booksTableBody.innerHTML = '';
-
-    if (dom.booksSummaryLine) {
-      dom.booksSummaryLine.textContent = `${books.length} book${books.length === 1 ? '' : 's'} shown`;
-    }
-
     if (!books.length) {
-      if (dom.booksEmptyState) dom.booksEmptyState.classList.remove('d-none');
+      dom.booksEmptyState.classList.remove('d-none');
+      dom.booksPaginationNav.classList.add('d-none');
+      dom.booksPaginationInfo.textContent = '0 books';
       return;
     }
-    if (dom.booksEmptyState) dom.booksEmptyState.classList.add('d-none');
+    dom.booksEmptyState.classList.add('d-none');
+    const total = result.data.total || books.length;
+    const page = result.data.page || 1;
+    const limit = result.data.limit || books.length;
+    const start = (page - 1) * limit + 1;
+    const end = Math.min(start + books.length - 1, total);
+    dom.booksPaginationInfo.textContent = `${start} to ${end} of ${total}`;
 
     books.forEach((book) => {
-      const row = document.createElement('tr');
-      row.className = 'clickable-row';
-      const cover = book.coverImageUrl || placeholderCover(book.title);
-      const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
-      const authorNames = Array.isArray(book.authors)
-        ? book.authors.map((author) => author.authorName || author.displayName || author.name).filter(Boolean)
-        : [];
-      const visibleAuthors = authorNames.slice(0, 2);
-      const authorsExtra = Math.max(authorNames.length - visibleAuthors.length, 0);
-      const authorsLabel = visibleAuthors.join(', ') + (authorsExtra ? `, +${authorsExtra} more` : '');
-      const authorsTitle = authorsExtra ? ` title="${escapeHtml(authorNames.join(', '))}"` : '';
-      const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
-      const visibleLanguages = languageNames.slice(0, 2);
-      const languageExtra = Math.max(languageNames.length - visibleLanguages.length, 0);
-      const languageLabel = visibleLanguages.join(', ') + (languageExtra ? `, +${languageExtra} more` : '');
-      const languageTitle = languageExtra ? ` title="${escapeHtml(languageNames.join(', '))}"` : '';
-      const tags = Array.isArray(book.tags) ? book.tags : [];
-      const visibleTags = tags.slice(0, 3);
-      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
-      const published = formatPartialDate(book.publicationDate) || '—';
-      const bookType = book.bookType?.name || book.bookTypeName || '—';
-
-      row.innerHTML = `
-        <td class="list-col-book">
-          <div class="d-flex align-items-center gap-3">
-            <img src="${cover}" alt="${escapeHtml(book.title || 'Book cover')}" class="cover-thumb" />
-            <div>
-              <div class="fw-semibold">${escapeHtml(book.title || 'Untitled')}</div>
-              ${subtitle}
-              <div class="text-muted small list-meta-mobile">${escapeHtml(authorsLabel)} • ${escapeHtml(published)}</div>
-            </div>
-          </div>
-        </td>
-        <td class="list-col-authors"><span class="text-muted"${authorsTitle}>${escapeHtml(authorsLabel || '—')}</span></td>
-        <td class="list-col-type"><span class="text-muted">${escapeHtml(bookType)}</span></td>
-        <td class="list-col-language"><span class="text-muted"${languageTitle}>${escapeHtml(languageLabel || '—')}</span></td>
-        <td class="list-col-published"><span class="text-muted">${escapeHtml(published)}</span></td>
-        <td class="list-col-tags">${visibleTags.map((tag) => `<span class="badge rounded-pill text-bg-light text-dark border">${escapeHtml(tag.name)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class="badge rounded-pill text-bg-light text-dark border">+${remainingTags}</span>` : ''}</td>
+      const tr = document.createElement('tr');
+      const coverTd = document.createElement('td');
+      coverTd.className = 'align-middle text-center';
+      coverTd.style.width = '70px';
+      coverTd.innerHTML = `
+        <img src="${escapeHtml(book.cover_url || placeholderCover(book.title))}" alt="${escapeHtml(book.title)}" class="img-thumbnail" style="max-width:64px;" loading="lazy" />
       `;
-      row.addEventListener('click', () => {
-        window.location.href = `book-details?id=${book.id}`;
-      });
-      dom.booksTableBody.appendChild(row);
+
+      const titleTd = document.createElement('td');
+      titleTd.className = 'align-middle';
+      titleTd.innerHTML = `
+        <a href="/book-details.html?id=${book.id}" class="fw-semibold text-decoration-none">${escapeHtml(book.title)}</a>
+        <div class="small text-muted">${book.authors?.join(', ') || 'Unknown author'}</div>
+      `;
+
+      const pubTd = document.createElement('td');
+      pubTd.className = 'align-middle';
+      const pubDateText = formatPartialDate(book.published_date) || '';
+      pubTd.innerHTML = `
+        <div>${pubDateText}</div>
+        <div class="small text-muted">${escapeHtml(book.publisher || '')}</div>
+      `;
+
+      const locationTd = document.createElement('td');
+      locationTd.className = 'align-middle';
+      const locPath = book.storage_location_path || book.storage_location_name || '';
+      locationTd.textContent = locPath || '';
+
+      const addedTd = document.createElement('td');
+      addedTd.className = 'align-middle small text-muted';
+      addedTd.textContent = formatTimestamp(book.added_at) || '';
+
+      tr.appendChild(coverTd);
+      tr.appendChild(titleTd);
+      tr.appendChild(pubTd);
+      tr.appendChild(locationTd);
+      tr.appendChild(addedTd);
+      dom.booksTableBody.appendChild(tr);
     });
-  };
 
-  const renderBooksPagination = (hasNextPage) => {
-    if (!dom.booksPaginationNav || !dom.booksPaginationInfo) return;
+    const totalPages = Math.max(1, Math.ceil(total / (result.data.limit || 10)));
+    dom.booksPaginationNav.classList.toggle('d-none', totalPages <= 1);
     dom.booksPaginationNav.innerHTML = '';
-    dom.booksPaginationInfo.textContent = `Page ${state.booksPage}`;
 
-    const createItem = (label, disabled, onClick, ariaLabel) => {
+    const createPageItem = (pageNumber, label = null, disabled = false, active = false) => {
       const li = document.createElement('li');
-      li.className = `page-item${disabled ? ' disabled' : ''}`;
+      li.className = `page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}`;
       const a = document.createElement('a');
       a.className = 'page-link';
       a.href = '#';
-      a.innerHTML = label;
-      if (ariaLabel) a.setAttribute('aria-label', ariaLabel);
+      a.textContent = label || pageNumber;
       a.addEventListener('click', (event) => {
         event.preventDefault();
-        if (disabled) return;
-        onClick();
+        if (disabled || active) return;
+        state.booksPage = pageNumber;
+        updateUrl();
+        fetchBooksForLocation(state.selectedId);
       });
       li.appendChild(a);
       return li;
     };
 
-    dom.booksPaginationNav.appendChild(createItem(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
-        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 0 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 7.5H14.5A.5.5 0 0 1 15 8"/>
-      </svg>`,
-      state.booksPage <= 1,
-      () => {
-        state.booksPage = Math.max(1, state.booksPage - 1);
-        loadBooks({ showLoadingRow: true });
-      },
-      'Previous page'
-    ));
+    const prevDisabled = page <= 1;
+    dom.booksPaginationNav.appendChild(createPageItem(page - 1, 'Previous', prevDisabled));
 
-    if (state.booksPage > 2) {
-      dom.booksPaginationNav.appendChild(createItem('1', false, () => {
-        state.booksPage = 1;
-        loadBooks({ showLoadingRow: true });
-      }));
-      if (state.booksPage > 3) {
-        const ellipsis = document.createElement('li');
-        ellipsis.className = 'page-item disabled';
-        const span = document.createElement('span');
-        span.className = 'page-link';
-        span.textContent = '…';
-        ellipsis.appendChild(span);
-        dom.booksPaginationNav.appendChild(ellipsis);
-      }
+    const maxPagesToShow = 7;
+    let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+    let endPage = startPage + maxPagesToShow - 1;
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    for (let p = startPage; p <= endPage; p += 1) {
+      dom.booksPaginationNav.appendChild(createPageItem(p, null, false, p === page));
     }
 
-    if (state.booksPage > 1) {
-      dom.booksPaginationNav.appendChild(createItem(String(state.booksPage - 1), false, () => {
-        state.booksPage -= 1;
-        loadBooks({ showLoadingRow: true });
-      }));
-    }
-
-    const current = document.createElement('li');
-    current.className = 'page-item active';
-    const span = document.createElement('span');
-    span.className = 'page-link';
-    span.textContent = String(state.booksPage);
-    current.appendChild(span);
-    dom.booksPaginationNav.appendChild(current);
-
-    if (hasNextPage) {
-      dom.booksPaginationNav.appendChild(createItem(String(state.booksPage + 1), false, () => {
-        state.booksPage += 1;
-        loadBooks({ showLoadingRow: true });
-      }));
-    }
-
-    dom.booksPaginationNav.appendChild(createItem(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
-        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
-      </svg>`,
-      !hasNextPage,
-      () => {
-        state.booksPage += 1;
-        loadBooks({ showLoadingRow: true });
-      },
-      'Next page'
-    ));
+    const nextDisabled = page >= totalPages;
+    dom.booksPaginationNav.appendChild(createPageItem(page + 1, 'Next', nextDisabled));
   };
 
-  const buildBooksBody = () => ({
-    limit: state.booksLimit,
-    offset: (state.booksPage - 1) * state.booksLimit,
-    view: 'all',
-    sortBy: state.booksSort.field,
-    order: state.booksSort.order,
-    filterStorageLocationId: state.selectedId ? [state.selectedId] : [],
-    includeSubtree: state.includeSubtreeBooks
-  });
-
-  const loadBooks = async ({ showLoadingRow = false, render = true } = {}) => {
-    if (!state.selectedId) return null;
-    updateUrl();
-    updateBooksToggle();
-
-    if (showLoadingRow && dom.booksTableBody) {
-      dom.booksTableBody.innerHTML = '<tr><td colspan="6" class="text-muted py-3">Loading books…</td></tr>';
-    }
-
-    const body = buildBooksBody();
-    debugLog('Requesting /book/list with JSON body', body);
-
-    const requestId = ++booksRequestId;
-
-    try {
-      const response = await apiFetch('/book/list', {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (await handleRateLimit(response)) return;
-
-      if (!response.ok) {
-        const details = Array.isArray(payload.errors) ? payload.errors : [];
-        showAlert({ message: payload.message || 'Failed to load books.', details });
-        return null;
-      }
-
-      const books = payload.data?.books || [];
-      const hasNextPage = books.length === state.booksLimit;
-      if (requestId === booksRequestId && render) {
-        renderBooks(books);
-        renderBooksPagination(hasNextPage);
-      }
-      return { books, hasNextPage };
-    } catch (error) {
-      errorLog('Book list fetch failed', error);
-      showAlert({ message: 'Unable to load books for this location.', details: [error.message] });
-      return null;
-    }
+  const renderBreadcrumb = (loc) => {
+    if (!dom.locationBreadcrumb || !loc) return;
+    const parts = (loc.path || '').split('/').filter(Boolean);
+    dom.locationBreadcrumb.innerHTML = parts.map((part) => `<span class="badge text-bg-light border text-dark me-1">${escapeHtml(part)}</span>`).join('');
+    dom.copyPathBtn?.classList.remove('d-none');
+    state.lastBreadcrumbParts = parts;
   };
 
-  const openDetailsPanel = () => {
-    if (!dom.detailsOffcanvas) return;
-    if (window.matchMedia('(max-width: 767px)').matches) {
-      const instance = bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas);
-      instance.show();
-    }
-  };
-
-  const loadLocationDetails = async (locationId) => {
-    log('Loading location details.', { locationId });
-    const response = await apiFetch(`/storagelocation?id=${locationId}&returnStats=true`, { method: 'GET' });
-    if (await handleRateLimit(response)) return null;
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const details = Array.isArray(payload.errors) ? payload.errors : [];
-      showAlert({ message: payload.message || 'Failed to load location details.', details });
-      return null;
-    }
-    const payload = await response.json();
-    return payload.data || null;
-  };
-
-  const selectLocation = async (locationId, { openPanel = false } = {}) => {
-    if (!locationId) return;
-    state.selectedId = locationId;
-    updateUrl();
-    renderTree();
-
-    const location = state.locations.find((loc) => loc.id === locationId) || null;
-    if (!location) {
-      renderDetails(null, null);
+  const renderDetails = (loc) => {
+    if (!dom.detailsContent || !dom.detailsEmptyState || !dom.detailsLoadingState) return;
+    if (!loc) {
+      dom.detailsContent.classList.add('d-none');
+      dom.detailsEmptyState.classList.remove('d-none');
+      dom.detailsLoadingState.classList.add('d-none');
       return;
     }
+    dom.detailsContent.classList.remove('d-none');
+    dom.detailsEmptyState.classList.add('d-none');
+    dom.detailsLoadingState.classList.add('d-none');
 
-    const requestId = ++selectionRequestId;
-    showDetailsLoading();
+    dom.locationNameHeading.textContent = loc.name || 'Untitled location';
+    dom.locationNotesHeading.textContent = loc.notes || 'No notes yet';
+    renderBreadcrumb(loc);
 
-    const [detailPayload, booksPayload] = await Promise.all([
-      loadLocationDetails(locationId),
-      loadBooks({ showLoadingRow: false, render: false })
-    ]);
+    dom.booksDirectStat.textContent = Number.isFinite(loc.booksDirectCount) ? loc.booksDirectCount : '0';
+    dom.booksTotalStat.textContent = Number.isFinite(loc.booksTotalCount) ? loc.booksTotalCount : '0';
+    dom.childrenCountStat.textContent = Number.isFinite(loc.childrenCount) ? loc.childrenCount : '0';
 
-    if (requestId !== selectionRequestId) return;
-
-    renderDetails(location, detailPayload?.stats || null);
-    if (booksPayload && booksPayload.books) {
-      renderBooks(booksPayload.books);
-      renderBooksPagination(booksPayload.hasNextPage);
-    } else {
-      renderBooks([]);
-      renderBooksPagination(false);
+    const createdText = formatTimestamp(loc.created_at);
+    const updatedText = formatTimestamp(loc.updated_at);
+    if (dom.locationTimestampLine) {
+      dom.locationTimestampLine.textContent = createdText || updatedText
+        ? `Created ${createdText || '-'} | Updated ${updatedText || '-'}`
+        : '';
     }
 
-    if (openPanel) openDetailsPanel();
+    const summaryText = state.includeSubtreeBooks
+      ? 'Showing books in this location and all children.'
+      : 'Showing books directly in this location.';
+    dom.booksSummaryLine.textContent = summaryText;
+
+    toggleDisabled([dom.addChildBtn, dom.editBtn, dom.moveBtn, dom.deleteBtn], !loc.id);
   };
 
-  const loadLocations = async () => {
-    log('Loading storage locations.');
-    const body = {
-      includeCounts: true,
-      sortBy: 'path',
-      order: 'asc',
-      limit: 200
+  const syncToggleButtons = () => {
+    if (!dom.directOnlyBtn || !dom.includeSubtreeBtn) return;
+    dom.directOnlyBtn.classList.toggle('active', !state.includeSubtreeBooks);
+    dom.includeSubtreeBtn.classList.toggle('active', state.includeSubtreeBooks);
+  };
+
+  const refreshBooksControls = () => {
+    if (dom.booksPerPageInput) dom.booksPerPageInput.value = String(state.booksLimit);
+    populateSortSelect();
+    dom.booksSortSelect.value = `${state.booksSort.field}:${state.booksSort.order}`;
+    syncToggleButtons();
+  };
+
+  const updateHeaderActions = (loc) => {
+    const disabled = !loc;
+    toggleDisabled([dom.addChildBtn, dom.editBtn, dom.moveBtn, dom.deleteBtn], disabled);
+  };
+
+  const apiFetch = window.apiFetch || window.fetch;
+
+  const fetchLocations = async () => {
+    try {
+      dom.treeContainer?.classList.add('opacity-50');
+      const response = await apiFetch('/api/storage-locations');
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw response;
+      const result = await response.json();
+      state.locations = result.data?.locations || [];
+      log('Loaded locations:', state.locations.length);
+      renderTree();
+      if (state.selectedId) {
+        const selected = state.locations.find((loc) => loc.id === state.selectedId);
+        if (selected) renderDetails(selected);
+      }
+      dom.treeContainer?.classList.remove('opacity-50');
+    } catch (err) {
+      errorLog('Failed to load locations', err);
+      showAlert({ message: 'Failed to load storage locations', type: 'danger' });
+      dom.treeContainer?.classList.remove('opacity-50');
+    }
+  };
+
+  const fetchLocationDetails = async (locationId, { keepSpinner } = {}) => {
+    if (!locationId) return null;
+    try {
+      dom.detailsLoadingState?.classList.remove('d-none');
+      dom.detailsContent?.classList.add('d-none');
+      dom.detailsEmptyState?.classList.add('d-none');
+
+      const response = await apiFetch(`/api/storage-locations/${locationId}`);
+      if (await handleRateLimit(response)) return null;
+      if (!response.ok) throw response;
+      const result = await response.json();
+      return result?.data?.location || null;
+    } catch (err) {
+      errorLog('Failed to load location details', err);
+      showAlert({ message: 'Failed to load location', type: 'danger' });
+      return null;
+    } finally {
+      if (!keepSpinner) dom.detailsLoadingState?.classList.add('d-none');
+    }
+  };
+
+  const fetchBooksForLocation = async (locationId) => {
+    if (!locationId) return;
+    try {
+      clearAlerts();
+      dom.booksTableBody?.classList.add('opacity-50');
+      dom.booksEmptyState?.classList.add('d-none');
+
+      const params = new URLSearchParams();
+      params.set('includeSubtree', state.includeSubtreeBooks ? 'true' : 'false');
+      params.set('sort', `${state.booksSort.field}:${state.booksSort.order}`);
+      params.set('page', String(state.booksPage));
+      params.set('limit', String(state.booksLimit));
+
+      const response = await apiFetch(`/api/storage-locations/${locationId}/books?${params.toString()}`);
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw response;
+      const result = await response.json();
+      renderBooksTable(result);
+    } catch (err) {
+      errorLog('Failed to load books for location', err);
+      showAlert({ message: 'Failed to load books for this location', type: 'danger' });
+    } finally {
+      dom.booksTableBody?.classList.remove('opacity-50');
+    }
+  };
+
+  const setSelectedLocation = (locationId) => {
+    log('Selected location', locationId);
+    state.selectedId = locationId;
+    updateUrl();
+    const selected = state.locations.find((loc) => loc.id === locationId);
+    renderDetails(selected || null);
+    updateHeaderActions(selected || null);
+    if (selected) fetchBooksForLocation(locationId);
+  };
+
+  const selectLocation = async (locationId, { openPanel } = {}) => {
+    if (!locationId) return;
+    if (state.selectedId === locationId) {
+      if (openPanel && dom.detailsOffcanvas) bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas).show();
+      return;
+    }
+    setSelectedLocation(locationId);
+    if (openPanel && dom.detailsOffcanvas) bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas).show();
+  };
+
+  const populateMoveOptions = (excludeId = null) => {
+    if (!dom.moveLocationSelect) return;
+    const { byId, childrenMap } = buildLocationMaps();
+    const options = [];
+
+    const traverse = (loc, depth) => {
+      if (excludeId && loc.id === excludeId) return;
+      options.push({ id: loc.id, label: `${'- '.repeat(depth)}${loc.name}` });
+      (childrenMap.get(loc.id) || []).forEach((child) => traverse(child, depth + 1));
     };
-    debugLog('Requesting /storagelocation/list with JSON body', body);
-    const response = await apiFetch('/storagelocation/list', {
-      method: 'POST',
-      body: JSON.stringify(body)
+
+    (childrenMap.get('root') || []).forEach((root) => traverse(root, 0));
+
+    dom.moveLocationSelect.innerHTML = '<option value="">Select new parent</option>' + options.map((opt) => `<option value="${opt.id}">${escapeHtml(opt.label)}</option>`).join('');
+  };
+
+  const resetFormErrors = () => {
+    [dom.addLocationError, dom.editLocationError, dom.moveLocationError, dom.deleteLocationError].forEach((el) => {
+      if (el) {
+        el.classList.add('d-none');
+        el.textContent = '';
+      }
     });
-    const payload = await response.json().catch(() => ({}));
+  };
 
-    if (await handleRateLimit(response)) return false;
-
-    if (!response.ok) {
-      const details = Array.isArray(payload.errors) ? payload.errors : [];
-      showAlert({ message: payload.message || 'Failed to load locations.', details });
+  const validateName = (input, helpEl) => {
+    if (!input) return false;
+    const value = input.value.trim();
+    const errors = [];
+    if (!window.validators?.isValidName(value)) {
+      errors.push('Name must be at least 2 characters.');
+    }
+    if (errors.length) {
+      helpEl?.classList.remove('text-muted');
+      helpEl?.classList.add('text-danger');
+      helpEl.textContent = errors[0];
       return false;
     }
-
-    state.locations = payload.data?.storageLocations || [];
-    debugLog('Loaded storage locations.', { count: state.locations.length });
-    renderTree();
-
-    if (!state.locations.length) {
-      renderDetails(null, null);
-      return true;
-    }
-
-    if (!state.selectedId) {
-      const firstRoot = state.locations.find((loc) => loc.parentId === null);
-      state.selectedId = firstRoot?.id || state.locations[0]?.id;
-    }
-
-    await selectLocation(state.selectedId, { openPanel: false });
+    helpEl?.classList.remove('text-danger');
+    helpEl?.classList.add('text-muted');
+    helpEl.textContent = 'Name to show in the tree';
     return true;
   };
 
-  const openSharedLocationModal = (parentId = null) => {
-    window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
-    window.sharedAddModalsConfig.defaultLocationParentId = parentId || null;
-    window.sharedAddModals?.open('location');
+  const validateNotes = (input, helpEl) => {
+    if (!input) return true;
+    const value = input.value.trim();
+    if (value.length > 500) {
+      helpEl?.classList.remove('text-muted');
+      helpEl?.classList.add('text-danger');
+      helpEl.textContent = 'Notes must be 500 characters or less.';
+      return false;
+    }
+    helpEl?.classList.remove('text-danger');
+    helpEl?.classList.add('text-muted');
+    helpEl.textContent = 'Optional notes shown on details panel';
+    return true;
   };
 
-  const openSharedLocationEditModal = (locationId) => {
-    const selected = state.locations.find((loc) => loc.id === locationId);
-    if (!selected) return;
-    window.sharedAddModals?.open('location', {
-      mode: 'edit',
-      initial: {
-        id: selected.id,
-        name: selected.name || '',
-        notes: selected.notes || '',
-        parentId: selected.parentId ?? null
-      }
-    });
+  const getParentLabel = (locationId) => {
+    const loc = state.locations.find((l) => l.id === locationId);
+    return loc?.name || 'Root';
   };
 
-  const openMoveModal = (locationId) => {
-    modalLocationId = locationId;
-    const selected = state.locations.find((loc) => loc.id === locationId);
-    if (!selected || !dom.moveLocationSelect) return;
+  const openAddModal = (parentId = null) => {
+    resetFormErrors();
+    state.forms.add.parentId = parentId;
+    dom.addNameInput.value = '';
+    dom.addNotesInput.value = '';
+    dom.addParentLine.textContent = parentId ? `Parent: ${getParentLabel(parentId)}` : 'Parent: Root';
+    setModalLocked(dom.addLocationModal, false);
+    dom.addLocationSaveBtn.disabled = false;
+    dom.addLocationSaveBtn.querySelector('.spinner-border')?.classList.add('d-none');
+    showModal(dom.addLocationModal);
+    dom.addNameInput.focus();
+  };
 
-    log('Opening move location modal.', { locationId });
-    moveModalState.locked = false;
+  const openEditModal = (loc) => {
+    if (!loc) return;
+    resetFormErrors();
+    state.forms.edit.locationId = loc.id;
+    state.forms.edit.initialName = loc.name || '';
+    state.forms.edit.initialNotes = loc.notes || '';
+    dom.editNameInput.value = loc.name || '';
+    dom.editNotesInput.value = loc.notes || '';
+    dom.editChangesSummary.textContent = 'No changes yet.';
+    setModalLocked(dom.editLocationModal, false);
+    dom.editLocationSaveBtn.disabled = false;
+    dom.editLocationSaveBtn.querySelector('.spinner-border')?.classList.add('d-none');
+    showModal(dom.editLocationModal);
+    dom.editNameInput.focus();
+  };
+
+  const openMoveModal = (loc) => {
+    if (!loc) return;
+    resetFormErrors();
+    state.forms.move.locationId = loc.id;
+    populateMoveOptions(loc.id);
+    dom.moveLocationSelect.value = '';
+    dom.moveSummaryText.textContent = `Move "${loc.name}" to another parent.`;
     setModalLocked(dom.moveLocationModal, false);
-
-    dom.moveLocationSelect.innerHTML = '';
-    const optionRoot = document.createElement('option');
-    optionRoot.value = '';
-    optionRoot.textContent = 'Move to root';
-    dom.moveLocationSelect.appendChild(optionRoot);
-
-    const descendants = new Set();
-    const map = buildLocationMaps();
-    const collectDescendants = (id) => {
-      (map.childrenMap.get(id) || []).forEach((child) => {
-        descendants.add(child.id);
-        collectDescendants(child.id);
-      });
-    };
-    collectDescendants(locationId);
-
-    state.locations.forEach((loc) => {
-      if (loc.id === locationId || descendants.has(loc.id)) return;
-      const option = document.createElement('option');
-      option.value = String(loc.id);
-      option.textContent = loc.path || loc.name;
-      dom.moveLocationSelect.appendChild(option);
-    });
-
-    dom.moveLocationSelect.value = selected.parentId ? String(selected.parentId) : '';
-    if (dom.moveLocationError) {
-      dom.moveLocationError.classList.add('d-none');
-      dom.moveLocationError.textContent = '';
-    }
-
-    showModal(dom.moveLocationModal, { backdrop: 'static', keyboard: false });
+    dom.moveLocationConfirmBtn.disabled = true;
+    dom.moveLocationConfirmBtn.querySelector('.spinner-border')?.classList.add('d-none');
+    showModal(dom.moveLocationModal);
   };
 
-  const confirmMove = async () => {
-    if (!modalLocationId) return;
-    const parentIdRaw = dom.moveLocationSelect?.value;
-    const parentId = parentIdRaw ? Number.parseInt(parentIdRaw, 10) : null;
-
-    log('Moving location.', { id: modalLocationId, parentId });
-    window.modalLock?.lock(dom.moveLocationModal, 'Move location');
-    moveModalState.locked = true;
-    setModalLocked(dom.moveLocationModal, true);
-    setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, true);
-    toggleDisabled([dom.moveLocationSelect], true);
-    try {
-      const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ parentId })
-      });
-      const payload = await response.json().catch(() => ({}));
-      log('Move location response parsed.', { ok: response.ok, status: response.status });
-      if (!response.ok) {
-        const details = Array.isArray(payload.errors) ? payload.errors : [];
-        throw new Error(details.join(' ') || payload.message || 'Move failed.');
-      }
-      await hideModal(dom.moveLocationModal);
-      await loadLocations();
-    } catch (error) {
-      errorLog('Move failed.', error);
-      if (dom.moveLocationError) {
-        dom.moveLocationError.textContent = error.message || 'Unable to move location.';
-        dom.moveLocationError.classList.remove('d-none');
-      }
-    } finally {
-      moveModalState.locked = false;
-      setModalLocked(dom.moveLocationModal, false);
-      setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, false);
-      toggleDisabled([dom.moveLocationSelect], false);
-      window.modalLock?.unlock(dom.moveLocationModal, 'finally');
-    }
-  };
-
-  const openDeleteModal = (locationId) => {
-    modalLocationId = locationId;
-    const selected = state.locations.find((loc) => loc.id === locationId);
-    if (!selected || !dom.deleteLocationMessage) return;
-
-    const childCount = selected.childrenCount || 0;
-    const bookCount = selected.booksTotalCount || 0;
-    const blocked = childCount > 0 || bookCount > 0;
-
-    dom.deleteLocationMessage.textContent = blocked
-      ? `"${selected.name}" cannot be deleted because it has ${childCount} child location(s) and ${bookCount} book(s) in its subtree.`
-      : `Are you sure you want to delete "${selected.name}"? This action cannot be undone.`;
-
-    if (dom.deleteLocationConfirmBtn) {
-      dom.deleteLocationConfirmBtn.disabled = blocked;
-    }
-    if (dom.deleteLocationError) {
-      dom.deleteLocationError.classList.add('d-none');
-      dom.deleteLocationError.textContent = '';
-    }
-
-    log('Opening delete location modal.', { id: locationId, blocked });
-    deleteModalState.locked = false;
+  const openDeleteModal = (loc) => {
+    if (!loc) return;
+    resetFormErrors();
+    state.forms.delete.locationId = loc.id;
+    dom.deleteLocationMessage.textContent = `Delete "${loc.name}" and its subtree?`;
+    dom.deleteImpactNote.textContent = 'Books will be unlinked from this location; data is retained.';
+    dom.deleteConfirmInput.value = '';
     setModalLocked(dom.deleteLocationModal, false);
-    setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, false);
+    dom.deleteLocationConfirmBtn.disabled = true;
+    dom.deleteLocationConfirmBtn.querySelector('.spinner-border')?.classList.add('d-none');
     showModal(dom.deleteLocationModal);
+    dom.deleteConfirmInput.focus();
   };
 
-  const confirmDelete = async () => {
-    if (!modalLocationId) return;
-    log('Deleting location.', { id: modalLocationId });
-    window.modalLock?.lock(dom.deleteLocationModal, 'Delete location');
-    deleteModalState.locked = true;
-    setModalLocked(dom.deleteLocationModal, true);
-    setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, true);
+  const handleAddSubmit = async () => {
+    if (!validateName(dom.addNameInput, dom.addNameHelp) || !validateNotes(dom.addNotesInput, dom.addNotesHelp)) return;
+    const spinnerObj = attachButtonSpinner(dom.addLocationSaveBtn);
+    setButtonLoading(dom.addLocationSaveBtn, spinnerObj, true);
+    setModalLocked(dom.addLocationModal, true);
+
     try {
-      const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
-        method: 'DELETE'
+      const body = {
+        name: dom.addNameInput.value.trim(),
+        notes: dom.addNotesInput.value.trim(),
+        parentId: state.forms.add.parentId
+      };
+      const response = await apiFetch('/api/storage-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
-      const payload = await response.json().catch(() => ({}));
-      log('Delete location response parsed.', { ok: response.ok, status: response.status });
-      if (!response.ok) {
-        const details = Array.isArray(payload.errors) ? payload.errors : [];
-        throw new Error(details.join(' ') || payload.message || 'Delete failed.');
-      }
-      await hideModal(dom.deleteLocationModal);
-      if (state.selectedId === modalLocationId) state.selectedId = null;
-      await loadLocations();
-    } catch (error) {
-      errorLog('Delete failed.', error);
-      if (dom.deleteLocationError) {
-        dom.deleteLocationError.textContent = error.message || 'Unable to delete location.';
-        dom.deleteLocationError.classList.remove('d-none');
-      }
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw await response.json();
+      await fetchLocations();
+      hideModal(dom.addLocationModal);
+    } catch (err) {
+      const errors = err?.errors || [];
+      dom.addLocationError.classList.remove('d-none');
+      dom.addLocationError.textContent = err?.message || 'Could not create location.';
+      if (errors.length) dom.addLocationError.textContent += ` (${errors.join(', ')})`;
     } finally {
-      deleteModalState.locked = false;
-      setModalLocked(dom.deleteLocationModal, false);
-      setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, false);
-      window.modalLock?.unlock(dom.deleteLocationModal, 'finally');
+      setButtonLoading(dom.addLocationSaveBtn, spinnerObj, false);
+      setModalLocked(dom.addLocationModal, false);
     }
   };
 
-  const attachListeners = () => {
-    if (dom.treeSearchInput) {
-      dom.treeSearchInput.addEventListener('input', debounce((event) => {
-        state.searchQuery = event.target.value.trim();
-        updateUrl();
-        renderTree();
-      }, 300));
-    }
+  const handleEditSubmit = async () => {
+    const nameOk = validateName(dom.editNameInput, dom.editNameHelp);
+    const notesOk = validateNotes(dom.editNotesInput, dom.editNotesHelp);
+    if (!nameOk || !notesOk) return;
 
-    if (dom.clearTreeSearchBtn) {
-      dom.clearTreeSearchBtn.addEventListener('click', () => {
-        state.searchQuery = '';
-        if (dom.treeSearchInput) dom.treeSearchInput.value = '';
-        updateUrl();
-        renderTree();
+    const spinnerObj = attachButtonSpinner(dom.editLocationSaveBtn);
+    setButtonLoading(dom.editLocationSaveBtn, spinnerObj, true);
+    setModalLocked(dom.editLocationModal, true);
+
+    try {
+      const body = {
+        name: dom.editNameInput.value.trim(),
+        notes: dom.editNotesInput.value.trim()
+      };
+      const response = await apiFetch(`/api/storage-locations/${state.forms.edit.locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
-    }
-
-    if (dom.expandAllBtn) {
-      dom.expandAllBtn.addEventListener('click', () => {
-        state.expandedIds = new Set(state.locations.map((loc) => loc.id));
-        saveExpanded();
-        renderTree();
-      });
-    }
-
-    if (dom.collapseAllBtn) {
-      dom.collapseAllBtn.addEventListener('click', () => {
-        state.expandedIds = new Set();
-        saveExpanded();
-        renderTree();
-      });
-    }
-
-    if (dom.addRootBtn) {
-      dom.addRootBtn.addEventListener('click', () => {
-        openSharedLocationModal(null);
-      });
-    }
-
-    if (dom.treeContainer) {
-      dom.treeContainer.addEventListener('click', (event) => {
-        const actionEl = event.target.closest('[data-action]');
-        if (!actionEl) return;
-        const action = actionEl.dataset.action;
-        const id = parseNumber(actionEl.dataset.id);
-        if (!id) return;
-        if (action === 'toggle') {
-          event.stopPropagation();
-          if (state.expandedIds.has(id)) {
-            state.expandedIds.delete(id);
-          } else {
-            state.expandedIds.add(id);
-          }
-          saveExpanded();
-          renderTree();
-        } else if (action === 'add-child') {
-          event.stopPropagation();
-          openSharedLocationModal(id);
-        } else if (action === 'rename') {
-          event.stopPropagation();
-          openSharedLocationEditModal(id);
-        } else if (action === 'move') {
-          event.stopPropagation();
-          openMoveModal(id);
-        } else if (action === 'delete') {
-          event.stopPropagation();
-          openDeleteModal(id);
-        }
-      });
-    }
-
-    if (dom.moveLocationConfirmBtn) {
-      dom.moveLocationConfirmBtn.addEventListener('click', confirmMove);
-    }
-
-    if (dom.deleteLocationConfirmBtn) {
-      dom.deleteLocationConfirmBtn.addEventListener('click', confirmDelete);
-    }
-
-    if (dom.copyPathBtn) {
-      dom.copyPathBtn.addEventListener('click', async () => {
-        const pathText = state.lastBreadcrumbParts.length ? state.lastBreadcrumbParts.join(' > ') : '';
-        if (!pathText) return;
-        try {
-          await navigator.clipboard.writeText(pathText);
-        } catch (error) {
-          warn('Failed to copy path.', error);
-        }
-      });
-    }
-
-    if (dom.directOnlyBtn) {
-      dom.directOnlyBtn.addEventListener('click', () => {
-        if (state.includeSubtreeBooks) {
-          state.includeSubtreeBooks = false;
-          state.booksPage = 1;
-          loadBooks({ showLoadingRow: true });
-        }
-      });
-    }
-
-    if (dom.includeSubtreeBtn) {
-      dom.includeSubtreeBtn.addEventListener('click', () => {
-        if (!state.includeSubtreeBooks) {
-          state.includeSubtreeBooks = true;
-          state.booksPage = 1;
-          loadBooks({ showLoadingRow: true });
-        }
-      });
-    }
-
-    if (dom.booksSortSelect) {
-      dom.booksSortSelect.addEventListener('change', (event) => {
-        const [field, order] = (event.target.value || 'title:asc').split(':');
-        state.booksSort = { field: field || 'title', order: order || 'asc' };
-        state.booksPage = 1;
-        loadBooks({ showLoadingRow: true });
-      });
-    }
-
-    if (dom.booksPerPageInput) {
-      dom.booksPerPageInput.addEventListener('change', (event) => {
-        const raw = parseNumber(event.target.value);
-        const clamped = Math.min(50, Math.max(2, raw || state.booksLimit));
-        dom.booksPerPageInput.value = clamped;
-        state.booksLimit = clamped;
-        state.booksPage = 1;
-        loadBooks({ showLoadingRow: true });
-      });
-    }
-
-    if (dom.addChildBtn) {
-      dom.addChildBtn.addEventListener('click', () => {
-        if (!state.selectedId) return;
-        openSharedLocationModal(state.selectedId);
-      });
-    }
-
-    if (dom.renameBtn) {
-      dom.renameBtn.addEventListener('click', () => {
-        if (!state.selectedId) return;
-        openSharedLocationEditModal(state.selectedId);
-      });
-    }
-
-    if (dom.moveBtn) {
-      dom.moveBtn.addEventListener('click', () => {
-        if (!state.selectedId) return;
-        openMoveModal(state.selectedId);
-      });
-    }
-
-    if (dom.deleteBtn) {
-      dom.deleteBtn.addEventListener('click', () => {
-        if (!state.selectedId) return;
-        openDeleteModal(state.selectedId);
-      });
-    }
-
-    if (dom.refreshLocationsBtn) {
-      dom.refreshLocationsBtn.addEventListener('click', async () => {
-        await loadLocations();
-      });
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw await response.json();
+      await fetchLocations();
+      hideModal(dom.editLocationModal);
+    } catch (err) {
+      const errors = err?.errors || [];
+      dom.editLocationError.classList.remove('d-none');
+      dom.editLocationError.textContent = err?.message || 'Could not update location.';
+      if (errors.length) dom.editLocationError.textContent += ` (${errors.join(', ')})`;
+    } finally {
+      setButtonLoading(dom.editLocationSaveBtn, spinnerObj, false);
+      setModalLocked(dom.editLocationModal, false);
     }
   };
 
-  const init = async () => {
-    log('Initializing storage locations page');
-    hydrateStateFromUrl();
-    loadExpanded();
-
-    if (dom.treeSearchInput) dom.treeSearchInput.value = state.searchQuery;
-    if (dom.booksSortSelect) dom.booksSortSelect.value = `${state.booksSort.field}:${state.booksSort.order}`;
-    if (dom.booksPerPageInput) dom.booksPerPageInput.value = state.booksLimit;
-    updateBooksToggle();
-
-    if (window.rateLimitGuard?.hasReset()) {
-      await window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
-      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-        window.pageContentReady.resolve({ success: false, rateLimited: true });
-      }
+  const handleMoveSubmit = async () => {
+    const newParentId = parseNumber(dom.moveLocationSelect.value);
+    if (!newParentId) {
+      dom.moveLocationError.classList.remove('d-none');
+      dom.moveLocationError.textContent = 'Choose a parent to move to.';
       return;
     }
+    const spinnerObj = attachButtonSpinner(dom.moveLocationConfirmBtn);
+    setButtonLoading(dom.moveLocationConfirmBtn, spinnerObj, true);
+    setModalLocked(dom.moveLocationModal, true);
+    try {
+      const response = await apiFetch(`/api/storage-locations/${state.forms.move.locationId}/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: newParentId })
+      });
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw await response.json();
+      await fetchLocations();
+      hideModal(dom.moveLocationModal);
+    } catch (err) {
+      const errors = err?.errors || [];
+      dom.moveLocationError.classList.remove('d-none');
+      dom.moveLocationError.textContent = err?.message || 'Could not move location.';
+      if (errors.length) dom.moveLocationError.textContent += ` (${errors.join(', ')})`;
+    } finally {
+      setButtonLoading(dom.moveLocationConfirmBtn, spinnerObj, false);
+      setModalLocked(dom.moveLocationModal, false);
+    }
+  };
 
-    clearAlerts();
-    attachListeners();
+  const handleDeleteSubmit = async () => {
+    if (dom.deleteConfirmInput.value.trim().toUpperCase() !== 'DELETE') {
+      dom.deleteLocationError.classList.remove('d-none');
+      dom.deleteLocationError.textContent = 'Type DELETE to confirm.';
+      return;
+    }
+    const spinnerObj = attachButtonSpinner(dom.deleteLocationConfirmBtn);
+    setButtonLoading(dom.deleteLocationConfirmBtn, spinnerObj, true);
+    setModalLocked(dom.deleteLocationModal, true);
+    try {
+      const response = await apiFetch(`/api/storage-locations/${state.forms.delete.locationId}`, { method: 'DELETE' });
+      if (await handleRateLimit(response)) return;
+      if (!response.ok) throw await response.json();
+      await fetchLocations();
+      state.selectedId = null;
+      renderDetails(null);
+      hideModal(dom.deleteLocationModal);
+    } catch (err) {
+      const errors = err?.errors || [];
+      dom.deleteLocationError.classList.remove('d-none');
+      dom.deleteLocationError.textContent = err?.message || 'Could not delete location.';
+      if (errors.length) dom.deleteLocationError.textContent += ` (${errors.join(', ')})`;
+    } finally {
+      setButtonLoading(dom.deleteLocationConfirmBtn, spinnerObj, false);
+      setModalLocked(dom.deleteLocationModal, false);
+    }
+  };
 
-    window.sharedAddModalsConfig = window.sharedAddModalsConfig || {};
-    window.sharedAddModalsConfig.getLocations = async () => {
-      if (!state.locations.length) {
-        await loadLocations();
+  const wireEvents = () => {
+    dom.treeSearchInput?.addEventListener('input', debounce((event) => {
+      state.searchQuery = event.target.value;
+      renderTree();
+      updateUrl();
+    }, 200));
+
+    dom.clearTreeSearchBtn?.addEventListener('click', () => {
+      state.searchQuery = '';
+      if (dom.treeSearchInput) dom.treeSearchInput.value = '';
+      renderTree();
+      updateUrl();
+    });
+
+    dom.expandAllBtn?.addEventListener('click', () => {
+      state.locations.forEach((loc) => state.expandedIds.add(loc.id));
+      saveExpanded();
+      renderTree();
+    });
+
+    dom.collapseAllBtn?.addEventListener('click', () => {
+      state.expandedIds.clear();
+      saveExpanded();
+      renderTree();
+    });
+
+    dom.addRootBtn?.addEventListener('click', () => openAddModal(null));
+    dom.refreshLocationsBtn?.addEventListener('click', fetchLocations);
+
+    dom.addChildBtn?.addEventListener('click', () => {
+      if (!state.selectedId) return;
+      openAddModal(state.selectedId);
+    });
+
+    dom.editBtn?.addEventListener('click', () => {
+      const loc = state.locations.find((l) => l.id === state.selectedId);
+      if (!loc) return;
+      openEditModal(loc);
+    });
+
+    dom.moveBtn?.addEventListener('click', () => {
+      const loc = state.locations.find((l) => l.id === state.selectedId);
+      if (!loc) return;
+      openMoveModal(loc);
+    });
+
+    dom.deleteBtn?.addEventListener('click', () => {
+      const loc = state.locations.find((l) => l.id === state.selectedId);
+      if (!loc) return;
+      openDeleteModal(loc);
+    });
+
+    dom.addLocationSaveBtn?.addEventListener('click', handleAddSubmit);
+    dom.editLocationSaveBtn?.addEventListener('click', handleEditSubmit);
+    dom.moveLocationConfirmBtn?.addEventListener('click', handleMoveSubmit);
+    dom.deleteLocationConfirmBtn?.addEventListener('click', handleDeleteSubmit);
+
+    dom.moveLocationSelect?.addEventListener('change', () => {
+      dom.moveLocationConfirmBtn.disabled = !dom.moveLocationSelect.value;
+      dom.moveLocationError.classList.add('d-none');
+    });
+
+    dom.deleteConfirmInput?.addEventListener('input', () => {
+      dom.deleteLocationConfirmBtn.disabled = dom.deleteConfirmInput.value.trim().toUpperCase() !== 'DELETE';
+    });
+
+    dom.booksSortSelect?.addEventListener('change', () => {
+      const [field, order] = dom.booksSortSelect.value.split(':');
+      state.booksSort = { field, order };
+      state.booksPage = 1;
+      updateUrl();
+      fetchBooksForLocation(state.selectedId);
+    });
+
+    dom.booksPerPageInput?.addEventListener('change', () => {
+      const value = parseNumber(dom.booksPerPageInput.value) || 10;
+      state.booksLimit = Math.min(50, Math.max(2, value));
+      dom.booksPerPageInput.value = String(state.booksLimit);
+      state.booksPage = 1;
+      updateUrl();
+      fetchBooksForLocation(state.selectedId);
+    });
+
+    dom.directOnlyBtn?.addEventListener('click', () => {
+      state.includeSubtreeBooks = false;
+      state.booksPage = 1;
+      refreshBooksControls();
+      updateUrl();
+      fetchBooksForLocation(state.selectedId);
+    });
+
+    dom.includeSubtreeBtn?.addEventListener('click', () => {
+      state.includeSubtreeBooks = true;
+      state.booksPage = 1;
+      refreshBooksControls();
+      updateUrl();
+      fetchBooksForLocation(state.selectedId);
+    });
+
+    dom.copyPathBtn?.addEventListener('click', async () => {
+      try {
+        const path = state.lastBreadcrumbParts.join(' / ');
+        await navigator.clipboard.writeText(path);
+        dom.copyPathBtn.innerHTML = '<i class="bi bi-clipboard-check"></i>';
+        setTimeout(() => { dom.copyPathBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+      } catch (err) {
+        warn('Failed to copy path', err);
       }
-      return state.locations;
-    };
-    const sharedEvents = window.sharedAddModals?.events;
-    if (sharedEvents) {
-      sharedEvents.addEventListener('location:created', async (event) => {
-        await loadLocations();
-        if (event?.detail?.id) {
-          await selectLocation(event.detail.id, { openPanel: true });
-        }
-      });
-      sharedEvents.addEventListener('location:updated', async (event) => {
-        await loadLocations();
-        if (event?.detail?.id) {
-          await selectLocation(event.detail.id, { openPanel: true });
-        }
-      });
-    }
+    });
+  };
 
-    const ok = await loadLocations();
-
-    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-      window.pageContentReady.resolve({ success: ok });
-    }
+  const init = () => {
+    log('Initializing storage locations page');
+    loadExpanded();
+    hydrateStateFromUrl();
+    refreshBooksControls();
+    wireEvents();
+    fetchLocations();
   };
 
   document.addEventListener('DOMContentLoaded', init);
