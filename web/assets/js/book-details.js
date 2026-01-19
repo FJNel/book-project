@@ -682,9 +682,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     tags.forEach((tag) => {
+      const tagName = typeof tag === 'string' ? tag : tag?.name;
+      if (!tagName) return;
+      const tagId = Number.isInteger(tag?.id) ? tag.id : (Number.isInteger(tag?.tagId) ? tag.tagId : null);
+      if (Number.isInteger(tagId)) {
+        const badge = document.createElement('a');
+        badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1 text-decoration-none';
+        badge.href = `books?tags=${encodeURIComponent(tagId)}`;
+        badge.textContent = tagName;
+        tagsWrap.appendChild(badge);
+        return;
+      }
       const badge = document.createElement('span');
       badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1';
-      badge.textContent = tag.name;
+      badge.textContent = tagName;
       tagsWrap.appendChild(badge);
     });
   };
@@ -759,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authorNames = (book.authors || [])
       .map((author) => author.authorName)
       .filter(Boolean);
-    const authorLine = authorNames.length > 0 ? authorNames.join(', ') : null;
+    const authorLine = authorNames.length > 0 ? `by ${authorNames.join(', ')}` : null;
     setTextOrMuted(document.getElementById('bookAuthorsLine'), authorLine, 'Unknown author(s)');
 
     const formatLine = book.bookType?.name ? `Format: ${book.bookType.name}` : null;
@@ -799,8 +810,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookTypeRow = document.getElementById('bookTypeRow');
     const bookTypeName = book.bookType?.name || 'Format unknown';
     const bookTypeNameEl = document.getElementById('bookTypeName');
-    bookTypeNameEl.textContent = bookTypeName;
-    bookTypeNameEl.classList.toggle('text-muted', !book.bookType?.name);
+    if (bookTypeNameEl) {
+      bookTypeNameEl.innerHTML = '';
+      if (Number.isInteger(book.bookType?.id)) {
+        const link = document.createElement('a');
+        link.href = `books?filterBookTypeId=${encodeURIComponent(book.bookType.id)}`;
+        link.className = 'text-decoration-none';
+        link.textContent = book.bookType.name;
+        bookTypeNameEl.appendChild(link);
+      } else {
+        bookTypeNameEl.textContent = bookTypeName;
+      }
+      bookTypeNameEl.classList.toggle('text-muted', !book.bookType?.name);
+    }
 
     const bookTypeDescription = book.bookType?.description ? book.bookType.description.trim() : '';
     const bookTypeDescriptionWrap = document.getElementById('bookTypeDescriptionWrap');
@@ -1033,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let valid = true;
     const title = editBookTitle?.value.trim() || '';
     if (!title) {
-      setHelpText(editBookTitleHelp, 'Title is required.', true);
+      setHelpText(editBookTitleHelp, 'This field is required.', true);
       valid = false;
     } else if (title.length < 2 || title.length > 200) {
       setHelpText(editBookTitleHelp, 'Title must be between 2 and 200 characters.', true);

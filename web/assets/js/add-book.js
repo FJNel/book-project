@@ -83,7 +83,10 @@
         editLoadError: byId('editBookLoadError'),
         editCopyUnavailableAlert: byId('editCopyUnavailableAlert'),
         editCopyUnavailableLink: byId('editCopyUnavailableLink'),
-        bookCopyCard: byId('bookCopyDetailsCard')
+        bookCopyCard: byId('bookCopyDetailsCard'),
+        invalidEditModal: byId('invalidEditBookModal'),
+        invalidEditModalMessage: byId('invalidEditBookModalMessage'),
+        invalidEditModalConfirm: byId('invalidEditBookModalConfirm')
     };
 
     selectors.titleHelp = ensureHelpText(selectors.title, 'twoTitleHelp');
@@ -195,12 +198,42 @@
         setPartialDateHelp(selectors.acquisitionDate, selectors.acquisitionDateHelp);
     }
 
-    function getEditBookId() {
+    const showModal = async (target, options) => {
+        if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+            await window.modalManager.showModal(target, options);
+            return;
+        }
+        const element = typeof target === 'string' ? document.getElementById(target) : target;
+        if (!element) return;
+        bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+    };
+
+    const hideModal = async (target) => {
+        if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+            await window.modalManager.hideModal(target);
+            return;
+        }
+        const element = typeof target === 'string' ? document.getElementById(target) : target;
+        if (!element) return;
+        const instance = bootstrap.Modal.getInstance(element);
+        if (instance) instance.hide();
+    };
+
+    const showInvalidEditModal = async (message) => {
+        if (selectors.invalidEditModalMessage) {
+            selectors.invalidEditModalMessage.textContent = message || 'We couldn’t find that book. Please return to your books list and try again.';
+        }
+        await hideModal('pageLoadingModal');
+        await showModal(selectors.invalidEditModal, { backdrop: 'static', keyboard: false });
+    };
+
+    function getEditBookParam() {
         const params = new URLSearchParams(window.location.search);
         const raw = params.get('id') || params.get('bookId');
-        if (!raw) return null;
+        if (!raw) return { raw: null, id: null };
         const parsed = Number.parseInt(raw, 10);
-        return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+        const id = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+        return { raw, id };
     }
 
     function isEditMode() {
@@ -277,10 +310,18 @@
         return { role: 'Other', customRole: role };
     }
 
-    const initialEditId = getEditBookId();
+    const editParam = getEditBookParam();
+    const initialEditId = editParam.id;
+    const invalidEditParam = Boolean(editParam.raw) && !Number.isInteger(initialEditId);
     if (Number.isInteger(initialEditId)) {
         editState.enabled = true;
         editState.bookId = initialEditId;
+    }
+
+    if (selectors.invalidEditModalConfirm) {
+        selectors.invalidEditModalConfirm.addEventListener('click', () => {
+            window.location.href = 'books';
+        });
     }
 
     function renderBookTypes() {
@@ -885,12 +926,16 @@
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 log('Failed to load book for edit:', response.status, data);
-                showEditLoadError();
+                if (response.status === 404) {
+                    await showInvalidEditModal('We couldn’t find that book. Please return to your books list and try again.');
+                } else {
+                    showEditLoadError();
+                }
                 return false;
             }
             const book = data.data || null;
             if (!book || !Number.isInteger(book.id)) {
-                showEditLoadError();
+                await showInvalidEditModal('We couldn’t find that book. Please return to your books list and try again.');
                 return false;
             }
             applyBookToForm(book);
@@ -1392,6 +1437,13 @@
 
     async function initialize() {
         log('Initializing Add Book page...');
+        if (invalidEditParam) {
+            await showInvalidEditModal('We couldn’t find that book. Please return to your books list and try again.');
+            if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+                window.pageContentReady.resolve({ success: false });
+            }
+            return;
+        }
         attachEvents();
         applyEditModeUI();
         renderAuthors();
@@ -1405,7 +1457,11 @@
             loadLocations()
         ]);
         const listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        if (isEditMode()) {
+            await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
+        }
         const editOk = await loadBookForEdit();
+        await hideModal('pageLoadingModal');
         const allOk = listOk && editOk;
         if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
             window.pageContentReady.resolve({ success: allOk });

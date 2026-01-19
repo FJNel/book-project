@@ -1538,6 +1538,11 @@
             radio.removeAttribute('aria-controls');
         });
 
+        [baseFields, nestedFields].forEach((section) => {
+            if (!section) return;
+            section.removeAttribute('data-bs-parent');
+        });
+
         function populateParents(locations) {
             if (!parentSelect) return;
             parentSelect.innerHTML = '<option value="none" selected> Select parent location...</option>';
@@ -1555,12 +1560,9 @@
 
         function setCollapseVisibility(collapseEl, show) {
             if (!collapseEl) return;
-            if (window.bootstrap && window.bootstrap.Collapse) {
-                const instance = window.bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
-                if (show) instance.show(); else instance.hide();
-                return;
-            }
             collapseEl.classList.toggle('show', show);
+            collapseEl.style.display = show ? 'block' : 'none';
+            collapseEl.style.height = show ? 'auto' : '0px';
         }
 
         function updateInlineHelp() {
