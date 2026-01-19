@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
   const seriesOrderInput = document.getElementById('seriesOrderInput');
   const seriesOrderChangeSummary = document.getElementById('seriesOrderChangeSummary');
+  const seriesOrderSummary = document.getElementById('seriesOrderSummary');
   const seriesOrderResetBtn = document.getElementById('seriesOrderResetBtn');
   const seriesOrderSaveBtn = document.getElementById('seriesOrderSaveBtn');
   const seriesOrderErrorAlert = document.getElementById('seriesOrderErrorAlert');
@@ -125,6 +126,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteCopyText = document.getElementById('deleteCopyText');
   const deleteCopyConfirmBtn = document.getElementById('deleteCopyConfirmBtn');
   const deleteCopyErrorAlert = document.getElementById('deleteCopyErrorAlert');
+
+  let bookRecord = null;
+  let authorRoleTarget = null;
+  let removeAuthorTarget = null;
+  let seriesOrderTarget = null;
+  let removeSeriesTarget = null;
+  let copyEditTarget = null;
+  let tagDraft = [];
+  const referenceData = {
+    languages: null,
+    bookTypes: null,
+    publishers: null,
+    authors: null,
+    series: null,
+    locations: null
+  };
+  const authorRoleModalState = { locked: false };
+  const seriesOrderModalState = { locked: false };
+  const copyModalState = { locked: false };
 
   const toggleSubtitle = (text) => {
     const el = document.getElementById('bookSubtitle');
@@ -350,6 +370,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const authorRoleSpinner = attachButtonSpinner(authorRoleSaveBtn);
+  const seriesOrderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
+  const copySpinner = attachButtonSpinner(copySaveBtn);
+
+  bindModalLock(editAuthorRoleModal, authorRoleModalState);
+  bindModalLock(editSeriesOrderModal, seriesOrderModalState);
+  bindModalLock(editCopyModal, copyModalState);
+
   const sharedNamePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
   const authorRolePattern = /^[\p{L}0-9 .,'":;!?()&\/-]+$/u;
 
@@ -401,6 +429,22 @@ document.addEventListener('DOMContentLoaded', () => {
     await hideModal('pageLoadingModal');
     await showModal(invalidModal, { backdrop: 'static', keyboard: false });
   };
+
+  if (invalidModalClose) {
+    invalidModalClose.addEventListener('click', () => {
+      log('Invalid book modal closed. Redirecting to books list.');
+      window.location.href = 'books';
+    });
+  }
+
+  const bookIdParam = new URLSearchParams(window.location.search).get('id');
+  const bookId = Number.parseInt(bookIdParam, 10);
+  if (!Number.isInteger(bookId) || bookId <= 0) {
+    warn('Invalid book id in URL.', { bookIdParam });
+    showInvalidModal(defaultInvalidBookMessage);
+    return;
+  }
+  log('Resolved book id from URL.', { bookId });
 
   const toggleDetails = ({ row, wrap, chevron }) => {
     if (!row || !wrap || !chevron) return;
