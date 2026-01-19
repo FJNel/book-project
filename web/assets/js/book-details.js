@@ -56,15 +56,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const manageAuthorsModal = document.getElementById('manageAuthorsModal');
   const manageAuthorsList = document.getElementById('manageAuthorsList');
-  const manageAuthorsSelect = document.getElementById('manageAuthorsSelect');
-  const manageAuthorsRole = document.getElementById('manageAuthorsRole');
-  const addAuthorToBookBtn = document.getElementById('addAuthorToBookBtn');
+  const manageAuthorsSearch = document.getElementById('manageAuthorsSearch');
+  const manageAuthorsResults = document.getElementById('manageAuthorsResults');
+  const manageAuthorsSearchHelp = document.getElementById('manageAuthorsSearchHelp');
   const manageAuthorsError = document.getElementById('manageAuthorsError');
   const openAddAuthorBtn = document.getElementById('openAddAuthorBtn');
 
   const editAuthorRoleModal = document.getElementById('editAuthorRoleModal');
-  const authorRoleInput = document.getElementById('authorRoleInput');
-  const authorRoleSummary = document.getElementById('authorRoleSummary');
+  const authorRoleSelect = document.getElementById('authorRoleSelect');
+  const authorRoleOtherWrap = document.getElementById('authorRoleOtherWrap');
+  const authorRoleOtherInput = document.getElementById('authorRoleOtherInput');
+  const authorRoleHelp = document.getElementById('authorRoleHelp');
   const authorRoleChangeSummary = document.getElementById('authorRoleChangeSummary');
   const authorRoleResetBtn = document.getElementById('authorRoleResetBtn');
   const authorRoleSaveBtn = document.getElementById('authorRoleSaveBtn');
@@ -77,15 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const manageSeriesModal = document.getElementById('manageSeriesModal');
   const manageSeriesList = document.getElementById('manageSeriesList');
-  const manageSeriesSelect = document.getElementById('manageSeriesSelect');
-  const manageSeriesOrder = document.getElementById('manageSeriesOrder');
-  const addSeriesToBookBtn = document.getElementById('addSeriesToBookBtn');
+  const manageSeriesSearch = document.getElementById('manageSeriesSearch');
+  const manageSeriesResults = document.getElementById('manageSeriesResults');
+  const manageSeriesSearchHelp = document.getElementById('manageSeriesSearchHelp');
   const manageSeriesError = document.getElementById('manageSeriesError');
   const openAddSeriesBtn = document.getElementById('openAddSeriesBtn');
 
   const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
   const seriesOrderInput = document.getElementById('seriesOrderInput');
-  const seriesOrderSummary = document.getElementById('seriesOrderSummary');
   const seriesOrderChangeSummary = document.getElementById('seriesOrderChangeSummary');
   const seriesOrderResetBtn = document.getElementById('seriesOrderResetBtn');
   const seriesOrderSaveBtn = document.getElementById('seriesOrderSaveBtn');
@@ -244,6 +245,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
+  const normalizeTag = (value) => {
+    if (!value) return '';
+    return value.trim().replace(/\s+/g, ' ');
+  };
+
+  const tagPattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+
+  const showSearchResults = (container, items, onSelect) => {
+    if (!container) return;
+    container.classList.remove('d-none');
+    container.innerHTML = '';
+    items.forEach((item) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'list-group-item list-group-item-action';
+      option.textContent = item.displayName || item.name;
+      option.addEventListener('click', () => onSelect(item));
+      container.appendChild(option);
+    });
+  };
+
+  const hideSearchResults = (container) => {
+    if (!container) return;
+    container.classList.add('d-none');
+    container.innerHTML = '';
+  };
+
+  const setSearchDisabled = (input, helpEl, disabled, message) => {
+    if (!input) return;
+    input.disabled = disabled;
+    if (disabled) {
+      setHelpText(helpEl, message, true);
+    } else {
+      clearHelpText(helpEl);
+    }
+  };
+
   const updateCopyLocationHelp = () => {
     if (!copyLocationHelp) return;
     const value = copyLocationSelect?.value ? String(copyLocationSelect.value) : '';
@@ -313,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const sharedNamePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
+  const authorRolePattern = /^[\p{L}0-9 .,'":;!?()&\/-]+$/u;
 
   const bindRequiredFieldValidation = (inputEl, helpEl, { label = 'This field', min = 2, max = 150, pattern = sharedNamePattern } = {}) => {
     if (!inputEl || !helpEl) return;
@@ -363,62 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     await showModal(invalidModal, { backdrop: 'static', keyboard: false });
   };
 
-  const initializeTooltips = () => {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach((tooltipTriggerEl) => {
-      if (bootstrap.Tooltip.getInstance(tooltipTriggerEl)) return;
-      new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    log('Tooltips initialized.', { count: tooltipTriggerList.length });
-  };
-
-  if (invalidModalClose) {
-    invalidModalClose.addEventListener('click', () => {
-      log('Invalid book modal closed. Redirecting to books list.');
-      window.location.href = 'books';
-    });
-  }
-
-  const bookIdParam = new URLSearchParams(window.location.search).get('id');
-  const bookId = Number.parseInt(bookIdParam, 10);
-  if (!Number.isInteger(bookId) || bookId <= 0) {
-    warn('Invalid book id in URL.', { bookIdParam });
-    showInvalidModal(defaultInvalidBookMessage);
-    return;
-  }
-  log('Resolved book id from URL.', { bookId });
-
-  let bookRecord = null;
-  let referenceData = {
-    languages: null,
-    bookTypes: null,
-    publishers: null,
-    authors: null,
-    series: null,
-    locations: null
-  };
-  let tagDraft = [];
-  let authorRoleTarget = null;
-  let removeAuthorTarget = null;
-  let seriesOrderTarget = null;
-  let removeSeriesTarget = null;
-  let copyEditTarget = null;
-
-  const authorRoleModalState = { locked: false };
-  const seriesOrderModalState = { locked: false };
-  const copyModalState = { locked: false };
-  const authorRoleSpinner = attachButtonSpinner(authorRoleSaveBtn);
-  const seriesOrderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
-  const copySpinner = attachButtonSpinner(copySaveBtn);
-
-  bindModalLock(editAuthorRoleModal, authorRoleModalState);
-  bindModalLock(editSeriesOrderModal, seriesOrderModalState);
-  bindModalLock(editCopyModal, copyModalState);
-
-  const toggleDetails = ({ row, wrap, chevron }) => {
-    if (!row || !wrap || !chevron) return;
-    const isOpen = row.getAttribute('data-expanded') === 'true';
-    wrap.classList.toggle('d-none', isOpen);
     row.setAttribute('data-expanded', isOpen ? 'false' : 'true');
   };
 
@@ -1078,54 +1061,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const validateEditBook = () => {
-    let valid = true;
-    const title = editBookTitle?.value.trim() || '';
-    if (!title) {
-      setHelpText(editBookTitleHelp, 'This field is required.', true);
-      valid = false;
-    } else if (title.length < 2 || title.length > 200) {
-      setHelpText(editBookTitleHelp, 'Title must be between 2 and 200 characters.', true);
-      valid = false;
-    } else {
-      clearHelpText(editBookTitleHelp);
-    }
-
-    const subtitle = editBookSubtitle?.value.trim() || '';
-    if (subtitle && subtitle.length > 200) {
-      setHelpText(editBookSubtitleHelp, 'Subtitle must be 200 characters or fewer.', true);
-      valid = false;
-    } else {
-      clearHelpText(editBookSubtitleHelp);
-    }
-
-    const isbn = editBookIsbn?.value.trim() || '';
-    if (isbn && isbn.length > 40) {
-      setHelpText(editBookIsbnHelp, 'ISBN must be 40 characters or fewer.', true);
-      valid = false;
-    } else {
-      clearHelpText(editBookIsbnHelp);
-    }
-
-    const publicationRaw = editBookPublication?.value.trim() || '';
-    if (publicationRaw) {
-      const parsed = parsePartialDateInput(publicationRaw);
-      if (parsed.error) {
-        setHelpText(editBookPublicationHelp, parsed.error, true);
-        valid = false;
-      } else {
-        clearHelpText(editBookPublicationHelp);
-      }
-    } else {
-      clearHelpText(editBookPublicationHelp);
-    }
-
-    const pagesRaw = editBookPages?.value.trim() || '';
-    if (pagesRaw) {
-      const pageValue = Number(pagesRaw);
-      if (!Number.isInteger(pageValue) || pageValue <= 0) {
-        setHelpText(editBookPagesHelp, 'Pages must be a positive whole number.', true);
-        valid = false;
       } else {
         clearHelpText(editBookPagesHelp);
       }
@@ -1253,9 +1188,18 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="fw-semibold">${author.authorName || 'Unknown author'}</div>
           <div class="text-muted small">${role}</div>
         </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-link btn-sm p-0" type="button" data-author-role="${author.authorId}">Edit role</button>
-          <button class="btn btn-link btn-sm text-danger p-0" type="button" data-author-remove="${author.authorId}">Remove</button>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" data-author-role="${author.authorId}" data-bs-toggle="tooltip" title="Edit role" aria-label="Edit role">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+            </svg>
+          </button>
+          <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 text-danger" type="button" data-author-remove="${author.authorId}" data-bs-toggle="tooltip" title="Remove author from this book" aria-label="Remove author from this book">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            </svg>
+          </button>
         </div>
       `;
       manageAuthorsList.appendChild(item);
@@ -1278,6 +1222,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const updateAuthorSearchAvailability = () => {
+    const total = referenceData.authors ? referenceData.authors.length : 0;
+    const selected = (bookRecord?.authors || []).length;
+    if (!total) {
+      setSearchDisabled(manageAuthorsSearch, manageAuthorsSearchHelp, true, 'No authors available yet. Add a new author to begin.');
+      return;
+    }
+    if (selected >= total) {
+      setSearchDisabled(manageAuthorsSearch, manageAuthorsSearchHelp, true, 'All available authors have been added.');
+      return;
+    }
+    setSearchDisabled(manageAuthorsSearch, manageAuthorsSearchHelp, false, '');
+  };
+
+  const addAuthorFromSearch = async (author) => {
+    if (!bookRecord || !author) return;
+    const existing = (bookRecord.authors || []).some((entry) => entry.authorId === author.id);
+    if (existing) return;
+    const authors = (bookRecord.authors || []).map((entry) => ({
+      authorId: entry.authorId,
+      authorRole: entry.authorRole || null
+    }));
+    authors.push({ authorId: author.id, authorRole: null });
+
+    if (manageAuthorsError) {
+      manageAuthorsError.classList.add('d-none');
+      manageAuthorsError.textContent = '';
+    }
+
+    try {
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, authors }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (manageAuthorsError) {
+          manageAuthorsError.classList.remove('d-none');
+          manageAuthorsError.textContent = data.message || 'Unable to add author.';
+        }
+        warn('Add author failed.', { status: response.status, data });
+        return;
+      }
+      log('Author added from search.', { authorId: author.id, authorName: author.displayName });
+      await loadBook();
+      renderManageAuthorsList(bookRecord.authors || []);
+      updateAuthorSearchAvailability();
+      if (manageAuthorsSearch) manageAuthorsSearch.value = '';
+      hideSearchResults(manageAuthorsResults);
+      openAuthorRoleModal(author.id);
+    } catch (error) {
+      errorLog('Add author failed.', error);
+      if (manageAuthorsError) {
+        manageAuthorsError.classList.remove('d-none');
+        manageAuthorsError.textContent = 'Unable to add author right now.';
+      }
+    }
+  };
+
+  const handleManageAuthorSearch = () => {
+    if (!manageAuthorsSearch) return;
+    const query = manageAuthorsSearch.value.trim().toLowerCase();
+    if (!query) {
+      hideSearchResults(manageAuthorsResults);
+      return;
+    }
+    const results = (referenceData.authors || [])
+      .filter((author) => !(bookRecord?.authors || []).some((selected) => selected.authorId === author.id))
+      .filter((author) => (author.displayName || '').toLowerCase().includes(query));
+    showSearchResults(manageAuthorsResults, results, addAuthorFromSearch);
+  };
+
   const showListLoadError = (alertEl, label, error) => {
     if (!alertEl) return;
     const status = error?.status ? ` (HTTP ${error.status})` : '';
@@ -1296,10 +1309,11 @@ document.addEventListener('DOMContentLoaded', () => {
       manageAuthorsError.textContent = '';
     }
     try {
-      const authors = await loadAuthorsList();
-      populateSelect(manageAuthorsSelect, authors, { placeholder: 'Select author', labelKey: 'displayName', valueKey: 'id', includeEmpty: true });
+      await loadAuthorsList();
       renderManageAuthorsList(bookRecord.authors || []);
-      manageAuthorsRole.value = '';
+      updateAuthorSearchAvailability();
+      if (manageAuthorsSearch) manageAuthorsSearch.value = '';
+      hideSearchResults(manageAuthorsResults);
       await showModal(manageAuthorsModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
       errorLog('Failed to load authors.', error);
@@ -1308,11 +1322,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const updateAuthorRoleSummary = (author, currentRole, nextRole) => {
-    if (!authorRoleSummary || !bookRecord) return;
-    const safeCurrent = currentRole || 'No role';
-    const safeNext = nextRole || 'No role';
-    authorRoleSummary.textContent = `Changing ${author.authorName || 'this author'}'s role on ${bookRecord.title || 'this book'} from ${safeCurrent} to ${safeNext}.`;
+  const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator']);
+
+  const getAuthorRoleValue = () => {
+    if (!authorRoleSelect) return '';
+    const selected = authorRoleSelect.value;
+    if (selected === 'none') return '';
+    if (selected === 'Other') return authorRoleOtherInput?.value.trim() || '';
+    return selected || '';
+  };
+
+  const applyAuthorRoleFields = (role) => {
+    if (!authorRoleSelect) return;
+    if (!role) {
+      authorRoleSelect.value = 'none';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.add('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = '';
+      return;
+    }
+    if (authorRoleOptions.has(role)) {
+      authorRoleSelect.value = role;
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.add('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = '';
+    } else {
+      authorRoleSelect.value = 'Other';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.remove('d-none');
+      if (authorRoleOtherInput) authorRoleOtherInput.value = role;
+    }
   };
 
   const updateAuthorRoleChangeSummary = () => {
@@ -1322,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const originalInput = authorRoleTarget.originalInputValue || '';
-    const nextInput = authorRoleInput.value.trim();
+    const nextInput = getAuthorRoleValue();
     const hasChanges = nextInput !== originalInput;
     const currentLabel = authorRoleTarget.currentRole || 'No role';
     const nextLabel = nextInput || 'No role';
@@ -1335,19 +1371,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const setAuthorRoleLocked = (locked) => {
     authorRoleModalState.locked = locked;
     setModalLocked(editAuthorRoleModal, locked);
-    toggleDisabled([authorRoleInput, authorRoleResetBtn], locked);
+    toggleDisabled([authorRoleSelect, authorRoleOtherInput, authorRoleResetBtn], locked);
     if (authorRoleSpinner) setButtonLoading(authorRoleSaveBtn, authorRoleSpinner.spinner, locked);
     updateAuthorRoleChangeSummary();
   };
 
   const resetAuthorRoleModal = () => {
     if (!authorRoleTarget) return;
-    authorRoleInput.value = authorRoleTarget.originalInputValue || '';
+    applyAuthorRoleFields(authorRoleTarget.originalInputValue || '');
     if (authorRoleErrorAlert) {
       authorRoleErrorAlert.classList.add('d-none');
       authorRoleErrorAlert.textContent = '';
     }
-    updateAuthorRoleSummary(authorRoleTarget.author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
+    if (authorRoleHelp) {
+      authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+      authorRoleHelp.classList.remove('text-danger');
+    }
     updateAuthorRoleChangeSummary();
   };
 
@@ -1358,19 +1397,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentRole = author.authorRole || 'Contributor';
     const originalInputValue = author.authorRole === 'Contributor' ? '' : author.authorRole || '';
     authorRoleTarget = { author, currentRole, originalInputValue };
-    authorRoleInput.value = originalInputValue;
+    applyAuthorRoleFields(originalInputValue);
     if (authorRoleErrorAlert) {
       authorRoleErrorAlert.classList.add('d-none');
       authorRoleErrorAlert.textContent = '';
     }
-    updateAuthorRoleSummary(author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
+    if (authorRoleHelp) {
+      authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+      authorRoleHelp.classList.remove('text-danger');
+    }
     updateAuthorRoleChangeSummary();
     showModal(editAuthorRoleModal, { backdrop: 'static', keyboard: false });
   };
 
   const saveAuthorRole = async () => {
     if (!authorRoleTarget || !bookRecord) return;
-    const nextRole = authorRoleInput.value.trim();
+    const selectedRole = authorRoleSelect?.value || 'none';
+    const nextRole = getAuthorRoleValue();
+    if (selectedRole === 'Other' && (!nextRole || nextRole.length < 2 || nextRole.length > 100 || !authorRolePattern.test(nextRole))) {
+      if (authorRoleHelp) {
+        authorRoleHelp.textContent = 'Custom role must be 2-100 characters and use letters, numbers, and basic punctuation.';
+        authorRoleHelp.classList.add('text-danger');
+      }
+      return;
+    }
     const authors = (bookRecord.authors || []).map((entry) => ({
       authorId: entry.authorId,
       authorRole: entry.authorId === authorRoleTarget.author.authorId ? (nextRole || null) : (entry.authorRole || null)
@@ -1454,55 +1504,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const addAuthorToBook = async () => {
-    if (!bookRecord) return;
-    const authorId = manageAuthorsSelect?.value ? Number(manageAuthorsSelect.value) : null;
-    if (!authorId) {
-      if (manageAuthorsError) {
-        manageAuthorsError.classList.remove('d-none');
-        manageAuthorsError.textContent = 'Select an author to add.';
-      }
-      return;
-    }
-    const existing = (bookRecord.authors || []).some((entry) => entry.authorId === authorId);
-    if (existing) {
-      if (manageAuthorsError) {
-        manageAuthorsError.classList.remove('d-none');
-        manageAuthorsError.textContent = 'That author is already linked.';
-      }
-      return;
-    }
-    const role = manageAuthorsRole?.value.trim() || null;
-    const authors = (bookRecord.authors || []).map((entry) => ({
-      authorId: entry.authorId,
-      authorRole: entry.authorRole || null
-    }));
-    authors.push({ authorId, authorRole: role });
-    addAuthorToBookBtn.disabled = true;
-    try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, authors }) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (manageAuthorsError) {
-          manageAuthorsError.classList.remove('d-none');
-          manageAuthorsError.textContent = data.message || 'Unable to add author.';
-        }
-        warn('Add author failed.', { status: response.status, data });
-        return;
-      }
-      await loadBook();
-      await openManageAuthorsModal();
-    } catch (error) {
-      errorLog('Add author failed.', error);
-      if (manageAuthorsError) {
-        manageAuthorsError.classList.remove('d-none');
-        manageAuthorsError.textContent = 'Unable to add author right now.';
-      }
-    } finally {
-      addAuthorToBookBtn.disabled = false;
-    }
-  };
-
   const openManageSeriesModal = async () => {
     if (!bookRecord) return;
     if (manageSeriesError) {
@@ -1510,10 +1511,11 @@ document.addEventListener('DOMContentLoaded', () => {
       manageSeriesError.textContent = '';
     }
     try {
-      const series = await loadSeriesList();
-      populateSelect(manageSeriesSelect, series, { placeholder: 'Select series', labelKey: 'name', valueKey: 'id', includeEmpty: true });
+      await loadSeriesList();
       renderManageSeriesList(bookRecord.series || []);
-      manageSeriesOrder.value = '';
+      updateSeriesSearchAvailability();
+      if (manageSeriesSearch) manageSeriesSearch.value = '';
+      hideSearchResults(manageSeriesResults);
       await showModal(manageSeriesModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
       errorLog('Failed to load series.', error);
@@ -1540,9 +1542,18 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="fw-semibold">${entry.seriesName || 'Untitled series'}</div>
           <div class="text-muted small">${orderLabel}</div>
         </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-link btn-sm p-0" type="button" data-series-edit="${entry.seriesId}">Edit order</button>
-          <button class="btn btn-link btn-sm text-danger p-0" type="button" data-series-remove="${entry.seriesId}">Remove</button>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn" type="button" data-series-edit="${entry.seriesId}" data-bs-toggle="tooltip" title="Edit order" aria-label="Edit order">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
+            </svg>
+          </button>
+          <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 text-danger" type="button" data-series-remove="${entry.seriesId}" data-bs-toggle="tooltip" title="Remove series from this book" aria-label="Remove series from this book">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            </svg>
+          </button>
         </div>
       `;
       manageSeriesList.appendChild(item);
@@ -1563,6 +1574,75 @@ document.addEventListener('DOMContentLoaded', () => {
         openRemoveSeriesModal(seriesId);
       });
     });
+  };
+
+  const updateSeriesSearchAvailability = () => {
+    const total = referenceData.series ? referenceData.series.length : 0;
+    const selected = (bookRecord?.series || []).length;
+    if (!total) {
+      setSearchDisabled(manageSeriesSearch, manageSeriesSearchHelp, true, 'No series available yet. Add a new series to begin.');
+      return;
+    }
+    if (selected >= total) {
+      setSearchDisabled(manageSeriesSearch, manageSeriesSearchHelp, true, 'All available series have been added.');
+      return;
+    }
+    setSearchDisabled(manageSeriesSearch, manageSeriesSearchHelp, false, '');
+  };
+
+  const addSeriesFromSearch = async (series) => {
+    if (!bookRecord || !series) return;
+    const existing = (bookRecord.series || []).some((entry) => entry.seriesId === series.id);
+    if (existing) return;
+    const payload = (bookRecord.series || []).map((entry) => ({
+      seriesId: entry.seriesId,
+      bookOrder: Number.isInteger(entry.bookOrder) ? entry.bookOrder : null
+    }));
+    payload.push({ seriesId: series.id, bookOrder: null });
+
+    if (manageSeriesError) {
+      manageSeriesError.classList.add('d-none');
+      manageSeriesError.textContent = '';
+    }
+
+    try {
+      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify({ id: bookRecord.id, series: payload }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (manageSeriesError) {
+          manageSeriesError.classList.remove('d-none');
+          manageSeriesError.textContent = data.message || 'Unable to add series.';
+        }
+        warn('Add series failed.', { status: response.status, data });
+        return;
+      }
+      log('Series added from search.', { seriesId: series.id, seriesName: series.name });
+      await loadBook();
+      renderManageSeriesList(bookRecord.series || []);
+      updateSeriesSearchAvailability();
+      if (manageSeriesSearch) manageSeriesSearch.value = '';
+      hideSearchResults(manageSeriesResults);
+      openSeriesOrderModal(series.id);
+    } catch (error) {
+      errorLog('Add series failed.', error);
+      if (manageSeriesError) {
+        manageSeriesError.classList.remove('d-none');
+        manageSeriesError.textContent = 'Unable to add series right now.';
+      }
+    }
+  };
+
+  const handleManageSeriesSearch = () => {
+    if (!manageSeriesSearch) return;
+    const query = manageSeriesSearch.value.trim().toLowerCase();
+    if (!query) {
+      hideSearchResults(manageSeriesResults);
+      return;
+    }
+    const results = (referenceData.series || [])
+      .filter((series) => !(bookRecord?.series || []).some((selected) => selected.seriesId === series.id))
+      .filter((series) => (series.name || '').toLowerCase().includes(query));
+    showSearchResults(manageSeriesResults, results, addSeriesFromSearch);
   };
 
   const updateSeriesOrderSummary = (seriesEntry, currentOrder, nextOrder) => {
@@ -1718,84 +1798,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const addSeriesToBook = async () => {
-    if (!bookRecord) return;
-    const seriesId = manageSeriesSelect?.value ? Number(manageSeriesSelect.value) : null;
-    if (!seriesId) {
-      if (manageSeriesError) {
-        manageSeriesError.classList.remove('d-none');
-        manageSeriesError.textContent = 'Select a series to add.';
-      }
-      return;
-    }
-    const existing = (bookRecord.series || []).some((entry) => entry.seriesId === seriesId);
-    if (existing) {
-      if (manageSeriesError) {
-        manageSeriesError.classList.remove('d-none');
-        manageSeriesError.textContent = 'That series is already linked.';
-      }
-      return;
-    }
-    const orderValue = manageSeriesOrder?.value.trim() || '';
-    const order = orderValue ? Number(orderValue) : null;
-    if (orderValue && (!Number.isInteger(order) || order <= 0)) {
-      if (manageSeriesError) {
-        manageSeriesError.classList.remove('d-none');
-        manageSeriesError.textContent = 'Order must be a positive whole number.';
-      }
-      return;
-    }
-    addSeriesToBookBtn.disabled = true;
-    try {
-      const response = await apiFetch('/bookseries/link', {
-        method: 'POST',
-        body: JSON.stringify({ seriesId, bookId: bookRecord.id, bookOrder: order })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (manageSeriesError) {
-          manageSeriesError.classList.remove('d-none');
-          manageSeriesError.textContent = data.message || 'Unable to add series.';
-        }
-        warn('Add series failed.', { status: response.status, data });
-        return;
-      }
-      await loadBook();
-      await openManageSeriesModal();
-    } catch (error) {
-      errorLog('Add series failed.', error);
-      if (manageSeriesError) {
-        manageSeriesError.classList.remove('d-none');
-        manageSeriesError.textContent = 'Unable to add series right now.';
-      }
-    } finally {
-      addSeriesToBookBtn.disabled = false;
-    }
-  };
-
   const renderManageTags = () => {
     clearElement(manageTagsList);
     if (!tagDraft.length) {
-      const empty = document.createElement('div');
-      empty.className = 'text-muted';
-      empty.textContent = 'No tags yet.';
-      manageTagsList.appendChild(empty);
+      const li = document.createElement('li');
+      li.className = 'list-group-item';
+      li.id = 'manageTagsPlaceholder';
+      li.textContent = 'No tags added yet.';
+      manageTagsList.appendChild(li);
       return;
     }
-    tagDraft.forEach((tag) => {
-      const pill = document.createElement('span');
-      pill.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 d-flex align-items-center gap-2';
-      pill.innerHTML = `<span>${tag}</span><button class="btn btn-sm p-0 text-danger" type="button" data-tag-remove="${tag}">&times;</button>`;
-      manageTagsList.appendChild(pill);
-    });
 
-    manageTagsList.querySelectorAll('[data-tag-remove]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const tag = button.getAttribute('data-tag-remove');
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex flex-wrap gap-2';
+    tagDraft.forEach((tag) => {
+      const badge = document.createElement('span');
+      badge.className = 'badge rounded-pill bg-light fw-normal border rounded-1 border-1 border-black d-inline-flex align-items-center me-2 mb-1';
+
+      const label = document.createElement('span');
+      label.className = 'fs-6 text-black d-flex align-items-center';
+      label.textContent = tag;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn d-flex align-items-center p-0 ms-1 text-danger';
+      removeBtn.setAttribute('aria-label', 'Remove tag');
+      removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>';
+      removeBtn.addEventListener('click', () => {
         tagDraft = tagDraft.filter((entry) => entry !== tag);
         updateBookTags();
       });
+
+      label.appendChild(removeBtn);
+      badge.appendChild(label);
+      li.appendChild(badge);
     });
+    manageTagsList.appendChild(li);
   };
 
   const openManageTagsModal = () => {
@@ -1805,9 +1843,14 @@ document.addEventListener('DOMContentLoaded', () => {
       manageTagsError.classList.add('d-none');
       manageTagsError.textContent = '';
     }
-    if (manageTagsHelp) manageTagsHelp.textContent = '';
+    if (manageTagsHelp) {
+      manageTagsHelp.textContent = 'Type a tag and click Add to save it.';
+      manageTagsHelp.classList.remove('text-danger');
+    }
     renderManageTags();
     manageTagsInput.value = '';
+    manageTagsHelp?.classList.remove('attention-hint');
+    addTagBtn?.classList.remove('pulse-add');
     showModal(manageTagsModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -1839,19 +1882,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const validateTag = (value) => {
+    if (!value) return 'Please enter a tag before adding.';
+    if (value.length < 2) return 'Tags must be at least 2 characters long.';
+    if (value.length > 50) return 'Tags must be 50 characters or fewer.';
+    if (!tagPattern.test(value)) return 'Tags contain unsupported characters.';
+    if (!/[A-Za-z]/.test(value)) return 'Tags must include at least one letter.';
+    const exists = tagDraft.some((tag) => tag.toLowerCase() === value.toLowerCase());
+    if (exists) return 'That tag has already been added.';
+    return null;
+  };
+
   const addTag = () => {
-    const value = manageTagsInput.value.trim();
-    if (!value) {
-      if (manageTagsHelp) manageTagsHelp.textContent = 'Enter a tag name.';
+    clearHelpText(manageTagsHelp);
+    const normalized = normalizeTag(manageTagsInput.value);
+    const error = validateTag(normalized);
+    if (error) {
+      setHelpText(manageTagsHelp, error, true);
+      log('Tag validation error:', error);
       return;
     }
-    if (tagDraft.includes(value)) {
-      if (manageTagsHelp) manageTagsHelp.textContent = 'That tag is already added.';
-      return;
-    }
-    tagDraft.push(value);
-    if (manageTagsHelp) manageTagsHelp.textContent = '';
+    tagDraft.push(normalized);
     manageTagsInput.value = '';
+    renderManageTags();
+    clearHelpText(manageTagsHelp);
+    manageTagsHelp?.classList.remove('attention-hint');
+    addTagBtn?.classList.remove('pulse-add');
+    log('Tag added:', normalized);
     updateBookTags();
   };
 
@@ -2201,15 +2258,25 @@ document.addEventListener('DOMContentLoaded', () => {
     sharedEvents.addEventListener('author:created', async (event) => {
       referenceData.authors = null;
       await loadAuthorsList();
-      populateSelect(manageAuthorsSelect, referenceData.authors, { placeholder: 'Select author', labelKey: 'displayName', valueKey: 'id', includeEmpty: true });
-      if (event?.detail?.id) manageAuthorsSelect.value = String(event.detail.id);
+      updateAuthorSearchAvailability();
+      if (event?.detail?.id) {
+        const created = referenceData.authors.find((entry) => entry.id === event.detail.id);
+        if (created) {
+          showSearchResults(manageAuthorsResults, [created], addAuthorFromSearch);
+        }
+      }
     });
 
     sharedEvents.addEventListener('series:created', async (event) => {
       referenceData.series = null;
       await loadSeriesList();
-      populateSelect(manageSeriesSelect, referenceData.series, { placeholder: 'Select series', labelKey: 'name', valueKey: 'id', includeEmpty: true });
-      if (event?.detail?.id) manageSeriesSelect.value = String(event.detail.id);
+      updateSeriesSearchAvailability();
+      if (event?.detail?.id) {
+        const created = referenceData.series.find((entry) => entry.id === event.detail.id);
+        if (created) {
+          showSearchResults(manageSeriesResults, [created], addSeriesFromSearch);
+        }
+      }
     });
 
     sharedEvents.addEventListener('location:created', async (event) => {
@@ -2238,15 +2305,68 @@ document.addEventListener('DOMContentLoaded', () => {
   if (manageSeriesBtn) manageSeriesBtn.addEventListener('click', openManageSeriesModal);
   if (manageTagsBtn) manageTagsBtn.addEventListener('click', openManageTagsModal);
   if (addCopyBtn) addCopyBtn.addEventListener('click', () => openCopyModal({ mode: 'create' }));
-  if (addAuthorToBookBtn) addAuthorToBookBtn.addEventListener('click', addAuthorToBook);
   if (authorRoleSaveBtn) authorRoleSaveBtn.addEventListener('click', saveAuthorRole);
   if (authorRoleResetBtn) authorRoleResetBtn.addEventListener('click', resetAuthorRoleModal);
   if (removeAuthorConfirmBtn) removeAuthorConfirmBtn.addEventListener('click', confirmRemoveAuthor);
-  if (addSeriesToBookBtn) addSeriesToBookBtn.addEventListener('click', addSeriesToBook);
   if (seriesOrderSaveBtn) seriesOrderSaveBtn.addEventListener('click', saveSeriesOrder);
   if (seriesOrderResetBtn) seriesOrderResetBtn.addEventListener('click', resetSeriesOrderModal);
   if (removeSeriesConfirmBtn) removeSeriesConfirmBtn.addEventListener('click', confirmRemoveSeries);
   if (addTagBtn) addTagBtn.addEventListener('click', addTag);
+  if (manageTagsInput) {
+    manageTagsInput.addEventListener('input', () => {
+      clearHelpText(manageTagsHelp);
+      const normalized = normalizeTag(manageTagsInput.value);
+      const error = validateTag(normalized);
+      if (error && normalized) {
+        setHelpText(manageTagsHelp, error, true);
+        manageTagsHelp?.classList.remove('attention-hint');
+        addTagBtn?.classList.remove('pulse-add');
+        return;
+      }
+      if (normalized) {
+        setHelpText(manageTagsHelp, 'Click Add to save this tag.', false);
+        manageTagsHelp?.classList.add('attention-hint');
+        addTagBtn?.classList.add('pulse-add');
+      } else {
+        setHelpText(manageTagsHelp, 'Type a tag and click Add to save it.', false);
+        manageTagsHelp?.classList.remove('attention-hint');
+        addTagBtn?.classList.remove('pulse-add');
+      }
+    });
+    manageTagsInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTag();
+      }
+    });
+  }
+  if (manageAuthorsSearch) {
+    manageAuthorsSearch.addEventListener('input', handleManageAuthorSearch);
+    manageAuthorsSearch.addEventListener('blur', () => setTimeout(() => hideSearchResults(manageAuthorsResults), 150));
+  }
+  if (manageSeriesSearch) {
+    manageSeriesSearch.addEventListener('input', handleManageSeriesSearch);
+    manageSeriesSearch.addEventListener('blur', () => setTimeout(() => hideSearchResults(manageSeriesResults), 150));
+  }
+  if (authorRoleSelect) {
+    authorRoleSelect.addEventListener('change', () => {
+      if (!authorRoleTarget) return;
+      const showOther = authorRoleSelect.value === 'Other';
+      if (authorRoleOtherWrap) authorRoleOtherWrap.classList.toggle('d-none', !showOther);
+      if (!showOther && authorRoleOtherInput) authorRoleOtherInput.value = '';
+      if (authorRoleHelp) {
+        authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
+        authorRoleHelp.classList.remove('text-danger');
+      }
+      updateAuthorRoleChangeSummary();
+    });
+  }
+  if (authorRoleOtherInput) {
+    authorRoleOtherInput.addEventListener('input', () => {
+      if (!authorRoleTarget) return;
+      updateAuthorRoleChangeSummary();
+    });
+  }
   if (copySaveBtn) copySaveBtn.addEventListener('click', saveCopy);
   if (copyResetBtn) copyResetBtn.addEventListener('click', resetCopyModal);
   if (deleteCopyConfirmBtn) deleteCopyConfirmBtn.addEventListener('click', confirmDeleteCopy);
@@ -2271,13 +2391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   handleSharedModalReady();
 
-  if (authorRoleInput) {
-    authorRoleInput.addEventListener('input', () => {
-      if (!authorRoleTarget) return;
-      updateAuthorRoleSummary(authorRoleTarget.author, authorRoleTarget.currentRole, authorRoleInput.value.trim());
-      updateAuthorRoleChangeSummary();
-    });
-  }
+  
 
   if (seriesOrderInput) {
     seriesOrderInput.addEventListener('input', () => {

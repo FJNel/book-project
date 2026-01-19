@@ -204,11 +204,39 @@ const PUBLIC_PATHS = [
     '/', // Root health check
 ];
 
+let refreshPromise = null;
+let sessionExpiredNotified = false;
+
+function getSharedRefreshPromise() {
+	if (refreshPromise) {
+		console.log('[HTTP Interceptor] Refresh already in progress. Waiting for existing refresh.');
+		return refreshPromise;
+	}
+
+	console.log('[HTTP Interceptor] Starting shared refresh token request.');
+	refreshPromise = refreshAccessToken()
+		.then((token) => {
+			console.log('[HTTP Interceptor] Shared refresh resolved.');
+			return token;
+		})
+		.catch((error) => {
+			console.error('[HTTP Interceptor] Shared refresh failed.', error);
+			throw error;
+		})
+		.finally(() => {
+			console.log('[HTTP Interceptor] Refresh promise cleared.');
+			refreshPromise = null;
+		});
+
+	return refreshPromise;
+}
+
 //path - The api endpoint path as a string (e.g. '/users/me')
 //options - Fetch options object (method, headers, body, etc.)
 async function apiFetch(path, options = {}) {
 	const url = new URL(path, API_BASE_URL);
 	console.log('[HTTP Interceptor] Api request initiated. Request URL:', url.href);
+	let hasRetried = false;
 
 	const headers = new Headers(options.headers || {});
 	headers.set('Content-Type', 'application/json');
@@ -254,11 +282,17 @@ async function apiFetch(path, options = {}) {
 	}
 
 	//Handle token expired (401 Unauthorized) errors
+	if (hasRetried) {
+		console.warn('[HTTP Interceptor] Request already retried once. Returning 401 response.');
+		return response;
+	}
+
 	console.warn('[HTTP Interceptor] Access token expired, attempting to refresh token...');
+	hasRetried = true;
 
 	try {
-		const newAccessToken = await refreshAccessToken();
-		console.log('[API Interceptor] Token refreshed successfully. Retrying original request.');
+		const newAccessToken = await getSharedRefreshPromise();
+		console.log('[HTTP Interceptor] Token refreshed successfully. Retrying original request.');
 		
 		//Update the Authorization header with the new access token
 		headers.set('Authorization', `Bearer ${newAccessToken}`);
@@ -270,14 +304,21 @@ async function apiFetch(path, options = {}) {
 		});
 
 		console.log('[HTTP Interceptor] Retried request response:', response);
-
+		if (response.status === 401) {
+			console.warn('[HTTP Interceptor] Retried request still unauthorized. Returning response.');
+		}
 		return response;
 	} catch (error) {
 		console.error('[HTTP Interceptor] Token refresh failed:', error);
 		//If refresh fails, clear tokens and redirect to login
 		localStorage.removeItem('accessToken');
 		localStorage.removeItem('refreshToken');
-		showSessionExpiredModal();
+		if (!sessionExpiredNotified) {
+			sessionExpiredNotified = true;
+			showSessionExpiredModal();
+		} else {
+			console.warn('[HTTP Interceptor] Session expired modal already shown.');
+		}
 		throw new Error('Session expired. Please log in again.');
 	}
 }

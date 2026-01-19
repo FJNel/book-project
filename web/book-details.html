@@ -55,8 +55,30 @@
     .hover-action-parent:focus-within .hover-action {
       opacity: 1;
     }
-    @media (hover: none) {
+    .overview-tags-wrap {
+      position: relative;
+    }
+    .manage-tags-action {
+      position: absolute;
+      top: 0;
+      right: 0;
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out;
+    }
+    .overview-tags-wrap:hover .manage-tags-action,
+    .overview-tags-wrap:focus-within .manage-tags-action,
+    .manage-tags-action:hover {
+      opacity: 1;
+    }
+    #overviewTags {
+      padding-top: 2.25rem;
+      padding-right: 2.75rem;
+    }
+    @media (max-width: 767.98px) {
       .hover-action {
+        opacity: 1;
+      }
+      .manage-tags-action {
         opacity: 1;
       }
     }
@@ -262,15 +284,14 @@
                 <div class="card border-0 shadow-sm h-100" style="background-color: #f7f8f9;">
                   <div class="card-body py-3">
                     <div class="fw-semibold mb-2">Overview</div>
-                    <div class="d-flex justify-content-end mb-2 hover-action-container">
-                      <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn hover-action" type="button" aria-label="Manage tags" data-bs-toggle="tooltip" title="Manage tags" id="manageTagsBtn">
+                    <div class="overview-tags-wrap mb-3">
+                      <button class="btn btn-sm d-flex align-items-center justify-content-center p-2 border-0 edit-icon-btn manage-tags-action" type="button" aria-label="Manage tags" data-bs-toggle="tooltip" title="Manage tags" id="manageTagsBtn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                           <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                         </svg>
                       </button>
+                      <div id="overviewTags"></div>
                     </div>
-
-                    <div class="mb-3" id="overviewTags"></div>
 
                     <div class="small text-muted mb-3">
                       <div class="fw-semibold text-muted">Library</div>
@@ -509,23 +530,22 @@
             <div class="fw-semibold mb-2">Current authors</div>
             <ul class="list-group" id="manageAuthorsList"></ul>
           </div>
-          <div class="border rounded p-3">
-            <div class="fw-semibold mb-2">Add author</div>
-            <div class="row g-2 align-items-end">
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="manageAuthorsSelect"><strong>Author</strong></label>
-                <select class="form-select" id="manageAuthorsSelect"></select>
-              </div>
-              <div class="col-12 col-md-4">
-                <label class="form-label" for="manageAuthorsRole"><strong>Role</strong></label>
-                <input class="form-control" type="text" id="manageAuthorsRole" maxlength="80" autocomplete="off">
-              </div>
-              <div class="col-12 col-md-2">
-                <button class="btn btn-primary w-100" type="button" id="addAuthorToBookBtn">Add</button>
-              </div>
-            </div>
-            <button class="btn btn-link btn-sm px-0 mt-2" type="button" id="openAddAuthorBtn">Create new author</button>
+          <div class="mb-3 position-relative" id="manageAuthorsSearchContainer">
+            <h5>Add an Existing Author<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for and select the Authors who wrote this book. Once you click to add an author, you'll be able to specify the author's role." tabindex="-1" style="font-size: 17px;">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+              </svg></h5>
+            <input class="form-control" type="search" id="manageAuthorsSearch" autocomplete="off">
+            <small class="form-text" id="manageAuthorsSearchHelp"></small>
+            <div class="position-absolute d-none w-100 list-group search-results" id="manageAuthorsResults"></div>
           </div>
+          <div>
+            <p class="text-muted mb-1">If you can't find the author you're looking for, you can add a new author.</p>
+          </div>
+          <button class="btn btn-outline-secondary" id="openAddAuthorBtn" type="button" data-bs-toggle="modal" data-bs-target="#addAuthorModal">Add new Author<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+              <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
+            </svg></button>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
@@ -543,11 +563,23 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="authorRoleErrorAlert"></div>
-          <div class="mb-2 text-muted small" id="authorRoleSummary"></div>
           <div class="mb-3">
             <label class="form-label" for="authorRoleInput"><strong>Role on this book</strong></label>
-            <input class="form-control" type="text" id="authorRoleInput" autocomplete="off" maxlength="80">
-            <small class="form-text text-muted">Leave blank to clear the role.</small>
+            <select class="form-select" id="authorRoleSelect" autocomplete="off">
+              <option value="none" selected>Select role...</option>
+              <optgroup label="Core Roles">
+                <option value="Author">Author</option>
+                <option value="Editor">Editor</option>
+                <option value="Illustrator">Illustrator</option>
+                <option value="Translator">Translator</option>
+                <option value="Other">Other...</option>
+              </optgroup>
+            </select>
+            <div class="input-group mt-2 d-none" id="authorRoleOtherWrap">
+              <span class="input-group-text">Other Role:</span>
+              <input class="form-control" type="text" id="authorRoleOtherInput" maxlength="100" minlength="2" autocomplete="off">
+            </div>
+            <small class="form-text text-muted" id="authorRoleHelp">Select a role or choose Other to enter a custom role.</small>
           </div>
           <small class="text-muted d-block" id="authorRoleChangeSummary"></small>
         </div>
@@ -593,23 +625,22 @@
             <div class="fw-semibold mb-2">Current series</div>
             <ul class="list-group" id="manageSeriesList"></ul>
           </div>
-          <div class="border rounded p-3">
-            <div class="fw-semibold mb-2">Add series</div>
-            <div class="row g-2 align-items-end">
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="manageSeriesSelect"><strong>Series</strong></label>
-                <select class="form-select" id="manageSeriesSelect"></select>
-              </div>
-              <div class="col-12 col-md-4">
-                <label class="form-label" for="manageSeriesOrder"><strong>Order</strong></label>
-                <input class="form-control" type="number" id="manageSeriesOrder" min="1" step="1">
-              </div>
-              <div class="col-12 col-md-2">
-                <button class="btn btn-primary w-100" type="button" id="addSeriesToBookBtn">Add</button>
-              </div>
-            </div>
-            <button class="btn btn-link btn-sm px-0 mt-2" type="button" id="openAddSeriesBtn">Create new series</button>
+          <div class="mb-3 position-relative" id="manageSeriesSearchContainer">
+            <h5>Add an Existing Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Search for a series already in your library and link this book to it. Once you click to add a series, you'll be able to specify this book's order in that series." style="font-size: 17px;">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+              </svg></h5>
+            <input class="form-control" type="search" id="manageSeriesSearch" autocomplete="off">
+            <small class="form-text" id="manageSeriesSearchHelp"></small>
+            <div class="position-absolute d-none w-100 list-group search-results" id="manageSeriesResults"></div>
           </div>
+          <div>
+            <p class="text-muted mb-1">If you can't find the series you're looking for, you can add a new series.</p>
+          </div>
+          <button class="btn btn-outline-secondary" id="openAddSeriesBtn" type="button" data-bs-toggle="modal" data-bs-target="#addSeriesModal">Add new Series<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+              <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
+            </svg></button>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
@@ -627,7 +658,6 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="seriesOrderErrorAlert"></div>
-          <div class="mb-2 text-muted small" id="seriesOrderSummary"></div>
           <div class="mb-3">
             <label class="form-label" for="seriesOrderInput"><strong>Order in series</strong></label>
             <input class="form-control" type="number" id="seriesOrderInput" min="1" step="1">
@@ -673,15 +703,26 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="manageTagsError"></div>
-          <div class="mb-3">
-            <div class="fw-semibold mb-2">Current tags</div>
-            <div id="manageTagsList" class="d-flex flex-wrap gap-2"></div>
+          <div class="mb-3" id="manageTagsContainer">
+            <h5>Book Tags</h5>
+            <ul class="list-group" id="manageTagsList">
+              <li class="list-group-item" id="manageTagsPlaceholder"><span>This book has no tags yet.</span></li>
+            </ul>
           </div>
-          <div class="input-group">
-            <input class="form-control" type="text" id="manageTagsInput" placeholder="Add a tag">
-            <button class="btn btn-primary" type="button" id="addTagBtn">Add</button>
+          <div class="mb-3" id="manageTagsAddContainer">
+            <h5>Add Book Tag<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16" class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Add keywords or labels to describe the book. Tags help with searching and filtering." style="font-size: 17px;">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path>
+                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
+              </svg></h5>
+            <div class="input-group">
+              <input class="form-control" type="text" id="manageTagsInput" autocomplete="off">
+              <button class="btn btn-primary" id="addTagBtn" type="button">Add<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center ms-1">
+                  <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4.44772 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
+                </svg></button>
+            </div>
+            <small class="form-text" id="manageTagsHelp"></small>
           </div>
-          <small class="form-text" id="manageTagsHelp"></small>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Close</button>
