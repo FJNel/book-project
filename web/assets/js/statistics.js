@@ -1530,6 +1530,9 @@
     log('Initializing statistics page.');
     if (window.rateLimitGuard?.hasReset && window.rateLimitGuard.hasReset()) {
       window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: false, rateLimited: true });
+      }
       return;
     }
     attachEvents();
@@ -1537,8 +1540,19 @@
     const initialSection = getSectionFromHash() || state.activeSection;
     state.activeSection = initialSection;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
-    await showSection(initialSection, { force: true, updateHash: true });
-    await hideModal('pageLoadingModal');
+    try {
+      await showSection(initialSection, { force: true, updateHash: true });
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: true });
+      }
+    } catch (error) {
+      errorLog('Statistics init failed.', error);
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: false, error: error?.message || 'Unable to load statistics.' });
+      }
+    } finally {
+      await hideModal('pageLoadingModal');
+    }
   };
 
   document.addEventListener('DOMContentLoaded', init);

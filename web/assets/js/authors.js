@@ -40,24 +40,6 @@
 
   const dom = {
     addAuthorBtn: document.getElementById('addAuthorBtn'),
-    addAuthorModal: document.getElementById('addAuthorModal'),
-    authorAddForm: document.getElementById('authorAddForm'),
-    authorAddErrorAlert: document.getElementById('authorAddErrorAlert'),
-    authorAddDisplayName: document.getElementById('authorAddDisplayName'),
-    authorAddFirstNames: document.getElementById('authorAddFirstNames'),
-    authorAddLastName: document.getElementById('authorAddLastName'),
-    authorAddBirthDate: document.getElementById('authorAddBirthDate'),
-    authorAddBirthDateHelp: document.getElementById('authorAddBirthDateHelp'),
-    authorAddDeceased: document.getElementById('authorAddDeceased'),
-    authorAddDeathDate: document.getElementById('authorAddDeathDate'),
-    authorAddDeathDateHelp: document.getElementById('authorAddDeathDateHelp'),
-    authorAddBio: document.getElementById('authorAddBio'),
-    authorAddDisplayNameHelp: document.getElementById('authorAddDisplayNameHelp'),
-    authorAddFirstNamesHelp: document.getElementById('authorAddFirstNamesHelp'),
-    authorAddLastNameHelp: document.getElementById('authorAddLastNameHelp'),
-    authorAddBioHelp: document.getElementById('authorAddBioHelp'),
-    authorAddResetBtn: document.getElementById('authorAddResetBtn'),
-    authorAddSaveBtn: document.getElementById('authorAddSaveBtn'),
     searchInput: document.getElementById('searchInput'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     sortSelect: document.getElementById('sortSelect'),
@@ -131,44 +113,6 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-  const parsePartialDateInput = (value) => {
-    if (!value || !value.trim()) return { value: null };
-    if (!window.partialDateParser || typeof window.partialDateParser.parsePartialDate !== 'function') {
-      return { error: 'Date parser is unavailable.' };
-    }
-    const parsed = window.partialDateParser.parsePartialDate(value.trim());
-    if (!parsed || !parsed.text) return { error: 'Please enter a valid date.' };
-    return { value: parsed };
-  };
-
-  const setHelpText = (el, message, isError = false) => {
-    if (!el) return;
-    el.textContent = message || '';
-    el.classList.toggle('text-danger', Boolean(message) && isError);
-  };
-
-  const clearHelpText = (el) => setHelpText(el, '', false);
-
-  const showModal = async (target, options) => {
-    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-      await window.modalManager.showModal(target, options);
-      return;
-    }
-    const element = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!element) return;
-    bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
-  };
-
-  const hideModal = async (target) => {
-    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
-      await window.modalManager.hideModal(target);
-      return;
-    }
-    const element = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!element) return;
-    const instance = bootstrap.Modal.getInstance(element);
-    if (instance) instance.hide();
-  };
 
   const updateOffcanvasPlacement = () => {
     const offcanvasEl = document.getElementById('filtersOffcanvas');
@@ -199,161 +143,6 @@
     `;
     dom.feedbackContainer.innerHTML = '';
     dom.feedbackContainer.appendChild(alert);
-  };
-
-  const showModalAlert = (message, details = []) => {
-    if (!dom.authorAddErrorAlert) return;
-    const content = details.length
-      ? `<strong>${escapeHtml(message || 'Please check the following')}</strong><div>${escapeHtml(details.join(' '))}</div>`
-      : `<strong>${escapeHtml(message || 'Please check the following')}</strong>`;
-    dom.authorAddErrorAlert.innerHTML = content;
-    dom.authorAddErrorAlert.classList.remove('d-none');
-  };
-
-  const hideModalAlert = () => {
-    if (!dom.authorAddErrorAlert) return;
-    dom.authorAddErrorAlert.classList.add('d-none');
-    dom.authorAddErrorAlert.innerHTML = '';
-  };
-
-  const resetAddAuthorForm = () => {
-    if (dom.authorAddForm) dom.authorAddForm.reset();
-    [dom.authorAddDisplayNameHelp, dom.authorAddFirstNamesHelp, dom.authorAddLastNameHelp, dom.authorAddBirthDateHelp, dom.authorAddDeathDateHelp, dom.authorAddBioHelp]
-      .forEach((el) => clearHelpText(el));
-    hideModalAlert();
-  };
-
-  const validateAuthorForm = () => {
-    hideModalAlert();
-    let valid = true;
-    const errors = [];
-    const namePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
-
-    const displayName = dom.authorAddDisplayName?.value.trim() || '';
-    if (!displayName) {
-      setHelpText(dom.authorAddDisplayNameHelp, 'Display Name is required.', true);
-      valid = false;
-      errors.push('Display Name is required.');
-    } else if (displayName.length < 2 || displayName.length > 150) {
-      setHelpText(dom.authorAddDisplayNameHelp, 'Display Name must be between 2 and 150 characters.', true);
-      valid = false;
-      errors.push('Display Name must be between 2 and 150 characters.');
-    } else if (!namePattern.test(displayName)) {
-      setHelpText(dom.authorAddDisplayNameHelp, 'Display Name contains unsupported characters.', true);
-      valid = false;
-      errors.push('Display Name contains unsupported characters.');
-    } else {
-      clearHelpText(dom.authorAddDisplayNameHelp);
-    }
-
-    const firstNames = dom.authorAddFirstNames?.value.trim() || '';
-    if (firstNames && (firstNames.length < 2 || firstNames.length > 150 || !namePattern.test(firstNames))) {
-      setHelpText(dom.authorAddFirstNamesHelp, 'First Name(s) must be 2-150 characters and valid.', true);
-      valid = false;
-      errors.push('First Name(s) must be 2-150 characters and valid.');
-    } else {
-      clearHelpText(dom.authorAddFirstNamesHelp);
-    }
-
-    const lastName = dom.authorAddLastName?.value.trim() || '';
-    if (lastName && (lastName.length < 2 || lastName.length > 100 || !namePattern.test(lastName))) {
-      setHelpText(dom.authorAddLastNameHelp, 'Last Name must be 2-100 characters and valid.', true);
-      valid = false;
-      errors.push('Last Name must be 2-100 characters and valid.');
-    } else {
-      clearHelpText(dom.authorAddLastNameHelp);
-    }
-
-    const birthRaw = dom.authorAddBirthDate?.value.trim() || '';
-    if (birthRaw) {
-      const parsed = parsePartialDateInput(birthRaw);
-      if (parsed.error) {
-        setHelpText(dom.authorAddBirthDateHelp, parsed.error, true);
-        valid = false;
-        errors.push(parsed.error);
-      } else {
-        clearHelpText(dom.authorAddBirthDateHelp);
-      }
-    } else {
-      clearHelpText(dom.authorAddBirthDateHelp);
-    }
-
-    const deathRaw = dom.authorAddDeathDate?.value.trim() || '';
-    const deceased = Boolean(dom.authorAddDeceased?.checked);
-    if (deathRaw && !deceased) {
-      setHelpText(dom.authorAddDeathDateHelp, 'Mark the author as deceased to set a death date.', true);
-      valid = false;
-      errors.push('Mark the author as deceased to set a death date.');
-    } else if (deathRaw) {
-      const parsed = parsePartialDateInput(deathRaw);
-      if (parsed.error) {
-        setHelpText(dom.authorAddDeathDateHelp, parsed.error, true);
-        valid = false;
-        errors.push(parsed.error);
-      } else {
-        clearHelpText(dom.authorAddDeathDateHelp);
-      }
-    } else {
-      clearHelpText(dom.authorAddDeathDateHelp);
-    }
-
-    const bio = dom.authorAddBio?.value.trim() || '';
-    if (bio && bio.length > 1000) {
-      setHelpText(dom.authorAddBioHelp, 'Bio must be 1000 characters or fewer.', true);
-      valid = false;
-      errors.push('Bio must be 1000 characters or fewer.');
-    } else {
-      clearHelpText(dom.authorAddBioHelp);
-    }
-
-    if (!valid) {
-      showModalAlert('Please fix the following:', errors);
-    }
-    return valid;
-  };
-
-  const submitAuthor = async () => {
-    if (!validateAuthorForm()) return;
-    const displayName = dom.authorAddDisplayName.value.trim();
-    const payload = {
-      displayName,
-      firstNames: dom.authorAddFirstNames.value.trim() || undefined,
-      lastName: dom.authorAddLastName.value.trim() || undefined,
-      deceased: Boolean(dom.authorAddDeceased.checked),
-      bio: dom.authorAddBio.value.trim() || undefined
-    };
-    const birthRaw = dom.authorAddBirthDate.value.trim();
-    if (birthRaw) {
-      payload.birthDate = parsePartialDateInput(birthRaw).value;
-    }
-    const deathRaw = dom.authorAddDeathDate.value.trim();
-    if (deathRaw) {
-      payload.deathDate = parsePartialDateInput(deathRaw).value;
-    }
-
-    log('Creating author.', { displayName });
-    dom.authorAddSaveBtn.disabled = true;
-    try {
-      const response = await apiFetch('/author', { method: 'POST', body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const details = data.errors || [];
-        showModalAlert(data.message || 'Unable to add author.', details);
-        warn('Author create failed.', { status: response.status, data });
-        return;
-      }
-      log('Author created.', data);
-      await hideModal(dom.addAuthorModal);
-      resetAddAuthorForm();
-      showAlert({ message: 'Author added successfully.', type: 'success' });
-      state.page = 1;
-      await loadAuthors();
-    } catch (error) {
-      errorLog('Author create failed.', error);
-      showModalAlert('Unable to add author right now.');
-    } finally {
-      dom.authorAddSaveBtn.disabled = false;
-    }
   };
 
   const parseNumber = (value) => {
@@ -894,18 +683,6 @@
       dom.addAuthorBtn.addEventListener('click', () => {
         window.sharedAddModals?.open('author');
       });
-    }
-
-    if (dom.authorAddResetBtn) {
-      dom.authorAddResetBtn.addEventListener('click', resetAddAuthorForm);
-    }
-
-    if (dom.authorAddSaveBtn) {
-      dom.authorAddSaveBtn.addEventListener('click', submitAuthor);
-    }
-
-    if (dom.addAuthorModal) {
-      dom.addAuthorModal.addEventListener('hidden.bs.modal', resetAddAuthorForm);
     }
 
     window.addEventListener('resize', () => {

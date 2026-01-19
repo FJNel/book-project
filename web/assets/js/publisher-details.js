@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
   log('Initializing page.');
   if (window.rateLimitGuard?.hasReset && window.rateLimitGuard.hasReset()) {
     window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+      window.pageContentReady.resolve({ success: false, rateLimited: true });
+    }
     return;
   }
 
@@ -89,6 +92,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
+  const attachButtonSpinner = (button) => {
+    if (!button) return null;
+    if (button.querySelector('.spinner-border')) {
+      return {
+        spinner: button.querySelector('.spinner-border'),
+        label: button.textContent.trim() || 'Submit'
+      };
+    }
+    const label = button.textContent.trim() || 'Submit';
+    button.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner-border spinner-border-sm d-none';
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    button.appendChild(spinner);
+    button.appendChild(document.createTextNode(' '));
+    button.appendChild(document.createTextNode(label));
+    return { spinner, label };
+  };
+
+  const setButtonLoading = (button, spinner, isLoading) => {
+    if (!button || !spinner) return;
+    spinner.classList.toggle('d-none', !isLoading);
+    button.disabled = isLoading;
+  };
+
+  const toggleDisabled = (elements, disabled) => {
+    if (!elements) return;
+    elements.forEach((el) => {
+      if (el) el.disabled = disabled;
+    });
+  };
+
+  const bindModalLock = (modalEl, state) => {
+    if (!modalEl || modalEl.dataset.lockBound === 'true') return;
+    modalEl.dataset.lockBound = 'true';
+    modalEl.addEventListener('hide.bs.modal', (event) => {
+      if (state.locked) event.preventDefault();
+    });
+  };
+
+  const setModalLocked = (modalEl, locked) => {
+    if (!modalEl) return;
+    modalEl.dataset.locked = locked ? 'true' : 'false';
+    const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+    closeButtons.forEach((btn) => {
+      btn.disabled = locked;
+    });
+  };
+
   const renderLink = (url, text) => {
     const normalized = normalizeUrl(url);
     if (!normalized) return null;
@@ -133,6 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
     await hideModal('pageLoadingModal');
     await showModal(invalidModal, { backdrop: 'static', keyboard: false });
   };
+
+  const deleteModalState = { locked: false };
+  const removeModalState = { locked: false };
+  const deleteSpinner = attachButtonSpinner(publisherDeleteConfirmBtn);
+  const removeSpinner = attachButtonSpinner(removePublisherBookConfirmBtn);
+
+  bindModalLock(deletePublisherModal, deleteModalState);
+  bindModalLock(removePublisherBookModal, removeModalState);
 
   if (invalidModalClose) {
     invalidModalClose.addEventListener('click', () => {
@@ -283,6 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openRemovePublisherBookModal = (book) => {
     if (!book) return;
+    log('Opening remove publisher from book modal.', { bookId: book.id, publisherId: publisherRecord?.id });
+    removeModalState.locked = false;
+    setModalLocked(removePublisherBookModal, false);
     removePublisherBookTarget = book;
     if (removePublisherBookText) {
       removePublisherBookText.textContent = `Remove ${publisherRecord?.name || 'this publisher'} from ${book.title || 'this book'}?`;
@@ -297,6 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmRemovePublisherBook = async () => {
     if (!removePublisherBookTarget) return;
     removePublisherBookConfirmBtn.disabled = true;
+    removeModalState.locked = true;
+    setModalLocked(removePublisherBookModal, true);
+    setButtonLoading(removePublisherBookConfirmBtn, removeSpinner?.spinner, true);
     try {
       const requestPayload = { id: removePublisherBookTarget.id, publisherId: null };
       log('Removing publisher from book.', { request: requestPayload });
@@ -323,6 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
         removePublisherBookError.textContent = 'Unable to remove publisher from book right now.';
       }
     } finally {
+      removeModalState.locked = false;
+      setModalLocked(removePublisherBookModal, false);
+      setButtonLoading(removePublisherBookConfirmBtn, removeSpinner?.spinner, false);
       removePublisherBookConfirmBtn.disabled = false;
     }
   };
@@ -343,6 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openDeleteModal = () => {
     if (!publisherRecord) return;
+    log('Opening delete publisher modal.', { publisherId: publisherRecord.id });
+    deleteModalState.locked = false;
+    setModalLocked(deletePublisherModal, false);
     if (deletePublisherName) deletePublisherName.textContent = publisherRecord.name || 'this publisher';
     if (publisherDeleteErrorAlert) {
       publisherDeleteErrorAlert.classList.add('d-none');
@@ -354,6 +427,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDelete = async () => {
     if (!publisherRecord) return;
     publisherDeleteConfirmBtn.disabled = true;
+    deleteModalState.locked = true;
+    setModalLocked(deletePublisherModal, true);
+    setButtonLoading(publisherDeleteConfirmBtn, deleteSpinner?.spinner, true);
     try {
       const response = await apiFetch('/publisher', { method: 'DELETE', body: JSON.stringify({ id: publisherRecord.id }) });
       const data = await response.json().catch(() => ({}));
@@ -374,6 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
         publisherDeleteErrorAlert.textContent = 'Unable to delete publisher right now.';
       }
     } finally {
+      deleteModalState.locked = false;
+      setModalLocked(deletePublisherModal, false);
+      setButtonLoading(publisherDeleteConfirmBtn, deleteSpinner?.spinner, false);
       publisherDeleteConfirmBtn.disabled = false;
     }
   };
@@ -433,19 +512,21 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadPage = async () => {
+    let pageLoaded = false;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
     try {
       const publisher = await loadPublisher();
       if (!publisher) return;
       const books = await loadBooks();
       renderBooks(books);
+      pageLoaded = true;
     } catch (error) {
       errorLog('Publisher details load failed with exception.', error);
       await showInvalidModal(defaultInvalidPublisherMessage);
     } finally {
       await hideModal('pageLoadingModal');
       if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-        window.pageContentReady.resolve({ success: true });
+        window.pageContentReady.resolve({ success: pageLoaded });
       }
     }
   };

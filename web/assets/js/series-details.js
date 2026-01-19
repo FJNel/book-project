@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
   log('Initializing page.');
   if (window.rateLimitGuard?.hasReset && window.rateLimitGuard.hasReset()) {
     window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+      window.pageContentReady.resolve({ success: false, rateLimited: true });
+    }
     return;
   }
 
@@ -645,19 +648,21 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadPage = async () => {
+    let pageLoaded = false;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
     try {
       const series = await loadSeries();
       if (!series) return;
       const books = await loadBooks();
       renderBooks(books);
+      pageLoaded = true;
     } catch (error) {
       errorLog('Series details load failed with exception.', error);
       await showInvalidModal(defaultInvalidSeriesMessage);
     } finally {
       await hideModal('pageLoadingModal');
       if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-        window.pageContentReady.resolve({ success: true });
+        window.pageContentReady.resolve({ success: pageLoaded });
       }
     }
   };

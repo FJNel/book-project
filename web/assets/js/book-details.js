@@ -1,3 +1,7 @@
+if (window.pageContentReady && typeof window.pageContentReady.reset === 'function') {
+  window.pageContentReady.reset();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const log = (...args) => console.log('[Book Details]', ...args);
   const warn = (...args) => console.warn('[Book Details]', ...args);
@@ -6,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
   log('Initializing page.');
   if (window.rateLimitGuard?.hasReset && window.rateLimitGuard.hasReset()) {
     window.rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+      window.pageContentReady.resolve({ success: false, rateLimited: true });
+    }
     return;
   }
 
@@ -145,6 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const authorRoleModalState = { locked: false };
   const seriesOrderModalState = { locked: false };
   const copyModalState = { locked: false };
+  const deleteBookModalState = { locked: false };
+  const removeAuthorModalState = { locked: false };
+  const removeSeriesModalState = { locked: false };
+  const deleteCopyModalState = { locked: false };
+  const manageAuthorsModalState = { locked: false };
+  const manageSeriesModalState = { locked: false };
+  const manageTagsModalState = { locked: false };
 
   const toggleSubtitle = (text) => {
     const el = document.getElementById('bookSubtitle');
@@ -233,21 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       return null;
     }
-  };
-
-  const setUrlHelp = (inputEl, helpEl, label = 'Website') => {
-    if (!inputEl || !helpEl) return;
-    const raw = inputEl.value.trim();
-    if (!raw) {
-      clearHelpText(helpEl);
-      return;
-    }
-    const normalized = normalizeUrl(raw);
-    if (!normalized) {
-      setHelpText(helpEl, `${label} must be a valid URL.`, true);
-      return;
-    }
-    setHelpText(helpEl, `Will be saved as: ${normalized}`, false);
   };
 
   const renderLink = (url, text) => {
@@ -382,37 +381,73 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const setDeleteBookLocked = (locked) => {
+    deleteBookModalState.locked = locked;
+    setModalLocked(deleteBookModal, locked);
+    if (deleteBookSpinner) setButtonLoading(deleteBookConfirmBtn, deleteBookSpinner.spinner, locked);
+  };
+
+  const setRemoveAuthorLocked = (locked) => {
+    removeAuthorModalState.locked = locked;
+    setModalLocked(removeAuthorModal, locked);
+    if (removeAuthorSpinner) setButtonLoading(removeAuthorConfirmBtn, removeAuthorSpinner.spinner, locked);
+  };
+
+  const setRemoveSeriesLocked = (locked) => {
+    removeSeriesModalState.locked = locked;
+    setModalLocked(removeSeriesModal, locked);
+    if (removeSeriesSpinner) setButtonLoading(removeSeriesConfirmBtn, removeSeriesSpinner.spinner, locked);
+  };
+
+  const setDeleteCopyLocked = (locked) => {
+    deleteCopyModalState.locked = locked;
+    setModalLocked(deleteCopyModal, locked);
+    if (deleteCopySpinner) setButtonLoading(deleteCopyConfirmBtn, deleteCopySpinner.spinner, locked);
+  };
+
+  const setManageAuthorsLocked = (locked) => {
+    manageAuthorsModalState.locked = locked;
+    setModalLocked(manageAuthorsModal, locked);
+    toggleDisabled([manageAuthorsSearch, openAddAuthorBtn], locked);
+    manageAuthorsList?.querySelectorAll('button').forEach((btn) => { btn.disabled = locked; });
+    manageAuthorsResults?.querySelectorAll('button').forEach((btn) => { btn.disabled = locked; });
+  };
+
+  const setManageSeriesLocked = (locked) => {
+    manageSeriesModalState.locked = locked;
+    setModalLocked(manageSeriesModal, locked);
+    toggleDisabled([manageSeriesSearch, openAddSeriesBtn], locked);
+    manageSeriesList?.querySelectorAll('button').forEach((btn) => { btn.disabled = locked; });
+    manageSeriesResults?.querySelectorAll('button').forEach((btn) => { btn.disabled = locked; });
+  };
+
+  const setManageTagsLocked = (locked) => {
+    manageTagsModalState.locked = locked;
+    setModalLocked(manageTagsModal, locked);
+    toggleDisabled([manageTagsInput, addTagBtn], locked);
+    manageTagsList?.querySelectorAll('button').forEach((btn) => { btn.disabled = locked; });
+  };
+
   const authorRoleSpinner = attachButtonSpinner(authorRoleSaveBtn);
   const seriesOrderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
   const copySpinner = attachButtonSpinner(copySaveBtn);
+  const deleteBookSpinner = attachButtonSpinner(deleteBookConfirmBtn);
+  const removeAuthorSpinner = attachButtonSpinner(removeAuthorConfirmBtn);
+  const removeSeriesSpinner = attachButtonSpinner(removeSeriesConfirmBtn);
+  const deleteCopySpinner = attachButtonSpinner(deleteCopyConfirmBtn);
 
   bindModalLock(editAuthorRoleModal, authorRoleModalState);
   bindModalLock(editSeriesOrderModal, seriesOrderModalState);
   bindModalLock(editCopyModal, copyModalState);
+  bindModalLock(deleteBookModal, deleteBookModalState);
+  bindModalLock(removeAuthorModal, removeAuthorModalState);
+  bindModalLock(removeSeriesModal, removeSeriesModalState);
+  bindModalLock(deleteCopyModal, deleteCopyModalState);
+  bindModalLock(manageAuthorsModal, manageAuthorsModalState);
+  bindModalLock(manageSeriesModal, manageSeriesModalState);
+  bindModalLock(manageTagsModal, manageTagsModalState);
 
-  const sharedNamePattern = /^[A-Za-z0-9 .,'":;!?()&\/-]+$/;
   const authorRolePattern = /^[\p{L}0-9 .,'":;!?()&\/-]+$/u;
-
-  const bindRequiredFieldValidation = (inputEl, helpEl, { label = 'This field', min = 2, max = 150, pattern = sharedNamePattern } = {}) => {
-    if (!inputEl || !helpEl) return;
-    const validate = () => {
-      const value = inputEl.value.trim();
-      if (!value) {
-        setHelpText(helpEl, `${label} is required.`, true);
-        return;
-      }
-      if (value.length < min || value.length > max) {
-        setHelpText(helpEl, `${label} must be between ${min} and ${max} characters.`, true);
-        return;
-      }
-      if (pattern && !pattern.test(value)) {
-        setHelpText(helpEl, `${label} contains unsupported characters.`, true);
-        return;
-      }
-      clearHelpText(helpEl);
-    };
-    inputEl.addEventListener('input', validate);
-  };
 
   const showModal = async (target, options) => {
     if (window.modalManager && typeof window.modalManager.showModal === 'function') {
@@ -457,20 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
   log('Resolved book id from URL.', { bookId });
-
-  const toggleDetails = ({ row, wrap, chevron }) => {
-    if (!row || !wrap || !chevron) return;
-    const isOpen = row.getAttribute('data-expanded') === 'true';
-    wrap.classList.toggle('d-none', isOpen);
-    row.setAttribute('data-expanded', isOpen ? 'false' : 'true');
-  };
-
-  const enableExpandableRow = ({ row, wrap, chevron }) => {
-    if (!row || !wrap || !chevron) return;
-    row.classList.add('clickable-row');
-    chevron.classList.remove('d-none');
-    row.addEventListener('click', () => toggleDetails({ row, wrap, chevron }));
-  };
 
   const bindBookTypeCard = () => {
     const row = document.getElementById('bookTypeRow');
@@ -968,6 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loadBook = async () => {
     log('Loading book data from API.');
+    let pageLoaded = false;
     await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
     try {
       const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true`, { method: 'GET' });
@@ -983,10 +1005,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       renderBook(payload.data);
+      pageLoaded = true;
     } catch (error) {
       errorLog('Book load failed with exception.', error);
       await showInvalidModal(defaultInvalidBookMessage);
     } finally {
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: pageLoaded });
+      }
       await hideModal('pageLoadingModal');
     }
   };
@@ -1279,6 +1305,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openDeleteBookModal = () => {
     if (!bookRecord) return;
+    log('Opening delete book modal.', { bookId: bookRecord.id });
+    setDeleteBookLocked(false);
     if (deleteBookName) deleteBookName.textContent = bookRecord.title || 'this book';
     if (deleteBookErrorAlert) {
       deleteBookErrorAlert.classList.add('d-none');
@@ -1290,6 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDeleteBook = async () => {
     if (!bookRecord) return;
     deleteBookConfirmBtn.disabled = true;
+    setDeleteBookLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'DELETE', body: JSON.stringify({ id: bookRecord.id }) });
       const data = await response.json().catch(() => ({}));
@@ -1311,6 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       deleteBookConfirmBtn.disabled = false;
+      setDeleteBookLocked(false);
     }
   };
 
@@ -1397,6 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const requestPayload = { id: bookRecord.id, authors };
     log('Adding author to book.', { request: requestPayload, authorId: author.id });
+    setManageAuthorsLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
@@ -1421,6 +1452,8 @@ document.addEventListener('DOMContentLoaded', () => {
         manageAuthorsError.classList.remove('d-none');
         manageAuthorsError.textContent = 'Unable to add author right now.';
       }
+    } finally {
+      setManageAuthorsLocked(false);
     }
   };
 
@@ -1450,6 +1483,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openManageAuthorsModal = async () => {
     if (!bookRecord) return;
+    log('Opening manage authors modal.', { bookId: bookRecord.id });
+    setManageAuthorsLocked(false);
     if (manageAuthorsError) {
       manageAuthorsError.classList.add('d-none');
       manageAuthorsError.textContent = '';
@@ -1540,6 +1575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authors = bookRecord?.authors || [];
     const author = authors.find((entry) => entry.authorId === authorId);
     if (!author) return;
+    log('Opening author role modal.', { authorId });
     const currentRole = author.authorRole || 'Contributor';
     const originalInputValue = author.authorRole === 'Contributor' ? '' : author.authorRole || '';
     authorRoleTarget = { author, currentRole, originalInputValue };
@@ -1603,6 +1639,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authors = bookRecord?.authors || [];
     const author = authors.find((entry) => entry.authorId === authorId);
     if (!author) return;
+    log('Opening remove author modal.', { authorId });
+    setRemoveAuthorLocked(false);
     removeAuthorTarget = author;
     if (removeAuthorText) {
       removeAuthorText.textContent = `Removing ${author.authorName || 'this author'} from ${bookRecord.title || 'this book'}.`;
@@ -1626,6 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     log('Removing author from book.', { request: requestPayload, authorId: removeAuthorTarget.authorId });
     removeAuthorConfirmBtn.disabled = true;
+    setRemoveAuthorLocked(true);
     try {
       const response = await apiFetch('/book', {
         method: 'PUT',
@@ -1651,11 +1690,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       removeAuthorConfirmBtn.disabled = false;
+      setRemoveAuthorLocked(false);
     }
   };
 
   const openManageSeriesModal = async () => {
     if (!bookRecord) return;
+    log('Opening manage series modal.', { bookId: bookRecord.id });
+    setManageSeriesLocked(false);
     if (manageSeriesError) {
       manageSeriesError.classList.add('d-none');
       manageSeriesError.textContent = '';
@@ -1757,6 +1799,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const requestPayload = { id: bookRecord.id, series: payload };
     log('Adding series to book.', { request: requestPayload, seriesId: series.id });
+    setManageSeriesLocked(true);
     try {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
       const data = await response.json().catch(() => ({}));
@@ -1781,6 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
         manageSeriesError.classList.remove('d-none');
         manageSeriesError.textContent = 'Unable to add series right now.';
       }
+    } finally {
+      setManageSeriesLocked(false);
     }
   };
 
@@ -1849,6 +1894,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const openSeriesOrderModal = (seriesId) => {
     const seriesEntry = (bookRecord?.series || []).find((entry) => entry.seriesId === seriesId);
     if (!seriesEntry) return;
+    log('Opening series order modal.', { seriesId });
     const originalInputValue = Number.isInteger(seriesEntry.bookOrder) ? String(seriesEntry.bookOrder) : '';
     seriesOrderTarget = { seriesEntry, currentOrder: seriesEntry.bookOrder, originalInputValue };
     seriesOrderInput.value = originalInputValue;
@@ -1910,6 +1956,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const openRemoveSeriesModal = (seriesId) => {
     const seriesEntry = (bookRecord?.series || []).find((entry) => entry.seriesId === seriesId);
     if (!seriesEntry) return;
+    log('Opening remove series modal.', { seriesId });
+    setRemoveSeriesLocked(false);
     removeSeriesTarget = seriesEntry;
     if (removeSeriesText) {
       removeSeriesText.textContent = `Removing ${bookRecord.title || 'this book'} from ${seriesEntry.seriesName || 'this series'}.`;
@@ -1926,6 +1974,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestPayload = { seriesId: removeSeriesTarget.seriesId, bookId: bookRecord.id };
     log('Removing series from book.', { request: requestPayload });
     removeSeriesConfirmBtn.disabled = true;
+    setRemoveSeriesLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'DELETE',
@@ -1951,6 +2000,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       removeSeriesConfirmBtn.disabled = false;
+      setRemoveSeriesLocked(false);
     }
   };
 
@@ -1994,6 +2044,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openManageTagsModal = () => {
     if (!bookRecord) return;
+    log('Opening manage tags modal.', { bookId: bookRecord.id });
+    setManageTagsLocked(false);
     tagDraft = (bookRecord.tags || []).map((tag) => tag.name);
     if (manageTagsError) {
       manageTagsError.classList.add('d-none');
@@ -2014,6 +2066,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!bookRecord) return;
     const requestPayload = { id: bookRecord.id, tags: tagDraft };
     log('Updating book tags.', { request: requestPayload });
+    setManageTagsLocked(true);
     try {
       const response = await apiFetch('/book', {
         method: 'PUT',
@@ -2036,6 +2089,8 @@ document.addEventListener('DOMContentLoaded', () => {
         manageTagsError.classList.remove('d-none');
         manageTagsError.textContent = 'Unable to update tags right now.';
       }
+    } finally {
+      setManageTagsLocked(false);
     }
   };
 
@@ -2225,6 +2280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openCopyModal = async ({ mode, copyId }) => {
     if (!bookRecord) return;
+    log('Opening copy modal.', { mode, copyId: copyId || null });
     copyEditTarget = { mode, copyId, original: null };
     if (editCopyErrorAlert) {
       editCopyErrorAlert.classList.add('d-none');
@@ -2345,6 +2401,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const copies = bookRecord?.bookCopies || [];
     const copy = copies.find((entry) => entry.id === copyId);
     if (!copy) return;
+    log('Opening delete copy modal.', { copyId });
+    setDeleteCopyLocked(false);
     copyEditTarget = { mode: 'delete', copyId };
     if (deleteCopyText) deleteCopyText.textContent = `Remove copy stored at ${copy.storageLocationPath || 'unknown location'}?`;
     if (deleteCopyErrorAlert) {
@@ -2364,6 +2422,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmDeleteCopy = async () => {
     if (!bookRecord || !copyEditTarget || copyEditTarget.mode !== 'delete') return;
     deleteCopyConfirmBtn.disabled = true;
+    setDeleteCopyLocked(true);
     try {
       const response = await apiFetch('/bookcopy', {
         method: 'DELETE',
@@ -2387,7 +2446,9 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteCopyErrorAlert.textContent = 'Unable to delete copy right now.';
       }
     } finally {
-      deleteCopyConfirmBtn.disabled = false;
+      const lockedOut = (bookRecord?.bookCopies || []).length <= 1;
+      deleteCopyConfirmBtn.disabled = lockedOut;
+      setDeleteCopyLocked(false);
     }
   };
 

@@ -74,6 +74,13 @@
   let modalLocationId = null;
   let selectionRequestId = 0;
   let booksRequestId = 0;
+  const moveModalState = { locked: false };
+  const deleteModalState = { locked: false };
+  const moveSpinner = attachButtonSpinner(dom.moveLocationConfirmBtn);
+  const deleteSpinner = attachButtonSpinner(dom.deleteLocationConfirmBtn);
+
+  bindModalLock(dom.moveLocationModal, moveModalState);
+  bindModalLock(dom.deleteLocationModal, deleteModalState);
 
   const debounce = (fn, delay = 350) => {
     let timer;
@@ -141,6 +148,77 @@
 
   const clearAlerts = () => {
     if (dom.feedbackContainer) dom.feedbackContainer.innerHTML = '';
+  };
+
+  const attachButtonSpinner = (button) => {
+    if (!button) return null;
+    if (button.querySelector('.spinner-border')) {
+      return {
+        spinner: button.querySelector('.spinner-border'),
+        label: button.textContent.trim() || 'Submit'
+      };
+    }
+    const label = button.textContent.trim() || 'Submit';
+    button.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner-border spinner-border-sm d-none';
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    button.appendChild(spinner);
+    button.appendChild(document.createTextNode(' '));
+    button.appendChild(document.createTextNode(label));
+    return { spinner, label };
+  };
+
+  const setButtonLoading = (button, spinner, isLoading) => {
+    if (!button || !spinner) return;
+    spinner.classList.toggle('d-none', !isLoading);
+    button.disabled = isLoading;
+  };
+
+  const toggleDisabled = (elements, disabled) => {
+    if (!elements) return;
+    elements.forEach((el) => {
+      if (el) el.disabled = disabled;
+    });
+  };
+
+  const bindModalLock = (modalEl, state) => {
+    if (!modalEl || modalEl.dataset.lockBound === 'true') return;
+    modalEl.dataset.lockBound = 'true';
+    modalEl.addEventListener('hide.bs.modal', (event) => {
+      if (state.locked) event.preventDefault();
+    });
+  };
+
+  const setModalLocked = (modalEl, locked) => {
+    if (!modalEl) return;
+    modalEl.dataset.locked = locked ? 'true' : 'false';
+    const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+    closeButtons.forEach((btn) => {
+      btn.disabled = locked;
+    });
+  };
+
+  const showModal = async (target, options) => {
+    if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+      await window.modalManager.showModal(target, options);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+  };
+
+  const hideModal = async (target) => {
+    if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+      await window.modalManager.hideModal(target);
+      return;
+    }
+    const element = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!element) return;
+    const instance = bootstrap.Modal.getInstance(element);
+    if (instance) instance.hide();
   };
 
   const saveExpanded = () => {
@@ -755,6 +833,10 @@
     const selected = state.locations.find((loc) => loc.id === locationId);
     if (!selected || !dom.moveLocationSelect) return;
 
+    log('Opening move location modal.', { locationId });
+    moveModalState.locked = false;
+    setModalLocked(dom.moveLocationModal, false);
+
     dom.moveLocationSelect.innerHTML = '';
     const optionRoot = document.createElement('option');
     optionRoot.value = '';
@@ -785,7 +867,7 @@
       dom.moveLocationError.textContent = '';
     }
 
-    bootstrap.Modal.getOrCreateInstance(dom.moveLocationModal).show();
+    showModal(dom.moveLocationModal, { backdrop: 'static', keyboard: false });
   };
 
   const confirmMove = async () => {
@@ -794,6 +876,10 @@
     const parentId = parentIdRaw ? Number.parseInt(parentIdRaw, 10) : null;
 
     log('Moving location.', { id: modalLocationId, parentId });
+    moveModalState.locked = true;
+    setModalLocked(dom.moveLocationModal, true);
+    setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, true);
+    toggleDisabled([dom.moveLocationSelect], true);
     try {
       const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
         method: 'PUT',
@@ -804,7 +890,7 @@
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         throw new Error(details.join(' ') || payload.message || 'Move failed.');
       }
-      bootstrap.Modal.getInstance(dom.moveLocationModal)?.hide();
+      await hideModal(dom.moveLocationModal);
       await loadLocations();
     } catch (error) {
       errorLog('Move failed.', error);
@@ -812,6 +898,11 @@
         dom.moveLocationError.textContent = error.message || 'Unable to move location.';
         dom.moveLocationError.classList.remove('d-none');
       }
+    } finally {
+      moveModalState.locked = false;
+      setModalLocked(dom.moveLocationModal, false);
+      setButtonLoading(dom.moveLocationConfirmBtn, moveSpinner?.spinner, false);
+      toggleDisabled([dom.moveLocationSelect], false);
     }
   };
 
@@ -836,12 +927,19 @@
       dom.deleteLocationError.textContent = '';
     }
 
-    bootstrap.Modal.getOrCreateInstance(dom.deleteLocationModal).show();
+    log('Opening delete location modal.', { id: locationId, blocked });
+    deleteModalState.locked = false;
+    setModalLocked(dom.deleteLocationModal, false);
+    setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, false);
+    showModal(dom.deleteLocationModal);
   };
 
   const confirmDelete = async () => {
     if (!modalLocationId) return;
     log('Deleting location.', { id: modalLocationId });
+    deleteModalState.locked = true;
+    setModalLocked(dom.deleteLocationModal, true);
+    setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, true);
     try {
       const response = await apiFetch(`/storagelocation/${modalLocationId}`, {
         method: 'DELETE'
@@ -851,7 +949,7 @@
         const details = Array.isArray(payload.errors) ? payload.errors : [];
         throw new Error(details.join(' ') || payload.message || 'Delete failed.');
       }
-      bootstrap.Modal.getInstance(dom.deleteLocationModal)?.hide();
+      await hideModal(dom.deleteLocationModal);
       if (state.selectedId === modalLocationId) state.selectedId = null;
       await loadLocations();
     } catch (error) {
@@ -860,6 +958,10 @@
         dom.deleteLocationError.textContent = error.message || 'Unable to delete location.';
         dom.deleteLocationError.classList.remove('d-none');
       }
+    } finally {
+      deleteModalState.locked = false;
+      setModalLocked(dom.deleteLocationModal, false);
+      setButtonLoading(dom.deleteLocationConfirmBtn, deleteSpinner?.spinner, false);
     }
   };
 

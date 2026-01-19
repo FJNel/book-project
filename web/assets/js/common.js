@@ -243,68 +243,6 @@ async function checkApiHealth() {
 	}
 }
 
-function checkViewport() {
-    //Deprecated: The UI has been redesigned to be mobile-friendly
-    return true;
-
-    const path = window.location.pathname;
-    if (
-        path === '/verify-email' ||
-        path === '/reset-password'
-    ) {
-        //Check for token in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-        if (!token) {
-            //Don't show desktop modal if token is missing
-            return true;
-        }
-    }
-
-    // Require desktop for all other pages
-    if (window.innerWidth >= 1200) {
-        console.log('[Viewport Check] Viewport is large enough:', window.innerWidth);
-        return true;
-    } else {
-        console.warn('[Viewport Check] Viewport too small:', window.innerWidth);
-        showViewportErrorModal();
-        return false;
-    }
-}
-
-// Checks if the user is logged in
-function checkLoginStatus() {
-    //Deprecated: The HTTP interceptor will handle this
-    //If the token is invalid, the user will be logged out automatically by the interceptor
-    return true;
-
-    const token = localStorage.getItem('accessToken');
-
-    
-    //Check if token refresh token is still valid
-    //Not needed: The HTTP interceptor will handle this
-    //If the token is invalid, the user will be logged out automatically by the interceptor
-    
-    //Placeholder logic
-    if (token) {
-        console.log('[Login Check] User is logged in:', token);
-        return true;
-    } else {
-        console.warn('[Login Check] User is not logged in.');
-        //If not homepage, redirect
-        if (window.location.pathname !== '/' 
-            && window.location.pathname !== '/index'
-            && window.location.pathname !== '/reset-password'
-            && window.location.pathname !== '/verify-email'
-        ) {
-            console.log('[Login Check] Redirecting to homepage.');
-
-            window.location.href = 'https://bookproject.fjnel.co.za';
-        }
-        console.log('[Login Check] Already on page that does not require login.');
-        return false;
-    }
-}
 
 (function enableModalDelegation() {
     document.addEventListener('click', async (event) => {
@@ -560,13 +498,6 @@ async function showApiErrorModal() {
 	modalElement.style.display = 'block';
 	return Promise.resolve();
 }
-
-// Show modal if viewport is too small
-// function showViewportErrorModal() {
-//     console.log('[Modal] Showing Desktop Error Modal');
-//     const desktopErrorModal = new bootstrap.Modal(document.getElementById('desktopErrorModal'));
-//     desktopErrorModal.show();
-// }
 
 //Run checks on page load
 async function initializeApp() {
