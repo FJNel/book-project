@@ -36,6 +36,29 @@
     openCreateLanguageBtnSecondary: document.getElementById('openCreateLanguageBtnSecondary'),
     languagesTbody: document.getElementById('languagesTbody'),
     languagesAlert: document.getElementById('languagesAlert'),
+    logsTbody: document.getElementById('logsTbody'),
+    logsAlert: document.getElementById('logsAlert'),
+    logsSearchInput: document.getElementById('logsSearchInput'),
+    logsTypeFilter: document.getElementById('logsTypeFilter'),
+    logsLevelFilter: document.getElementById('logsLevelFilter'),
+    logsStatusFilter: document.getElementById('logsStatusFilter'),
+    logsMethodFilter: document.getElementById('logsMethodFilter'),
+    logsPathFilter: document.getElementById('logsPathFilter'),
+    logsUserIdFilter: document.getElementById('logsUserIdFilter'),
+    logsDateFrom: document.getElementById('logsDateFrom'),
+    logsDateTo: document.getElementById('logsDateTo'),
+    logsPrevBtn: document.getElementById('logsPrevBtn'),
+    logsNextBtn: document.getElementById('logsNextBtn'),
+    logsPageSize: document.getElementById('logsPageSize'),
+    logsSummary: document.getElementById('logsSummary'),
+    logsRefreshBtn: document.getElementById('logsRefreshBtn'),
+    logsClearFiltersBtn: document.getElementById('logsClearFiltersBtn'),
+    logsLiveToggle: document.getElementById('logsLiveToggle'),
+    logsDetailModal: document.getElementById('logsDetailModal'),
+    logsDetailContent: document.getElementById('logsDetailContent'),
+    logsDetailAlert: document.getElementById('logsDetailAlert'),
+    logsCopyJsonBtn: document.getElementById('logsCopyJsonBtn'),
+    logsDetailTitle: document.getElementById('logsDetailTitle'),
     createUserModal: document.getElementById('createUserModal'),
     createUserAlert: document.getElementById('createUserAlert'),
     createUserSubmit: document.getElementById('createUserSubmit'),
@@ -110,6 +133,18 @@
     confirmActionConfig: null,
     sessionsUser: null,
     languages: [],
+    logs: [],
+    logsPage: 1,
+    logsLimit: 25,
+    logsTotal: 0,
+    logsHasNext: false,
+    logsMeta: { types: [], levels: [], statuses: [] },
+    logsMetaLoaded: false,
+    logsInitialized: false,
+    logsLiveTimer: null,
+    logsLiveEnabled: false,
+    currentLogDetail: null,
+    authorized: false,
     actionCooldowns: new Map()
   };
 
@@ -407,7 +442,7 @@
     state.languages = Array.isArray(languages) ? languages : state.languages;
     if (!dom.languagesTbody) return;
     if (!state.languages.length) {
-      dom.languagesTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No languages found.</td></tr>';
+      dom.languagesTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No languages found.</td></tr>';
       return;
     }
 
@@ -415,8 +450,9 @@
       <tr data-language-id="${lang.id}">
         <td>${lang.id ?? '—'}</td>
         <td>${escapeHtml(lang.name || '—')}</td>
-        <td>${formatDateTime(lang.createdAt)}</td>
-        <td>${formatDateTime(lang.updatedAt)}</td>
+        <td>${escapeHtml(lang.nameNormalized || lang.name_normalized || '—')}</td>
+        <td>${formatDateTime(lang.createdAt || lang.created_at)}</td>
+        <td>${formatDateTime(lang.updatedAt || lang.updated_at)}</td>
         <td>
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary js-edit-language" type="button" data-language-id="${lang.id}">Edit</button>
@@ -431,7 +467,7 @@
 
   async function fetchLanguages() {
     hideAlert(dom.languagesAlert);
-    if (dom.languagesTbody) dom.languagesTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Loading languages…</td></tr>';
+    if (dom.languagesTbody) dom.languagesTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading languages…</td></tr>';
     try {
       const response = await apiFetch('/languages', { method: 'GET' });
       const data = await parseResponse(response);
@@ -441,6 +477,13 @@
       showAlert(dom.languagesAlert, err.message || 'Unable to load languages.');
       throw err;
     }
+  }
+
+  function updateUrlSection(section) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('section', section);
+    url.hash = `#${section}`;
+    window.history.replaceState({}, '', url);
   }
 
   function setSection(section) {
@@ -455,12 +498,28 @@
       btn.setAttribute('aria-current', isActive ? 'page' : 'false');
     });
     window.localStorage.setItem('adminSection', section);
+    updateUrlSection(section);
+
+    if (section === 'logs' && state.authorized) {
+      ensureLogsInitialized().catch(() => {});
+    } else if (state.logsLiveEnabled) {
+      stopLogsLive();
+      if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
+    }
   }
 
   function resolveSectionFromHash() {
     const hash = window.location.hash.toLowerCase();
     if (hash.includes('users')) return 'users';
     if (hash.includes('language')) return 'languages';
+    if (hash.includes('log')) return 'logs';
+    return null;
+  }
+
+  function resolveSectionFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const section = (params.get('section') || '').toLowerCase();
+    if (['overview', 'users', 'languages', 'logs'].includes(section)) return section;
     return null;
   }
 
@@ -470,8 +529,13 @@
       setSection(hashSection);
       return;
     }
+    const querySection = resolveSectionFromQuery();
+    if (querySection) {
+      setSection(querySection);
+      return;
+    }
     const stored = window.localStorage.getItem('adminSection');
-    const target = ['overview', 'users', 'languages'].includes(stored) ? stored : 'overview';
+    const target = ['overview', 'users', 'languages', 'logs'].includes(stored) ? stored : 'overview';
     setSection(target);
   }
 
@@ -1002,14 +1066,19 @@
     dom.languageModalNameHelp.textContent = '';
     dom.languageModalSubmit.textContent = mode === 'edit' ? 'Save changes' : 'Create language';
     dom.languageModalSubmit.dataset.mode = mode;
-    toggleSubmit(dom.languageModalSubmit, Boolean(language?.name));
+    dom.languageModalSubmit.dataset.originalName = language?.name || '';
+    toggleSubmit(dom.languageModalSubmit, false);
+    validateLanguageModal();
     bootstrap.Modal.getOrCreateInstance(dom.languageModal).show();
   }
 
   function validateLanguageModal() {
     const name = dom.languageModalName.value.trim();
-    const valid = name.length >= 2;
-    dom.languageModalNameHelp.textContent = valid ? '' : 'Language name must be at least 2 characters.';
+    const mode = dom.languageModalSubmit.dataset.mode || 'create';
+    const originalName = dom.languageModalSubmit.dataset.originalName || '';
+    const changed = mode === 'create' ? Boolean(name) : name !== originalName;
+    const valid = name.length >= 2 && changed;
+    dom.languageModalNameHelp.textContent = name.length >= 2 ? '' : 'Language name must be at least 2 characters.';
     toggleSubmit(dom.languageModalSubmit, valid);
     return valid;
   }
@@ -1074,6 +1143,295 @@
     } finally {
       setModalInteractivity(dom.languageDeleteModal, false);
       validateLanguageDelete();
+    }
+  }
+
+  function resetLogsTablePlaceholder() {
+    if (dom.logsTbody) dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Loading logs…</td></tr>';
+  }
+
+  function setLogFilterOptions(selectEl, values) {
+    if (!selectEl || !Array.isArray(values)) return;
+    const current = selectEl.value;
+    const options = ['<option value="">Any</option>', ...values.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`)];
+    selectEl.innerHTML = options.join('');
+    selectEl.value = current;
+  }
+
+  function normalizeDateTimeLocalToIso(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString();
+  }
+
+  function getLogFilters() {
+    return {
+      search: dom.logsSearchInput?.value.trim() || '',
+      type: dom.logsTypeFilter?.value || '',
+      level: dom.logsLevelFilter?.value || '',
+      status: dom.logsStatusFilter?.value || '',
+      method: dom.logsMethodFilter?.value || '',
+      path: dom.logsPathFilter?.value.trim() || '',
+      userId: dom.logsUserIdFilter?.value ? Number(dom.logsUserIdFilter.value) : null,
+      startDate: normalizeDateTimeLocalToIso(dom.logsDateFrom?.value),
+      endDate: normalizeDateTimeLocalToIso(dom.logsDateTo?.value)
+    };
+  }
+
+  function hasLogFilters(filters) {
+    if (!filters) return false;
+    return Boolean(
+      filters.search
+      || filters.type
+      || filters.level
+      || filters.status
+      || filters.method
+      || filters.path
+      || Number.isFinite(filters.userId)
+      || filters.startDate
+      || filters.endDate
+    );
+  }
+
+  function renderLogBadge(value, type) {
+    if (!value) return '—';
+    const normalized = String(value).toUpperCase();
+    const classMap = {
+      level: {
+        INFO: 'text-bg-secondary',
+        WARN: 'text-bg-warning',
+        WARNING: 'text-bg-warning',
+        ERROR: 'text-bg-danger',
+        DEBUG: 'text-bg-info'
+      },
+      status: {
+        SUCCESS: 'text-bg-success',
+        FAILURE: 'text-bg-danger',
+        INFO: 'text-bg-secondary',
+        SKIPPED: 'text-bg-warning'
+      },
+      type: {
+        HTTP_REQUEST: 'text-bg-primary',
+        HTTP_ERROR: 'text-bg-danger'
+      }
+    };
+    const className = classMap[type]?.[normalized] || 'text-bg-secondary';
+    return `<span class="badge ${className}">${escapeHtml(normalized)}</span>`;
+  }
+
+  function updateLogsSummary(count, total) {
+    if (!dom.logsSummary) return;
+    const offset = (state.logsPage - 1) * state.logsLimit;
+    const start = count > 0 ? offset + 1 : 0;
+    const end = offset + count;
+    const totalDisplay = Number.isFinite(total) ? total : end;
+    dom.logsSummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.logsPage})` : 'No logs to show';
+    if (dom.logsPrevBtn) dom.logsPrevBtn.disabled = state.logsPage <= 1;
+    if (dom.logsNextBtn) dom.logsNextBtn.disabled = !state.logsHasNext;
+  }
+
+  function renderLogs(logs) {
+    state.logs = Array.isArray(logs) ? logs : [];
+    if (!dom.logsTbody) return;
+    if (!state.logs.length) {
+      dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No logs found.</td></tr>';
+      return;
+    }
+
+    const rows = state.logs.map((log, index) => {
+      const rawMessage = log.message || log.error_message || log.error_reason || log.details?.message || '—';
+      const message = String(rawMessage);
+      const user = log.user_id ?? log.admin_id ?? log.details?.userId ?? '—';
+      const status = log.status || log.http_status || log.statusCode || '';
+      const typeBadge = renderLogBadge(log.event || log.action || '', 'type');
+      const levelBadge = renderLogBadge(log.level || '', 'level');
+      const statusBadge = renderLogBadge(status, 'status');
+      const pathText = [log.method, log.path].filter(Boolean).join(' ');
+      return `
+        <tr>
+          <td>${formatDateTime(log.timestamp)}</td>
+          <td>${levelBadge}</td>
+          <td>${typeBadge}</td>
+          <td>${statusBadge}</td>
+          <td title="${escapeHtml(message)}">${escapeHtml(message.length > 80 ? `${message.slice(0, 77)}…` : message)}</td>
+          <td>${escapeHtml(String(user))}</td>
+          <td title="${escapeHtml(pathText)}">${escapeHtml(pathText || '—')}</td>
+          <td><button class="btn btn-outline-primary btn-sm js-view-log" type="button" data-log-index="${index}">View</button></td>
+        </tr>
+      `;
+    }).join('');
+
+    dom.logsTbody.innerHTML = rows;
+  }
+
+  async function fetchLogs({ resetPage = false } = {}) {
+    if (resetPage) state.logsPage = 1;
+    hideAlert(dom.logsAlert);
+    resetLogsTablePlaceholder();
+
+    const filters = getLogFilters();
+    const useSearch = hasLogFilters(filters);
+    const offset = (state.logsPage - 1) * state.logsLimit;
+    const limit = state.logsLimit;
+
+    try {
+      log('[Admin][Logs] Fetch logs', { page: state.logsPage, limit, filters, mode: useSearch ? 'search' : 'list' });
+      let payload;
+      if (useSearch) {
+        const body = {
+          search: filters.search || undefined,
+          events: filters.type ? [filters.type.toLowerCase()] : [],
+          levels: filters.level ? [filters.level.toLowerCase()] : [],
+          statuses: filters.status ? [filters.status.toLowerCase()] : [],
+          methods: filters.method ? [filters.method.toLowerCase()] : [],
+          paths: filters.path ? [filters.path] : [],
+          userId: Number.isFinite(filters.userId) ? filters.userId : undefined,
+          startDate: filters.startDate || undefined,
+          endDate: filters.endDate || undefined,
+          limit,
+          offset
+        };
+        const response = await apiFetch('/logs/search', { method: 'POST', body });
+        payload = await parseResponse(response);
+      } else {
+        const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+        const response = await apiFetch(`/logs?${params.toString()}`, { method: 'GET' });
+        payload = await parseResponse(response);
+      }
+
+      const logs = Array.isArray(payload?.logs) ? payload.logs : [];
+      const count = Number.isFinite(payload?.count) ? payload.count : logs.length;
+      const total = Number.isFinite(payload?.total) ? payload.total : (offset + count);
+      state.logsTotal = total;
+      state.logsHasNext = offset + count < total;
+      renderLogs(logs);
+      updateLogsSummary(count, total);
+    } catch (err) {
+      errorLog('[Admin][Logs] Failed to fetch logs', err);
+      if (err?.status === 403 && dom.logsAlert) {
+        dom.logsAlert.innerHTML = '<strong>Admin access required.</strong> You do not have permission to view logs.';
+        dom.logsAlert.classList.remove('d-none');
+      } else {
+        showApiError(dom.logsAlert, err);
+      }
+      dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
+      throw err;
+    }
+  }
+
+  async function loadLogsMeta() {
+    if (state.logsMetaLoaded) return;
+    try {
+      log('[Admin][Logs] Loading types/levels/statuses...');
+      const [typesResp, levelsResp, statusesResp] = await Promise.all([
+        apiFetch('/logs/log_types', { method: 'GET' }),
+        apiFetch('/logs/levels', { method: 'GET' }),
+        apiFetch('/logs/statuses', { method: 'GET' })
+      ]);
+      const [typesData, levelsData, statusesData] = await Promise.all([
+        parseResponse(typesResp),
+        parseResponse(levelsResp),
+        parseResponse(statusesResp)
+      ]);
+      state.logsMeta = {
+        types: Array.isArray(typesData?.logTypes) ? typesData.logTypes : [],
+        levels: Array.isArray(levelsData?.levels) ? levelsData.levels : [],
+        statuses: Array.isArray(statusesData?.statuses) ? statusesData.statuses : []
+      };
+      state.logsMetaLoaded = true;
+      setLogFilterOptions(dom.logsTypeFilter, state.logsMeta.types);
+      setLogFilterOptions(dom.logsLevelFilter, state.logsMeta.levels);
+      setLogFilterOptions(dom.logsStatusFilter, state.logsMeta.statuses);
+    } catch (err) {
+      errorLog('[Admin][Logs] Failed to load metadata', err);
+      showApiError(dom.logsAlert, err);
+      throw err;
+    }
+  }
+
+  async function ensureLogsInitialized() {
+    if (state.logsInitialized) return;
+    await loadLogsMeta();
+    await fetchLogs({ resetPage: true });
+    state.logsInitialized = true;
+  }
+
+  function clearLogsFilters() {
+    if (dom.logsSearchInput) dom.logsSearchInput.value = '';
+    if (dom.logsTypeFilter) dom.logsTypeFilter.value = '';
+    if (dom.logsLevelFilter) dom.logsLevelFilter.value = '';
+    if (dom.logsStatusFilter) dom.logsStatusFilter.value = '';
+    if (dom.logsMethodFilter) dom.logsMethodFilter.value = '';
+    if (dom.logsPathFilter) dom.logsPathFilter.value = '';
+    if (dom.logsUserIdFilter) dom.logsUserIdFilter.value = '';
+    if (dom.logsDateFrom) dom.logsDateFrom.value = '';
+    if (dom.logsDateTo) dom.logsDateTo.value = '';
+  }
+
+  function startLogsLive() {
+    if (state.logsLiveEnabled) return;
+    state.logsLiveEnabled = true;
+    fetchLogs().catch(() => {});
+    state.logsLiveTimer = window.setInterval(() => {
+      if (state.currentSection === 'logs') {
+        fetchLogs().catch(() => {});
+      }
+    }, 15000);
+  }
+
+  function stopLogsLive() {
+    if (state.logsLiveTimer) {
+      clearInterval(state.logsLiveTimer);
+      state.logsLiveTimer = null;
+    }
+    state.logsLiveEnabled = false;
+  }
+
+  function openLogDetail(index) {
+    const logEntry = state.logs[index];
+    if (!logEntry || !dom.logsDetailContent) return;
+    state.currentLogDetail = logEntry;
+    dom.logsDetailAlert?.classList.add('d-none');
+    dom.logsDetailContent.innerHTML = '';
+    dom.logsDetailTitle.textContent = `Log · ${formatDateTime(logEntry.timestamp)}`;
+
+    const fields = [
+      { label: 'Timestamp', value: formatDateTime(logEntry.timestamp) },
+      { label: 'Type', value: logEntry.event || logEntry.action || '—' },
+      { label: 'Level', value: logEntry.level || '—' },
+      { label: 'Status', value: logEntry.status || logEntry.http_status || '—' },
+      { label: 'Message', value: logEntry.message || logEntry.error_message || '—' },
+      { label: 'User', value: logEntry.user_id ?? logEntry.admin_id ?? logEntry.details?.userId ?? '—' },
+      { label: 'HTTP', value: [logEntry.method, logEntry.path].filter(Boolean).join(' ') || '—' },
+      { label: 'IP', value: logEntry.ip || logEntry.details?.ip || '—' },
+      { label: 'User Agent', value: logEntry.user_agent || logEntry.details?.userAgent || '—' },
+      { label: 'Duration (ms)', value: logEntry.duration_ms ?? '—' },
+      { label: 'Details', value: logEntry.details ? JSON.stringify(logEntry.details, null, 2) : '—', isPre: true }
+    ];
+
+    const fragments = fields.map((field) => {
+      const valueContent = field.isPre ? `<pre class="mb-0 small">${escapeHtml(field.value)}</pre>` : `<div class="fw-semibold">${escapeHtml(String(field.value))}</div>`;
+      return `
+        <div class="col-12 col-md-6">
+          <div class="text-muted small mb-1">${escapeHtml(field.label)}</div>
+          ${valueContent}
+        </div>
+      `;
+    }).join('');
+
+    dom.logsDetailContent.innerHTML = fragments;
+    bootstrap.Modal.getOrCreateInstance(dom.logsDetailModal).show();
+  }
+
+  async function copyLogJson() {
+    if (!state.currentLogDetail) return;
+    try {
+      const payload = JSON.stringify(state.currentLogDetail, null, 2);
+      await navigator.clipboard.writeText(payload);
+    } catch (err) {
+      errorLog('[Admin][Logs] Copy JSON failed', err);
+      showApiError(dom.logsDetailAlert, err);
     }
   }
 
@@ -1162,6 +1520,76 @@
 
     dom.languageDeleteInput?.addEventListener('input', validateLanguageDelete);
     dom.languageDeleteSubmit?.addEventListener('click', submitLanguageDelete);
+
+    dom.logsSearchInput?.addEventListener('input', debounce(() => {
+      state.logsPage = 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    }));
+    const logFilterChange = () => {
+      state.logsPage = 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    };
+    dom.logsTypeFilter?.addEventListener('change', logFilterChange);
+    dom.logsLevelFilter?.addEventListener('change', logFilterChange);
+    dom.logsStatusFilter?.addEventListener('change', logFilterChange);
+    dom.logsMethodFilter?.addEventListener('change', logFilterChange);
+    dom.logsPathFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsUserIdFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsDateFrom?.addEventListener('change', logFilterChange);
+    dom.logsDateTo?.addEventListener('change', logFilterChange);
+
+    dom.logsPrevBtn?.addEventListener('click', () => {
+      if (state.logsPage <= 1) return;
+      state.logsPage -= 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    });
+    dom.logsNextBtn?.addEventListener('click', () => {
+      if (!state.logsHasNext) return;
+      state.logsPage += 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    });
+
+    dom.logsRefreshBtn?.addEventListener('click', () => {
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    });
+
+    dom.logsClearFiltersBtn?.addEventListener('click', () => {
+      clearLogsFilters();
+      state.logsPage = 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    });
+
+    dom.logsPageSize?.addEventListener('change', () => {
+      const next = Number.parseInt(dom.logsPageSize.value, 10);
+      if (Number.isInteger(next) && next >= 5 && next <= 200) {
+        state.logsLimit = next;
+      } else {
+        dom.logsPageSize.value = state.logsLimit;
+      }
+      state.logsPage = 1;
+      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    });
+
+    dom.logsLiveToggle?.addEventListener('change', (event) => {
+      const enabled = event.target.checked;
+      if (enabled) {
+        ensureLogsInitialized().then(() => startLogsLive()).catch(() => {
+          dom.logsLiveToggle.checked = false;
+        });
+      } else {
+        stopLogsLive();
+      }
+    });
+
+    dom.logsTbody?.addEventListener('click', (event) => {
+      const btn = event.target.closest('button.js-view-log');
+      if (!btn) return;
+      const index = Number.parseInt(btn.dataset.logIndex, 10);
+      if (!Number.isInteger(index)) return;
+      openLogDetail(index);
+    });
+
+    dom.logsCopyJsonBtn?.addEventListener('click', copyLogJson);
   }
 
   function denyAccess() {
@@ -1178,14 +1606,22 @@
 
   async function ensureAuthorized() {
     const tokensOk = await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
-    if (!tokensOk) return false;
+    if (!tokensOk) {
+      state.authorized = false;
+      return false;
+    }
     const profile = parseUserProfile();
     updateRolePill(profile);
     const isAdmin = profile?.role === 'admin';
     setAdminNavVisibility(isAdmin);
     if (!isAdmin) {
       denyAccess();
+      state.authorized = false;
       return false;
+    }
+    state.authorized = true;
+    if (state.currentSection === 'logs') {
+      ensureLogsInitialized().catch(() => {});
     }
     return true;
   }
@@ -1197,6 +1633,12 @@
       const initialPerPage = Number.parseInt(dom.usersPerPage.value, 10);
       if (Number.isInteger(initialPerPage)) {
         state.usersLimit = Math.min(Math.max(initialPerPage, 5), 100);
+      }
+    }
+    if (dom.logsPageSize) {
+      const initialLogsPage = Number.parseInt(dom.logsPageSize.value, 10);
+      if (Number.isInteger(initialLogsPage)) {
+        state.logsLimit = Math.min(Math.max(initialLogsPage, 5), 200);
       }
     }
     const authorized = await ensureAuthorized();

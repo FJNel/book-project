@@ -263,7 +263,11 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	try {
 		const result = await pool.query(
-			`SELECT id, name
+			`SELECT id,
+			        name,
+			        name_normalized AS "nameNormalized",
+			        created_at AS "createdAt",
+			        updated_at AS "updatedAt"
 			 FROM languages
 			 ORDER BY name ASC`
 		);
