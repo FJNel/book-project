@@ -798,26 +798,56 @@
     const { valid, fullName, preferredName, email, role } = validateEditUserForm();
     if (!valid || !state.currentEditingUser) return;
     hideAlert(dom.editUserAlert);
-    toggleSubmit(dom.editUserSubmit, false);
-    setModalInteractivity(dom.editUserModal, true);
-    const body = { id: state.currentEditingUser.id };
-    if (fullName !== state.currentEditingUser.fullName) body.fullName = fullName;
-    if (preferredName !== (state.currentEditingUser.preferredName || '')) body.preferredName = preferredName || undefined;
-    if (email !== state.currentEditingUser.email) body.email = email;
-    if (role !== state.currentEditingUser.role) body.role = role;
 
-    try {
-      const response = await apiFetch(`/admin/users/${state.currentEditingUser.id}`, { method: 'PUT', body });
-      await parseResponse(response);
-      bootstrap.Modal.getInstance(dom.editUserModal)?.hide();
-      await fetchUsers(getUserFilters());
-      announceSuccess('users', 'User updated successfully.');
-    } catch (err) {
-      showApiError(dom.editUserAlert, err);
-    } finally {
-      setModalInteractivity(dom.editUserModal, false);
-      validateEditUserForm();
+    const body = { id: state.currentEditingUser.id };
+    const summaryItems = [];
+    const before = state.currentEditingUser;
+    const formatChange = (label, previousValue, nextValue) => {
+      const prev = previousValue || '—';
+      const next = nextValue || '—';
+      if (prev === next) return null;
+      return { label, value: `${prev} → ${next}` };
+    };
+
+    const fullNameChange = formatChange('Full name', before.fullName, fullName);
+    if (fullNameChange) {
+      body.fullName = fullName;
+      summaryItems.push(fullNameChange);
     }
+    const preferredChange = formatChange('Preferred name', before.preferredName || '', preferredName || '');
+    if (preferredChange) {
+      body.preferredName = preferredName || undefined;
+      summaryItems.push(preferredChange);
+    }
+    const emailChange = formatChange('Email', before.email, email);
+    if (emailChange) {
+      body.email = email;
+      summaryItems.push(emailChange);
+    }
+    const roleChange = formatChange('Role', before.role, role);
+    if (roleChange) {
+      body.role = role;
+      summaryItems.push(roleChange);
+    }
+
+    openConfirmAction({
+      title: 'Confirm user update',
+      actionLabel: 'Save changes',
+      message: 'Update this user? They will be notified by email after you confirm.',
+      impact: 'Profile fields will be updated and a notification email will be sent.',
+      willNotify: true,
+      user: before,
+      userId: before.id,
+      url: `/admin/users/${before.id}`,
+      method: 'PUT',
+      baseBody: body,
+      summaryItems: summaryItems.length ? summaryItems : [{ label: 'Changes', value: 'No field changes detected.' }],
+      onSuccess: 'users',
+      successMessage: 'User updated successfully.',
+      afterSuccess: () => {
+        bootstrap.Modal.getInstance(dom.editUserModal)?.hide();
+      }
+    });
   }
 
   function setConfirmModalBusy(isBusy) {
