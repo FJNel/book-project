@@ -47,6 +47,26 @@
     }
     .table-fixed-sm td { white-space: nowrap; }
     .muted-label { font-size: 0.9rem; color: #6c757d; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background-color: #f8f9fa;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .chip-muted { color: #6c757d; }
+    .chip-alert { color: #b02a37; border-color: rgba(176, 42, 55, 0.25); }
+    .action-summary {
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .action-summary .label { color: #6c757d; font-size: 0.85rem; }
   </style>
 </head>
 
@@ -146,8 +166,8 @@
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button class="btn btn-primary btn-sm" type="button" id="openCreateUserBtn">Create user</button>
           <button class="btn btn-outline-primary btn-sm" type="button" id="openCreateLanguageBtn">Create language</button>
-          <span class="stat-pill bg-light text-body" id="adminRolePill">Role: unknown</span>
-          <span class="stat-pill bg-light text-body" id="adminStatusPill">Status: checking…</span>
+          <span class="chip chip-alert" id="adminRolePill">Role: unknown</span>
+          <span class="chip chip-muted" id="adminStatusPill">Status: checking…</span>
         </div>
       </div>
     </div>
@@ -444,11 +464,27 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="confirmActionTitle">Confirm action</h5>
-          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close" id="confirmActionCloseBtn"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="confirmActionAlert"></div>
-          <p class="mb-3" id="confirmActionMessage">Are you sure?</p>
+          <div class="action-summary mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="label">User</span>
+              <span class="fw-semibold" id="confirmActionSummaryUser">—</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="label">Action</span>
+              <span class="fw-semibold" id="confirmActionSummaryAction">—</span>
+            </div>
+            <div class="mb-1">
+              <span class="label d-block">Result</span>
+              <span id="confirmActionSummaryImpact">—</span>
+            </div>
+            <div class="badge text-bg-warning-subtle border border-warning text-warning-emphasis d-none" id="confirmActionNotifyBadge">This action will notify the user by email.</div>
+            <div class="text-danger small mt-1 d-none" id="confirmActionSummaryWarning">This action is destructive and cannot be undone.</div>
+          </div>
+          <p class="mb-3 text-muted" id="confirmActionMessage">Review and confirm this action.</p>
           <div class="mb-3 d-none" id="confirmActionReasonWrap">
             <label class="form-label" for="confirmActionReason">Reason</label>
             <textarea class="form-control" id="confirmActionReason" rows="2"></textarea>
@@ -466,7 +502,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal" id="confirmActionCancelBtn">Cancel</button>
           <button class="btn btn-danger" type="button" id="confirmActionSubmit" disabled>Confirm</button>
         </div>
       </div>
@@ -490,10 +526,11 @@
                   <th scope="col">Fingerprint</th>
                   <th scope="col">Issued</th>
                   <th scope="col">Expires</th>
+                  <th scope="col">Device / IP</th>
                 </tr>
               </thead>
               <tbody id="sessionsTbody">
-                <tr><td colspan="3" class="text-center text-muted py-3">Loading sessions…</td></tr>
+                <tr><td colspan="4" class="text-center text-muted py-3">Loading sessions…</td></tr>
               </tbody>
             </table>
           </div>

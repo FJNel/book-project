@@ -63,6 +63,11 @@
     confirmActionModal: document.getElementById('confirmActionModal'),
     confirmActionTitle: document.getElementById('confirmActionTitle'),
     confirmActionMessage: document.getElementById('confirmActionMessage'),
+    confirmActionSummaryUser: document.getElementById('confirmActionSummaryUser'),
+    confirmActionSummaryAction: document.getElementById('confirmActionSummaryAction'),
+    confirmActionSummaryImpact: document.getElementById('confirmActionSummaryImpact'),
+    confirmActionNotifyBadge: document.getElementById('confirmActionNotifyBadge'),
+    confirmActionSummaryWarning: document.getElementById('confirmActionSummaryWarning'),
     confirmActionReasonWrap: document.getElementById('confirmActionReasonWrap'),
     confirmActionReason: document.getElementById('confirmActionReason'),
     confirmActionReasonHelp: document.getElementById('confirmActionReasonHelp'),
@@ -74,6 +79,8 @@
     confirmActionInputHelp: document.getElementById('confirmActionInputHelp'),
     confirmActionAlert: document.getElementById('confirmActionAlert'),
     confirmActionSubmit: document.getElementById('confirmActionSubmit'),
+    confirmActionCloseBtn: document.getElementById('confirmActionCloseBtn'),
+    confirmActionCancelBtn: document.getElementById('confirmActionCancelBtn'),
     sessionsModal: document.getElementById('sessionsModal'),
     sessionsModalTitle: document.getElementById('sessionsModalTitle'),
     sessionsTbody: document.getElementById('sessionsTbody'),
@@ -134,11 +141,27 @@
   function formatDateTime(value) {
     if (!value) return '—';
     try {
-      return johannesburgFormatter.format(new Date(value));
+      const formatted = johannesburgFormatter.format(new Date(value));
+      return formatted.replace(', ', ' ');
     } catch (err) {
       warn('Failed to format date', err);
       return String(value);
     }
+  }
+
+  function formatApiError(err) {
+    const message = escapeHtml(err?.apiMessage || err?.message || 'Request failed.');
+    const details = Array.isArray(err?.apiErrors) ? err.apiErrors.filter(Boolean).map((e) => escapeHtml(e)) : [];
+    if (details.length) {
+      return `<strong>${message}</strong>: ${details.join(' ')}`;
+    }
+    return `<strong>${message}</strong>`;
+  }
+
+  function showApiError(el, err) {
+    if (!el) return;
+    el.innerHTML = formatApiError(err);
+    el.classList.remove('d-none');
   }
 
   function setAdminNavVisibility(isAdmin) {
@@ -194,20 +217,32 @@
     if (response.status === 429 && window.rateLimitGuard) {
       window.rateLimitGuard.record(response);
       await window.rateLimitGuard.showModal();
-      throw new Error('Rate limited');
+      const rateErr = new Error('Rate limited');
+      rateErr.apiMessage = 'Rate limited';
+      rateErr.apiErrors = ['Please wait before trying again.'];
+      rateErr.status = 429;
+      throw rateErr;
     }
 
     if (response.status === 401) {
       if (typeof window.showSessionExpiredModal === 'function') {
         window.showSessionExpiredModal();
       }
-      throw new Error('Not authorized');
+      const authErr = new Error('Not authorized');
+      authErr.apiMessage = 'Not authorized';
+      authErr.apiErrors = [];
+      authErr.status = 401;
+      throw authErr;
     }
 
     if (!response.ok) {
-      const errors = Array.isArray(body?.errors) ? body.errors.filter(Boolean).join(' ') : '';
+      const errors = Array.isArray(body?.errors) ? body.errors.filter(Boolean) : [];
       const message = body?.message || 'Request failed.';
-      throw new Error(errors ? `${message} ${errors}` : message);
+      const err = new Error(message);
+      err.apiMessage = message;
+      err.apiErrors = errors;
+      err.status = response.status;
+      throw err;
     }
 
     return body?.data ?? body;
@@ -215,12 +250,17 @@
 
   function updateRolePill(profile) {
     if (!dom.adminRolePill) return;
-    dom.adminRolePill.textContent = `Role: ${profile?.role || 'unknown'}`;
+    const role = profile?.role || 'unknown';
+    dom.adminRolePill.textContent = `Role: ${role}`;
+    dom.adminRolePill.className = `chip ${role === 'admin' ? 'chip-alert' : 'chip-muted'}`;
   }
 
   function updateStatusPill(text) {
     if (!dom.adminStatusPill) return;
+    const normalized = (text || '').toLowerCase();
+    const className = normalized === 'error' ? 'chip chip-alert' : 'chip chip-muted';
     dom.adminStatusPill.textContent = `Status: ${text}`;
+    dom.adminStatusPill.className = className;
   }
 
   function renderStatus(payload) {
@@ -277,15 +317,19 @@
       const name = user.preferredName || user.fullName || '—';
       const verified = user.isVerified ? '<span class="badge text-bg-success">Yes</span>' : '<span class="badge text-bg-secondary">No</span>';
       const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Yes</span>' : '<span class="badge text-bg-success">No</span>';
-      const disableLabel = user.isDisabled ? 'Enable' : 'Disable';
+      const disableLabel = user.isDisabled ? 'Enable account' : 'Disable account';
       const verifyLabel = user.isVerified ? 'Unverify' : 'Verify';
       const verificationActionClass = user.isVerified ? 'js-unverify-user' : 'js-verify-user';
+      const roleBadge = user.role === 'admin'
+        ? '<span class="badge text-bg-danger">Admin</span>'
+        : '<span class="badge text-bg-secondary">User</span>';
+      const disableTextClass = user.isDisabled ? 'text-success' : 'text-warning';
       return `
         <tr data-user-id="${user.id}">
           <td>${user.id ?? '—'}</td>
           <td>${escapeHtml(name)}</td>
           <td>${escapeHtml(user.email || '—')}</td>
-          <td><span class="badge ${user.role === 'admin' ? 'text-bg-primary' : 'text-bg-secondary'}">${escapeHtml(user.role || 'user')}</span></td>
+          <td>${roleBadge}</td>
           <td>${verified}</td>
           <td>${disabled}</td>
           <td>${formatDateTime(user.lastLogin)}</td>
@@ -293,16 +337,16 @@
             <div class="btn-group btn-group-sm" role="group">
               <button class="btn btn-outline-primary js-edit-user" type="button" data-user-id="${user.id}">Edit</button>
               <button class="btn btn-outline-secondary js-view-sessions" type="button" data-user-id="${user.id}">Sessions</button>
-              <button class="btn btn-outline-${user.isDisabled ? 'success' : 'warning'} js-toggle-disable" type="button" data-user-id="${user.id}" data-disabled="${user.isDisabled}">${disableLabel}</button>
               <div class="btn-group btn-group-sm" role="group">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">More</button>
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
                 <div class="dropdown-menu dropdown-menu-end">
                   <button class="dropdown-item ${verificationActionClass}" type="button" data-user-id="${user.id}">${verifyLabel}</button>
                   <button class="dropdown-item js-send-verification" type="button" data-user-id="${user.id}">Send verification email</button>
-                  <button class="dropdown-item js-reset-password" type="button" data-user-id="${user.id}">Reset password</button>
+                  <button class="dropdown-item js-reset-password" type="button" data-user-id="${user.id}">Send password reset</button>
+                  <button class="dropdown-item ${disableTextClass} js-toggle-disable" type="button" data-user-id="${user.id}" data-disabled="${user.isDisabled}">${disableLabel}</button>
                   <button class="dropdown-item js-force-logout" type="button" data-user-id="${user.id}">Force logout</button>
                   <div class="dropdown-divider"></div>
-                  <button class="dropdown-item text-danger js-delete-user" type="button" data-user-id="${user.id}">Delete</button>
+                  <button class="dropdown-item text-danger js-delete-user" type="button" data-user-id="${user.id}">Handle deletion</button>
                 </div>
               </div>
             </div>
@@ -453,6 +497,13 @@
     if (button) button.disabled = !enabled;
   }
 
+  function setModalInteractivity(modalEl, isDisabled) {
+    if (!modalEl) return;
+    modalEl.querySelectorAll('input, select, textarea, button').forEach((node) => {
+      node.disabled = isDisabled;
+    });
+  }
+
   function resetCreateUserForm() {
     hideAlert(dom.createUserAlert);
     dom.createFullName.value = '';
@@ -502,6 +553,7 @@
     if (!validateCreateUserForm()) return;
     hideAlert(dom.createUserAlert);
     toggleSubmit(dom.createUserSubmit, false);
+    setModalInteractivity(dom.createUserModal, true);
     const body = {
       fullName: dom.createFullName.value.trim(),
       preferredName: dom.createPreferredName.value.trim() || undefined,
@@ -520,9 +572,10 @@
       bootstrap.Modal.getInstance(dom.createUserModal)?.hide();
       await fetchUsers(getUserFilters());
     } catch (err) {
-      showAlert(dom.createUserAlert, err.message || 'Unable to create user.');
+      showApiError(dom.createUserAlert, err);
     } finally {
-      toggleSubmit(dom.createUserSubmit, true);
+      setModalInteractivity(dom.createUserModal, false);
+      validateCreateUserForm();
     }
   }
 
@@ -573,6 +626,7 @@
     if (!valid || !state.currentEditingUser) return;
     hideAlert(dom.editUserAlert);
     toggleSubmit(dom.editUserSubmit, false);
+    setModalInteractivity(dom.editUserModal, true);
     const body = { id: state.currentEditingUser.id };
     if (fullName !== state.currentEditingUser.fullName) body.fullName = fullName;
     if (preferredName !== (state.currentEditingUser.preferredName || '')) body.preferredName = preferredName || undefined;
@@ -585,28 +639,68 @@
       bootstrap.Modal.getInstance(dom.editUserModal)?.hide();
       await fetchUsers(getUserFilters());
     } catch (err) {
-      showAlert(dom.editUserAlert, err.message || 'Unable to save user.');
+      showApiError(dom.editUserAlert, err);
     } finally {
-      toggleSubmit(dom.editUserSubmit, true);
+      setModalInteractivity(dom.editUserModal, false);
+      validateEditUserForm();
+    }
+  }
+
+  function setConfirmModalBusy(isBusy) {
+    [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionInput].forEach((input) => {
+      if (input) input.disabled = isBusy;
+    });
+    if (dom.confirmActionCloseBtn) dom.confirmActionCloseBtn.disabled = isBusy;
+    if (dom.confirmActionCancelBtn) dom.confirmActionCancelBtn.disabled = isBusy;
+    if (dom.confirmActionSubmit) dom.confirmActionSubmit.disabled = true;
+    if (!isBusy) {
+      validateConfirmAction();
     }
   }
 
   function openConfirmAction(config) {
-    state.confirmActionConfig = config;
+    const resolvedUser = config.user || state.users.find((u) => u.id === config.userId);
+    const userLabel = resolvedUser
+      ? `${escapeHtml(resolvedUser.fullName || resolvedUser.preferredName || 'User')} (${escapeHtml(resolvedUser.email || '—')}) [ID: ${resolvedUser.id}]`
+      : `User ID: ${config.userId}`;
+
+    state.confirmActionConfig = {
+      title: config.title || 'Confirm action',
+      message: config.message || 'Review and confirm this action.',
+      actionLabel: config.actionLabel || config.title || 'Action',
+      impact: config.impact || 'No additional impact specified.',
+      willNotify: Boolean(config.willNotify),
+      destructive: Boolean(config.destructive || config.confirmText),
+      confirmLabel: config.confirmLabel || 'Confirm',
+      ...config,
+      user: resolvedUser
+    };
+
     hideAlert(dom.confirmActionAlert);
-    dom.confirmActionTitle.textContent = config.title || 'Confirm action';
-    dom.confirmActionMessage.textContent = config.message || 'Are you sure?';
-    dom.confirmActionReasonWrap.classList.toggle('d-none', !config.reasonRequired);
-    dom.confirmActionEmailWrap.classList.toggle('d-none', !config.emailRequired);
-    dom.confirmActionInputWrap.classList.toggle('d-none', !config.confirmText);
+    dom.confirmActionTitle.textContent = state.confirmActionConfig.title;
+    dom.confirmActionMessage.textContent = state.confirmActionConfig.message;
+    if (dom.confirmActionSummaryUser) dom.confirmActionSummaryUser.innerHTML = userLabel;
+    if (dom.confirmActionSummaryAction) dom.confirmActionSummaryAction.textContent = state.confirmActionConfig.actionLabel;
+    if (dom.confirmActionSummaryImpact) dom.confirmActionSummaryImpact.textContent = state.confirmActionConfig.impact;
+    dom.confirmActionNotifyBadge?.classList.toggle('d-none', !state.confirmActionConfig.willNotify);
+    dom.confirmActionSummaryWarning?.classList.toggle('d-none', !state.confirmActionConfig.destructive);
+    if (dom.confirmActionSubmit) {
+      dom.confirmActionSubmit.textContent = state.confirmActionConfig.confirmLabel;
+      dom.confirmActionSubmit.classList.toggle('btn-danger', state.confirmActionConfig.destructive);
+      dom.confirmActionSubmit.classList.toggle('btn-primary', !state.confirmActionConfig.destructive);
+    }
+
+    dom.confirmActionReasonWrap.classList.toggle('d-none', !state.confirmActionConfig.reasonRequired);
+    dom.confirmActionEmailWrap.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
+    dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
     dom.confirmActionReason.value = '';
-    dom.confirmActionEmail.value = config.prefillEmail || '';
+    dom.confirmActionEmail.value = state.confirmActionConfig.prefillEmail || '';
     dom.confirmActionInput.value = '';
-    dom.confirmActionInput.placeholder = config.confirmText || '';
+    dom.confirmActionInput.placeholder = state.confirmActionConfig.confirmText || '';
     dom.confirmActionReasonHelp.textContent = '';
     dom.confirmActionEmailHelp.textContent = '';
     dom.confirmActionInputHelp.textContent = '';
-    toggleSubmit(dom.confirmActionSubmit, !config.confirmText && !config.reasonRequired && !config.emailRequired);
+    toggleSubmit(dom.confirmActionSubmit, !state.confirmActionConfig.confirmText && !state.confirmActionConfig.reasonRequired && !state.confirmActionConfig.emailRequired);
     const instance = bootstrap.Modal.getOrCreateInstance(dom.confirmActionModal);
     instance.show();
   }
@@ -640,7 +734,7 @@
     if (!validateConfirmAction()) return;
     const cfg = state.confirmActionConfig;
     if (!cfg) return;
-    toggleSubmit(dom.confirmActionSubmit, false);
+    setConfirmModalBusy(true);
     hideAlert(dom.confirmActionAlert);
 
     const body = { id: cfg.userId };
@@ -648,18 +742,22 @@
     if (cfg.emailRequired) body.userToBeDeletedEmail = dom.confirmActionEmail.value.trim();
     if (cfg.confirmFlag) body.confirm = true;
 
+    log(`Admin action started`, { action: cfg.actionLabel || cfg.title, userId: cfg.userId });
+
     try {
       log('Submitting admin action', { title: cfg.title, userId: cfg.userId, url: cfg.url });
       const response = await apiFetch(cfg.url, { method: cfg.method, body });
       await parseResponse(response);
       if (cfg.cooldownKey) startActionCooldown(cfg.cooldownKey);
+      log('Admin action success', { action: cfg.actionLabel || cfg.title, userId: cfg.userId });
       bootstrap.Modal.getInstance(dom.confirmActionModal)?.hide();
       if (cfg.onSuccess === 'users') await fetchUsers(getUserFilters());
       if (cfg.onSuccess === 'sessions') await loadSessions(cfg.userId);
     } catch (err) {
-      showAlert(dom.confirmActionAlert, err.message || 'Request failed.');
+      errorLog('Admin action failed', { action: cfg.actionLabel || cfg.title, userId: cfg.userId, error: err });
+      showApiError(dom.confirmActionAlert, err);
     } finally {
-      toggleSubmit(dom.confirmActionSubmit, true);
+      setConfirmModalBusy(false);
     }
   }
 
@@ -668,7 +766,7 @@
     if (!user) return;
     state.sessionsUser = user;
     dom.sessionsModalTitle.textContent = `Sessions · ${user.email || user.fullName || user.id}`;
-    dom.sessionsTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Loading sessions…</td></tr>';
+    dom.sessionsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading sessions…</td></tr>';
     hideAlert(dom.sessionsAlert);
     bootstrap.Modal.getOrCreateInstance(dom.sessionsModal).show();
     await loadSessions(userId);
@@ -676,22 +774,30 @@
 
   async function loadSessions(userId) {
     try {
+      log('Loading sessions', { userId });
       const response = await apiFetch(`/admin/users/${userId}/sessions`, { method: 'POST', body: { id: userId } });
       const data = await parseResponse(response);
       const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
       if (!sessions.length) {
-        dom.sessionsTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No active sessions.</td></tr>';
+        dom.sessionsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No active sessions.</td></tr>';
         return;
       }
-      dom.sessionsTbody.innerHTML = sessions.map((session) => `
+      dom.sessionsTbody.innerHTML = sessions.map((session) => {
+        const device = [session.browser, session.device, session.operatingSystem].filter(Boolean).join(' · ');
+        const location = session.ipAddress || session.locationHint || '';
+        const deviceCell = [device, location].filter(Boolean).map((part) => escapeHtml(part)).join('<br>');
+        return `
         <tr>
-          <td>${escapeHtml(session.tokenFingerprint || '—')}</td>
-          <td>${formatDateTime(session.tokenIssued)}</td>
-          <td>${formatDateTime(session.tokenExpire)}</td>
-        </tr>
-      `).join('');
+          <td>${escapeHtml(session.fingerprint || session.tokenFingerprint || '—')}</td>
+          <td>${formatDateTime(session.issuedAt || session.tokenIssued)}</td>
+          <td>${formatDateTime(session.expiresAt || session.tokenExpire)}</td>
+          <td>${deviceCell || '—'}</td>
+        </tr>`;
+      }).join('');
+      log('Sessions loaded', { userId, count: sessions.length });
     } catch (err) {
-      showAlert(dom.sessionsAlert, err.message || 'Unable to load sessions.');
+      errorLog('Failed to load sessions', { userId, error: err });
+      showApiError(dom.sessionsAlert, err);
     }
   }
 
@@ -710,6 +816,7 @@
     if (!btn) return;
     const userId = Number(btn.dataset.userId);
     if (!Number.isInteger(userId)) return;
+    const user = state.users.find((u) => u.id === userId);
 
     if (btn.classList.contains('js-edit-user')) {
       openEditUserModal(userId);
@@ -725,11 +832,16 @@
       const isDisabled = btn.dataset.disabled === 'true';
       openConfirmAction({
         title: `${isDisabled ? 'Enable' : 'Disable'} user`,
+        actionLabel: isDisabled ? 'Enable user' : 'Disable user',
         message: isDisabled ? 'Re-enable this account and allow logins?' : 'Disable this account and revoke active sessions?',
+        impact: isDisabled ? 'Account will be restored and login allowed. A notification email will be sent.' : 'Account will be disabled and active sessions revoked. A notification email will be sent.',
+        willNotify: true,
+        destructive: !isDisabled,
+        confirmText: isDisabled ? '' : 'DISABLE',
+        user,
         userId,
         url: isDisabled ? `/admin/users/${userId}/enable` : `/admin/users/${userId}`,
         method: isDisabled ? 'POST' : 'DELETE',
-        confirmText: isDisabled ? '' : 'DISABLE',
         reasonRequired: false,
         emailRequired: false,
         onSuccess: 'users'
@@ -740,7 +852,11 @@
     if (btn.classList.contains('js-verify-user')) {
       openConfirmAction({
         title: 'Verify user',
+        actionLabel: 'Verify user',
         message: 'Mark this user as verified? Provide a short reason.',
+        impact: 'User will be marked as verified and notified by email.',
+        willNotify: true,
+        user,
         userId,
         url: `/admin/users/${userId}/verify`,
         method: 'POST',
@@ -753,7 +869,11 @@
     if (btn.classList.contains('js-unverify-user')) {
       openConfirmAction({
         title: 'Unverify user',
+        actionLabel: 'Unverify user',
         message: 'Unverify this user? Provide a reason for audit.',
+        impact: 'User will be marked as unverified and notified by email.',
+        willNotify: true,
+        user,
         userId,
         url: `/admin/users/${userId}/unverify`,
         method: 'POST',
@@ -771,13 +891,17 @@
       }
       openConfirmAction({
         title: 'Send verification email',
+        actionLabel: 'Send verification email',
         message: 'Send a new verification email to this user?',
+        impact: 'User will receive a verification link via email (default 30 minutes expiry).',
+        willNotify: true,
+        user,
         userId,
-        url: `/admin/users/${userId}/send-verification-email`,
+        url: `/admin/users/${userId}/send-verification`,
         method: 'POST',
-        onSuccess: 'users'
+        onSuccess: 'users',
+        cooldownKey
       });
-      state.confirmActionConfig.cooldownKey = cooldownKey;
       return;
     }
 
@@ -789,20 +913,29 @@
       }
       openConfirmAction({
         title: 'Send password reset',
+        actionLabel: 'Send password reset',
         message: 'Send a password reset email to this user?',
+        impact: 'User will receive a password reset link via email (default 30 minutes expiry).',
+        willNotify: true,
+        user,
         userId,
         url: `/admin/users/${userId}/reset-password`,
         method: 'POST',
-        onSuccess: 'users'
+        onSuccess: 'users',
+        cooldownKey
       });
-      state.confirmActionConfig.cooldownKey = cooldownKey;
       return;
     }
 
     if (btn.classList.contains('js-force-logout')) {
       openConfirmAction({
         title: 'Force logout',
+        actionLabel: 'Force logout',
         message: 'Revoke all sessions for this user?',
+        impact: 'All refresh tokens will be revoked. The user must sign in again on every device.',
+        destructive: true,
+        confirmText: 'LOGOUT',
+        user,
         userId,
         url: `/admin/users/${userId}/force-logout`,
         method: 'POST',
@@ -812,10 +945,13 @@
     }
 
     if (btn.classList.contains('js-delete-user')) {
-      const user = state.users.find((u) => u.id === userId);
       openConfirmAction({
         title: 'Delete user',
+        actionLabel: 'Handle account deletion',
         message: 'This action is permanent. Provide a reason and confirmation to continue.',
+        impact: 'Permanently deletes the user after they confirmed deletion. All related data will be removed.',
+        destructive: true,
+        user,
         userId,
         url: `/admin/users/${userId}/handle-account-deletion`,
         method: 'POST',
@@ -845,7 +981,12 @@
     if (!state.sessionsUser) return;
     openConfirmAction({
       title: 'Force logout all sessions',
+      actionLabel: 'Force logout',
       message: 'Revoke all active sessions for this user?',
+      impact: 'All refresh tokens will be revoked. The user must sign in again on every device.',
+      destructive: true,
+      confirmText: 'LOGOUT',
+      user: state.sessionsUser,
       userId: state.sessionsUser.id,
       url: `/admin/users/${state.sessionsUser.id}/force-logout`,
       method: 'POST',
@@ -880,6 +1021,7 @@
     const id = dom.languageModalId.value;
     hideAlert(dom.languageModalAlert);
     toggleSubmit(dom.languageModalSubmit, false);
+    setModalInteractivity(dom.languageModal, true);
     try {
       if (mode === 'edit' && id) {
         const response = await apiFetch(`/admin/languages/${id}`, { method: 'PUT', body: { name } });
@@ -891,9 +1033,10 @@
       bootstrap.Modal.getInstance(dom.languageModal)?.hide();
       await fetchLanguages();
     } catch (err) {
-      showAlert(dom.languageModalAlert, err.message || 'Unable to save language.');
+      showApiError(dom.languageModalAlert, err);
     } finally {
-      toggleSubmit(dom.languageModalSubmit, true);
+      setModalInteractivity(dom.languageModal, false);
+      validateLanguageModal();
     }
   }
 
@@ -920,15 +1063,17 @@
     const id = dom.languageDeleteSubmit.dataset.languageId;
     hideAlert(dom.languageDeleteAlert);
     toggleSubmit(dom.languageDeleteSubmit, false);
+    setModalInteractivity(dom.languageDeleteModal, true);
     try {
       const response = await apiFetch(`/admin/languages/${id}`, { method: 'DELETE' });
       await parseResponse(response);
       bootstrap.Modal.getInstance(dom.languageDeleteModal)?.hide();
       await fetchLanguages();
     } catch (err) {
-      showAlert(dom.languageDeleteAlert, err.message || 'Unable to delete language.');
+      showApiError(dom.languageDeleteAlert, err);
     } finally {
-      toggleSubmit(dom.languageDeleteSubmit, true);
+      setModalInteractivity(dom.languageDeleteModal, false);
+      validateLanguageDelete();
     }
   }
 
