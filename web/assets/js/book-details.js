@@ -265,6 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clearHelpText = (el) => setHelpText(el, '', false);
 
+  const initializeTooltips = () => {
+    if (typeof window.initializeTooltips === 'function') {
+      window.initializeTooltips();
+      return;
+    }
+    if (typeof bootstrap === 'undefined') return;
+    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach((el) => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  };
+
   const normalizeTag = (value) => {
     if (!value) return '';
     return value.trim().replace(/\s+/g, ' ');
