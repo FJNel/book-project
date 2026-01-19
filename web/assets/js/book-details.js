@@ -367,8 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const bindModalLock = (modalEl, state) => {
     if (!modalEl || modalEl.dataset.lockBound === 'true') return;
     modalEl.dataset.lockBound = 'true';
-    modalEl.addEventListener('hide.bs.modal', (event) => {
-      if (state.locked) event.preventDefault();
+    modalEl.addEventListener('hide.bs.modal', () => {
+      if (state.locked) {
+        state.locked = false;
+        warn('Modal hide triggered while locked; allowing hide to proceed.', { id: modalEl.id });
+      }
     });
   };
 
@@ -2362,32 +2365,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saveCopy = async () => {
     if (!bookRecord || !copyEditTarget) return;
+    const step = (label, details = {}) => {
+      log(`[Copy Save] ${label}`, { mode: copyEditTarget?.mode, copyId: copyEditTarget?.copyId, ...details });
+    };
+    step('(A) handler start');
     const locationId = copyLocationSelect?.value ? Number(copyLocationSelect.value) : null;
     if (!locationId) {
       setHelpText(copyLocationHelp, 'This field is required.', true);
       return;
     }
     const dateRaw = copyAcquisitionDate.value.trim();
-    if (dateRaw) {
-      const parsed = parsePartialDateInput(dateRaw);
-      if (parsed.error) {
-        if (copyAcquisitionDateHelp) copyAcquisitionDateHelp.textContent = parsed.error;
-        return;
-      }
+    const parsedDate = dateRaw ? parsePartialDateInput(dateRaw) : { value: null };
+    if (parsedDate.error) {
+      if (copyAcquisitionDateHelp) copyAcquisitionDateHelp.textContent = parsedDate.error;
+      return;
     }
+    step('(B) before lock');
     window.modalLock?.lock(editCopyModal, copyEditTarget.mode === 'edit' ? 'Edit copy' : 'Add copy');
     setCopyLocked(true);
+    step('(C) after lock applied');
     try {
       const acquisitionTypeValue = copyAcquisitionType?.value ? copyAcquisitionType.value.trim() : '';
       const payload = {
         storageLocationId: locationId,
-        acquisitionDate: dateRaw ? parsePartialDateInput(dateRaw).value : null,
+        acquisitionDate: parsedDate.value,
         acquiredFrom: copyAcquiredFrom.value.trim() || null,
         acquisitionType: acquisitionTypeValue || null,
         acquisitionLocation: copyAcquisitionLocation.value.trim() || null,
         acquisitionStory: copyAcquisitionStory.value.trim() || null,
         notes: copyNotes.value.trim() || null
       };
+      step('(D) before apiFetch', { hasDate: Boolean(parsedDate.value) });
       let response;
       if (copyEditTarget.mode === 'edit') {
         response = await apiFetch('/bookcopy', {
@@ -2400,8 +2408,9 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ bookId: bookRecord.id, ...payload })
         });
       }
+      step('(E) response received', { status: response?.status, ok: response?.ok });
       const data = await response.json().catch(() => ({}));
-      log('Copy save response parsed.', { ok: response.ok, status: response.status, mode: copyEditTarget.mode });
+      step('(F) response parsed', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (editCopyErrorAlert) {
           editCopyErrorAlert.classList.remove('d-none');
@@ -2410,8 +2419,12 @@ document.addEventListener('DOMContentLoaded', () => {
         warn('Copy save failed.', { status: response.status, data });
         return;
       }
+      step('(G) before hideModal');
       await hideModal(editCopyModal);
+      step('(H) after hideModal');
+      step('(I) before loadBook');
       await loadBook();
+      step('(J) after loadBook');
     } catch (error) {
       errorLog('Copy save failed.', error);
       if (editCopyErrorAlert) {
@@ -2419,7 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editCopyErrorAlert.textContent = 'Unable to save copy right now.';
       }
     } finally {
-      log('Copy save finally executing.', { mode: copyEditTarget?.mode || 'unknown' });
+      step('(Z) finally start');
       try {
         setCopyLocked(false);
       } catch (unlockError) {

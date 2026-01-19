@@ -128,8 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const bindModalLock = (modalEl, state) => {
     if (!modalEl || modalEl.dataset.lockBound === 'true') return;
     modalEl.dataset.lockBound = 'true';
-    modalEl.addEventListener('hide.bs.modal', (event) => {
-      if (state.locked) event.preventDefault();
+    modalEl.addEventListener('hide.bs.modal', () => {
+      if (state.locked) {
+        state.locked = false;
+        warn('Modal hide triggered while locked; allowing hide to proceed.', { id: modalEl.id });
+      }
     });
   };
 

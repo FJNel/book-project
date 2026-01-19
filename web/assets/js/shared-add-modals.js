@@ -67,8 +67,11 @@
         const bindModalLock = (modalEl, state) => {
             if (!modalEl || modalEl.dataset.lockBound === 'true') return;
             modalEl.dataset.lockBound = 'true';
-            modalEl.addEventListener('hide.bs.modal', (event) => {
-                if (state.locked) event.preventDefault();
+            modalEl.addEventListener('hide.bs.modal', () => {
+                if (state.locked) {
+                    state.locked = false;
+                    console.warn('[Shared Modals] Modal hide triggered while locked; allowing hide to proceed.', { id: modalEl.id });
+                }
             });
         };
         const setModalLocked = (modalEl, locked) => {

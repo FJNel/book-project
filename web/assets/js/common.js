@@ -31,6 +31,43 @@ window.pageContentReady.resolve({ success: true, default: true });
 
 window.modalLock = window.modalLock || {};
 window.modalLock.registry = window.modalLock.registry || {};
+window.modalLock.watchdogTimeoutMs = window.modalLock.watchdogTimeoutMs || 25000;
+window.modalLock.showWatchdogAlert = (element, message = 'Something went wrong. The form has been unlocked. Please try again.') => {
+	if (!element) return;
+	const container = element.querySelector('.modal-body') || element;
+	let alert = element.querySelector('.modal-lock-watchdog');
+	if (!alert) {
+		alert = document.createElement('div');
+		alert.className = 'alert alert-warning modal-lock-watchdog';
+		container.prepend(alert);
+	}
+	alert.textContent = message;
+	alert.classList.remove('d-none');
+};
+window.modalLock.forceUnlock = (modal, reason = 'watchdog') => {
+	const element = window.modalLock.getElement(modal);
+	const id = element?.id || (typeof modal === 'string' ? modal : 'unknown');
+	const registry = window.modalLock.registry;
+	const entry = registry[id] || { lockCount: 0, locked: false };
+	console.error(`[ModalLock] Force unlock triggered for ${id}`, { reason, entry });
+	entry.lockCount = 1;
+	entry.locked = false;
+	registry[id] = entry;
+	window.modalLock.unlock(element || id, reason);
+};
+window.modalLock.scheduleWatchdog = (id, element) => {
+	const registry = window.modalLock.registry;
+	const entry = registry[id];
+	if (!entry) return;
+	if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
+	entry.watchdogTimer = setTimeout(() => {
+		const current = registry[id];
+		if (!current || current.lockCount <= 0) return;
+		console.error(`[ModalLock] Watchdog timeout reached for ${id}; forcing unlock.`, { lockCount: current.lockCount, action: current.actionName });
+		window.modalLock.showWatchdogAlert(element, 'Something went wrong. The form has been unlocked. Please try again.');
+		window.modalLock.forceUnlock(element || id, 'watchdog');
+	}, window.modalLock.watchdogTimeoutMs);
+};
 window.modalLock.getElement = (modal) => (typeof modal === 'string' ? document.getElementById(modal) : modal);
 window.modalLock.countDisabled = (element) => {
 	if (!element) return 0;
@@ -50,6 +87,9 @@ window.modalLock.lock = (modal, action) => {
 	entry.lockedAt = new Date().toISOString();
 	entry.actionName = action || entry.actionName || 'unknown';
 	registry[id] = entry;
+	if (entry.lockCount === 1) {
+		window.modalLock.scheduleWatchdog(id, element);
+	}
 	let disabledCount = window.modalLock.countDisabled(element);
 	const closeButtons = element ? element.querySelectorAll('[data-bs-dismiss="modal"], .btn-close') : [];
 	if (element && !wasLocked) {
@@ -87,6 +127,10 @@ window.modalLock.unlock = (modal, reason = 'finally') => {
 	if (entry.lockCount === 0) {
 		entry.locked = false;
 		entry.unlockedAt = new Date().toISOString();
+		if (entry.watchdogTimer) {
+			clearTimeout(entry.watchdogTimer);
+			entry.watchdogTimer = null;
+		}
 	}
 	registry[id] = entry;
 	try {
