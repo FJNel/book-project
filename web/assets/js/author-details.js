@@ -403,10 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteModalState.locked = false;
     setModalLocked(deleteAuthorModal, false);
     if (deleteAuthorName) deleteAuthorName.textContent = authorRecord.displayName || 'this author';
-    if (authorDeleteErrorAlert) {
-      authorDeleteErrorAlert.classList.add('d-none');
-      authorDeleteErrorAlert.textContent = '';
-    }
+    if (authorDeleteErrorAlert) clearApiAlert(authorDeleteErrorAlert);
     showModal(deleteAuthorModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -422,10 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Author delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (authorDeleteErrorAlert) {
-          authorDeleteErrorAlert.classList.remove('d-none');
-          authorDeleteErrorAlert.textContent = data.message || 'Unable to delete author.';
-        }
+        if (authorDeleteErrorAlert) renderApiErrorAlert(authorDeleteErrorAlert, data, data.message || 'Unable to delete author.');
         warn('Author delete failed.', { status: response.status, data });
         return;
       }
@@ -433,10 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'authors';
     } catch (error) {
       errorLog('Author delete failed.', error);
-      if (authorDeleteErrorAlert) {
-        authorDeleteErrorAlert.classList.remove('d-none');
-        authorDeleteErrorAlert.textContent = 'Unable to delete author right now.';
-      }
+      if (authorDeleteErrorAlert) renderApiErrorAlert(authorDeleteErrorAlert, { message: 'Unable to delete author right now.' }, 'Unable to delete author right now.');
     } finally {
       deleteModalState.locked = false;
       setModalLocked(deleteAuthorModal, false);
@@ -540,35 +531,30 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const authors = Array.isArray(book.authors) ? book.authors.map((entry) => ({
-      authorId: entry.authorId,
+      authorId: Number.parseInt(entry.authorId, 10),
       authorRole: entry.authorId === authorId ? (nextRole || null) : (entry.authorRole || null)
     })) : [];
-    const requestPayload = { id: book.id, authors };
+    const requestPayload = { id: Number.parseInt(book.id, 10), authors };
     log('Updating author role on book.', { request: requestPayload, bookId: book.id });
     window.modalLock?.lock(editAuthorRoleModal, 'Update author role');
     setAuthorRoleLocked(true);
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
+      const response = await apiFetch('/book', { method: 'PUT', body: requestPayload });
       const data = await response.json().catch(() => ({}));
       log('Author role response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (authorRoleErrorAlert) {
-          authorRoleErrorAlert.classList.remove('d-none');
-          authorRoleErrorAlert.textContent = data.message || 'Unable to update role.';
-        }
+        if (authorRoleErrorAlert) renderApiErrorAlert(authorRoleErrorAlert, data, data.message || 'Unable to update role.');
         warn('Role update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (authorRoleErrorAlert) clearApiAlert(authorRoleErrorAlert);
       log('Role updated.', { bookId: book.id, from: currentRole, to: nextRole || null });
       await hideModal(editAuthorRoleModal);
       const books = await loadBooks();
       renderBooks(books);
     } catch (error) {
       errorLog('Role update failed.', error);
-      if (authorRoleErrorAlert) {
-        authorRoleErrorAlert.classList.remove('d-none');
-        authorRoleErrorAlert.textContent = 'Unable to update role right now.';
-      }
+      if (authorRoleErrorAlert) renderApiErrorAlert(authorRoleErrorAlert, { message: 'Unable to update role right now.' }, 'Unable to update role right now.');
     } finally {
       setAuthorRoleLocked(false);
       window.modalLock?.unlock(editAuthorRoleModal, 'finally');
@@ -599,10 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? book.authors.filter((entry) => entry.authorId !== authorId)
       : [];
     if (remainingAuthors.length === 0) {
-      if (removeAuthorBookError) {
-        removeAuthorBookError.classList.remove('d-none');
-        removeAuthorBookError.textContent = 'A book must have at least one author.';
-      }
+      if (removeAuthorBookError) renderApiErrorAlert(removeAuthorBookError, { message: 'Validation Error', errors: ['A book must have at least one author.'] }, 'Validation Error');
       return;
     }
     removeAuthorBookConfirmBtn.disabled = true;
@@ -612,36 +595,31 @@ document.addEventListener('DOMContentLoaded', () => {
     setButtonLoading(removeAuthorBookConfirmBtn, removeSpinner?.spinner, true);
     try {
       const requestPayload = {
-        id: book.id,
+        id: Number.parseInt(book.id, 10),
         authors: remainingAuthors.map((entry) => ({
-          authorId: entry.authorId,
+          authorId: Number.parseInt(entry.authorId, 10),
           authorRole: entry.authorRole || null
         }))
       };
       log('Removing author from book.', { request: requestPayload, bookId: book.id });
       const response = await apiFetch('/book', {
         method: 'PUT',
-        body: JSON.stringify(requestPayload)
+        body: requestPayload
       });
       const data = await response.json().catch(() => ({}));
       log('Remove author response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (removeAuthorBookError) {
-          removeAuthorBookError.classList.remove('d-none');
-          removeAuthorBookError.textContent = data.message || 'Unable to remove author.';
-        }
+        if (removeAuthorBookError) renderApiErrorAlert(removeAuthorBookError, data, data.message || 'Unable to remove author.');
         warn('Remove author failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (removeAuthorBookError) clearApiAlert(removeAuthorBookError);
       await hideModal(removeAuthorBookModal);
       const books = await loadBooks();
       renderBooks(books);
     } catch (error) {
       errorLog('Remove author failed.', error);
-      if (removeAuthorBookError) {
-        removeAuthorBookError.classList.remove('d-none');
-        removeAuthorBookError.textContent = 'Unable to remove author right now.';
-      }
+      if (removeAuthorBookError) renderApiErrorAlert(removeAuthorBookError, { message: 'Unable to remove author right now.' }, 'Unable to remove author right now.');
     } finally {
       removeModalState.locked = false;
       setModalLocked(removeAuthorBookModal, false);

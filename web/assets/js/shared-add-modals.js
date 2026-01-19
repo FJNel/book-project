@@ -20,17 +20,26 @@
         const showAlertWithDetails = (alertEl, title, details) => {
             if (!alertEl) return;
             const safeTitle = title || 'Alert';
-            const detailText = Array.isArray(details)
-                ? details.filter(Boolean).join(' ')
-                : (details || '');
+            const errors = Array.isArray(details)
+                ? details.filter(Boolean)
+                : (details ? [details] : []);
+            if (typeof window.renderApiErrorAlert === 'function') {
+                window.renderApiErrorAlert(alertEl, { message: safeTitle, errors }, safeTitle);
+                return;
+            }
+            const detailText = errors.length ? errors.join(' ') : '';
             const content = detailText
-                ? `<span><strong>${safeTitle}</strong> ${detailText}</span>`
+                ? `<span><strong>${safeTitle}</strong>: ${detailText}</span>`
                 : `<span><strong>${safeTitle}</strong></span>`;
             alertEl.innerHTML = content;
             alertEl.classList.remove('d-none');
         };
         const hideAlert = (alertEl) => {
             if (!alertEl) return;
+            if (typeof window.clearApiAlert === 'function') {
+                window.clearApiAlert(alertEl);
+                return;
+            }
             alertEl.classList.add('d-none');
             alertEl.innerHTML = '';
         };

@@ -1146,329 +1146,6 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 });
 
-// GET /bookseries/:id - Fetch a specific series by ID
-router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const userId = req.user.id;
-	const id = parseId(req.params.id);
-	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
-	}
-
-	try {
-		const result = await pool.query(
-			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
-			 FROM book_series s
-			 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
-			[userId, id]
-		);
-
-		if (result.rows.length === 0) {
-			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-		}
-
-		const row = result.rows[0];
-		const books = await fetchSeriesBooks(userId, row.id);
-		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
-		const payload = {
-			id: row.id,
-			name: row.name,
-			startDate,
-			endDate,
-			description: row.description,
-			website: row.website,
-			books,
-			createdAt: row.created_at,
-			updatedAt: row.updated_at
-		};
-		if (returnStats) {
-			payload.stats = await fetchSeriesStats(userId, row.id);
-		}
-		return successResponse(res, 200, "Series retrieved successfully.", payload);
-	} catch (error) {
-		logToFile("BOOK_SERIES_GET", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the series."]);
-	}
-});
-
-async function handleSeriesUpdate(req, res, seriesId) {
-	const userId = req.user.id;
-	const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, "name");
-	const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, "description");
-	const hasWebsite = Object.prototype.hasOwnProperty.call(req.body || {}, "website");
-
-	const name = hasName ? normalizeText(req.body?.name) : undefined;
-	const description = hasDescription ? normalizeText(req.body?.description) : undefined;
-	const website = hasWebsite ? normalizeText(req.body?.website) : undefined;
-
-	const errors = [
-		...(hasName ? validateSeriesName(name) : []),
-		...(hasDescription ? validateSeriesDescription(description) : []),
-		...(hasWebsite ? validateWebsite(website) : [])
-	];
-
-	if (!hasName && !hasDescription && !hasWebsite) {
-		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
-	}
-	if (errors.length > 0) {
-		return errorResponse(res, 400, "Validation Error", errors);
-	}
-
-	try {
-		if (hasName) {
-			const existing = await pool.query(
-				`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
-				[userId, name, seriesId]
-			);
-			if (existing.rows.length > 0) {
-				return errorResponse(res, 409, "Series already exists.", ["A series with this name already exists."]);
-			}
-		}
-
-		const client = await pool.connect();
-		try {
-			await client.query("BEGIN");
-			const updateFields = [];
-			const params = [userId, seriesId];
-			let index = 3;
-
-			if (hasName) {
-				updateFields.push(`name = $${index++}`);
-				params.push(name);
-			}
-			if (hasDescription) {
-				updateFields.push(`description = $${index++}`);
-				params.push(description || null);
-			}
-			if (hasWebsite) {
-				updateFields.push(`website = $${index++}`);
-				params.push(website || null);
-			}
-
-			const result = await client.query(
-				`UPDATE book_series
-				 SET ${updateFields.join(", ")}, updated_at = NOW()
-				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
-				 RETURNING id, name, description, website, created_at, updated_at`,
-				params
-			);
-
-			if (result.rows.length === 0) {
-				await client.query("ROLLBACK");
-				return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-			}
-
-			await client.query("COMMIT");
-
-			const row = result.rows[0];
-			logToFile("BOOK_SERIES_UPDATE", {
-				status: "SUCCESS",
-				user_id: userId,
-				series_id: row.id,
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "info");
-
-			return successResponse(res, 200, "Series updated successfully.", {
-				id: row.id,
-				name: row.name,
-				description: row.description,
-				website: row.website,
-				createdAt: row.created_at,
-				updatedAt: row.updated_at
-			});
-		} catch (error) {
-			await client.query("ROLLBACK");
-			throw error;
-		} finally {
-			client.release();
-		}
-	} catch (error) {
-		logToFile("BOOK_SERIES_UPDATE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the series."]);
-	}
-}
-
-// PUT /bookseries/:id - Update a series by id
-router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const id = parseId(req.params.id);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
-	}
-	return handleSeriesUpdate(req, res, id);
-});
-
-// PUT /bookseries - Update a series by id or name
-router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetName = normalizeText(req.body?.targetName ?? req.body?.name);
-
-	if (!Number.isInteger(targetId) && !targetName) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to update."]);
-	}
-	if (targetName) {
-		const nameErrors = validateSeriesName(targetName);
-		if (nameErrors.length > 0) {
-			return errorResponse(res, 400, "Validation Error", nameErrors);
-		}
-	}
-
-	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
-	if (resolved.mismatch) {
-		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
-	}
-	if (!Number.isInteger(resolved.id)) {
-		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-	}
-	return handleSeriesUpdate(req, res, resolved.id);
-});
-
-async function handleSeriesDelete(req, res, seriesId) {
-	const userId = req.user.id;
-	try {
-		const result = await pool.query(
-			`UPDATE book_series
-			 SET deleted_at = NOW()
-			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
-			 RETURNING id, deleted_at`,
-			[userId, seriesId]
-		);
-
-		if (result.rowCount === 0) {
-			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-		}
-
-		logToFile("BOOK_SERIES_DELETE", {
-			status: "SUCCESS",
-			user_id: userId,
-			series_id: seriesId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
-
-		return successResponse(res, 200, "Series moved to trash.", {
-			id: result.rows[0].id,
-			deletedAt: result.rows[0].deleted_at
-		});
-	} catch (error) {
-		logToFile("BOOK_SERIES_DELETE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the series."]);
-	}
-}
-
-// DELETE /bookseries/:id - Remove a series by id
-router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const id = parseId(req.params.id);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
-	}
-	return handleSeriesDelete(req, res, id);
-});
-
-// DELETE /bookseries - Remove a series by id or name
-router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetName = normalizeText(req.body?.name);
-
-	if (!Number.isInteger(targetId) && !targetName) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to delete."]);
-	}
-	if (targetName) {
-		const nameErrors = validateSeriesName(targetName);
-		if (nameErrors.length > 0) {
-			return errorResponse(res, 400, "Validation Error", nameErrors);
-		}
-	}
-
-	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
-	if (resolved.mismatch) {
-		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
-	}
-	if (!Number.isInteger(resolved.id)) {
-		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-	}
-	return handleSeriesDelete(req, res, resolved.id);
-});
-
-// POST /bookseries/restore - Restore a deleted series
-router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetName = normalizeText(req.body?.name);
-
-	if (!Number.isInteger(targetId) && !targetName) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to restore."]);
-	}
-	if (targetName) {
-		const nameErrors = validateSeriesName(targetName);
-		if (nameErrors.length > 0) {
-			return errorResponse(res, 400, "Validation Error", nameErrors);
-		}
-	}
-
-	const values = [userId];
-	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
-	let idx = 2;
-
-	if (Number.isInteger(targetId)) {
-		clauses.push(`id = $${idx++}`);
-		values.push(targetId);
-	}
-	if (targetName) {
-		clauses.push(`name = $${idx++}`);
-		values.push(targetName);
-	}
-
-	try {
-		const match = await pool.query(
-			`SELECT id FROM book_series WHERE ${clauses.join(" AND ")}`,
-			values
-		);
-		if (match.rows.length === 0) {
-			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-		}
-		if (match.rows.length > 1) {
-			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific series identifier."]);
-		}
-
-		const restored = await pool.query(
-			`UPDATE book_series SET deleted_at = NULL WHERE id = $1 RETURNING id`,
-			[match.rows[0].id]
-		);
-
-		return successResponse(res, 200, "Series restored successfully.", { id: restored.rows[0].id });
-	} catch (error) {
-		logToFile("BOOK_SERIES_RESTORE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the series."]);
-	}
-});
-
 // POST /bookseries/link - Link a book to a series
 router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -1818,6 +1495,329 @@ router.delete("/link", requiresAuth, authenticatedLimiter, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while removing the link."]);
+	}
+});
+
+// GET /bookseries/:id - Fetch a specific series by ID
+router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const id = parseId(req.params.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
+	}
+
+	try {
+		const result = await pool.query(
+			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
+			 FROM book_series s
+			 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
+			[userId, id]
+		);
+
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+		}
+
+		const row = result.rows[0];
+		const books = await fetchSeriesBooks(userId, row.id);
+		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
+		const payload = {
+			id: row.id,
+			name: row.name,
+			startDate,
+			endDate,
+			description: row.description,
+			website: row.website,
+			books,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at
+		};
+		if (returnStats) {
+			payload.stats = await fetchSeriesStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Series retrieved successfully.", payload);
+	} catch (error) {
+		logToFile("BOOK_SERIES_GET", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the series."]);
+	}
+});
+
+async function handleSeriesUpdate(req, res, seriesId) {
+	const userId = req.user.id;
+	const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, "name");
+	const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, "description");
+	const hasWebsite = Object.prototype.hasOwnProperty.call(req.body || {}, "website");
+
+	const name = hasName ? normalizeText(req.body?.name) : undefined;
+	const description = hasDescription ? normalizeText(req.body?.description) : undefined;
+	const website = hasWebsite ? normalizeText(req.body?.website) : undefined;
+
+	const errors = [
+		...(hasName ? validateSeriesName(name) : []),
+		...(hasDescription ? validateSeriesDescription(description) : []),
+		...(hasWebsite ? validateWebsite(website) : [])
+	];
+
+	if (!hasName && !hasDescription && !hasWebsite) {
+		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
+	}
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	try {
+		if (hasName) {
+			const existing = await pool.query(
+				`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
+				[userId, name, seriesId]
+			);
+			if (existing.rows.length > 0) {
+				return errorResponse(res, 409, "Series already exists.", ["A series with this name already exists."]);
+			}
+		}
+
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const updateFields = [];
+			const params = [userId, seriesId];
+			let index = 3;
+
+			if (hasName) {
+				updateFields.push(`name = $${index++}`);
+				params.push(name);
+			}
+			if (hasDescription) {
+				updateFields.push(`description = $${index++}`);
+				params.push(description || null);
+			}
+			if (hasWebsite) {
+				updateFields.push(`website = $${index++}`);
+				params.push(website || null);
+			}
+
+			const result = await client.query(
+				`UPDATE book_series
+				 SET ${updateFields.join(", ")}, updated_at = NOW()
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+				 RETURNING id, name, description, website, created_at, updated_at`,
+				params
+			);
+
+			if (result.rows.length === 0) {
+				await client.query("ROLLBACK");
+				return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+			}
+
+			await client.query("COMMIT");
+
+			const row = result.rows[0];
+			logToFile("BOOK_SERIES_UPDATE", {
+				status: "SUCCESS",
+				user_id: userId,
+				series_id: row.id,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+
+			return successResponse(res, 200, "Series updated successfully.", {
+				id: row.id,
+				name: row.name,
+				description: row.description,
+				website: row.website,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at
+			});
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		} finally {
+			client.release();
+		}
+	} catch (error) {
+		logToFile("BOOK_SERIES_UPDATE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the series."]);
+	}
+}
+
+// PUT /bookseries/:id - Update a series by id
+router.put("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const id = parseId(req.params.id);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
+	}
+	return handleSeriesUpdate(req, res, id);
+});
+
+// PUT /bookseries - Update a series by id or name
+router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.targetName ?? req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to update."]);
+	}
+	if (targetName) {
+		const nameErrors = validateSeriesName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
+		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+	}
+	return handleSeriesUpdate(req, res, resolved.id);
+});
+
+async function handleSeriesDelete(req, res, seriesId) {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`UPDATE book_series
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
+			[userId, seriesId]
+		);
+
+		if (result.rowCount === 0) {
+			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+		}
+
+		logToFile("BOOK_SERIES_DELETE", {
+			status: "SUCCESS",
+			user_id: userId,
+			series_id: seriesId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Series moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at
+		});
+	} catch (error) {
+		logToFile("BOOK_SERIES_DELETE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the series."]);
+	}
+}
+
+// DELETE /bookseries/:id - Remove a series by id
+router.delete("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const id = parseId(req.params.id);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
+	}
+	return handleSeriesDelete(req, res, id);
+});
+
+// DELETE /bookseries - Remove a series by id or name
+router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to delete."]);
+	}
+	if (targetName) {
+		const nameErrors = validateSeriesName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+	if (resolved.mismatch) {
+		return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
+	}
+	if (!Number.isInteger(resolved.id)) {
+		return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+	}
+	return handleSeriesDelete(req, res, resolved.id);
+});
+
+// POST /bookseries/restore - Restore a deleted series
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id);
+	const targetName = normalizeText(req.body?.name);
+
+	if (!Number.isInteger(targetId) && !targetName) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to restore."]);
+	}
+	if (targetName) {
+		const nameErrors = validateSeriesName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	const values = [userId];
+	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
+	let idx = 2;
+
+	if (Number.isInteger(targetId)) {
+		clauses.push(`id = $${idx++}`);
+		values.push(targetId);
+	}
+	if (targetName) {
+		clauses.push(`name = $${idx++}`);
+		values.push(targetName);
+	}
+
+	try {
+		const match = await pool.query(
+			`SELECT id FROM book_series WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific series identifier."]);
+		}
+
+		const restored = await pool.query(
+			`UPDATE book_series SET deleted_at = NULL WHERE id = $1 RETURNING id`,
+			[match.rows[0].id]
+		);
+
+		return successResponse(res, 200, "Series restored successfully.", { id: restored.rows[0].id });
+	} catch (error) {
+		logToFile("BOOK_SERIES_RESTORE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the series."]);
 	}
 });
 

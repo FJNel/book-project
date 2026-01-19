@@ -29,6 +29,24 @@ window.pageContentReady.reset = () => {
 };
 window.pageContentReady.resolve({ success: true, default: true });
 
+function renderApiErrorAlert(alertEl, apiResponse = {}, fallbackMessage = 'Request failed.') {
+	if (!alertEl) return;
+	const message = apiResponse.message || fallbackMessage;
+	const errors = Array.isArray(apiResponse.errors) ? apiResponse.errors.filter(Boolean) : [];
+	const detail = errors.length ? `: ${errors.join(' ')}` : '';
+	alertEl.innerHTML = `<strong>${message}</strong>${detail}`;
+	alertEl.classList.remove('d-none');
+}
+
+function clearApiAlert(alertEl) {
+	if (!alertEl) return;
+	alertEl.classList.add('d-none');
+	alertEl.innerHTML = '';
+}
+
+window.renderApiErrorAlert = renderApiErrorAlert;
+window.clearApiAlert = clearApiAlert;
+
 window.modalLock = window.modalLock || {};
 window.modalLock.registry = window.modalLock.registry || {};
 window.modalLock.watchdogTimeoutMs = window.modalLock.watchdogTimeoutMs || 25000;

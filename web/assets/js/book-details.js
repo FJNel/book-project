@@ -1117,10 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const openEditBookModal = async () => {
     if (!bookRecord) return;
-    if (editBookErrorAlert) {
-      editBookErrorAlert.classList.add('d-none');
-      editBookErrorAlert.textContent = '';
-    }
+    if (editBookErrorAlert) clearApiAlert(editBookErrorAlert);
     try {
       const [languages, bookTypes, publishers] = await Promise.all([
         loadLanguages(),
@@ -1286,10 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(payload) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (editBookErrorAlert) {
-          editBookErrorAlert.classList.remove('d-none');
-          editBookErrorAlert.textContent = data.message || 'Unable to update book.';
-        }
+        if (editBookErrorAlert) renderApiErrorAlert(editBookErrorAlert, data, data.message || 'Unable to update book.');
         warn('Book update failed.', { status: response.status, data });
         return;
       }
@@ -1297,10 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadBook();
     } catch (error) {
       errorLog('Book update failed.', error);
-      if (editBookErrorAlert) {
-        editBookErrorAlert.classList.remove('d-none');
-        editBookErrorAlert.textContent = 'Unable to update book right now.';
-      }
+      if (editBookErrorAlert) renderApiErrorAlert(editBookErrorAlert, { message: 'Unable to update book right now.' }, 'Unable to update book right now.');
     } finally {
       editBookSaveBtn.disabled = false;
     }
@@ -1311,10 +1302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Opening delete book modal.', { bookId: bookRecord.id });
     setDeleteBookLocked(false);
     if (deleteBookName) deleteBookName.textContent = bookRecord.title || 'this book';
-    if (deleteBookErrorAlert) {
-      deleteBookErrorAlert.classList.add('d-none');
-      deleteBookErrorAlert.textContent = '';
-    }
+    if (deleteBookErrorAlert) clearApiAlert(deleteBookErrorAlert);
     showModal(deleteBookModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -1328,10 +1316,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Delete book response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (deleteBookErrorAlert) {
-          deleteBookErrorAlert.classList.remove('d-none');
-          deleteBookErrorAlert.textContent = data.message || 'Unable to delete book.';
-        }
+        if (deleteBookErrorAlert) renderApiErrorAlert(deleteBookErrorAlert, data, data.message || 'Unable to delete book.');
         warn('Book delete failed.', { status: response.status, data });
         return;
       }
@@ -1339,10 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'books';
     } catch (error) {
       errorLog('Book delete failed.', error);
-      if (deleteBookErrorAlert) {
-        deleteBookErrorAlert.classList.remove('d-none');
-        deleteBookErrorAlert.textContent = 'Unable to delete book right now.';
-      }
+      if (deleteBookErrorAlert) renderApiErrorAlert(deleteBookErrorAlert, { message: 'Unable to delete book right now.' }, 'Unable to delete book right now.');
     } finally {
       deleteBookConfirmBtn.disabled = false;
       setDeleteBookLocked(false);
@@ -1569,10 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetAuthorRoleModal = () => {
     if (!authorRoleTarget) return;
     applyAuthorRoleFields(authorRoleTarget.originalInputValue || '');
-    if (authorRoleErrorAlert) {
-      authorRoleErrorAlert.classList.add('d-none');
-      authorRoleErrorAlert.textContent = '';
-    }
+    if (authorRoleErrorAlert) clearApiAlert(authorRoleErrorAlert);
     if (authorRoleHelp) {
       authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
       authorRoleHelp.classList.remove('text-danger');
@@ -1589,10 +1568,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalInputValue = author.authorRole === 'Contributor' ? '' : author.authorRole || '';
     authorRoleTarget = { author, currentRole, originalInputValue };
     applyAuthorRoleFields(originalInputValue);
-    if (authorRoleErrorAlert) {
-      authorRoleErrorAlert.classList.add('d-none');
-      authorRoleErrorAlert.textContent = '';
-    }
+    if (authorRoleErrorAlert) clearApiAlert(authorRoleErrorAlert);
     if (authorRoleHelp) {
       authorRoleHelp.textContent = 'Select a role or choose Other to enter a custom role.';
       authorRoleHelp.classList.remove('text-danger');
@@ -1625,10 +1601,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Author role response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (authorRoleErrorAlert) {
-          authorRoleErrorAlert.classList.remove('d-none');
-          authorRoleErrorAlert.textContent = data.message || 'Unable to update role.';
-        }
+        if (authorRoleErrorAlert) renderApiErrorAlert(authorRoleErrorAlert, data, data.message || 'Unable to update role.');
         warn('Author role update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
@@ -1637,10 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await openManageAuthorsModal();
     } catch (error) {
       errorLog('Author role update failed.', error);
-      if (authorRoleErrorAlert) {
-        authorRoleErrorAlert.classList.remove('d-none');
-        authorRoleErrorAlert.textContent = 'Unable to update role right now.';
-      }
+      if (authorRoleErrorAlert) renderApiErrorAlert(authorRoleErrorAlert, { message: 'Unable to update role right now.' }, 'Unable to update role right now.');
     } finally {
       setAuthorRoleLocked(false);
       window.modalLock?.unlock(editAuthorRoleModal, 'finally');
@@ -1658,8 +1628,7 @@ document.addEventListener('DOMContentLoaded', () => {
       removeAuthorText.textContent = `Removing ${author.authorName || 'this author'} from ${bookRecord.title || 'this book'}.`;
     }
     if (removeAuthorError) {
-      removeAuthorError.classList.add('d-none');
-      removeAuthorError.textContent = '';
+      clearApiAlert(removeAuthorError);
     }
     showModal(removeAuthorModal, { backdrop: 'static', keyboard: false });
   };
@@ -1686,10 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Remove author response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (removeAuthorError) {
-          removeAuthorError.classList.remove('d-none');
-          removeAuthorError.textContent = data.message || 'Unable to remove author.';
-        }
+        if (removeAuthorError) renderApiErrorAlert(removeAuthorError, data, data.message || 'Unable to remove author.');
         warn('Remove author failed.', { status: response.status, data, request: requestPayload });
         return;
       }
@@ -1698,10 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await openManageAuthorsModal();
     } catch (error) {
       errorLog('Remove author failed.', error);
-      if (removeAuthorError) {
-        removeAuthorError.classList.remove('d-none');
-        removeAuthorError.textContent = 'Unable to remove author right now.';
-      }
+      if (removeAuthorError) renderApiErrorAlert(removeAuthorError, { message: 'Unable to remove author right now.' }, 'Unable to remove author right now.');
     } finally {
       removeAuthorConfirmBtn.disabled = false;
       setRemoveAuthorLocked(false);
@@ -1802,32 +1765,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const existing = (bookRecord.series || []).some((entry) => entry.seriesId === series.id);
     if (existing) return;
     const payload = (bookRecord.series || []).map((entry) => ({
-      seriesId: entry.seriesId,
+      seriesId: Number.parseInt(entry.seriesId, 10),
       bookOrder: Number.isInteger(entry.bookOrder) ? entry.bookOrder : null
     }));
-    payload.push({ seriesId: series.id, bookOrder: null });
+    payload.push({ seriesId: Number.parseInt(series.id, 10), bookOrder: null });
 
     if (manageSeriesError) {
-      manageSeriesError.classList.add('d-none');
-      manageSeriesError.textContent = '';
+      clearApiAlert(manageSeriesError);
     }
 
-    const requestPayload = { id: bookRecord.id, series: payload };
+    const requestPayload = { id: Number.parseInt(bookRecord.id, 10), series: payload };
     log('Adding series to book.', { request: requestPayload, seriesId: series.id });
     window.modalLock?.lock(manageSeriesModal, 'Add series');
     setManageSeriesLocked(true);
     try {
-      const response = await apiFetch('/book', { method: 'PUT', body: JSON.stringify(requestPayload) });
+      const response = await apiFetch('/book', { method: 'PUT', body: requestPayload });
       const data = await response.json().catch(() => ({}));
       log('Add series response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (manageSeriesError) {
-          manageSeriesError.classList.remove('d-none');
-          manageSeriesError.textContent = data.message || 'Unable to add series.';
-        }
+        if (manageSeriesError) renderApiErrorAlert(manageSeriesError, data, data.message || 'Unable to add series.');
         warn('Add series failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (manageSeriesError) clearApiAlert(manageSeriesError);
       log('Series added from search.', { seriesId: series.id, seriesName: series.name });
       await loadBook();
       renderManageSeriesList(bookRecord.series || []);
@@ -1930,44 +1890,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawValue = seriesOrderInput.value.trim();
     const nextOrder = rawValue ? Number(rawValue) : null;
     if (rawValue && (!Number.isInteger(nextOrder) || nextOrder <= 0)) {
-      if (seriesOrderErrorAlert) {
-        seriesOrderErrorAlert.classList.remove('d-none');
-        seriesOrderErrorAlert.textContent = 'Order must be a positive whole number.';
-      }
+      if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, { message: 'Validation Error', errors: ['Order must be a positive whole number.'] }, 'Validation Error');
+      return;
+    }
+    const seriesId = Number.parseInt(seriesOrderTarget.seriesEntry.seriesId, 10);
+    const bookId = Number.parseInt(bookRecord.id, 10);
+    if (!Number.isInteger(seriesId) || !Number.isInteger(bookId)) {
+      if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, { message: 'Validation Error', errors: ['Series and book identifiers must be valid numbers.'] });
       return;
     }
     const requestPayload = {
-      seriesId: seriesOrderTarget.seriesEntry.seriesId,
-      bookId: bookRecord.id,
+      seriesId,
+      bookId,
       bookOrder: nextOrder
     };
-    log('Updating series order.', { request: requestPayload });
+    log('[Book Details] Series order request about to send', {
+      payload: requestPayload,
+      types: {
+        seriesId: typeof requestPayload.seriesId,
+        bookId: typeof requestPayload.bookId,
+        bookOrder: typeof requestPayload.bookOrder
+      },
+      json: JSON.stringify(requestPayload)
+    });
     window.modalLock?.lock(editSeriesOrderModal, 'Update series order');
     setSeriesOrderLocked(true);
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'PUT',
-        body: JSON.stringify(requestPayload)
+        body: requestPayload
       });
       const data = await response.json().catch(() => ({}));
       log('Series order response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (seriesOrderErrorAlert) {
-          seriesOrderErrorAlert.classList.remove('d-none');
-          seriesOrderErrorAlert.textContent = data.message || 'Unable to update order.';
-        }
+        if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, data, data.message || 'Unable to update order.');
         warn('Series order update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (seriesOrderErrorAlert) clearApiAlert(seriesOrderErrorAlert);
       await hideModal(editSeriesOrderModal);
       await loadBook();
       await openManageSeriesModal();
     } catch (error) {
       errorLog('Series order update failed.', error);
-      if (seriesOrderErrorAlert) {
-        seriesOrderErrorAlert.classList.remove('d-none');
-        seriesOrderErrorAlert.textContent = 'Unable to update order right now.';
-      }
+      if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, { message: 'Unable to update order right now.' }, 'Unable to update order right now.');
     } finally {
       setSeriesOrderLocked(false);
       window.modalLock?.unlock(editSeriesOrderModal, 'finally');
@@ -1992,7 +1958,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const confirmRemoveSeries = async () => {
     if (!removeSeriesTarget || !bookRecord) return;
-    const requestPayload = { seriesId: removeSeriesTarget.seriesId, bookId: bookRecord.id };
+    const seriesId = Number.parseInt(removeSeriesTarget.seriesId, 10);
+    const bookId = Number.parseInt(bookRecord.id, 10);
+    if (!Number.isInteger(seriesId) || !Number.isInteger(bookId)) {
+      if (removeSeriesError) renderApiErrorAlert(removeSeriesError, { message: 'Validation Error', errors: ['Series and book identifiers must be valid numbers.'] });
+      return;
+    }
+    const requestPayload = { seriesId, bookId };
     log('Removing series from book.', { request: requestPayload });
     removeSeriesConfirmBtn.disabled = true;
     window.modalLock?.lock(removeSeriesModal, 'Remove series');
@@ -2000,27 +1972,22 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await apiFetch('/bookseries/link', {
         method: 'DELETE',
-        body: JSON.stringify(requestPayload)
+        body: requestPayload
       });
       const data = await response.json().catch(() => ({}));
       log('Remove series response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (removeSeriesError) {
-          removeSeriesError.classList.remove('d-none');
-          removeSeriesError.textContent = data.message || 'Unable to remove series.';
-        }
+        if (removeSeriesError) renderApiErrorAlert(removeSeriesError, data, data.message || 'Unable to remove series.');
         warn('Remove series failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (removeSeriesError) clearApiAlert(removeSeriesError);
       await hideModal(removeSeriesModal);
       await loadBook();
       await openManageSeriesModal();
     } catch (error) {
       errorLog('Remove series failed.', error);
-      if (removeSeriesError) {
-        removeSeriesError.classList.remove('d-none');
-        removeSeriesError.textContent = 'Unable to remove series right now.';
-      }
+      if (removeSeriesError) renderApiErrorAlert(removeSeriesError, { message: 'Unable to remove series right now.' }, 'Unable to remove series right now.');
     } finally {
       removeSeriesConfirmBtn.disabled = false;
       setRemoveSeriesLocked(false);
@@ -2071,10 +2038,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Opening manage tags modal.', { bookId: bookRecord.id });
     setManageTagsLocked(false);
     tagDraft = (bookRecord.tags || []).map((tag) => tag.name);
-    if (manageTagsError) {
-      manageTagsError.classList.add('d-none');
-      manageTagsError.textContent = '';
-    }
+    if (manageTagsError) clearApiAlert(manageTagsError);
     if (manageTagsHelp) {
       manageTagsHelp.textContent = 'Type a tag and click Add to save it.';
       manageTagsHelp.classList.remove('text-danger');
@@ -2088,33 +2052,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const updateBookTags = async () => {
     if (!bookRecord) return;
-    const requestPayload = { id: bookRecord.id, tags: tagDraft };
+    const requestPayload = { id: Number.parseInt(bookRecord.id, 10), tags: tagDraft };
     log('Updating book tags.', { request: requestPayload });
     window.modalLock?.lock(manageTagsModal, 'Update tags');
     setManageTagsLocked(true);
     try {
       const response = await apiFetch('/book', {
         method: 'PUT',
-        body: JSON.stringify(requestPayload)
+        body: requestPayload
       });
       const data = await response.json().catch(() => ({}));
       log('Tag update response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (manageTagsError) {
-          manageTagsError.classList.remove('d-none');
-          manageTagsError.textContent = data.message || 'Unable to update tags.';
-        }
+        if (manageTagsError) renderApiErrorAlert(manageTagsError, data, data.message || 'Unable to update tags.');
         warn('Tag update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
+      if (manageTagsError) clearApiAlert(manageTagsError);
       await loadBook();
       renderManageTags();
     } catch (error) {
       errorLog('Tag update failed.', error);
-      if (manageTagsError) {
-        manageTagsError.classList.remove('d-none');
-        manageTagsError.textContent = 'Unable to update tags right now.';
-      }
+      if (manageTagsError) renderApiErrorAlert(manageTagsError, { message: 'Unable to update tags right now.' }, 'Unable to update tags right now.');
     } finally {
       setManageTagsLocked(false);
       window.modalLock?.unlock(manageTagsModal, 'finally');
@@ -2297,10 +2256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     clearHelpText(copyLocationHelp);
     clearHelpText(copyAcquisitionDateHelp);
-    if (editCopyErrorAlert) {
-      editCopyErrorAlert.classList.add('d-none');
-      editCopyErrorAlert.textContent = '';
-    }
+    if (editCopyErrorAlert) clearApiAlert(editCopyErrorAlert);
     setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
     updateCopyChangeSummary();
   };
@@ -2309,10 +2265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!bookRecord) return;
     log('Opening copy modal.', { mode, copyId: copyId || null });
     copyEditTarget = { mode, copyId, original: null };
-    if (editCopyErrorAlert) {
-      editCopyErrorAlert.classList.add('d-none');
-      editCopyErrorAlert.textContent = '';
-    }
+    if (editCopyErrorAlert) clearApiAlert(editCopyErrorAlert);
     if (copyLocationHelp) copyLocationHelp.textContent = '';
     if (copyAcquisitionDateHelp) copyAcquisitionDateHelp.textContent = '';
     if (editCopyModalLabel) {
@@ -2412,10 +2365,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       step('(F) response parsed', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (editCopyErrorAlert) {
-          editCopyErrorAlert.classList.remove('d-none');
-          editCopyErrorAlert.textContent = data.message || 'Unable to save copy.';
-        }
+        if (editCopyErrorAlert) renderApiErrorAlert(editCopyErrorAlert, data, data.message || 'Unable to save copy.');
         warn('Copy save failed.', { status: response.status, data });
         return;
       }
@@ -2427,10 +2377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       step('(J) after loadBook');
     } catch (error) {
       errorLog('Copy save failed.', error);
-      if (editCopyErrorAlert) {
-        editCopyErrorAlert.classList.remove('d-none');
-        editCopyErrorAlert.textContent = 'Unable to save copy right now.';
-      }
+      if (editCopyErrorAlert) renderApiErrorAlert(editCopyErrorAlert, { message: 'Unable to save copy right now.' }, 'Unable to save copy right now.');
     } finally {
       step('(Z) finally start');
       try {
@@ -2450,15 +2397,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setDeleteCopyLocked(false);
     copyEditTarget = { mode: 'delete', copyId };
     if (deleteCopyText) deleteCopyText.textContent = `Remove copy stored at ${copy.storageLocationPath || 'unknown location'}?`;
-    if (deleteCopyErrorAlert) {
-      deleteCopyErrorAlert.classList.add('d-none');
-      deleteCopyErrorAlert.textContent = '';
-    }
+    if (deleteCopyErrorAlert) clearApiAlert(deleteCopyErrorAlert);
     if (deleteCopyConfirmBtn) {
       deleteCopyConfirmBtn.disabled = copies.length <= 1;
       if (copies.length <= 1 && deleteCopyErrorAlert) {
-        deleteCopyErrorAlert.classList.remove('d-none');
-        deleteCopyErrorAlert.textContent = 'A book must have at least one copy.';
+        renderApiErrorAlert(deleteCopyErrorAlert, { message: 'Validation Error', errors: ['A book must have at least one copy.'] }, 'Validation Error');
       }
     }
     showModal(deleteCopyModal, { backdrop: 'static', keyboard: false });
@@ -2477,10 +2420,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Copy delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (deleteCopyErrorAlert) {
-          deleteCopyErrorAlert.classList.remove('d-none');
-          deleteCopyErrorAlert.textContent = data.message || 'Unable to delete copy.';
-        }
+        if (deleteCopyErrorAlert) renderApiErrorAlert(deleteCopyErrorAlert, data, data.message || 'Unable to delete copy.');
         warn('Copy delete failed.', { status: response.status, data });
         return;
       }
@@ -2488,10 +2428,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadBook();
     } catch (error) {
       errorLog('Copy delete failed.', error);
-      if (deleteCopyErrorAlert) {
-        deleteCopyErrorAlert.classList.remove('d-none');
-        deleteCopyErrorAlert.textContent = 'Unable to delete copy right now.';
-      }
+      if (deleteCopyErrorAlert) renderApiErrorAlert(deleteCopyErrorAlert, { message: 'Unable to delete copy right now.' }, 'Unable to delete copy right now.');
     } finally {
       const lockedOut = (bookRecord?.bookCopies || []).length <= 1;
       deleteCopyConfirmBtn.disabled = lockedOut;

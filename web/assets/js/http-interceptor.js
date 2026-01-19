@@ -191,6 +191,7 @@
 })();
 
 const API_BASE_URL = 'https://api.fjnel.co.za/';
+const DEBUG_HTTP = Boolean(window.DEBUG_HTTP || window.DEBUG_MODAL_LOCKS);
 
 // A list of public paths that do not require an Authorization header.
 const PUBLIC_PATHS = [
@@ -250,9 +251,36 @@ async function apiFetch(path, options = {}) {
 	console.log('[HTTP Interceptor] Request headers:', Object.fromEntries(headers.entries()));
 
 	//Now execute the fetch request
+	const prepared = { ...options };
+	const rawBody = options.body;
+	const shouldStringify = rawBody && typeof rawBody === 'object'
+		&& !(rawBody instanceof FormData)
+		&& !(rawBody instanceof Blob)
+		&& !(rawBody instanceof ArrayBuffer)
+		&& !(rawBody instanceof URLSearchParams)
+		&& !(typeof ReadableStream !== 'undefined' && rawBody instanceof ReadableStream);
+	const finalBody = shouldStringify ? JSON.stringify(rawBody) : rawBody;
+	if (finalBody !== undefined) {
+		prepared.body = finalBody;
+	}
+
+	if (DEBUG_HTTP) {
+		const headerEntries = Object.fromEntries(headers.entries());
+		if (headerEntries.Authorization) {
+			headerEntries.Authorization = 'REDACTED';
+		}
+		const safeBody = typeof finalBody === 'string' ? finalBody : '[non-string body]';
+		console.log('[HTTP Interceptor][Debug] Final request', {
+			method: prepared.method || 'GET',
+			url: url.href,
+			headers: headerEntries,
+			body: safeBody
+		});
+	}
+
 	console.log('[HTTP Interceptor] Now sending API request to:', url.href);
 	let response = await fetch(url.href, {
-		...options,
+		...prepared,
 		headers,
 	});
 

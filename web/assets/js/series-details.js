@@ -404,10 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const openDeleteModal = () => {
     if (!seriesRecord) return;
     if (deleteSeriesName) deleteSeriesName.textContent = seriesRecord.name || 'this series';
-    if (seriesDeleteErrorAlert) {
-      seriesDeleteErrorAlert.classList.add('d-none');
-      seriesDeleteErrorAlert.textContent = '';
-    }
+    if (seriesDeleteErrorAlert) clearApiAlert(seriesDeleteErrorAlert);
     showModal(deleteSeriesModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -423,10 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Series delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (seriesDeleteErrorAlert) {
-          seriesDeleteErrorAlert.classList.remove('d-none');
-          seriesDeleteErrorAlert.textContent = data.message || 'Unable to delete series.';
-        }
+        if (seriesDeleteErrorAlert) renderApiErrorAlert(seriesDeleteErrorAlert, data, data.message || 'Unable to delete series.');
         warn('Series delete failed.', { status: response.status, data });
         return;
       }
@@ -434,10 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'series';
     } catch (error) {
       errorLog('Series delete failed.', error);
-      if (seriesDeleteErrorAlert) {
-        seriesDeleteErrorAlert.classList.remove('d-none');
-        seriesDeleteErrorAlert.textContent = 'Unable to delete series right now.';
-      }
+      if (seriesDeleteErrorAlert) renderApiErrorAlert(seriesDeleteErrorAlert, { message: 'Unable to delete series right now.' }, 'Unable to delete series right now.');
     } finally {
       deleteModalState.locked = false;
       setModalLocked(deleteSeriesModal, false);
@@ -464,10 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetOrderModal = () => {
     if (!orderEditTarget) return;
     seriesOrderInput.value = orderEditTarget.originalInputValue || '';
-    if (seriesOrderErrorAlert) {
-      seriesOrderErrorAlert.classList.add('d-none');
-      seriesOrderErrorAlert.textContent = '';
-    }
+    if (seriesOrderErrorAlert) clearApiAlert(seriesOrderErrorAlert);
     updateOrderChangeSummary();
   };
 
@@ -478,10 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalInputValue = currentOrder !== null && currentOrder !== undefined ? String(currentOrder) : '';
     orderEditTarget = { book, currentOrder, originalInputValue };
     if (seriesOrderInput) seriesOrderInput.value = originalInputValue;
-    if (seriesOrderErrorAlert) {
-      seriesOrderErrorAlert.classList.add('d-none');
-      seriesOrderErrorAlert.textContent = '';
-    }
+    if (seriesOrderErrorAlert) clearApiAlert(seriesOrderErrorAlert);
     updateOrderChangeSummary();
     showModal(editSeriesOrderModal, { backdrop: 'static', keyboard: false });
   };
@@ -492,10 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawValue = seriesOrderInput.value.trim();
     const nextOrder = rawValue ? Number(rawValue) : null;
     if (rawValue && (!Number.isInteger(nextOrder) || nextOrder <= 0)) {
-      if (seriesOrderErrorAlert) {
-        seriesOrderErrorAlert.classList.remove('d-none');
-        seriesOrderErrorAlert.textContent = 'Order must be a positive whole number.';
-      }
+      if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, { message: 'Validation Error', errors: ['Order must be a positive whole number.'] }, 'Validation Error');
       return;
     }
     const requestPayload = {
@@ -518,10 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Series order response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (seriesOrderErrorAlert) {
-          seriesOrderErrorAlert.classList.remove('d-none');
-          seriesOrderErrorAlert.textContent = data.message || 'Unable to update order.';
-        }
+        if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, data, data.message || 'Unable to update order.');
         warn('Order update failed.', { status: response.status, data, request: requestPayload });
         return;
       }
@@ -531,10 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderBooks(books);
     } catch (error) {
       errorLog('Order update failed.', error);
-      if (seriesOrderErrorAlert) {
-        seriesOrderErrorAlert.classList.remove('d-none');
-        seriesOrderErrorAlert.textContent = 'Unable to update order right now.';
-      }
+      if (seriesOrderErrorAlert) renderApiErrorAlert(seriesOrderErrorAlert, { message: 'Unable to update order right now.' }, 'Unable to update order right now.');
     } finally {
       orderModalState.locked = false;
       setModalLocked(editSeriesOrderModal, false);
@@ -552,10 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (removeSeriesBookText) {
       removeSeriesBookText.textContent = `Removing ${book.title || 'this book'} from ${seriesRecord.name || 'this series'}.`;
     }
-    if (removeSeriesBookError) {
-      removeSeriesBookError.classList.add('d-none');
-      removeSeriesBookError.textContent = '';
-    }
+    if (removeSeriesBookError) clearApiAlert(removeSeriesBookError);
     showModal(removeSeriesBookModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -580,10 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Remove series book response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (removeSeriesBookError) {
-          removeSeriesBookError.classList.remove('d-none');
-          removeSeriesBookError.textContent = data.message || 'Unable to remove book from series.';
-        }
+        if (removeSeriesBookError) renderApiErrorAlert(removeSeriesBookError, data, data.message || 'Unable to remove book from series.');
         warn('Remove book failed.', { status: response.status, data, request: requestPayload });
         return;
       }
@@ -592,10 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderBooks(books);
     } catch (error) {
       errorLog('Remove book failed.', error);
-      if (removeSeriesBookError) {
-        removeSeriesBookError.classList.remove('d-none');
-        removeSeriesBookError.textContent = 'Unable to remove book right now.';
-      }
+      if (removeSeriesBookError) renderApiErrorAlert(removeSeriesBookError, { message: 'Unable to remove book right now.' }, 'Unable to remove book right now.');
     } finally {
       removeModalState.locked = false;
       setModalLocked(removeSeriesBookModal, false);

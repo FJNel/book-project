@@ -354,10 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (removePublisherBookText) {
       removePublisherBookText.textContent = `Remove ${publisherRecord?.name || 'this publisher'} from ${book.title || 'this book'}?`;
     }
-    if (removePublisherBookError) {
-      removePublisherBookError.classList.add('d-none');
-      removePublisherBookError.textContent = '';
-    }
+    if (removePublisherBookError) clearApiAlert(removePublisherBookError);
     showModal(removePublisherBookModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -378,10 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Remove publisher response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (removePublisherBookError) {
-          removePublisherBookError.classList.remove('d-none');
-          removePublisherBookError.textContent = data.message || 'Unable to remove publisher from book.';
-        }
+        if (removePublisherBookError) renderApiErrorAlert(removePublisherBookError, data, data.message || 'Unable to remove publisher from book.');
         warn('Remove publisher from book failed.', { status: response.status, data, request: requestPayload });
         return;
       }
@@ -390,10 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderBooks(books);
     } catch (error) {
       errorLog('Remove publisher from book failed.', error);
-      if (removePublisherBookError) {
-        removePublisherBookError.classList.remove('d-none');
-        removePublisherBookError.textContent = 'Unable to remove publisher from book right now.';
-      }
+      if (removePublisherBookError) renderApiErrorAlert(removePublisherBookError, { message: 'Unable to remove publisher from book right now.' }, 'Unable to remove publisher from book right now.');
     } finally {
       removeModalState.locked = false;
       setModalLocked(removePublisherBookModal, false);
@@ -423,10 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteModalState.locked = false;
     setModalLocked(deletePublisherModal, false);
     if (deletePublisherName) deletePublisherName.textContent = publisherRecord.name || 'this publisher';
-    if (publisherDeleteErrorAlert) {
-      publisherDeleteErrorAlert.classList.add('d-none');
-      publisherDeleteErrorAlert.textContent = '';
-    }
+    if (publisherDeleteErrorAlert) clearApiAlert(publisherDeleteErrorAlert);
     showModal(deletePublisherModal, { backdrop: 'static', keyboard: false });
   };
 
@@ -442,10 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       log('Publisher delete response parsed.', { ok: response.ok, status: response.status });
       if (!response.ok) {
-        if (publisherDeleteErrorAlert) {
-          publisherDeleteErrorAlert.classList.remove('d-none');
-          publisherDeleteErrorAlert.textContent = data.message || 'Unable to delete publisher.';
-        }
+        if (publisherDeleteErrorAlert) renderApiErrorAlert(publisherDeleteErrorAlert, data, data.message || 'Unable to delete publisher.');
         warn('Publisher delete failed.', { status: response.status, data });
         return;
       }
@@ -453,10 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = 'publishers';
     } catch (error) {
       errorLog('Publisher delete failed.', error);
-      if (publisherDeleteErrorAlert) {
-        publisherDeleteErrorAlert.classList.remove('d-none');
-        publisherDeleteErrorAlert.textContent = 'Unable to delete publisher right now.';
-      }
+      if (publisherDeleteErrorAlert) renderApiErrorAlert(publisherDeleteErrorAlert, { message: 'Unable to delete publisher right now.' }, 'Unable to delete publisher right now.');
     } finally {
       deleteModalState.locked = false;
       setModalLocked(deletePublisherModal, false);
