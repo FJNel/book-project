@@ -12,6 +12,9 @@ const FRONTEND_URL = config.frontend.url;
 const MAILGUN_REGION = config.mail.mailgunRegion; // "EU" for EU domains
 const SUPPORT_EMAIL = config.mail.supportEmail;
 const API_BASE_URL = config.api.baseUrl;
+const VERIFY_DISABLE_PATH = config.frontend.verifyDisablePath || '/verify-delete';
+const VERIFY_ACCOUNT_DELETION_PATH = config.frontend.verifyAccountDeletionPath || '/verify-account-deletion';
+const VERIFY_EMAIL_CHANGE_PATH = config.frontend.verifyEmailChangePath || '/verify-email-change';
 
 function logEmailAttempt(type, toEmail, details = {}) {
 	logToFile("EMAIL_SEND_ATTEMPT", { type, to: toEmail, ...details }, "info");
@@ -254,7 +257,7 @@ async function sendAccountDisableVerificationEmail(toEmail, preferredName, token
 		return false;
 	}
 
-	const verifyUrl = `${API_BASE_URL}/users/me/verify-delete?token=${token}`;
+	const verifyUrl = `${FRONTEND_URL}${VERIFY_DISABLE_PATH}?token=${token}`;
 	const subject = "Confirm your Book Project account disable request";
 	const year = new Date().getFullYear();
 
@@ -327,7 +330,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 		return false;
 	}
 
-	const verifyUrl = `${API_BASE_URL}/users/me/verify-account-deletion?token=${token}`;
+	const verifyUrl = `${FRONTEND_URL}${VERIFY_ACCOUNT_DELETION_PATH}?token=${token}`;
 	const subject = "Confirm your Book Project account deletion request";
 	const year = new Date().getFullYear();
 
@@ -480,7 +483,7 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 		return false;
 	}
 
-	const verifyUrl = `${API_BASE_URL}/users/me/verify-email-change?token=${token}`;
+	const verifyUrl = `${FRONTEND_URL}${VERIFY_EMAIL_CHANGE_PATH}?token=${token}`;
 	const subject = "Verify your new Book Project email address";
 	const year = new Date().getFullYear();
 

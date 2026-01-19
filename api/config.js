@@ -42,6 +42,9 @@ const frontendUrl = env('FRONTEND_URL', nodeEnv === 'production' ? 'https://book
 const loginPath = env('FRONTEND_LOGIN_PATH', '/?action=login');
 const verifyPath = env('FRONTEND_VERIFY_PATH', '/verify-email');
 const resetPath = env('FRONTEND_RESET_PATH', '/reset-password');
+const verifyDisablePath = env('FRONTEND_VERIFY_DISABLE_PATH', '/verify-delete');
+const verifyAccountDeletionPath = env('FRONTEND_VERIFY_ACCOUNT_DELETION_PATH', '/verify-account-deletion');
+const verifyEmailChangePath = env('FRONTEND_VERIFY_EMAIL_CHANGE_PATH', '/verify-email-change');
 
 // API base and docs (for root route response)
 const apiBaseUrl = env('API_BASE_URL', nodeEnv === 'production' ? 'https://api.fjnel.co.za' : `http://localhost:${port}`);
@@ -101,6 +104,9 @@ module.exports = {
 		loginUrl: `${frontendUrl}${loginPath}`,
 		verifyPath,
 		resetPath,
+		verifyDisablePath,
+		verifyAccountDeletionPath,
+		verifyEmailChangePath,
 	},
 	api: {
 		baseUrl: apiBaseUrl,
