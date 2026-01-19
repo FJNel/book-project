@@ -18,10 +18,12 @@
     apiKeys: [],
     revokeSessionTarget: null,
     revokeApiKeyTarget: null,
-    activeSection: 'overview'
+    activeSection: 'overview',
+    profileCompleteness: null
   };
 
   const elements = {
+    pageAlert: document.getElementById('pageAlert'),
     navButtons: Array.from(document.querySelectorAll('[data-section]')),
     sections: Array.from(document.querySelectorAll('[data-section-content]')),
     welcomeName: document.getElementById('welcomeName'),
@@ -39,12 +41,15 @@
     profileLastLogin: document.getElementById('profileLastLogin'),
     profileCreated: document.getElementById('profileCreated'),
     profileUpdated: document.getElementById('profileUpdated'),
+    profileRole: document.getElementById('profileRole'),
     overviewLastLogin: document.getElementById('overviewLastLogin'),
     overviewCreated: document.getElementById('overviewCreated'),
+    passwordLastChanged: document.getElementById('passwordLastChanged'),
     editProfileBtn: document.getElementById('editProfileBtn'),
     changePasswordBtn: document.getElementById('changePasswordBtn'),
     passwordInfo: document.getElementById('passwordInfo'),
     changeEmailBtn: document.getElementById('changeEmailBtn'),
+    securityEmailCurrent: document.getElementById('securityEmailCurrent'),
     logoutAllBtn: document.getElementById('logoutAllBtn'),
     sessionsTable: document.getElementById('sessionsTable'),
     createApiKeyBtn: document.getElementById('createApiKeyBtn'),
@@ -69,6 +74,8 @@
   const controls = {
     editFullName: document.getElementById('editFullName'),
     editPreferredName: document.getElementById('editPreferredName'),
+    editFullNameHelp: document.getElementById('editFullNameHelp'),
+    editPreferredNameHelp: document.getElementById('editPreferredNameHelp'),
     editProfileError: document.getElementById('editProfileError'),
     editProfileResetBtn: document.getElementById('editProfileResetBtn'),
     editProfileSaveBtn: document.getElementById('editProfileSaveBtn'),
@@ -78,11 +85,14 @@
     currentPassword: document.getElementById('currentPassword'),
     newPassword: document.getElementById('newPassword'),
     confirmNewPassword: document.getElementById('confirmNewPassword'),
+    currentPasswordHelp: document.getElementById('currentPasswordHelp'),
+    newPasswordHelp: document.getElementById('newPasswordHelp'),
+    confirmNewPasswordHelp: document.getElementById('confirmNewPasswordHelp'),
     changePasswordSaveBtn: document.getElementById('changePasswordSaveBtn'),
-    changePasswordHelp: document.getElementById('changePasswordHelp'),
     changeEmailError: document.getElementById('changeEmailError'),
     changeEmailSuccess: document.getElementById('changeEmailSuccess'),
     newEmail: document.getElementById('newEmail'),
+    changeEmailHelp: document.getElementById('changeEmailHelp'),
     changeEmailSaveBtn: document.getElementById('changeEmailSaveBtn'),
     revokeSessionDetail: document.getElementById('revokeSessionDetail'),
     revokeSessionError: document.getElementById('revokeSessionError'),
@@ -103,6 +113,7 @@
     confirmDisableAccountBtn: document.getElementById('confirmDisableAccountBtn'),
     deleteAccountError: document.getElementById('deleteAccountError'),
     deleteAccountConfirmInput: document.getElementById('deleteAccountConfirmInput'),
+    deleteAccountHelp: document.getElementById('deleteAccountHelp'),
     confirmDeleteAccountBtn: document.getElementById('confirmDeleteAccountBtn')
   };
 
@@ -125,6 +136,27 @@
     } catch (e) {
       return iso;
     }
+  }
+
+  function showPageAlert(message, type = 'success') {
+    if (!elements.pageAlert) return;
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.role = 'alert';
+    alert.innerHTML = `
+      <div class="fw-semibold mb-1">${message}</div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    elements.pageAlert.innerHTML = '';
+    elements.pageAlert.appendChild(alert);
+  }
+
+  function safeText(el, text, name) {
+    if (!el) {
+      warn('Missing element for text update', name);
+      return;
+    }
+    el.textContent = text;
   }
 
   function setButtonLoading(btn, isLoading) {
@@ -191,51 +223,97 @@
     if (modalManager) await modalManager.hideModal(pageLoadingModal);
   }
 
+  function formatRoleDisplay(role) {
+    if (!role) return { label: 'User', className: 'bg-light text-secondary fw-semibold' };
+    const normalized = String(role).toLowerCase();
+    if (normalized === 'admin') return { label: 'Admin', className: 'bg-danger-subtle text-danger fw-semibold' };
+    return { label: 'User', className: 'bg-light text-secondary fw-semibold' };
+  }
+
+  function maskEmail(email) {
+    if (!email || typeof email !== 'string') return '—';
+    const [user, domain] = email.split('@');
+    if (!domain) return email;
+    const head = user ? user.charAt(0) : '';
+    const masked = `${head}${user && user.length > 1 ? '***' : ''}`;
+    return `${masked}@${domain}`;
+  }
+
   function renderStatusChips(profile) {
     const chips = [];
     if (profile.isVerified) chips.push({ label: 'Email verified', className: 'bg-success-subtle text-success fw-semibold' });
     else chips.push({ label: 'Email not verified', className: 'bg-warning-subtle text-warning fw-semibold' });
-    if (profile.role) chips.push({ label: profile.role, className: 'bg-light text-secondary fw-semibold' });
+    const roleDisplay = formatRoleDisplay(profile.role);
+    chips.push({ label: roleDisplay.label, className: roleDisplay.className });
 
     elements.statusChips.innerHTML = chips
       .map((chip) => `<span class="stat-chip ${chip.className}">${chip.label}</span>`)
       .join('');
   }
 
-  function computeProfileScore(profile) {
-    const fields = ['fullName', 'preferredName', 'isVerified'];
-    const filled = fields.reduce((acc, key) => acc + (profile[key] ? 1 : 0), 0);
-    return Math.round((filled / fields.length) * 100);
+  function buildProfileCompleteness(profile) {
+    const items = [
+      { key: 'email', label: 'Email added', complete: !!profile.email, optional: false, hint: 'Add a valid email address.' },
+      { key: 'fullName', label: 'Full name', complete: !!profile.fullName, optional: false, hint: 'Add your full name.' },
+      { key: 'preferredName', label: 'Preferred name', complete: !!profile.preferredName, optional: true, hint: 'Add a preferred name for greetings.' },
+      { key: 'password', label: 'Password set', complete: !!profile.passwordUpdated, optional: false, hint: 'Set a password to secure your account.' },
+      { key: 'verified', label: 'Email verified', complete: !!profile.isVerified, optional: false, hint: 'Verify your email address from your inbox.' }
+    ];
+
+    const required = items.filter((item) => !item.optional);
+    const completedRequired = required.filter((item) => item.complete).length;
+    const optionalCompleted = items.filter((item) => item.optional && item.complete).length;
+    const baseScore = required.length ? Math.round((completedRequired / required.length) * 100) : 0;
+    const bonus = optionalCompleted > 0 ? Math.min(10, optionalCompleted * 5) : 0;
+    const score = Math.min(100, baseScore + bonus);
+
+    return {
+      items,
+      score,
+      completedRequired,
+      requiredTotal: required.length,
+      optionalCompleted,
+      missing: items.filter((item) => !item.complete)
+    };
   }
 
-  function updateProfileScore() {
-    const score = state.stats?.profileCompletenessScore ?? computeProfileScore(state.profile || {});
-    elements.profileScoreLabel.textContent = Number.isFinite(score) ? `${score}%` : '0%';
-    elements.profileScoreBar.style.width = Number.isFinite(score) ? `${score}%` : '0%';
+  function updateProfileScore(completeness) {
+    const score = completeness?.score ?? 0;
+    safeText(elements.profileScoreLabel, Number.isFinite(score) ? `${score}%` : '0%', 'profileScoreLabel');
+    if (elements.profileScoreBar) elements.profileScoreBar.style.width = Number.isFinite(score) ? `${score}%` : '0%';
     if (elements.profileScoreHint) {
-      elements.profileScoreHint.textContent = score >= 100 ? 'Profile is complete.' : 'Finish the missing items to reach 100%.';
+      if (score >= 100) {
+        elements.profileScoreHint.textContent = 'Profile is complete.';
+      } else {
+        elements.profileScoreHint.textContent = `Completed ${completeness?.completedRequired || 0} of ${completeness?.requiredTotal || 0} required items.`;
+      }
     }
   }
 
-  function renderProfileChecklist(profile) {
-    if (!elements.profileChecklist) return;
-    const missing = [];
-    if (!profile.fullName) missing.push('Add your full name.');
-    if (!profile.preferredName) missing.push('Add a preferred name for greetings.');
-    if (profile.isVerified === false) missing.push('Verify your email address.');
-    if (!profile.passwordUpdated) missing.push('Set a password.');
-
-    if (missing.length === 0) {
-      elements.profileChecklist.classList.add('d-none');
-      elements.profileChecklistItems.innerHTML = '';
-      return;
-    }
-
-    elements.profileChecklistItems.innerHTML = missing.map((item) => `<li>${item}</li>`).join('');
-    if (elements.profileChecklistText) {
-      elements.profileChecklistText.textContent = `Complete ${missing.length} item${missing.length > 1 ? 's' : ''} to boost security and personalization.`;
-    }
+  function renderProfileChecklist(completeness) {
+    if (!elements.profileChecklist || !completeness) return;
     elements.profileChecklist.classList.remove('d-none');
+
+    const listItems = completeness.items.map((item) => {
+      const icon = item.complete
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle text-success" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M10.97 5.97a.75.75 0 0 0-1.07-1.05L7.477 7.94 6.384 6.846a.75.75 0 1 0-1.06 1.06L6.97 9.553a.75.75 0 0 0 1.079-.02z"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash-circle text-warning" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/></svg>';
+      const helper = item.complete ? 'Completed' : item.hint;
+      const optionalLabel = item.optional ? ' (optional)' : '';
+      return `<li class="d-flex align-items-start gap-2 mb-1"><span class="mt-1">${icon}</span><div><div class="fw-semibold">${item.label}${optionalLabel}</div><div class="text-muted small">${helper}</div></div></li>`;
+    });
+
+    elements.profileChecklistItems.innerHTML = listItems.join('');
+    if (elements.profileChecklistText) {
+      const missingRequired = completeness.requiredTotal - completeness.completedRequired;
+      if (missingRequired > 0) {
+        elements.profileChecklistText.textContent = `Complete ${missingRequired} required item${missingRequired > 1 ? 's' : ''} to reach 100%.`;
+      } else if (completeness.missing.length > 0) {
+        elements.profileChecklistText.textContent = 'Optional items can help personalise your experience.';
+      } else {
+        elements.profileChecklistText.textContent = 'All checklist items completed.';
+      }
+    }
   }
 
   function validateFullNameInput(value) {
@@ -260,27 +338,39 @@
   }
 
   function updateProfileValidationState() {
+    if (!controls.editFullName || !controls.editPreferredName) {
+      warn('Profile inputs missing');
+      return { fullName: '', preferredName: '', hasErrors: true };
+    }
     const fullName = controls.editFullName.value;
     const preferredName = controls.editPreferredName.value;
+    if (!state.profile) {
+      if (controls.editProfileSaveBtn) controls.editProfileSaveBtn.disabled = true;
+      safeText(controls.editFullNameHelp, 'Enter your full name (2-255 characters).', 'editFullNameHelp');
+      safeText(controls.editPreferredNameHelp, 'Optional; 2-100 letters, no spaces.', 'editPreferredNameHelp');
+      return { fullName, preferredName, hasErrors: true };
+    }
     const fullNameErrors = validateFullNameInput(fullName);
     const preferredErrors = validatePreferredNameInput(preferredName);
-    controls.editFullNameHelp.textContent = fullNameErrors[0] || 'Enter your full name (2-255 characters).';
-    controls.editPreferredNameHelp.textContent = preferredErrors[0] || 'Optional; 2-100 letters, no spaces.';
+    safeText(controls.editFullNameHelp, fullNameErrors[0] || 'Enter your full name (2-255 characters).', 'editFullNameHelp');
+    safeText(controls.editPreferredNameHelp, preferredErrors[0] || 'Optional; 2-100 letters, no spaces.', 'editPreferredNameHelp');
 
     const changed = (fullName || '').trim() !== (state.profile?.fullName || '') || (preferredName || '').trim() !== (state.profile?.preferredName || '');
-    controls.editProfileChanges.textContent = changed
+    safeText(controls.editProfileChanges, changed
       ? `Changing display name from ${state.profile?.preferredName || state.profile?.fullName || 'current'} to ${(preferredName || fullName || '').trim()}.`
-      : 'No changes yet.';
+      : 'No changes yet.', 'editProfileChanges');
 
     const hasErrors = fullNameErrors.length > 0 || preferredErrors.length > 0;
-    controls.editProfileSaveBtn.disabled = hasErrors || !changed;
+    if (controls.editProfileSaveBtn) controls.editProfileSaveBtn.disabled = hasErrors || !changed;
     return { fullName, preferredName, hasErrors };
   }
 
   function renderProfile(profile) {
     elements.welcomeName.textContent = profile.preferredName || profile.fullName || 'Your account';
     renderStatusChips(profile);
-    updateProfileScore();
+
+    state.profileCompleteness = buildProfileCompleteness(profile);
+    updateProfileScore(state.profileCompleteness);
 
     elements.profileEmail.textContent = profile.email || '—';
     elements.profilePreferred.textContent = profile.preferredName || '—';
@@ -288,6 +378,12 @@
     elements.profileLastLogin.textContent = formatDate(profile.lastLogin);
     elements.profileCreated.textContent = formatDate(profile.createdAt);
     elements.profileUpdated.textContent = formatDate(profile.updatedAt);
+    const roleDisplay = formatRoleDisplay(profile.role);
+    if (elements.profileRole) {
+      elements.profileRole.textContent = roleDisplay.label;
+      elements.profileRole.className = 'detail-value';
+      elements.profileRole.classList.add(roleDisplay.label === 'Admin' ? 'text-danger' : 'text-body');
+    }
 
     elements.overviewLastLogin.textContent = formatDate(profile.lastLogin);
     elements.overviewCreated.textContent = formatDate(profile.createdAt);
@@ -295,7 +391,7 @@
     controls.editFullName.value = profile.fullName || '';
     controls.editPreferredName.value = profile.preferredName || '';
 
-    renderProfileChecklist(profile);
+    renderProfileChecklist(state.profileCompleteness);
   }
 
   function renderStats(stats) {
@@ -306,9 +402,7 @@
       { label: 'Authors', value: stats.authors, href: 'authors' },
       { label: 'Publishers', value: stats.publishers, href: 'publishers' },
       { label: 'Storage', value: stats.storageLocations, href: 'storage-locations' },
-      { label: 'Timeline', value: stats.bookCopies ?? stats.books ?? 0, href: 'statistics#timeline' },
       { label: 'Tags', value: stats.tags, href: 'tags' },
-      { label: 'Languages', value: stats.languages, href: 'statistics#overview' },
       { label: 'API keys', value: stats.apiKeys, href: '#danger' }
     ];
     elements.statsTiles.innerHTML = tiles
@@ -319,18 +413,68 @@
         return `<div class="col"><div class="stat-card ${clickable ? 'is-link' : ''}" ${attrs}><div class="stat-value">${tile.value ?? 0}</div><div class="stat-label">${tile.label}</div>${zeroHint}</div></div>`;
       })
       .join('');
-    updateProfileScore();
+  }
+
+  function describeUserAgent(session) {
+    const raw = (session?.rawUserAgent || session?.userAgent || '').toLowerCase();
+    const os = /windows nt/.test(raw)
+      ? 'Windows'
+      : /mac os x/.test(raw)
+        ? 'macOS'
+        : /android/.test(raw)
+          ? 'Android'
+          : /(iphone|ipad|ipod)/.test(raw)
+            ? 'iOS'
+            : /linux/.test(raw)
+              ? 'Linux'
+              : 'Unknown';
+
+    const browser = /edg\//.test(raw)
+      ? 'Edge'
+      : /chrome/.test(raw) && !/edg|opr|crios/.test(raw)
+        ? 'Chrome'
+        : /safari/.test(raw) && !/chrome|crios|opr|edg/.test(raw)
+          ? 'Safari'
+          : /firefox/.test(raw)
+            ? 'Firefox'
+            : 'Unknown';
+
+    const deviceType = /(mobile|iphone|android)/.test(raw)
+      ? 'Mobile'
+      : /ipad|tablet/.test(raw)
+        ? 'Tablet'
+        : 'Desktop';
+
+    const labelParts = [];
+    if (os !== 'Unknown') labelParts.push(os);
+    if (browser !== 'Unknown') labelParts.push(browser);
+    const label = labelParts.length ? `${labelParts[0]}${labelParts[1] ? ` (${labelParts[1]})` : ''}` : 'Unknown device';
+
+    let iconKey = 'desktop';
+    if (os === 'Android') iconKey = 'android';
+    else if (os === 'iOS') iconKey = 'apple';
+    else if (os === 'Windows') iconKey = 'windows';
+    else if (os === 'macOS') iconKey = 'mac';
+    else if (os === 'Linux') iconKey = 'linux';
+    if (deviceType === 'Mobile' && iconKey === 'desktop') iconKey = 'phone';
+
+    return { label, iconKey, deviceType, os, browser };
   }
 
   function renderSessions(sessions) {
-    const tbody = elements.sessionsTable.querySelector('tbody');
+    const tbody = elements.sessionsTable?.querySelector('tbody');
+    if (!tbody) {
+      warn('Sessions table missing');
+      return;
+    }
     if (!sessions || sessions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No active sessions found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No active sessions found.</td></tr>';
       return;
     }
     const icons = {
       android: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-android device-icon" viewBox="0 0 16 16"><path d="M3.586 1.846a.5.5 0 0 1 .707.03l.815.89A4.487 4.487 0 0 1 8 2c1.12 0 2.146.398 2.892 1.07l.815-.893a.5.5 0 1 1 .738.676l-.8.877A4.49 4.49 0 0 1 13 6h1.5a.5.5 0 0 1 0 1H13v3.5a1.5 1.5 0 0 1-3 0V7H6v3.5a1.5 1.5 0 0 1-3 0V7H1.5a.5.5 0 0 1 0-1H3a4.49 4.49 0 0 1 .355-2.27l-.8-.877a.5.5 0 0 1 .03-.707M5 4.5a.5.5 0 1 0 1 0 .5.5 0 0 0-1 0m6 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0"/></svg>',
       apple: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-apple device-icon" viewBox="0 0 16 16"><path d="M11.182.008c.053.5-.146 1.002-.44 1.414-.29.408-.855.774-1.377.728-.062-.494.172-1.01.46-1.35C10.141.356 10.701.038 11.182.008M8.48 3.041c-.777 0-1.67.45-2.177.45-.548 0-1.387-.43-2.285-.416-1.177.017-2.266.684-2.868 1.74-1.226 2.13-.315 5.29.88 7.026.582.84 1.273 1.785 2.184 1.754.867-.035 1.19-.566 2.233-.566 1.026 0 1.33.566 2.273.549.942-.017 1.54-.858 2.116-1.7.664-.974.94-1.92.956-1.968-.021-.01-1.836-.705-1.857-2.797-.016-1.748 1.426-2.58 1.49-2.62-.815-1.19-2.068-1.324-2.48-1.347-.597-.06-1.088.453-1.786.453"/></svg>',
+    
       windows: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-windows device-icon" viewBox="0 0 16 16"><path d="M6.555 3.108v5.392H0V4.047l6.555-.939zm1.074-.153 7.99-1.144v6.689H7.629V2.955zM0 9.5h6.555v5.392L0 13.953V9.5zm7.629 0h7.99v6.689l-7.99-1.144V9.5z"/></svg>',
       mac: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-command device-icon" viewBox="0 0 16 16"><path d="M3.5 9a1.5 1.5 0 1 0 1.5 1.5V9zm0-1V6.5A1.5 1.5 0 1 0 2 8zm9 1v1.5a1.5 1.5 0 1 0 1.5-1.5zM9 3.5h1.5a1.5 1.5 0 1 0-1.5-1.5zM8 6h1V5H8zm0 1h1v2H8zm0 3h1v1H8zm2-4h1V5h-1zm1 1h1v2h-1zm0 3h1v1h-1zM6 5h1V4H6zm1 1h1v2H7zm0 3h1v1H7zm-2-3h1V4H5zm0 4h1v1H5zm4-5h1V4H9z"/></svg>',
       linux: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-linux device-icon" viewBox="0 0 16 16"><path d="M11.479 1.5c-.54-.116-1.14.498-1.03 1.099.03.317.138.55.47.703.327.149.72-.014.94-.246.294-.312.275-.962-.012-1.276-.105-.11-.207-.218-.368-.248zM9.406 2.8c-.606-.018-1.07.438-1.106 1.01-.02.307.09.536.34.706.348.219.743.05.98-.238.31-.338.293-1.026-.093-1.302-.055-.04-.107-.084-.12-.176z"/><path d="M8.004 0c-.614 0-1.353.21-1.713.77-.178.271-.23.58-.25.884-.02.3-.044.707-.23.974-.457.634-.456 1.44-.4 2.185.05.692.137 1.39.043 2.084-.074.558-.28 1.106-.52 1.615-.247.523-.546 1.033-.813 1.556-.262.511-.523 1.036-.67 1.594-.156.6-.215 1.35.19 1.87.355.46.957.603 1.52.67.978.12 1.967.086 2.95.062.984.024 1.973.058 2.951-.062.563-.067 1.165-.21 1.52-.67.405-.52.346-1.27.19-1.87-.147-.558-.408-1.083-.67-1.594-.267-.523-.566-1.033-.813-1.556-.24-.509-.446-1.057-.52-1.615-.094-.694-.007-1.392.043-2.084.056-.745.057-1.551-.4-2.185-.186-.267-.21-.674-.23-.974-.02-.304-.072-.613-.25-.884C9.357.21 8.618 0 8.004 0m.657 13.248c-.18.25-.502.35-.81.36-.366.016-.857-.056-1.02-.445-.112-.27.005-.568.23-.73.206-.142.47-.184.707-.238.224-.067.448-.123.68-.13.234-.007.5.034.683.196.246.22.305.6.14.987m-3.72-1.59c-.398.326-.714.638-1.21.79-.61.152-.82-.42-.677-.887.118-.404.34-.77.564-1.13.244-.386.485-.78.712-1.18.21-.358.4-.72.535-1.108.152-.43.21-.88.262-1.33.032-.486.063-.98-.046-1.457-.07-.308-.253-.565-.3-.88-.07-.61.01-1.48.665-1.763.437-.184.953.005 1.195.4.29.46.25 1.052.498 1.53.214.478.554.885.73 1.378.225.614.255 1.29.185 1.94-.067.46-.175.918-.314 1.364-.134.44-.296.874-.48 1.298-.29.59-.63 1.162-1.114 1.613M9.94 4.944c-.48-.01-.857-.46-.833-.93.013-.505.467-.9.944-.852.503.02.907.506.855 1.002-.04.454-.447.796-.966.78m-3.59-.93c-.26-.06-.45-.28-.518-.53-.065-.29.05-.61.28-.8.255-.21.676-.24.933.006.262.26.318.74.09 1.035-.155.215-.43.322-.685.29m4.294 2.507c-.03-.12.05-.242.17-.274.237-.075.48.122.502.36.048.364-.063.734-.27 1.03-.17.254-.515.63-.84.36-.17-.134-.11-.39-.044-.57.167-.282.267-.598.48-.867zm-4.53-.004c.213.27.313.585.48.867.068.18.126.436-.044.57-.325.27-.67-.106-.84-.36-.208-.296-.318-.666-.27-1.03.022-.238.264-.435.5-.36.12.032.2.154.17.274z"/></svg>',
@@ -339,26 +483,16 @@
       unknown: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-question-circle device-icon" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5.255 5.786a1.78 1.78 0 0 1 1.533-.311c.513.128.838.45.99.674.154.227.196.355.196.55 0 .24-.08.412-.44.757-.35.335-.677.62-.677 1.23v.07a.5.5 0 0 0 1 0c0-.24.08-.412.44-.757.35-.335.677-.62.677-1.23 0-.336-.083-.681-.287-.97-.204-.292-.52-.56-.987-.684a2.78 2.78 0 0 0-2.401.484.5.5 0 1 0 .586.8"/><path d="M7.002 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>'
     };
 
-    const deviceIcon = (session) => {
-      const descriptor = `${session.device || ''} ${session.operatingSystem || ''} ${session.browser || ''}`.toLowerCase();
-      if (descriptor.includes('android')) return icons.android;
-      if (descriptor.includes('iphone') || descriptor.includes('ios')) return icons.apple;
-      if (descriptor.includes('mac')) return icons.mac;
-      if (descriptor.includes('windows')) return icons.windows;
-      if (descriptor.includes('linux')) return icons.linux;
-      if (descriptor.includes('mobile') || descriptor.includes('phone')) return icons.phone;
-      return descriptor ? icons.desktop : icons.unknown;
-    };
-
     tbody.innerHTML = sessions.map((s) => {
       const currentBadge = s.current ? '<span class="badge bg-primary ms-1">Current</span>' : '';
-      const device = s.device || s.browser || 'Unknown device';
+      const parsed = describeUserAgent(s);
+      const deviceLabel = parsed.label || s.device || s.browser || 'Unknown device';
       const expiresSoon = typeof s.expiresInSeconds === 'number' && s.expiresInSeconds <= 0;
       const status = expiresSoon ? '<span class="badge bg-secondary ms-1">Expired</span>' : '';
       const location = s.locationHint || (s.ipAddress ? `IP ${s.ipAddress}` : 'Unknown');
-      const icon = deviceIcon(s);
+      const icon = icons[parsed.iconKey] || icons.desktop;
       return `<tr data-fp="${s.fingerprint}">
-        <td>${icon}<span class="fw-semibold">${device}</span>${currentBadge}${status}</td>
+        <td>${icon}<span class="fw-semibold">${deviceLabel}</span>${currentBadge}${status}</td>
         <td>${formatDate(s.issuedAt)}</td>
         <td>${location}</td>
         <td>${formatDate(s.expiresAt)}</td>
@@ -433,10 +567,13 @@
     const data = await fetchJson('/users/me', { method: 'GET' });
     state.profile = data;
     renderProfile(data);
-    if (!data.passwordUpdated) {
-      elements.passwordInfo.textContent = 'No password set yet. Add one to secure your account.';
-    } else {
-      elements.passwordInfo.textContent = 'Use a strong password. Changing it will sign you out on other devices.';
+    const passwordChanged = data.passwordUpdated ? formatDate(data.passwordUpdated) : null;
+    safeText(elements.passwordInfo, data.passwordUpdated ? 'Use a strong password. Changing it will sign you out on other devices.' : 'No password set yet. Add one to secure your account.', 'passwordInfo');
+    if (elements.passwordLastChanged) {
+      elements.passwordLastChanged.textContent = `Last changed: ${passwordChanged || 'Unknown'}`;
+    }
+    if (elements.securityEmailCurrent) {
+      elements.securityEmailCurrent.textContent = `Current email: ${maskEmail(data.email)}`;
     }
     log('Profile loaded.');
   }
@@ -496,30 +633,42 @@
 
   function validatePasswordInputs() {
     const errors = [];
-    const currentPassword = controls.currentPassword.value || '';
-    const newPassword = controls.newPassword.value || '';
-    const confirmPassword = controls.confirmNewPassword.value || '';
-    if (!currentPassword.trim()) errors.push('Current password is required.');
+    const fieldErrors = { current: [], next: [], confirm: [] };
+    const currentPassword = controls.currentPassword?.value || '';
+    const newPassword = controls.newPassword?.value || '';
+    const confirmPassword = controls.confirmNewPassword?.value || '';
+
+    if (!currentPassword.trim()) fieldErrors.current.push('Current password is required.');
+
     if (!newPassword.trim()) {
-      errors.push('A new password is required.');
+      fieldErrors.next.push('A new password is required.');
     } else {
-      if (newPassword.length < 10 || newPassword.length > 100) errors.push('Password must be between 10 and 100 characters.');
-      if (!/[A-Z]/.test(newPassword)) errors.push('Must include at least one uppercase letter.');
-      if (!/[a-z]/.test(newPassword)) errors.push('Must include at least one lowercase letter.');
-      if (!/[0-9]/.test(newPassword)) errors.push('Must include at least one number.');
-      if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\;/']/.test(newPassword)) errors.push('Must include at least one special character.');
+      if (newPassword.length < 10 || newPassword.length > 100) fieldErrors.next.push('Password must be between 10 and 100 characters.');
+      if (!/[A-Z]/.test(newPassword)) fieldErrors.next.push('Must include at least one uppercase letter.');
+      if (!/[a-z]/.test(newPassword)) fieldErrors.next.push('Must include at least one lowercase letter.');
+      if (!/[0-9]/.test(newPassword)) fieldErrors.next.push('Must include at least one number.');
+      if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\;/']/.test(newPassword)) fieldErrors.next.push('Must include at least one special character.');
+      if (newPassword === currentPassword) fieldErrors.next.push('New password must be different from your current password.');
     }
+
     if (newPassword && confirmPassword !== newPassword) {
-      errors.push('New passwords do not match.');
+      fieldErrors.confirm.push('New passwords do not match.');
     }
-    controls.changePasswordHelp.textContent = errors[0] || 'Minimum 10 characters; include upper, lower, number, and special character.';
-    controls.changePasswordSaveBtn.disabled = errors.length > 0;
-    return { currentPassword, newPassword, errors };
+
+    const allErrors = [...fieldErrors.current, ...fieldErrors.next, ...fieldErrors.confirm];
+    safeText(controls.currentPasswordHelp, fieldErrors.current[0] || 'Enter your current password.', 'currentPasswordHelp');
+    safeText(controls.newPasswordHelp, fieldErrors.next[0] || 'Minimum 10 characters with upper, lower, number, and special character.', 'newPasswordHelp');
+    safeText(controls.confirmNewPasswordHelp, fieldErrors.confirm[0] || 'Re-enter the new password.', 'confirmNewPasswordHelp');
+
+    const anyInput = currentPassword || newPassword || confirmPassword;
+    if (controls.changePasswordSaveBtn) controls.changePasswordSaveBtn.disabled = allErrors.length > 0 || !anyInput;
+    return { currentPassword, newPassword, errors: allErrors };
   }
 
   function validateEmailInput() {
     const errors = [];
-    const email = (controls.newEmail.value || '').trim();
+    const email = (controls.newEmail?.value || '').trim();
+    const currentEmail = (state.profile?.email || '').trim().toLowerCase();
     if (!email) {
       errors.push('Please enter a new email address.');
     } else {
@@ -527,8 +676,10 @@
       if (len < 5 || len > 255) errors.push('Email must be between 5 and 255 characters.');
       const regex = /^(?=.{3,255}$)[-a-z0-9~!$%^&*_=+}{'?’]+(\.[-a-z0-9~!$%^&*_=+}{'?’]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.[a-z]{2,}|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]{1,5})?$/i;
       if (!regex.test(email)) errors.push('Email format is incorrect.');
+      if (email.toLowerCase() === currentEmail) errors.push('Enter a different email from your current one.');
     }
-    controls.changeEmailSaveBtn.disabled = errors.length > 0;
+    safeText(controls.changeEmailHelp, errors[0] || 'We will send a confirmation email to the new address. This may sign you out once confirmed.', 'changeEmailHelp');
+    if (controls.changeEmailSaveBtn) controls.changeEmailSaveBtn.disabled = errors.length > 0;
     return { email, errors };
   }
 
@@ -558,6 +709,7 @@
         controls.newPassword.value = '';
         controls.confirmNewPassword.value = '';
         if (modalManager) await modalManager.hideModal(modals.changePassword);
+        showPageAlert('Password updated. You will be signed out on other devices.', 'success');
       });
     } catch (err) {
       controls.changePasswordError.innerHTML = validationMessage('Unable to change password', [err.message]);
@@ -574,7 +726,7 @@
     controls.changeEmailSuccess.classList.add('d-none');
     const { email, errors } = validateEmailInput();
     if (errors.length > 0) {
-      controls.changeEmailError.textContent = errors.join(', ');
+      controls.changeEmailError.innerHTML = validationMessage('Unable to request change', errors);
       controls.changeEmailError.classList.remove('d-none');
       return;
     }
@@ -585,7 +737,9 @@
         method: 'POST',
         body: JSON.stringify({ newEmail: email })
       });
-      controls.changeEmailSuccess.classList.remove('d-none');
+      controls.newEmail.value = '';
+      if (modalManager) await modalManager.hideModal(modals.changeEmail);
+      showPageAlert('Check your inbox to confirm the email change.', 'success');
     }).catch((err) => {
       controls.changeEmailError.innerHTML = validationMessage('Unable to request change', [err.message]);
       controls.changeEmailError.classList.remove('d-none');
@@ -720,8 +874,8 @@
       setButtonLoading(controls.confirmDisableAccountBtn, true);
       setModalDisabled(modals.disableAccount, true);
       await fetchJson('/users/me', { method: 'DELETE' });
-      alert('Disable request sent. Check your email for confirmation.');
       if (modalManager) await modalManager.hideModal(modals.disableAccount);
+      showPageAlert('Disable request sent. Check your email for confirmation.', 'success');
     }).catch((err) => {
       controls.disableAccountError.innerHTML = validationMessage('Unable to request disable', [err.message]);
       controls.disableAccountError.classList.remove('d-none');
@@ -735,6 +889,7 @@
     const value = (controls.deleteAccountConfirmInput?.value || '').trim();
     const ok = value.toUpperCase() === 'DELETE';
     if (controls.confirmDeleteAccountBtn) controls.confirmDeleteAccountBtn.disabled = !ok;
+    safeText(controls.deleteAccountHelp, ok ? 'Ready to send the deletion request.' : 'Type DELETE to enable the request.', 'deleteAccountHelp');
     return ok;
   }
 
@@ -749,8 +904,10 @@
       setButtonLoading(controls.confirmDeleteAccountBtn, true);
       setModalDisabled(modals.deleteAccount, true);
       await fetchJson('/users/me/request-account-deletion', { method: 'POST' });
-      alert('Deletion request sent. Check your email to confirm.');
       if (modalManager) await modalManager.hideModal(modals.deleteAccount);
+      if (controls.deleteAccountConfirmInput) controls.deleteAccountConfirmInput.value = '';
+      updateDeleteConfirmState();
+      showPageAlert('Deletion request sent. Check your email to confirm.', 'success');
     }).catch((err) => {
       controls.deleteAccountError.innerHTML = validationMessage('Unable to request deletion', [err.message]);
       controls.deleteAccountError.classList.remove('d-none');

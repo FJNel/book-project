@@ -12,11 +12,11 @@
     :root {
       --bp-surface: #fff;
       --bp-soft: #f8f9fb;
-      --bp-border: rgba(0, 0, 0, 0.07);
-      --bp-radius: 14px;
-      --bp-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+      --bp-border: rgba(0, 0, 0, 0.08);
+      --bp-radius: 12px;
+      --bp-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       --bp-muted: #6c757d;
-      --bp-focus: 0 0 0 0.15rem rgba(13, 110, 253, 0.35);
+      --bp-focus: 0 0 0 0.15rem rgba(13, 110, 253, 0.3);
     }
 
     .account-section { display: none; }
@@ -31,16 +31,16 @@
       font-weight: 600;
       color: #334155;
       background: var(--bp-surface);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
       transition: all 0.15s ease;
     }
     .stats-nav .nav-link:hover { color: #0d6efd; border-color: #0d6efd33; }
     .stats-nav .nav-link:focus-visible { outline: none; box-shadow: var(--bp-focus); }
     .stats-nav .nav-link.active {
-      background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-      border-color: transparent;
+      background: #0d6efd;
+      border-color: #0d6efd;
       color: #fff;
-      box-shadow: 0 12px 26px rgba(13, 110, 253, 0.26);
+      box-shadow: 0 10px 22px rgba(13, 110, 253, 0.2);
     }
     @media (max-width: 767.98px) {
       .stats-nav { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 0.25rem; }
@@ -167,6 +167,8 @@
         </div>
       </div>
 
+      <div id="pageAlert" class="mb-3"></div>
+
       <ul class="nav nav-pills flex-column flex-md-row gap-2 mb-4 stats-nav" id="accountSectionNav">
         <li class="nav-item"><button class="nav-link active" type="button" data-section="overview" aria-current="page">Overview</button></li>
         <li class="nav-item"><button class="nav-link" type="button" data-section="profile" aria-current="false">Profile</button></li>
@@ -242,11 +244,9 @@
                             <div class="text-muted small">Account details</div>
                             <h3 class="h5 mb-0">Profile</h3>
                           </div>
-                          <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" id="editProfileBtn" type="button">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
-                              <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293z"/>
-                              <path d="M13.752 4.396 11.604 2.248 4.939 8.913a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.518z"/>
-                              <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                          <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="editProfileBtn" type="button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                              <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                             </svg>
                             Edit profile
                           </button>
@@ -259,7 +259,6 @@
                           <div class="col-12 col-md-6">
                             <div class="detail-label">Preferred name</div>
                             <div class="detail-value" id="profilePreferred">—</div>
-                            <div class="text-muted small">Used for greetings.</div>
                           </div>
                           <div class="col-12 col-md-6">
                             <div class="detail-label">Full name</div>
@@ -277,6 +276,10 @@
                             <div class="detail-label">Updated</div>
                             <div class="detail-value small-text" id="profileUpdated">—</div>
                           </div>
+                          <div class="col-12 col-md-6">
+                            <div class="detail-label">Role</div>
+                            <div class="detail-value" id="profileRole">—</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -285,19 +288,18 @@
                   <section class="account-section" data-section-content="security">
                     <div class="row g-3 mb-3">
                       <div class="col-12 col-lg-6">
-                        <div class="card account-card danger-card shadow-sm h-100">
+                        <div class="card account-card shadow-sm h-100">
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <div class="text-muted small">Password</div>
                               <h3 class="h5 mb-1">Password</h3>
-                              <div class="text-muted small">Changing your password signs you out on other devices.</div>
+                              <div class="text-muted small">Change your password to keep your account secure. Changing it will sign you out on other devices.</div>
                               <div class="text-muted small" id="passwordInfo">Loading…</div>
+                              <div class="text-muted small" id="passwordLastChanged">Last changed: —</div>
                             </div>
-                            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="changePasswordBtn" type="button">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
-                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293z"/>
-                                <path d="M13.752 4.396 11.604 2.248 4.939 8.913a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.518z"/>
-                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2 mt-auto align-self-start" id="changePasswordBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                               </svg>
                               Change password
                             </button>
@@ -310,12 +312,12 @@
                             <div>
                               <div class="text-muted small">Email</div>
                               <h3 class="h5 mb-1">Email</h3>
-                              <div class="text-muted small">Request an email change; we will send a confirmation link to the new address.</div>
+                              <div class="text-muted small">Request an email change. We will email a confirmation link to the new address.</div>
+                              <div class="text-muted small" id="securityEmailCurrent">Current email: —</div>
                             </div>
-                            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" id="changeEmailBtn" type="button">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-arrow-down-fill" viewBox="0 0 16 16">
-                                <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zm.192 8.159 6.57-4.027L8 9.586l1.239-.757.367.225A4.49 4.49 0 0 0 8 12.5c0 .526.09 1.03.256 1.5H2a2 2 0 0 1-1.808-1.144M16 4.697v4.974A4.5 4.5 0 0 0 12.5 8a4.5 4.5 0 0 0-1.965.45l-.338-.207z"/>
-                                <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m.354-1.646a.5.5 0 0 1-.722-.016l-1.149-1.25a.5.5 0 1 1 .737-.676l.28.305V11a.5.5 0 0 1 1 0v1.793l.396-.397a.5.5 0 0 1 .708.708z"/>
+                            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2 mt-auto align-self-start" id="changeEmailBtn" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
                               </svg>
                               Request email change
                             </button>
@@ -330,7 +332,7 @@
                           <div>
                             <div class="text-muted small">Active sessions</div>
                             <h3 class="h5 mb-1">Devices & sessions</h3>
-                            <p class="text-muted small mb-0">Devices and sessions show where you’re currently signed in. Logging out of a session invalidates its refresh token.</p>
+                            <p class="text-muted small mb-0">Devices and sessions show where you’re signed in. Logging out will remove access on that device.</p>
                           </div>
                           <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" id="logoutAllBtn" type="button">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-slash-circle" viewBox="0 0 16 16">
@@ -367,7 +369,7 @@
                           <div class="card-body d-flex flex-column gap-2">
                             <div>
                               <h3 class="h5 mb-1 text-danger">Request account disable</h3>
-                              <p class="text-muted small mb-0">Temporarily disable your account. We’ll email you a confirmation link. Once confirmed, you’ll be signed out and won’t be able to log in until re-enabled by support.</p>
+                              <p class="text-muted small mb-0">Temporarily disable your account. We’ll email you a confirmation link. Once confirmed, you’ll be signed out everywhere and cannot log back in until support re-enables your account. To re-enable later, contact <a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a>.</p>
                             </div>
                             <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="disableAccountBtn" type="button">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-x-fill" viewBox="0 0 16 16">
@@ -403,13 +405,13 @@
                           <div>
                             <div class="text-muted small">Programmatic access</div>
                             <h3 class="h5 mb-1">API keys</h3>
-                            <p class="text-muted small mb-0">API keys allow programmatic access to your library via the API. Keep them secret and rotate regularly. See <a href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">API docs</a>.</p>
+                            <p class="text-muted small mb-0">API keys allow programmatic access to your library via the API. Only create keys if you know what you’re doing. Usage is monitored by the administrator and keys may be revoked to protect the Book Project. Keep them secret and rotate regularly. See <a href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">API docs</a>.</p>
                           </div>
                           <button class="btn btn-outline-primary js-create-api-key" id="createApiKeyBtn" type="button">Create API key</button>
                         </div>
                         <div class="empty-state d-none" id="apiKeysEmpty">
                           <div class="fw-semibold mb-1">No API keys yet</div>
-                          <p class="text-muted small mb-3">Create an API key to integrate The Book Project with other tools or scripts. You can revoke keys anytime.</p>
+                          <p class="text-muted small mb-3">Create an API key to integrate The Book Project with other tools or scripts. Only create keys if you need them; admins monitor usage and may revoke keys to protect the Book Project.</p>
                           <div class="d-flex flex-wrap gap-2">
                             <button class="btn btn-primary btn-sm js-create-api-key" type="button" data-create-api-key>Create API key</button>
                             <a class="btn btn-link btn-sm" href="https://api.fjnel.co.za/docs" target="_blank" rel="noreferrer">Read API docs</a>
@@ -484,15 +486,17 @@
           <div class="mb-3">
             <label class="form-label" for="currentPassword">Current password</label>
             <input class="form-control" id="currentPassword" type="password" autocomplete="current-password" />
+            <small class="form-text text-muted" id="currentPasswordHelp"></small>
           </div>
           <div class="mb-3">
             <label class="form-label" for="newPassword">New password</label>
             <input class="form-control" id="newPassword" type="password" autocomplete="new-password" />
+            <small class="form-text text-muted" id="newPasswordHelp"></small>
           </div>
           <div class="mb-0">
             <label class="form-label" for="confirmNewPassword">Confirm new password</label>
             <input class="form-control" id="confirmNewPassword" type="password" autocomplete="new-password" />
-            <small class="form-text text-muted" id="changePasswordHelp">Minimum 10 characters; must differ from current password.</small>
+            <small class="form-text text-muted" id="confirmNewPasswordHelp"></small>
           </div>
         </div>
         <div class="modal-footer">
@@ -517,7 +521,7 @@
           <div class="mb-0">
             <label class="form-label" for="newEmail">New email address</label>
             <input class="form-control" id="newEmail" type="email" autocomplete="email" />
-            <small class="form-text text-muted">We will send a confirmation email to the new address. This may sign you out of all devices once confirmed.</small>
+            <small class="form-text text-muted" id="changeEmailHelp">We will send a confirmation email to the new address. This may sign you out of all devices once confirmed.</small>
           </div>
         </div>
         <div class="modal-footer">
@@ -634,12 +638,13 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">We will email you a confirmation link. After you confirm, you will be signed out and the account will stay disabled until support re-enables it.</p>
+          <p class="mb-2">We will email you a confirmation link. After you confirm, you will be signed out everywhere and will not be able to log back in until support re-enables your account.</p>
+          <p class="text-muted small mb-3">Need to re-enable? Contact <a href="mailto:support@fjnel.co.za">support@fjnel.co.za</a>.</p>
           <div class="alert alert-danger d-none" id="disableAccountError"></div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer justify-content-start">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-warning" type="button" id="confirmDisableAccountBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send email</button>
+          <button class="btn btn-primary" type="button" id="confirmDisableAccountBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send email</button>
         </div>
       </div>
     </div>
@@ -657,9 +662,10 @@
           <p class="mb-2">We will email you a confirmation link. After you confirm, support will permanently delete your account and library data.</p>
           <p class="text-muted small mb-3">Type <strong>DELETE</strong> to continue.</p>
           <input class="form-control mb-2" id="deleteAccountConfirmInput" type="text" autocomplete="off" placeholder="Type DELETE to confirm" />
+          <small class="form-text text-muted" id="deleteAccountHelp">Type DELETE to enable the request.</small>
           <div class="alert alert-danger d-none" id="deleteAccountError"></div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer justify-content-start">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
           <button class="btn btn-danger" type="button" id="confirmDeleteAccountBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send request</button>
         </div>
