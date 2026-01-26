@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   email_pref_dev_features BOOLEAN NOT NULL DEFAULT FALSE,
   email_pref_created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   email_pref_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  theme_preference VARCHAR(16) NOT NULL DEFAULT 'device',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   password_updated TIMESTAMPTZ, -- Nullable; set whenever the user changes or sets a password

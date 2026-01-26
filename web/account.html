@@ -3,6 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <script>
+    (function () {
+      try {
+        const pref = localStorage.getItem('themePreference');
+        const resolved = (pref === 'light' || pref === 'dark')
+          ? pref
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', resolved);
+      } catch (e) {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+      }
+    })();
+  </script>
   <title>The Book Project - Account</title>
   <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
@@ -10,13 +23,8 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <style>
     :root {
-      --bp-surface: #fff;
-      --bp-soft: #f8f9fb;
-      --bp-border: rgba(0, 0, 0, 0.08);
       --bp-radius: 12px;
-      --bp-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       --bp-muted: #6c757d;
-      --bp-focus: 0 0 0 0.15rem rgba(13, 110, 253, 0.3);
     }
 
     .account-section { display: none; }
@@ -75,36 +83,14 @@
 
     .device-icon { width: 18px; height: 18px; margin-right: 6px; }
 
-    .danger-card { border: 1px solid rgba(220, 53, 69, 0.18); background: #fff5f5; }
+    .danger-card { border: 1px solid var(--bp-danger-border); background: var(--bp-danger-surface); }
     .danger-soft { color: #b42318; }
 
     .focus-ring:focus-visible { outline: none; box-shadow: var(--bp-focus); }
   </style>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
-    <div class="container">
-      <a class="navbar-brand fw-semibold" href="dashboard">The Book Project</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="mainNav">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item"><a class="nav-link" href="dashboard">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="books">Books</a></li>
-          <li class="nav-item"><a class="nav-link" href="publishers">Publishers</a></li>
-          <li class="nav-item"><a class="nav-link" href="authors">Authors</a></li>
-          <li class="nav-item"><a class="nav-link" href="series">Series</a></li>
-          <li class="nav-item"><a class="nav-link" href="storage-locations">Storage Locations</a></li>
-          <li class="nav-item"><a class="nav-link" href="statistics">Statistics</a></li>
-        </ul>
-        <div class="d-flex gap-2">
-          <button class="btn btn-outline-danger btn-sm js-logout-btn" type="button">Log out</button>
-        </div>
-      </div>
-    </div>
-  </nav>
+  <div id="navbarContainer"></div>
 
   <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
     <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
@@ -284,6 +270,29 @@
                             <div class="detail-value" id="profileRole">—</div>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                    <div class="card account-card shadow-sm">
+                      <div class="card-body">
+                        <div class="text-muted small">Appearance</div>
+                        <h3 class="h5 mb-2">Theme</h3>
+                        <p class="text-muted small">Choose how the interface looks. Device setting will follow your system appearance.</p>
+                        <div class="mb-3" style="max-width: 360px;">
+                          <label class="form-label" for="themePreferenceSelect">Theme</label>
+                          <select class="form-select" id="themePreferenceSelect">
+                            <option value="device">Use device setting</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                          </select>
+                          <div class="form-text text-muted" id="themePreferenceHelp">Applied immediately after saving.</div>
+                        </div>
+                        <div class="small text-muted" id="themePreferenceChanges">No changes yet.</div>
+                        <div class="d-flex gap-2 mt-3">
+                          <button class="btn btn-outline-secondary" type="button" id="themePreferenceResetBtn">Reset</button>
+                          <button class="btn btn-primary" type="button" id="themePreferenceSaveBtn" disabled>Save theme</button>
+                        </div>
+                        <div class="alert alert-danger d-none mt-3" id="themePreferenceError"></div>
+                        <div class="alert alert-success d-none mt-3" id="themePreferenceSuccess"></div>
                       </div>
                     </div>
                   </section>
@@ -833,6 +842,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
   <script src="assets/js/http-interceptor.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/navbar.js"></script>
   <script src="assets/js/maintenance.js"></script>
   <script src="assets/js/recaptcha-v3.js"></script>
   <script src="assets/js/account.js"></script>

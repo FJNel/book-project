@@ -23,7 +23,8 @@
     recycleItems: [],
     recycleSelection: new Set(),
     recycleActionTargets: [],
-    emailPreferences: null
+    emailPreferences: null,
+    themePreference: null
   };
 
   const elements = {
@@ -153,7 +154,14 @@
     recycleDeleteConfirmInput: document.getElementById('recycleDeleteConfirmInput'),
     recycleDeleteHelp: document.getElementById('recycleDeleteHelp'),
     recycleDeleteError: document.getElementById('recycleDeleteError'),
-    recycleDeleteConfirmBtn: document.getElementById('recycleDeleteConfirmBtn')
+    recycleDeleteConfirmBtn: document.getElementById('recycleDeleteConfirmBtn'),
+    themePreferenceSelect: document.getElementById('themePreferenceSelect'),
+    themePreferenceHelp: document.getElementById('themePreferenceHelp'),
+    themePreferenceChanges: document.getElementById('themePreferenceChanges'),
+    themePreferenceResetBtn: document.getElementById('themePreferenceResetBtn'),
+    themePreferenceSaveBtn: document.getElementById('themePreferenceSaveBtn'),
+    themePreferenceError: document.getElementById('themePreferenceError'),
+    themePreferenceSuccess: document.getElementById('themePreferenceSuccess')
   };
 
   const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -452,7 +460,10 @@
   function renderProfile(profile) {
     elements.welcomeName.textContent = profile.preferredName || profile.fullName || 'Your account';
     renderStatusChips(profile);
-
+    renderThemePreference(profile.themePreference || 'device');
+    if (window.themeManager) {
+      window.themeManager.setPreference(profile.themePreference || 'device', { persist: true });
+    }
     state.profileCompleteness = buildProfileCompleteness(profile);
     updateProfileScore(state.profileCompleteness);
 
@@ -651,6 +662,16 @@
     const data = await fetchJson('/users/me', { method: 'GET' });
     state.profile = data;
     renderProfile(data);
+    try {
+      const raw = localStorage.getItem('userProfile');
+      if (raw) {
+        const profile = JSON.parse(raw);
+        profile.themePreference = data.themePreference || 'device';
+        localStorage.setItem('userProfile', JSON.stringify(profile));
+      }
+    } catch (error) {
+      warn('Unable to sync theme preference to profile storage.', error);
+    }
     const passwordChanged = data.passwordUpdated ? formatDate(data.passwordUpdated) : null;
     safeText(elements.passwordInfo, data.passwordUpdated ? 'Use a strong password. Changing it will sign you out on other devices.' : 'No password set yet. Add one to secure your account.', 'passwordInfo');
     if (elements.passwordLastChanged) {
@@ -745,6 +766,94 @@
     if (controls.emailPrefAccountUpdates) controls.emailPrefAccountUpdates.checked = state.emailPreferences.accountUpdates;
     if (controls.emailPrefDevFeatures) controls.emailPrefDevFeatures.checked = state.emailPreferences.devFeatures;
     updateEmailPrefChanges();
+  }
+
+  const themeLabels = {
+    device: 'Use device setting',
+    light: 'Light',
+    dark: 'Dark'
+  };
+
+  function clearThemePrefAlerts() {
+    if (controls.themePreferenceError) controls.themePreferenceError.classList.add('d-none');
+    if (controls.themePreferenceSuccess) controls.themePreferenceSuccess.classList.add('d-none');
+  }
+
+  function setThemePrefAlert(element, message, type) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove('d-none');
+    element.classList.toggle('alert-danger', type === 'danger');
+    element.classList.toggle('alert-success', type === 'success');
+  }
+
+  function normalizeThemePreference(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized || normalized === 'system') return 'device';
+    if (normalized === 'light' || normalized === 'dark' || normalized === 'device') return normalized;
+    return 'device';
+  }
+
+  function getThemeLabel(value) {
+    return themeLabels[value] || themeLabels.device;
+  }
+
+  function collectThemePreference() {
+    return normalizeThemePreference(controls.themePreferenceSelect?.value || 'device');
+  }
+
+  function updateThemePreferenceChanges() {
+    if (!controls.themePreferenceChanges || !controls.themePreferenceSaveBtn) return;
+    const current = collectThemePreference();
+    const baseline = normalizeThemePreference(state.themePreference || current);
+    const changes = [];
+    if (current !== baseline) {
+      changes.push(`Changing theme from '${getThemeLabel(baseline)}' to '${getThemeLabel(current)}'.`);
+    }
+    controls.themePreferenceChanges.textContent = changes.length ? changes.join(' ') : 'No changes yet.';
+    controls.themePreferenceSaveBtn.disabled = changes.length === 0;
+  }
+
+  function renderThemePreference(value) {
+    const normalized = normalizeThemePreference(value);
+    state.themePreference = normalized;
+    if (controls.themePreferenceSelect) controls.themePreferenceSelect.value = normalized;
+    updateThemePreferenceChanges();
+  }
+
+  async function saveThemePreference() {
+    clearThemePrefAlerts();
+    const current = collectThemePreference();
+    try {
+      const data = await fetchJson('/users/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themePreference: current })
+      });
+      renderThemePreference(data.themePreference || current);
+      if (window.themeManager) {
+        window.themeManager.setPreference(current, { persist: true });
+      }
+      try {
+        const raw = localStorage.getItem('userProfile');
+        if (raw) {
+          const profile = JSON.parse(raw);
+          profile.themePreference = current;
+          localStorage.setItem('userProfile', JSON.stringify(profile));
+        }
+      } catch (error) {
+        warn('Unable to persist theme preference to profile storage.', error);
+      }
+      setThemePrefAlert(controls.themePreferenceSuccess, 'Theme updated.', 'success');
+    } catch (error) {
+      setThemePrefAlert(controls.themePreferenceError, error.message || 'Unable to update theme.', 'danger');
+    }
+  }
+
+  function resetThemePreference() {
+    if (!state.themePreference) return;
+    if (controls.themePreferenceSelect) controls.themePreferenceSelect.value = normalizeThemePreference(state.themePreference);
+    updateThemePreferenceChanges();
   }
 
   async function loadStats() {
@@ -1510,6 +1619,16 @@
       resetEmailPreferences();
     });
     controls.emailPrefSaveBtn?.addEventListener('click', saveEmailPreferences);
+
+    controls.themePreferenceSelect?.addEventListener('change', () => {
+      clearThemePrefAlerts();
+      updateThemePreferenceChanges();
+    });
+    controls.themePreferenceResetBtn?.addEventListener('click', () => {
+      clearThemePrefAlerts();
+      resetThemePreference();
+    });
+    controls.themePreferenceSaveBtn?.addEventListener('click', saveThemePreference);
 
     elements.sessionsTable?.addEventListener('click', (event) => {
       const btn = event.target.closest('.js-revoke-session');

@@ -302,8 +302,13 @@ document.addEventListener('DOMContentLoaded', () => {
             email: data.data.user.email,
             fullName: data.data.user.fullName,
             preferredName: data.data.user.preferredName,
-            role: data.data.user.role
+            role: data.data.user.role,
+            themePreference: data.data.user.themePreference || 'device'
         }));
+
+        if (window.themeManager) {
+            window.themeManager.setPreference(data.data.user.themePreference || 'device', { persist: true });
+        }
 
         // Remove action/returnTo from URL so nothing re-opens the login modal later
         try {

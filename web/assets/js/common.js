@@ -53,6 +53,78 @@ function clearApiAlert(alertEl) {
 window.renderApiErrorAlert = renderApiErrorAlert;
 window.clearApiAlert = clearApiAlert;
 
+const THEME_STORAGE_KEY = 'themePreference';
+const THEME_VALUES = new Set(['device', 'light', 'dark']);
+
+function normalizeThemePreference(value) {
+	if (!value) return 'device';
+	const normalized = String(value).trim().toLowerCase();
+	if (normalized === 'system') return 'device';
+	return THEME_VALUES.has(normalized) ? normalized : 'device';
+}
+
+function resolveSystemTheme() {
+	try {
+		return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+	} catch (error) {
+		return 'light';
+	}
+}
+
+function applyTheme(preference) {
+	const normalized = normalizeThemePreference(preference);
+	const resolved = normalized === 'device' ? resolveSystemTheme() : normalized;
+	document.documentElement.setAttribute('data-bs-theme', resolved);
+	return { preference: normalized, resolved };
+}
+
+function setThemePreference(preference, { persist = true } = {}) {
+	const normalized = normalizeThemePreference(preference);
+	if (persist) {
+		try {
+			localStorage.setItem(THEME_STORAGE_KEY, normalized);
+		} catch (error) {
+			console.warn('[Theme] Unable to persist preference.', error);
+		}
+	}
+	return applyTheme(normalized);
+}
+
+function getStoredThemePreference() {
+	try {
+		return normalizeThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
+	} catch (error) {
+		return 'device';
+	}
+}
+
+function watchSystemThemeChanges() {
+	if (!window.matchMedia) return;
+	const media = window.matchMedia('(prefers-color-scheme: dark)');
+	const handler = () => {
+		const pref = getStoredThemePreference();
+		if (pref === 'device') {
+			applyTheme(pref);
+		}
+	};
+	try {
+		media.addEventListener('change', handler);
+	} catch (error) {
+		media.addListener(handler);
+	}
+}
+
+window.themeManager = {
+	getPreference: getStoredThemePreference,
+	setPreference: setThemePreference,
+	apply: applyTheme
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+	applyTheme(getStoredThemePreference());
+	watchSystemThemeChanges();
+});
+
 window.modalLock = window.modalLock || {};
 window.modalLock.registry = window.modalLock.registry || {};
 window.modalLock.watchdogTimeoutMs = window.modalLock.watchdogTimeoutMs || 25000;
@@ -774,6 +846,8 @@ function attachLogoutHandlers() {
 		allBtn.addEventListener('click', () => runLogout(true));
 	}
 }
+
+window.attachLogoutHandlers = attachLogoutHandlers;
 
 document.addEventListener('DOMContentLoaded', attachLogoutHandlers);
 

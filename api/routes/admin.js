@@ -545,7 +545,14 @@ const EMAIL_TYPE_HANDLERS = {
 	admin_email_unverified: async (payload) => email.sendAdminEmailUnverifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
 	admin_email_verified: async (payload) => email.sendAdminEmailVerifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
 	admin_account_setup: async (payload) => email.sendAdminAccountSetupEmail(payload.toEmail, payload.preferredName, payload.verificationToken, payload.resetToken, payload.verificationExpiresIn, payload.resetExpiresIn),
-	dev_features_announcement: async (payload) => email.sendDevelopmentFeaturesEmail(payload.toEmail, payload.preferredName, payload.subject, payload.markdownBody)
+	dev_features_announcement: async (payload) => email.sendDevelopmentFeaturesEmail(payload.toEmail, payload.preferredName, payload.subject, payload.markdownBody),
+	api_key_created: async (payload) => email.sendApiKeyCreatedEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix, payload.expiresAt),
+	api_key_revoked: async (payload) => email.sendApiKeyRevokedEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix),
+	api_key_ban_applied: async (payload) => email.sendApiKeyBanAppliedEmail(payload.toEmail, payload.preferredName, payload.reason),
+	api_key_ban_removed: async (payload) => email.sendApiKeyBanRemovedEmail(payload.toEmail, payload.preferredName),
+	usage_warning_api_key: async (payload) => email.sendApiKeyUsageWarningEmail(payload.toEmail, payload.preferredName, payload.score, payload.threshold, payload.windowStart, payload.windowEnd),
+	api_key_expiring: async (payload) => email.sendApiKeyExpiringEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix, payload.expiresAt),
+	api_key_expired: async (payload) => email.sendApiKeyExpiredEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix)
 };
 
 function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInMinutes, context = {}, fallbackIp = null) {
@@ -609,6 +616,49 @@ function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInM
 				preferredName,
 				subject: context.subject || "The Book Project update",
 				markdownBody: context.markdownBody || ""
+			};
+		case "api_key_created":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				keyName: context.keyName || "Primary key",
+				keyPrefix: context.keyPrefix || "bk_1234",
+				expiresAt: context.expiresAt || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+			};
+		case "api_key_revoked":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				keyName: context.keyName || "Primary key",
+				keyPrefix: context.keyPrefix || "bk_1234"
+			};
+		case "api_key_ban_applied":
+			return { toEmail: normalizedEmail, preferredName, reason };
+		case "api_key_ban_removed":
+			return { toEmail: normalizedEmail, preferredName };
+		case "usage_warning_api_key":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				score: context.score || 250,
+				threshold: context.threshold || 200,
+				windowStart: context.windowStart || new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+				windowEnd: context.windowEnd || new Date().toISOString()
+			};
+		case "api_key_expiring":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				keyName: context.keyName || "Primary key",
+				keyPrefix: context.keyPrefix || "bk_1234",
+				expiresAt: context.expiresAt || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+			};
+		case "api_key_expired":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				keyName: context.keyName || "Primary key",
+				keyPrefix: context.keyPrefix || "bk_1234"
 			};
 		default:
 			return null;

@@ -108,6 +108,7 @@
     devEmailSubjectHelp: document.getElementById('devEmailSubjectHelp'),
     devEmailBody: document.getElementById('devEmailBody'),
     devEmailBodyHelp: document.getElementById('devEmailBodyHelp'),
+    devEmailPreview: document.getElementById('devEmailPreview'),
     devEmailTestRecipient: document.getElementById('devEmailTestRecipient'),
     devEmailTestHelp: document.getElementById('devEmailTestHelp'),
     devEmailTestBtn: document.getElementById('devEmailTestBtn'),
@@ -2554,6 +2555,23 @@
     }
   }
 
+  function renderMarkdownToHtml(markdown = '') {
+    const escaped = escapeHtml(markdown || '');
+    const bolded = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    const italicized = bolded.replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g, '$1<em>$2</em>');
+    const paragraphs = italicized
+      .split(/\n\n+/)
+      .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+    return paragraphs || '<p>&nbsp;</p>';
+  }
+
+  function updateDevEmailPreview(body) {
+    if (!dom.devEmailPreview) return;
+    const html = renderMarkdownToHtml(body || '');
+    dom.devEmailPreview.innerHTML = html;
+  }
+
   function handleEmailSendTest() {
     const validation = validateEmailTestForm();
     if (!validation.valid) return;
@@ -2607,6 +2625,7 @@
     const recipientOk = !recipientError && !!recipient;
     if (dom.devEmailTestBtn) dom.devEmailTestBtn.disabled = !validBase || !recipientOk;
     if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase;
+    updateDevEmailPreview(body);
     return { valid: validBase && (!requireRecipient || recipientOk), subject, body, recipient };
   }
 

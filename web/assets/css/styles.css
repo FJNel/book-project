@@ -1,3 +1,23 @@
+ :root {
+  --bp-surface: #ffffff;
+  --bp-soft: #f8f9fb;
+  --bp-border: rgba(0, 0, 0, 0.08);
+  --bp-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  --bp-focus: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  --bp-danger-surface: #fff5f5;
+  --bp-danger-border: rgba(220, 53, 69, 0.18);
+}
+
+[data-bs-theme="dark"] {
+  --bp-surface: #1b1f24;
+  --bp-soft: #15191e;
+  --bp-border: rgba(255, 255, 255, 0.1);
+  --bp-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  --bp-focus: 0 0 0 0.25rem rgba(13, 110, 253, 0.35);
+  --bp-danger-surface: #2a1c1f;
+  --bp-danger-border: rgba(220, 53, 69, 0.35);
+}
+
 html, body {
   height: 100% !important;
 }
@@ -32,6 +52,24 @@ html, body {
 .attention-hint {
   color: #d97706;
   font-weight: 700;
+}
+
+.markdown-preview {
+  min-height: 180px;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+  overflow: auto;
+}
+
+.markdown-preview p {
+  margin: 0 0 0.75rem;
+}
+
+.markdown-preview p:last-child {
+  margin-bottom: 0;
 }
 
 .pulse-add {

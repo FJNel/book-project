@@ -37,6 +37,8 @@ const ACTION_LIMITS = {
 	passwordChange: { limit: 2, label: "password changes" }
 };
 
+const THEME_PREFERENCES = new Set(["device", "light", "dark"]);
+
 router.use((req, res, next) => {
 	logToFile("USERS_REQUEST", {
 		user_id: req.user ? req.user.id : null,
@@ -107,6 +109,13 @@ function applyDailyActionLimit(metadata, actionKey) {
 		},
 		remaining: config.limit - nextCount
 	};
+}
+
+function parseThemePreference(value) {
+	if (value === undefined || value === null || value === "") return null;
+	let normalized = String(value).trim().toLowerCase();
+	if (normalized === "system") normalized = "device";
+	return THEME_PREFERENCES.has(normalized) ? normalized : null;
 }
 
 function summarizeUserAgent(userAgent) {
@@ -282,6 +291,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 				u.email,
 				u.full_name,
 				u.preferred_name,
+				u.theme_preference,
 				u.role,
 				u.is_verified,
 				u.password_updated,
@@ -310,6 +320,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			email: result.rows[0].email,
 			fullName: result.rows[0].full_name,
 			preferredName: result.rows[0].preferred_name,
+			themePreference: result.rows[0].theme_preference || "device",
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
 			passwordUpdated: result.rows[0].password_updated,
@@ -408,7 +419,10 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	// Get the user ID from the authenticated request
 	const userId = req.user.id;
 	// Extract fields to update from the request body
-	const { fullName, preferredName } = req.body;
+	const fullName = req.body?.fullName ?? req.query?.fullName;
+	const preferredName = req.body?.preferredName ?? req.query?.preferredName;
+	const rawThemePreference = req.body?.themePreference ?? req.body?.theme ?? req.query?.themePreference ?? req.query?.theme;
+	const themePreference = parseThemePreference(rawThemePreference);
 
 	// Validation
 	const errors = [];
@@ -417,6 +431,9 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 	if (preferredName !== undefined) {
 		errors.push(...validatePreferredName(preferredName));
+	}
+	if (rawThemePreference !== undefined && themePreference === null) {
+		errors.push("themePreference must be one of: device, light, dark.");
 	}
 
 	// If validation errors exist, log and return them
@@ -438,6 +455,10 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		updateFields.push(`preferred_name = $${paramIndex++}`);
 		queryParams.push(preferredName);
 	}
+	if (themePreference !== null) {
+		updateFields.push(`theme_preference = $${paramIndex++}`);
+		queryParams.push(themePreference);
+	}
 
 	if (updateFields.length === 0) {
 		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
@@ -448,7 +469,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		UPDATE users
 		SET ${updateFields.join(", ")}, updated_at = NOW()
 		WHERE id = $1 AND is_disabled = false
-		RETURNING id, email, full_name, preferred_name, role, is_verified, password_updated, last_login, created_at, updated_at;
+		RETURNING id, email, full_name, preferred_name, theme_preference, role, is_verified, password_updated, last_login, created_at, updated_at;
 	`;
 
 	try {
@@ -466,6 +487,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 			email: result.rows[0].email,
 			fullName: result.rows[0].full_name,
 			preferredName: result.rows[0].preferred_name,
+			themePreference: result.rows[0].theme_preference || "device",
 			role: result.rows[0].role,
 			isVerified: result.rows[0].is_verified,
 			passwordUpdated: result.rows[0].password_updated,

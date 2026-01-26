@@ -1381,6 +1381,7 @@ paths:
                       email: jane@example.com
                       fullName: Jane Doe
                       preferredName: Jane
+                      themePreference: device
                       role: user
                       isVerified: true
                       isDisabled: false
@@ -1397,7 +1398,7 @@ paths:
       tags: [Users]
       summary: Update my profile
       operationId: updateMyProfile
-      description: Update fullName and/or preferredName.
+      description: Update fullName, preferredName, and/or themePreference.
       x-rateLimit:
         limit: 60
         window: minute
@@ -1413,6 +1414,10 @@ paths:
                 value:
                   fullName: Jane Q. Doe
                   preferredName: Jan
+              updateTheme:
+                summary: Update theme preference
+                value:
+                  themePreference: dark
       responses:
         '200':
           description: Updated
@@ -1432,6 +1437,7 @@ paths:
                       email: jane@example.com
                       fullName: Jane Q. Doe
                       preferredName: Jan
+                      themePreference: dark
                       role: user
                       isVerified: true
                       isDisabled: false
@@ -8832,6 +8838,10 @@ components:
         isDisabled:
           description: Soft-delete/disabled flag; disabled users cannot authenticate.
           type: boolean
+        themePreference:
+          description: Theme preference for the user interface.
+          type: string
+          enum: [device, light, dark]
         passwordUpdated:
           description: Timestamp of last password change; null for OAuth-only accounts.
           type:
@@ -8998,6 +9008,10 @@ components:
           type:
             - string
             - "null"
+        themePreference:
+          description: Theme preference for the user interface.
+          type: string
+          enum: [device, light, dark]
     ChangePasswordRequest:
       description: Change password for the authenticated user.
       type: object
