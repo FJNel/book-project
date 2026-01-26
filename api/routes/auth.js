@@ -525,7 +525,31 @@ router.post("/login", loginLimiter, async (req, res) => {
 						}
 
 						if (user.is_verified) {
-								passwordMatch = await bcrypt.compare(password, user.password_hash);
+								if (!user.password_hash) {
+									logToFile("LOGIN_ATTEMPT", {
+										status: "FAILURE",
+										reason: "MISSING_PASSWORD_HASH",
+										user_id: user.id,
+										email,
+										ip: req.ip,
+										user_agent: req.get("user-agent")
+									}, "warn");
+									return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect"]);
+								}
+								try {
+									passwordMatch = await bcrypt.compare(password, user.password_hash);
+								} catch (compareError) {
+									logToFile("LOGIN_ATTEMPT", {
+										status: "FAILURE",
+										reason: "PASSWORD_COMPARE_FAILED",
+										error_message: compareError.message,
+										user_id: user.id,
+										email,
+										ip: req.ip,
+										user_agent: req.get("user-agent")
+									}, "error");
+									return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect"]);
+								}
 						}
 				} else {
 						// Hash a dummy password to mitigate timing attacks
