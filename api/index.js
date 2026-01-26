@@ -156,7 +156,10 @@ app.use((err, req, res, next) => {
 	// Optionally also log unhandled errors to file
 	logToFile("UNHANDLED_ERROR", {
 		message: err.message,
-		stack: process.env.NODE_ENV === "production" ? undefined : err.stack
+		stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
+		method: req.method,
+		path: req.originalUrl || req.url,
+		correlation_id: req.correlationId || null
 	}, "error");
 
 	return errorResponse(res, 500, "Internal Server Error", [

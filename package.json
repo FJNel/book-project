@@ -1,5 +1,6 @@
 {
   "scripts": {
-    "test:dates": "node tests/partial-date-tests.js"
+    "test:dates": "node tests/partial-date-tests.js",
+    "check:endpoints": "node scripts/endpoint-check.js"
   }
 }

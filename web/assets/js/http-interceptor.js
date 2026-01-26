@@ -293,7 +293,30 @@ async function apiFetch(path, options = {}) {
 
 	//If the error is not 401, just return the error response
 	if (response.status !== 401) {
-		console.warn('[HTTP Interceptor] The response is an error but not 401. Passing it back to caller. Status:', response.status, 'Message:', response.message);
+		let parsedMessage = null;
+		let parsedErrors = null;
+		try {
+			const cloned = response.clone();
+			const contentType = cloned.headers.get('content-type') || '';
+			if (contentType.includes('application/json')) {
+				const payload = await cloned.json();
+				parsedMessage = payload?.message || null;
+				parsedErrors = Array.isArray(payload?.errors) ? payload.errors : null;
+				response._errorPayload = payload;
+			} else {
+				const text = await cloned.text();
+				parsedMessage = text ? text.slice(0, 240) : null;
+			}
+		} catch (error) {
+			parsedMessage = null;
+		}
+		const correlationId = response.headers.get('x-correlation-id') || null;
+		console.warn('[HTTP Interceptor] The response is an error but not 401. Passing it back to caller.', {
+			status: response.status,
+			message: parsedMessage,
+			errors: parsedErrors,
+			correlationId
+		});
 		return response;
 	}
 

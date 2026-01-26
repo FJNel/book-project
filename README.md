@@ -169,6 +169,11 @@ DB_USER=book_project_user
 DB_PASSWORD=supersecret
 DB_NAME=book_project
 
+# Optional: use a single connection string (preferred in production)
+# DATABASE_URL=postgresql://user:password@host:5432/book_project
+# DB_SSL=true
+# DB_SSL_REJECT_UNAUTHORIZED=false
+
 # JWT
 JWT_SECRET=change-me-access
 JWT_REFRESH_SECRET=change-me-refresh

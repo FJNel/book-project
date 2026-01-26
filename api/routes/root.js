@@ -69,16 +69,34 @@ router.get("/", (req, res) => {
 }); // router.get("/")
 
 // GET /health - Basic health check
-router.get("/health", (req, res) => {
-	logToFile("HEALTH_CHECK", {
-		status: "SUCCESS",
-		ip: req.ip,
-		user_agent: req.get("user-agent")
-	}, "info");
-	return successResponse(res, 200, "OK", {
-		status: "ok",
-		timestamp: new Date().toISOString()
-	});
+router.get("/health", async (req, res) => {
+	try {
+		const dbStart = Date.now();
+		await pool.query("SELECT 1");
+		const dbLatencyMs = Date.now() - dbStart;
+		logToFile("HEALTH_CHECK", {
+			status: "SUCCESS",
+			db_latency_ms: dbLatencyMs,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+		return successResponse(res, 200, "OK", {
+			status: "ok",
+			timestamp: new Date().toISOString(),
+			db: {
+				healthy: true,
+				latencyMs: dbLatencyMs
+			}
+		});
+	} catch (error) {
+		logToFile("HEALTH_CHECK", {
+			status: "FAILURE",
+			error_message: error.message,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Database connectivity failed."]);
+	}
 });
 
 // GET /status - Admin status check (db + email queue)

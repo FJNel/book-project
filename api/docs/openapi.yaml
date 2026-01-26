@@ -21,7 +21,7 @@ security:
   - apiKeyAuthHeader: []
 tags:
   - name: Meta
-    description: Service metadata and health endpoints.
+    description: Health check including database connectivity.
   - name: Auth
     description: Registration, login, tokens, and account security flows.
   - name: Users
@@ -49,7 +49,7 @@ tags:
   - name: Search
     description: Cross-entity search endpoints.
   - name: ImportExport
-    description: Import/export utilities.
+    description: Import/export flows for backup and restore.
   - name: Logs
     description: Audit and HTTP logs.
   - name: Timeline
@@ -102,7 +102,7 @@ paths:
       tags: [Meta]
       summary: Health check
       operationId: getHealth
-      description: Simple uptime monitor endpoint.
+      description: Health check including database connectivity.
       security: []
       responses:
         '200':
@@ -121,6 +121,13 @@ paths:
                             type: string
                           timestamp:
                             type: string
+                          db:
+                            type: object
+                            properties:
+                              healthy:
+                                type: boolean
+                              latencyMs:
+                                type: number
               examples:
                 success:
                   value:
@@ -131,7 +138,12 @@ paths:
                     data:
                       status: ok
                       timestamp: 2026-01-02T15:59:12.921Z
+                      db:
+                        healthy: true
+                        latencyMs: 12
                     errors: []
+        '500':
+          $ref: '#/components/responses/ServerError'
         '429':
           $ref: '#/components/responses/RateLimit'
   /admin/stats/summary:
