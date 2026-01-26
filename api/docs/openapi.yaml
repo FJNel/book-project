@@ -2678,6 +2678,7 @@ paths:
     post:
       tags: [Authors]
       summary: Create author
+      description: Display names are unique among active authors only; deleted authors do not block creation.
       operationId: createAuthor
       x-rateLimit:
         limit: 60
@@ -2773,6 +2774,7 @@ paths:
     delete:
       tags: [Authors]
       summary: Delete author (by id or displayName)
+      description: Soft delete. If older deleted authors share the same displayName, they are removed permanently first.
       operationId: deleteAuthor
       x-rateLimit:
         limit: 60
@@ -2974,6 +2976,7 @@ paths:
     delete:
       tags: [Authors]
       summary: Delete author by id
+      description: Soft delete. If older deleted authors share the same displayName, they are removed permanently first.
       operationId: deleteAuthorById
       x-rateLimit:
         limit: 60
@@ -3543,6 +3546,7 @@ paths:
     post:
       tags: [Publishers]
       summary: Create publisher
+      description: Names are unique among active publishers only; deleted publishers do not block creation.
       operationId: createPublisher
       x-rateLimit:
         limit: 60
@@ -3628,6 +3632,7 @@ paths:
     delete:
       tags: [Publishers]
       summary: Delete publisher (by id or name)
+      description: Soft delete. If older deleted publishers share the same name, they are removed permanently first.
       operationId: deletePublisher
       x-rateLimit:
         limit: 60
@@ -3802,6 +3807,7 @@ paths:
     delete:
       tags: [Publishers]
       summary: Delete publisher by id
+      description: Soft delete. If older deleted publishers share the same name, they are removed permanently first.
       operationId: deletePublisherById
       x-rateLimit:
         limit: 60
@@ -4174,6 +4180,7 @@ paths:
     post:
       tags: [Series]
       summary: Create series
+      description: Names are unique among active series only; deleted series do not block creation.
       operationId: createSeries
       x-rateLimit:
         limit: 60
@@ -4251,6 +4258,7 @@ paths:
     delete:
       tags: [Series]
       summary: Delete series (by id or name)
+      description: Soft delete. If older deleted series share the same name, they are removed permanently first.
       operationId: deleteSeries
       x-rateLimit:
         limit: 60
@@ -4392,6 +4400,7 @@ paths:
     delete:
       tags: [Series]
       summary: Delete series by id
+      description: Soft delete. If older deleted series share the same name, they are removed permanently first.
       operationId: deleteSeriesById
       x-rateLimit:
         limit: 60
@@ -5210,7 +5219,7 @@ paths:
       tags: [Books]
       summary: Create book
       operationId: createBook
-      description: Create book with authors, languages, tags, series, and optional initial copy.
+      description: Create book with authors, languages, tags, series, and optional initial copy. ISBNs are unique among active books only; deleted books do not block creation.
       x-rateLimit:
         limit: 60
         window: minute
@@ -5324,7 +5333,7 @@ paths:
       tags: [Books]
       summary: Delete book (by id or title/isbn)
       operationId: deleteBook
-      description: Soft-delete a book.
+      description: Soft delete. If older deleted books share the same ISBN, they are removed permanently first.
       x-rateLimit:
         limit: 60
         window: minute
@@ -5453,6 +5462,7 @@ paths:
       tags: [Books]
       summary: Delete book by id
       operationId: deleteBookById
+      description: Soft delete. If older deleted books share the same ISBN, they are removed permanently first.
       x-rateLimit:
         limit: 60
         window: minute

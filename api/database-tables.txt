@@ -121,8 +121,7 @@ CREATE TABLE IF NOT EXISTS authors (
   bio            TEXT,
   deleted_at     TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, display_name)
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Partial unique indexes to allow re-creating names after soft deletes.
@@ -140,8 +139,7 @@ CREATE TABLE IF NOT EXISTS publishers (
   notes           TEXT,
   deleted_at      TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, name)
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS publishers_unique_active_name
@@ -167,8 +165,7 @@ CREATE TABLE IF NOT EXISTS book_series (
   website        VARCHAR(300),
   deleted_at     TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, name)
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS book_series_unique_active_name
@@ -225,8 +222,7 @@ CREATE TABLE IF NOT EXISTS books (
   publisher_id       INT REFERENCES publishers(id) ON DELETE SET NULL,
   deleted_at         TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, isbn)
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS books_unique_active_isbn

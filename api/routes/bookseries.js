@@ -780,7 +780,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const existing = await pool.query(
-			`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2)`,
+			`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND deleted_at IS NULL`,
 			[userId, name]
 		);
 		if (existing.rows.length > 0) {
@@ -1645,7 +1645,7 @@ async function handleSeriesUpdate(req, res, seriesId) {
 	try {
 		if (hasName) {
 			const existing = await pool.query(
-				`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
+				`SELECT id FROM book_series WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3 AND deleted_at IS NULL`,
 				[userId, name, seriesId]
 			);
 			if (existing.rows.length > 0) {
@@ -1760,32 +1760,52 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 async function handleSeriesDelete(req, res, seriesId) {
 	const userId = req.user.id;
+	const client = await pool.connect();
 	try {
-		const result = await pool.query(
+		await client.query("BEGIN");
+		const target = await client.query(
+			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			[userId, seriesId]
+		);
+		if (target.rowCount === 0) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
+		}
+		const name = target.rows[0].name;
+		const cleanup = await client.query(
+			`DELETE FROM book_series
+			 WHERE user_id = $1
+			   AND deleted_at IS NOT NULL
+			   AND LOWER(name) = LOWER($2)
+			   AND id <> $3
+			 RETURNING id`,
+			[userId, name, seriesId]
+		);
+		const result = await client.query(
 			`UPDATE book_series
 			 SET deleted_at = NOW()
 			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 			 RETURNING id, deleted_at`,
 			[userId, seriesId]
 		);
-
-		if (result.rowCount === 0) {
-			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-		}
+		await client.query("COMMIT");
 
 		logToFile("BOOK_SERIES_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
 			series_id: seriesId,
+			cleanup_count: cleanup.rowCount,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "Series moved to trash.", {
 			id: result.rows[0].id,
-			deletedAt: result.rows[0].deleted_at
+			deletedAt: result.rows[0].deleted_at,
+			removedDeletedDuplicates: cleanup.rowCount
 		});
 	} catch (error) {
+		await client.query("ROLLBACK");
 		logToFile("BOOK_SERIES_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -1794,6 +1814,8 @@ async function handleSeriesDelete(req, res, seriesId) {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the series."]);
+	} finally {
+		client.release();
 	}
 }
 

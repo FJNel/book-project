@@ -689,7 +689,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const existing = await pool.query(
-			`SELECT id FROM authors WHERE user_id = $1 AND LOWER(display_name) = LOWER($2)`,
+			`SELECT id FROM authors WHERE user_id = $1 AND LOWER(display_name) = LOWER($2) AND deleted_at IS NULL`,
 			[userId, displayName]
 		);
 		if (existing.rows.length > 0) {
@@ -1440,32 +1440,52 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 async function handleAuthorDelete(req, res, authorId) {
 	const userId = req.user.id;
+	const client = await pool.connect();
 	try {
-		const result = await pool.query(
+		await client.query("BEGIN");
+		const target = await client.query(
+			`SELECT id, display_name FROM authors WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			[userId, authorId]
+		);
+		if (target.rowCount === 0) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
+		}
+		const displayName = target.rows[0].display_name;
+		const cleanup = await client.query(
+			`DELETE FROM authors
+			 WHERE user_id = $1
+			   AND deleted_at IS NOT NULL
+			   AND LOWER(display_name) = LOWER($2)
+			   AND id <> $3
+			 RETURNING id`,
+			[userId, displayName, authorId]
+		);
+		const result = await client.query(
 			`UPDATE authors
 			 SET deleted_at = NOW()
 			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 			 RETURNING id, deleted_at`,
 			[userId, authorId]
 		);
-
-		if (result.rowCount === 0) {
-			return errorResponse(res, 404, "Author not found.", ["The requested author could not be located."]);
-		}
+		await client.query("COMMIT");
 
 		logToFile("AUTHOR_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
 			author_id: authorId,
+			cleanup_count: cleanup.rowCount,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "Author moved to trash.", {
 			id: result.rows[0].id,
-			deletedAt: result.rows[0].deleted_at
+			deletedAt: result.rows[0].deleted_at,
+			removedDeletedDuplicates: cleanup.rowCount
 		});
 	} catch (error) {
+		await client.query("ROLLBACK");
 		logToFile("AUTHOR_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -1474,6 +1494,8 @@ async function handleAuthorDelete(req, res, authorId) {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the author."]);
+	} finally {
+		client.release();
 	}
 }
 

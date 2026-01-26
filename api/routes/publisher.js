@@ -590,7 +590,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const existing = await pool.query(
-			`SELECT id FROM publishers WHERE user_id = $1 AND LOWER(name) = LOWER($2)`,
+			`SELECT id FROM publishers WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND deleted_at IS NULL`,
 			[userId, name]
 		);
 		if (existing.rows.length > 0) {
@@ -1067,7 +1067,7 @@ async function handlePublisherUpdate(req, res, publisherId) {
 	try {
 		if (hasName) {
 			const existing = await pool.query(
-				`SELECT id FROM publishers WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
+				`SELECT id FROM publishers WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3 AND deleted_at IS NULL`,
 				[userId, name, publisherId]
 			);
 			if (existing.rows.length > 0) {
@@ -1190,32 +1190,52 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 async function handlePublisherDelete(req, res, publisherId) {
 	const userId = req.user.id;
+	const client = await pool.connect();
 	try {
-		const result = await pool.query(
+		await client.query("BEGIN");
+		const target = await client.query(
+			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			[userId, publisherId]
+		);
+		if (target.rowCount === 0) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
+		}
+		const name = target.rows[0].name;
+		const cleanup = await client.query(
+			`DELETE FROM publishers
+			 WHERE user_id = $1
+			   AND deleted_at IS NOT NULL
+			   AND LOWER(name) = LOWER($2)
+			   AND id <> $3
+			 RETURNING id`,
+			[userId, name, publisherId]
+		);
+		const result = await client.query(
 			`UPDATE publishers
 			 SET deleted_at = NOW()
 			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 			 RETURNING id, deleted_at`,
 			[userId, publisherId]
 		);
-
-		if (result.rowCount === 0) {
-			return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
-		}
+		await client.query("COMMIT");
 
 		logToFile("PUBLISHER_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
 			publisher_id: publisherId,
+			cleanup_count: cleanup.rowCount,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "Publisher moved to trash.", {
 			id: result.rows[0].id,
-			deletedAt: result.rows[0].deleted_at
+			deletedAt: result.rows[0].deleted_at,
+			removedDeletedDuplicates: cleanup.rowCount
 		});
 	} catch (error) {
+		await client.query("ROLLBACK");
 		logToFile("PUBLISHER_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -1224,6 +1244,8 @@ async function handlePublisherDelete(req, res, publisherId) {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the publisher."]);
+	} finally {
+		client.release();
 	}
 }
 

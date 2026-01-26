@@ -2038,32 +2038,56 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 async function handleBookDelete(req, res, bookId) {
 	const userId = req.user.id;
-
+	const client = await pool.connect();
 	try {
-		const result = await pool.query(
+		await client.query("BEGIN");
+		const target = await client.query(
+			`SELECT id, isbn FROM books WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			[userId, bookId]
+		);
+		if (target.rowCount === 0) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+		}
+		const isbn = target.rows[0].isbn;
+		let cleanupCount = 0;
+		if (isbn) {
+			const cleanup = await client.query(
+				`DELETE FROM books
+				 WHERE user_id = $1
+				   AND deleted_at IS NOT NULL
+				   AND isbn = $2
+				   AND id <> $3
+				 RETURNING id`,
+				[userId, isbn, bookId]
+			);
+			cleanupCount = cleanup.rowCount;
+		}
+		const result = await client.query(
 			`UPDATE books
 			 SET deleted_at = NOW()
 			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
 			 RETURNING id, deleted_at`,
 			[userId, bookId]
 		);
-		if (result.rowCount === 0) {
-			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
-		}
+		await client.query("COMMIT");
 
 		logToFile("BOOK_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
 			book_id: bookId,
+			cleanup_count: cleanupCount,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "Book moved to trash.", {
 			id: result.rows[0].id,
-			deletedAt: result.rows[0].deleted_at
+			deletedAt: result.rows[0].deleted_at,
+			removedDeletedDuplicates: cleanupCount
 		});
 	} catch (error) {
+		await client.query("ROLLBACK");
 		logToFile("BOOK_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -2072,6 +2096,8 @@ async function handleBookDelete(req, res, bookId) {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the book."]);
+	} finally {
+		client.release();
 	}
 }
 
