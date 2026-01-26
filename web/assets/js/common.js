@@ -205,6 +205,52 @@ window.modalLock.withLock = async function withLock({ modal, action, lock, unloc
 	}
 };
 
+window.modalStack = window.modalStack || (function createModalStack() {
+	const stack = [];
+
+	const resolveElement = (modalId) => (typeof modalId === 'string' ? document.getElementById(modalId) : modalId);
+
+	const show = async (modalId, options) => {
+		if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+			await window.modalManager.showModal(modalId, options);
+			return;
+		}
+		const element = resolveElement(modalId);
+		if (!element) return;
+		bootstrap.Modal.getOrCreateInstance(element, options || {}).show();
+	};
+
+	const hide = async (modalId) => {
+		if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
+			await window.modalManager.hideModal(modalId);
+			return;
+		}
+		const element = resolveElement(modalId);
+		if (!element) return;
+		const instance = bootstrap.Modal.getInstance(element);
+		if (instance) instance.hide();
+	};
+
+	const push = async (parentModalId, childModalId, options) => {
+		if (!parentModalId || !childModalId) return;
+		console.log('[ModalStack] push', { parentModalId, childModalId });
+		stack.push({ parentModalId, childModalId });
+		await hide(parentModalId);
+		await show(childModalId, options || { backdrop: 'static', keyboard: false });
+	};
+
+	const pop = async (childModalId) => {
+		if (!stack.length) return;
+		const top = stack[stack.length - 1];
+		if (childModalId && top.childModalId !== childModalId) return;
+		stack.pop();
+		console.log('[ModalStack] pop', { parentModalId: top.parentModalId, childModalId: top.childModalId });
+		await show(top.parentModalId, { backdrop: 'static', keyboard: false });
+	};
+
+	return { push, pop };
+})();
+
 window.authGuard = window.authGuard || {};
 window.authGuard.waitForMaintenance = async function waitForMaintenance() {
 	const maintenancePromise = window.maintenanceModalPromise;
