@@ -132,6 +132,51 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const extractAuthorNames = (book) => {
+    if (!book) return [];
+    if (Array.isArray(book.authors)) {
+      return book.authors
+        .map((author) => author?.authorName || author?.displayName || author?.name || author?.fullName || author)
+        .filter(Boolean);
+    }
+    if (Array.isArray(book.authorNames)) return book.authorNames.filter(Boolean);
+    if (typeof book.authorName === 'string') return [book.authorName];
+    if (typeof book.author === 'string') return [book.author];
+    return [];
+  };
+
+  const isSmallScreen = () => window.matchMedia('(max-width: 767.98px)').matches;
+
+  const cleanupBackdrops = () => {
+    const backdrops = Array.from(document.querySelectorAll('.offcanvas-backdrop, .modal-backdrop'));
+    const hasOffcanvas = Boolean(document.querySelector('.offcanvas.show'));
+    const hasModal = Boolean(document.querySelector('.modal.show'));
+    let removed = 0;
+    backdrops.forEach((backdrop) => {
+      if (!hasOffcanvas && !hasModal) {
+        backdrop.remove();
+        removed += 1;
+      }
+    });
+    log(`Backdrop cleanup complete (count=${removed})`);
+  };
+
+  const syncDetailsPanel = (openPanel) => {
+    if (!dom.detailsOffcanvas) {
+      cleanupBackdrops();
+      return;
+    }
+    const instance = bootstrap.Offcanvas.getInstance(dom.detailsOffcanvas);
+    if (openPanel && isSmallScreen()) {
+      if (!dom.detailsOffcanvas.classList.contains('show')) {
+        bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas).show();
+      }
+      return;
+    }
+    if (instance) instance.hide();
+    cleanupBackdrops();
+  };
+
   const placeholderCover = (title) => {
     const text = encodeURIComponent(title || 'Book Cover');
     return `https://placehold.co/120x180?text=${text}&font=Lora`;
@@ -424,70 +469,47 @@
     dom.booksPaginationInfo.textContent = `${start} to ${end} of ${total}`;
 
     books.forEach((book) => {
-      const coverUrl = book.cover_url || book.coverImageUrl || placeholderCover(book.title);
-      const authors = Array.isArray(book.authors)
-        ? book.authors.map((author) => {
-          if (typeof author === 'string') return author;
-          return author?.name || author?.fullName || author?.displayName || null;
-        }).filter(Boolean)
+      const coverUrl = book.coverImageUrl || book.cover_url || placeholderCover(book.title);
+      const publication = formatPartialDate(book.publicationDate || book.published_date) || '';
+      const bookType = book.bookTypeName || book.bookType?.name || '';
+      const languageNames = Array.isArray(book.languages) && book.languages.length > 0
+        ? book.languages.map((lang) => lang?.name || lang).filter(Boolean)
         : [];
-      const publicationDate = book.publicationDate || book.published_date || null;
-      const pubDateText = formatPartialDate(publicationDate) || '';
-      const publisherName = typeof book.publisher === 'string' ? book.publisher : (book.publisher?.name || '');
-      const bookTypeName = typeof book.bookType === 'string'
-        ? book.bookType
-        : (book.bookType?.name || book.book_type_name || '');
-      const languages = Array.isArray(book.languages)
-        ? book.languages.map((lang) => (typeof lang === 'string' ? lang : (lang?.name || lang?.language || null))).filter(Boolean)
-        : [];
-      const tags = Array.isArray(book.tags)
-        ? book.tags.map((tag) => (typeof tag === 'string' ? tag : (tag?.name || tag?.label || null))).filter(Boolean)
-        : [];
+      const languageLabel = languageNames.slice(0, 2).join(', ') + (languageNames.length > 2 ? `, +${languageNames.length - 2} more` : '');
+      const authorNames = extractAuthorNames(book);
+      const authorsText = authorNames.length
+        ? authorNames.slice(0, 2).join(', ') + (authorNames.length > 2 ? `, +${authorNames.length - 2} more` : '')
+        : '';
+      const authorsTitle = authorNames.length > 2 ? ` title="${escapeHtml(authorNames.join(', '))}"` : '';
+      const tags = Array.isArray(book.tags) ? book.tags : [];
+      const visibleTags = tags.slice(0, 3);
+      const remainingTags = Math.max(tags.length - visibleTags.length, 0);
 
-      const tr = document.createElement('tr');
+      const row = document.createElement('tr');
+      row.className = 'clickable-row';
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('a, button, [data-no-row-nav]')) return;
+        window.location.href = `book-details?id=${book.id}`;
+      });
 
-      const coverTd = document.createElement('td');
-      coverTd.className = 'align-middle text-center';
-      coverTd.style.width = '70px';
-      coverTd.innerHTML = `
-        <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(book.title)}" class="img-thumbnail" style="max-width:64px;" loading="lazy" />
+      row.innerHTML = `
+        <td class="list-col-book">
+          <div class="d-flex align-items-center gap-3">
+            <img class="cover-thumb rounded border" alt="Cover" src="${escapeHtml(coverUrl)}" onerror="this.onerror=null;this.src='${placeholderCover(book.title)}';" />
+            <div style="min-width: 220px;">
+              <div class="fw-semibold meta-line">${escapeHtml(book.title || 'Untitled')}</div>
+              <div class="text-muted small meta-line ${authorsText ? '' : 'd-none'}">by ${escapeHtml(authorsText)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="list-col-authors"${authorsTitle}>${escapeHtml(authorsText)}</td>
+        <td class="list-col-type">${escapeHtml(bookType)}</td>
+        <td class="list-col-language">${escapeHtml(languageLabel)}</td>
+        <td class="list-col-published">${escapeHtml(publication)}</td>
+        <td class="list-col-tags">${visibleTags.map((tag) => `<span class=\"badge rounded-pill text-bg-light text-dark border\">${escapeHtml(tag?.name || tag)}</span>`).join(' ')}${remainingTags > 0 ? ` <span class=\"badge rounded-pill text-bg-light text-dark border\">+${remainingTags}</span>` : ''}</td>
       `;
 
-      const titleTd = document.createElement('td');
-      titleTd.className = 'align-middle';
-      titleTd.innerHTML = `
-        <a href="/book-details.html?id=${book.id}" class="fw-semibold text-decoration-none">${escapeHtml(book.title)}</a>
-        <div class="small text-muted">${authors.join(', ') || 'Unknown author'}</div>
-      `;
-
-      const typeTd = document.createElement('td');
-      typeTd.className = 'align-middle list-col-type';
-      typeTd.textContent = bookTypeName || '—';
-
-      const langTd = document.createElement('td');
-      langTd.className = 'align-middle list-col-language';
-      langTd.textContent = languages.join(', ') || '—';
-
-      const pubTd = document.createElement('td');
-      pubTd.className = 'align-middle list-col-published';
-      pubTd.innerHTML = `
-        <div>${pubDateText}</div>
-        <div class="small text-muted">${escapeHtml(publisherName || '')}</div>
-      `;
-
-      const tagsTd = document.createElement('td');
-      tagsTd.className = 'align-middle list-col-tags';
-      tagsTd.innerHTML = `
-        <div class="small text-muted">${tags.map((tag) => `<span class=\"badge bg-light text-dark border me-1 mb-1\">${escapeHtml(tag)}</span>`).join('') || '<span class="text-muted">None</span>'}</div>
-      `;
-
-      tr.appendChild(coverTd);
-      tr.appendChild(titleTd);
-      tr.appendChild(typeTd);
-      tr.appendChild(langTd);
-      tr.appendChild(pubTd);
-      tr.appendChild(tagsTd);
-      dom.booksTableBody.appendChild(tr);
+      dom.booksTableBody.appendChild(row);
     });
 
     const totalPages = Math.max(1, Math.ceil(total / (result.data.limit || 10)));
@@ -558,8 +580,8 @@
     dom.booksTotalStat.textContent = Number.isFinite(loc.booksTotalCount) ? loc.booksTotalCount : '0';
     dom.childrenCountStat.textContent = Number.isFinite(loc.childrenCount) ? loc.childrenCount : '0';
 
-    const createdText = formatTimestamp(loc.created_at);
-    const updatedText = formatTimestamp(loc.updated_at);
+    const createdText = formatTimestamp(loc.createdAt || loc.created_at);
+    const updatedText = formatTimestamp(loc.updatedAt || loc.updated_at);
     if (dom.locationTimestampLine) {
       dom.locationTimestampLine.textContent = createdText || updatedText
         ? `Created ${createdText || '-'} | Updated ${updatedText || '-'}`
@@ -610,7 +632,16 @@
       renderTree();
       if (state.selectedId) {
         const selected = state.locations.find((loc) => loc.id === state.selectedId);
-        if (selected) renderDetails(selected);
+        if (selected) {
+          setSelectedLocation(selected.id);
+          syncDetailsPanel(true);
+        } else {
+          state.selectedId = null;
+          updateUrl();
+          if (dom.detailsEmptyState) dom.detailsEmptyState.textContent = 'Selected location not found.';
+          renderDetails(null);
+          updateHeaderActions(null);
+        }
       }
       dom.treeContainer?.classList.remove('opacity-50');
     } catch (err) {
@@ -689,17 +720,21 @@
     const selected = state.locations.find((loc) => loc.id === locationId);
     renderDetails(selected || null);
     updateHeaderActions(selected || null);
+    renderTree();
     if (selected) fetchBooksForLocation(locationId);
   };
 
   const selectLocation = async (locationId, { openPanel } = {}) => {
     if (!locationId) return;
-    if (state.selectedId === locationId) {
-      if (openPanel && dom.detailsOffcanvas) bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas).show();
-      return;
+    log(`Selecting location ${locationId}`);
+    if (state.selectedId !== locationId) {
+      setSelectedLocation(locationId);
     }
-    setSelectedLocation(locationId);
-    if (openPanel && dom.detailsOffcanvas) bootstrap.Offcanvas.getOrCreateInstance(dom.detailsOffcanvas).show();
+    if (openPanel) {
+      syncDetailsPanel(true);
+    } else {
+      cleanupBackdrops();
+    }
   };
 
   const populateMoveOptions = (excludeId = null) => {
@@ -1062,6 +1097,11 @@
     hydrateStateFromUrl();
     refreshBooksControls();
     wireEvents();
+    if (dom.detailsOffcanvas) {
+      dom.detailsOffcanvas.addEventListener('hidden.bs.offcanvas', () => {
+        cleanupBackdrops();
+      });
+    }
     fetchLocations();
   };
 

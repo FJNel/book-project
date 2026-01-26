@@ -306,9 +306,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (emptyState) emptyState.classList.add('d-none');
-    bookRecords = books;
+    const sortedBooks = [...books].sort((a, b) => {
+      const orderA = getSeriesOrder(a);
+      const orderB = getSeriesOrder(b);
+      const missingA = orderA === null || orderA === undefined;
+      const missingB = orderB === null || orderB === undefined;
+      if (missingA && missingB) {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      if (missingA) return 1;
+      if (missingB) return -1;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.title || '').localeCompare(b.title || '');
+    });
 
-    books.forEach((book) => {
+    bookRecords = sortedBooks;
+
+    sortedBooks.forEach((book) => {
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       const cover = book.coverImageUrl || placeholderCover(book.title);

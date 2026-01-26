@@ -246,6 +246,7 @@
       chip.querySelector('button').addEventListener('click', (event) => {
         event.stopPropagation();
         onRemove();
+        renderActiveFilters();
       });
       chips.push(chip);
     };
