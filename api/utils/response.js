@@ -59,7 +59,7 @@ function successResponse(res, httpCode = 200, message = "Success", data = {}) {
 // 		"Specific error message 2."
 //   	]
 // }
-function errorResponse(res, httpCode = 500, message = "An error occurred", errors = []) {
+function errorResponse(res, httpCode = 500, message = "An error occurred", errors = [], data = {}) {
 	if (!Array.isArray(errors)) {
 		errors = [errors];
 	}
@@ -79,7 +79,7 @@ function errorResponse(res, httpCode = 500, message = "An error occurred", error
 		httpCode,
 		responseTime: getResponseTime(res.req),
 		message: normalizeMessage(message),
-		data: {},
+		data: data && typeof data === "object" ? data : {},
 		errors: resolvedErrors
 	});
 } // errorResponse

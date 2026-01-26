@@ -171,8 +171,8 @@ DB_NAME=book_project
 
 # Optional: use a single connection string (preferred in production)
 # DATABASE_URL=postgresql://user:password@host:5432/book_project
-# DB_SSL=true
-# DB_SSL_REJECT_UNAUTHORIZED=false
+# DB_SSL_MODE=disable|require|allow-self-signed|verify-ca|verify-full
+# DB_SSL_CA="-----BEGIN CERTIFICATE-----..."
 
 # JWT
 JWT_SECRET=change-me-access

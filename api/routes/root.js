@@ -95,7 +95,12 @@ router.get("/health", async (req, res) => {
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
-		return errorResponse(res, 500, "Database Error", ["Database connectivity failed."]);
+		return errorResponse(res, 500, "Database Error", ["Database connectivity failed."], {
+			db: {
+				healthy: false,
+				sslMode: process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable")
+			}
+		});
 	}
 });
 

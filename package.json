@@ -1,6 +1,7 @@
 {
   "scripts": {
     "test:dates": "node tests/partial-date-tests.js",
-    "check:endpoints": "node scripts/endpoint-check.js"
+    "check:endpoints": "node scripts/endpoint-check.js",
+    "check:db-ssl": "node scripts/pg-ssl-mode-check.js"
   }
 }
