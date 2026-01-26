@@ -174,6 +174,7 @@
 
     <ul class="nav nav-pills flex-row gap-2 mb-4 stats-nav" id="adminSectionNav">
       <li class="nav-item"><button class="nav-link active" type="button" data-section="overview">Overview</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="site-stats">Site statistics</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="users">Users</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="languages">Languages</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="emails">Emails</button></li>
@@ -241,6 +242,58 @@
                   <p class="text-muted mb-2 small">Maintain the shared language list for the library.</p>
                   <a class="btn btn-outline-primary btn-sm" href="#languagesSection">Manage Languages</a>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4 admin-section d-none" id="siteStatsSection" data-section-content="site-stats">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+          <h2 class="h4 mb-1">Site statistics</h2>
+          <p class="text-muted mb-0">Snapshot across all users.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshSiteStatsBtn">Refresh</button>
+      </div>
+      <div id="siteStatsAlert" class="alert alert-danger d-none" role="alert"></div>
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Users</h6>
+              <div class="d-flex flex-column gap-2">
+                <div><span class="muted-label">Total</span><div class="fw-semibold" id="siteUsersTotal">—</div></div>
+                <div><span class="muted-label">Verified</span><div class="fw-semibold" id="siteUsersVerified">—</div></div>
+                <div><span class="muted-label">Disabled</span><div class="fw-semibold" id="siteUsersDisabled">—</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Books</h6>
+              <div class="d-flex flex-column gap-2">
+                <div><span class="muted-label">Total</span><div class="fw-semibold" id="siteBooksTotal">—</div></div>
+                <div><span class="muted-label">Active</span><div class="fw-semibold" id="siteBooksActive">—</div></div>
+                <div><span class="muted-label">Removed</span><div class="fw-semibold" id="siteBooksDeleted">—</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Library</h6>
+              <div class="d-flex flex-column gap-2">
+                <div><span class="muted-label">Authors</span><div class="fw-semibold" id="siteAuthorsTotal">—</div></div>
+                <div><span class="muted-label">Publishers</span><div class="fw-semibold" id="sitePublishersTotal">—</div></div>
+                <div><span class="muted-label">Series</span><div class="fw-semibold" id="siteSeriesTotal">—</div></div>
+                <div><span class="muted-label">Book types</span><div class="fw-semibold" id="siteBookTypesTotal">—</div></div>
+                <div><span class="muted-label">Tags</span><div class="fw-semibold" id="siteTagsTotal">—</div></div>
+                <div><span class="muted-label">Storage locations</span><div class="fw-semibold" id="siteStorageTotal">—</div></div>
               </div>
             </div>
           </div>
@@ -393,6 +446,42 @@
                 <button class="btn btn-outline-secondary" type="button" id="emailResetBtn">Clear</button>
                 <button class="btn btn-primary" type="button" id="emailSendTestBtn" disabled>Send test email</button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin-card mt-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+              <p class="mb-1 text-uppercase text-muted small fw-semibold">Development updates</p>
+              <h3 class="h6 mb-0">Send features announcement</h3>
+            </div>
+            <span class="badge text-bg-secondary" id="devEmailStatus">Draft</span>
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label" for="devEmailSubject">Subject</label>
+              <input class="form-control" type="text" id="devEmailSubject" maxlength="160" placeholder="What’s new in The Book Project" />
+              <div class="form-text text-danger" id="devEmailSubjectHelp"></div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="devEmailBody">Markdown body</label>
+              <textarea class="form-control" id="devEmailBody" rows="6" placeholder="## Release notes\n- New features...\n" ></textarea>
+              <div class="form-text text-danger" id="devEmailBodyHelp"></div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <label class="form-label" for="devEmailTestRecipient">Send test to</label>
+              <input class="form-control" type="email" id="devEmailTestRecipient" placeholder="admin@example.com" />
+              <div class="form-text text-danger" id="devEmailTestHelp"></div>
+            </div>
+            <div class="col-12 col-lg-6 d-flex align-items-end gap-2">
+              <button class="btn btn-outline-secondary" type="button" id="devEmailTestBtn">Send test</button>
+              <button class="btn btn-primary" type="button" id="devEmailSendBtn">Send to opted-in users</button>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted" id="devEmailSummary">No sends yet.</div>
             </div>
           </div>
         </div>

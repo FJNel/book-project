@@ -12,6 +12,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { enqueueEmail } = require("../utils/email-queue");
 const email = require("../utils/email");
+const {
+	canSendEmailForUser,
+	getUserEmailPreferences,
+	preferenceSummary,
+	getEmailCategoryForType
+} = require("../utils/email-preferences");
 const config = require("../config");
 const pool = require("../db");
 
@@ -49,10 +55,77 @@ function logAdminRequest(req, res, next) {
 // Middleware to ensure the user is an authenticated admin
 const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"]), logAdminRequest];
 
+// GET /admin/stats/summary - Site-wide statistics
+router.get("/stats/summary", adminAuth, async (req, res) => {
+	try {
+		const [
+			usersTotal,
+			usersVerified,
+			usersDisabled,
+			booksTotal,
+			booksActive,
+			booksDeleted,
+			authorsActive,
+			publishersActive,
+			seriesActive,
+			bookTypesTotal,
+			tagsActive,
+			storageLocationsActive
+		] = await Promise.all([
+			pool.query("SELECT COUNT(*)::int AS count FROM users"),
+			pool.query("SELECT COUNT(*)::int AS count FROM users WHERE is_verified = TRUE"),
+			pool.query("SELECT COUNT(*)::int AS count FROM users WHERE is_disabled = TRUE"),
+			pool.query("SELECT COUNT(*)::int AS count FROM books"),
+			pool.query("SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NOT NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM authors WHERE deleted_at IS NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM publishers WHERE deleted_at IS NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM book_series WHERE deleted_at IS NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM book_types"),
+			pool.query("SELECT COUNT(*)::int AS count FROM tags WHERE deleted_at IS NULL"),
+			pool.query("SELECT COUNT(*)::int AS count FROM storage_locations WHERE deleted_at IS NULL")
+		]);
+
+		return successResponse(res, 200, "Site statistics retrieved successfully.", {
+			stats: {
+				users: {
+					total: usersTotal.rows[0]?.count ?? 0,
+					verified: usersVerified.rows[0]?.count ?? 0,
+					disabled: usersDisabled.rows[0]?.count ?? 0
+				},
+				books: {
+					total: booksTotal.rows[0]?.count ?? 0,
+					active: booksActive.rows[0]?.count ?? 0,
+					deleted: booksDeleted.rows[0]?.count ?? 0
+				},
+				library: {
+					authors: authorsActive.rows[0]?.count ?? 0,
+					publishers: publishersActive.rows[0]?.count ?? 0,
+					series: seriesActive.rows[0]?.count ?? 0,
+					bookTypes: bookTypesTotal.rows[0]?.count ?? 0,
+					tags: tagsActive.rows[0]?.count ?? 0,
+					storageLocations: storageLocationsActive.rows[0]?.count ?? 0
+				}
+			}
+		});
+	} catch (error) {
+		logToFile("ADMIN_STATS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve site statistics at this time."]);
+	}
+});
+
 const MAX_LANGUAGE_NAME_LENGTH = 100;
 const MAX_LIST_LIMIT = 200;
 const MAX_REASON_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 255;
+const MAX_EMAIL_SUBJECT_LENGTH = 160;
+const MAX_EMAIL_BODY_LENGTH = 8000;
 const VALID_ROLES = new Set(["user", "admin"]);
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 const TOKEN_EMAIL_TYPES = new Set([
@@ -148,7 +221,8 @@ const EMAIL_TYPE_HANDLERS = {
 	admin_account_enabled: async (payload) => email.sendAdminAccountEnabledEmail(payload.toEmail, payload.preferredName),
 	admin_email_unverified: async (payload) => email.sendAdminEmailUnverifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
 	admin_email_verified: async (payload) => email.sendAdminEmailVerifiedEmail(payload.toEmail, payload.preferredName, payload.reason),
-	admin_account_setup: async (payload) => email.sendAdminAccountSetupEmail(payload.toEmail, payload.preferredName, payload.verificationToken, payload.resetToken, payload.verificationExpiresIn, payload.resetExpiresIn)
+	admin_account_setup: async (payload) => email.sendAdminAccountSetupEmail(payload.toEmail, payload.preferredName, payload.verificationToken, payload.resetToken, payload.verificationExpiresIn, payload.resetExpiresIn),
+	dev_features_announcement: async (payload) => email.sendDevelopmentFeaturesEmail(payload.toEmail, payload.preferredName, payload.subject, payload.markdownBody)
 };
 
 function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInMinutes, context = {}, fallbackIp = null) {
@@ -206,6 +280,13 @@ function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInM
 				verificationExpiresIn: expiresInMinutes,
 				resetExpiresIn: expiresInMinutes
 			};
+		case "dev_features_announcement":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				subject: context.subject || "The Book Project update",
+				markdownBody: context.markdownBody || ""
+			};
 		default:
 			return null;
 	}
@@ -231,6 +312,23 @@ function validateReason(reason) {
 	if (reason.trim().length > MAX_REASON_LENGTH) {
 		errors.push(`Reason must be ${MAX_REASON_LENGTH} characters or fewer.`);
 	}
+	return errors;
+}
+
+function validateDevEmailPayload(subject, markdownBody) {
+	const errors = [];
+	if (!subject || typeof subject !== "string" || !subject.trim()) {
+		errors.push("subject is required.");
+	} else if (subject.trim().length > MAX_EMAIL_SUBJECT_LENGTH) {
+		errors.push(`subject must be ${MAX_EMAIL_SUBJECT_LENGTH} characters or fewer.`);
+	}
+
+	if (!markdownBody || typeof markdownBody !== "string" || !markdownBody.trim()) {
+		errors.push("markdownBody is required.");
+	} else if (markdownBody.trim().length > MAX_EMAIL_BODY_LENGTH) {
+		errors.push(`markdownBody must be ${MAX_EMAIL_BODY_LENGTH} characters or fewer.`);
+	}
+
 	return errors;
 }
 
@@ -1629,6 +1727,73 @@ router.post("/users/send-verification", [...adminAuth, emailCostLimiter], async 
 	return handleSendVerification(req, res, resolved.id);
 });
 
+// GET /admin/users/:id/email-preferences - View email preferences for a user
+router.get("/users/:id/email-preferences", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+
+	try {
+		const preferences = await getUserEmailPreferences(targetId);
+		if (!preferences) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		return successResponse(res, 200, "Email preferences retrieved successfully.", {
+			userId: targetId,
+			preferences: preferenceSummary(preferences)
+		});
+	} catch (error) {
+		logToFile("ADMIN_EMAIL_PREFERENCES_GET", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve email preferences at this time."]);
+	}
+});
+
+// POST /admin/users/:id/email-preferences/check - Check if an email will send
+router.post("/users/:id/email-preferences/check", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	const emailType = typeof req.body?.emailType === "string" ? req.body.emailType.trim() : "";
+	if (!emailType) {
+		return errorResponse(res, 400, "Validation Error", ["emailType is required."]);
+	}
+
+	try {
+		const preferences = await getUserEmailPreferences(targetId);
+		if (!preferences) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		const result = await canSendEmailForUser({ userId: targetId, emailType });
+		return successResponse(res, 200, "Email preference check complete.", {
+			userId: targetId,
+			emailType,
+			category: getEmailCategoryForType(emailType),
+			canSend: result.canSend,
+			reason: result.reason,
+			preferences: preferenceSummary(preferences)
+		});
+	} catch (error) {
+		logToFile("ADMIN_EMAIL_PREFERENCES_CHECK", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to validate email preferences at this time."]);
+	}
+});
+
 router.get("/emails/types", adminAuth, async (req, res) => {
 	const types = Object.keys(EMAIL_TYPE_HANDLERS);
 	logToFile("ADMIN_EMAIL_TYPES", {
@@ -1708,6 +1873,331 @@ router.post("/emails/send-test", [...adminAuth, emailCostLimiter], async (req, r
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
+	}
+});
+
+// POST /admin/emails/dev-features/test - Send a development/features test email
+router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async (req, res) => {
+	const adminId = req.user.id;
+	const toEmail = normalizeEmail(req.body?.toEmail);
+	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
+
+	const errors = [...validateEmail(toEmail), ...validateDevEmailPayload(subject, markdownBody)];
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	try {
+		const userResult = await pool.query(
+			`SELECT id, preferred_name, email_pref_dev_features
+			 FROM users
+			 WHERE LOWER(email) = LOWER($1)` ,
+			[toEmail]
+		);
+
+		const targetUser = userResult.rows[0] || null;
+		let preference = { canSend: true, reason: "No preference restrictions found." };
+		if (targetUser) {
+			preference = await canSendEmailForUser({ userId: targetUser.id, emailType: "dev_features_announcement" });
+		}
+
+		if (!preference.canSend) {
+			return successResponse(res, 200, "Test email skipped by preferences.", {
+				willSend: false,
+				reason: preference.reason,
+				toEmail
+			});
+		}
+
+		enqueueEmail({
+			type: "dev_features_announcement",
+			userId: targetUser?.id ?? null,
+			params: {
+				toEmail,
+				preferredName: targetUser?.preferred_name || "",
+				subject,
+				markdownBody
+			},
+			context: { source: "admin_dev_features_test", adminId }
+		});
+
+		logToFile("ADMIN_DEV_FEATURES_TEST", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			to_email: toEmail,
+			user_id: targetUser?.id ?? null,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Test email queued.", {
+			willSend: true,
+			toEmail
+		});
+	} catch (error) {
+		logToFile("ADMIN_DEV_FEATURES_TEST", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			to_email: toEmail,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
+	}
+});
+
+// POST /admin/emails/dev-features/send - Send development/features email to opted-in users
+router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async (req, res) => {
+	const adminId = req.user.id;
+	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
+	const errors = validateDevEmailPayload(subject, markdownBody);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	try {
+		const result = await pool.query(
+			`SELECT id, email, preferred_name
+			 FROM users
+			 WHERE is_disabled = FALSE
+			   AND email_pref_dev_features = TRUE
+			   AND email IS NOT NULL`
+		);
+
+		const recipients = result.rows || [];
+		recipients.forEach((row) => {
+			enqueueEmail({
+				type: "dev_features_announcement",
+				userId: row.id,
+				params: {
+					toEmail: row.email,
+					preferredName: row.preferred_name || "",
+					subject,
+					markdownBody
+				},
+				context: { source: "admin_dev_features_send", adminId }
+			});
+		});
+
+		logToFile("ADMIN_DEV_FEATURES_SEND", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			queued_count: recipients.length,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Development updates queued.", {
+			queued: recipients.length
+		});
+	} catch (error) {
+		logToFile("ADMIN_DEV_FEATURES_SEND", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Email service error", ["Unable to send development updates."]);
+	}
+});
+
+// POST /admin/users/:id/library/books/list - Read-only list of a user's books
+router.post("/users/:id/library/books/list", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+
+	const listParams = { ...(req.body || {}) };
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) || false;
+
+	const errors = [];
+	const sortFields = {
+		title: "b.title",
+		createdAt: "b.created_at",
+		updatedAt: "b.updated_at"
+	};
+	const sortBy = normalizeText(listParams.sort) || "title";
+	const sortColumn = sortFields[sortBy];
+	if (!sortColumn) {
+		errors.push("sort must be one of: title, createdAt, updatedAt.");
+	}
+	const order = parseSortOrder(listParams.order) || "asc";
+	const { value: limit, error: limitError } = parseOptionalInt(listParams.limit, "limit", { min: 1, max: MAX_LIST_LIMIT });
+	if (limitError) errors.push(limitError);
+	const { value: page, error: pageError } = parseOptionalInt(listParams.page, "page", { min: 1 });
+	if (pageError) errors.push(pageError);
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const search = normalizeText(listParams.search);
+	const offset = page && limit ? Math.max(0, (page - 1) * limit) : 0;
+
+	try {
+		const values = [targetId];
+		let index = 2;
+		let query = `
+			SELECT b.id, b.title, b.subtitle, b.created_at, b.updated_at, b.deleted_at,
+			       bt.name AS book_type_name,
+			       p.name AS publisher_name
+			FROM books b
+			LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+			LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+			WHERE b.user_id = $1`;
+
+		if (!includeDeleted) {
+			query += ` AND b.deleted_at IS NULL`;
+		}
+		if (search) {
+			query += ` AND (b.title ILIKE $${index} OR b.subtitle ILIKE $${index})`;
+			values.push(`%${search}%`);
+			index += 1;
+		}
+
+		query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+		if (limit) {
+			query += ` LIMIT $${index++}`;
+			values.push(limit);
+		}
+		if (offset) {
+			query += ` OFFSET $${index++}`;
+			values.push(offset);
+		}
+
+		const result = await pool.query(query, values);
+
+		logToFile("ADMIN_LIBRARY_VIEW", {
+			status: "SUCCESS",
+			admin_id: req.user.id,
+			user_id: targetId,
+			action: "list",
+			resource: "books",
+			count: result.rows.length,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Books retrieved successfully.", {
+			books: result.rows.map((row) => ({
+				id: row.id,
+				title: row.title,
+				subtitle: row.subtitle,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at,
+				deletedAt: row.deleted_at,
+				bookTypeName: row.book_type_name,
+				publisherName: row.publisher_name
+			}))
+		});
+	} catch (error) {
+		logToFile("ADMIN_LIBRARY_VIEW", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			action: "list",
+			resource: "books",
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve books at this time."]);
+	}
+});
+
+// POST /admin/users/:id/library/books/get - Read-only book details
+router.post("/users/:id/library/books/get", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	const bookId = parseId(req.body?.id ?? req.query?.id);
+	if (!Number.isInteger(targetId) || !Number.isInteger(bookId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id and book id must be valid integers."]);
+	}
+
+	try {
+		const bookResult = await pool.query(
+			`SELECT b.id, b.title, b.subtitle, b.description, b.isbn, b.page_count,
+			        b.publish_year, b.created_at, b.updated_at, b.deleted_at,
+			        bt.id AS book_type_id, bt.name AS book_type_name,
+			        p.id AS publisher_id, p.name AS publisher_name,
+			        sl.id AS storage_location_id, sl.name AS storage_location_name
+			 FROM books b
+			 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+			 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
+			 LEFT JOIN storage_locations sl ON sl.id = b.storage_location_id AND sl.user_id = b.user_id
+			 WHERE b.user_id = $1 AND b.id = $2`,
+			[targetId, bookId]
+		);
+		if (bookResult.rows.length === 0) {
+			return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+		}
+
+		const authorResult = await pool.query(
+			`SELECT a.id, a.display_name
+			 FROM book_authors ba
+			 JOIN authors a ON a.id = ba.author_id
+			 WHERE ba.book_id = $1 AND a.user_id = $2
+			 ORDER BY ba.sort_order ASC, a.display_name ASC`,
+			[bookId, targetId]
+		);
+
+		const tagResult = await pool.query(
+			`SELECT t.id, t.name
+			 FROM book_tags bt
+			 JOIN tags t ON t.id = bt.tag_id
+			 WHERE bt.book_id = $1 AND t.user_id = $2
+			 ORDER BY t.name ASC`,
+			[bookId, targetId]
+		);
+
+		const row = bookResult.rows[0];
+		const payload = {
+			id: row.id,
+			title: row.title,
+			subtitle: row.subtitle,
+			description: row.description,
+			isbn: row.isbn,
+			pageCount: row.page_count,
+			publishYear: row.publish_year,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at,
+			bookType: row.book_type_id ? { id: row.book_type_id, name: row.book_type_name } : null,
+			publisher: row.publisher_id ? { id: row.publisher_id, name: row.publisher_name } : null,
+			storageLocation: row.storage_location_id ? { id: row.storage_location_id, name: row.storage_location_name } : null,
+			authors: authorResult.rows.map((author) => ({ id: author.id, name: author.display_name })),
+			tags: tagResult.rows.map((tag) => ({ id: tag.id, name: tag.name }))
+		};
+
+		logToFile("ADMIN_LIBRARY_VIEW", {
+			status: "SUCCESS",
+			admin_id: req.user.id,
+			user_id: targetId,
+			action: "detail",
+			resource: "books",
+			resource_id: bookId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Book retrieved successfully.", { book: payload });
+	} catch (error) {
+		logToFile("ADMIN_LIBRARY_VIEW", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			action: "detail",
+			resource: "books",
+			resource_id: bookId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book details at this time."]);
 	}
 });
 

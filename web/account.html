@@ -174,6 +174,7 @@
         <li class="nav-item"><button class="nav-link active" type="button" data-section="overview" aria-current="page">Overview</button></li>
         <li class="nav-item"><button class="nav-link" type="button" data-section="profile" aria-current="false">Profile</button></li>
         <li class="nav-item"><button class="nav-link" type="button" data-section="security" aria-current="false">Security</button></li>
+        <li class="nav-item"><button class="nav-link" type="button" data-section="email-preferences" aria-current="false">Email preferences</button></li>
         <li class="nav-item"><button class="nav-link" type="button" data-section="recycle" aria-current="false">Recycle bin</button></li>
         <li class="nav-item"><button class="nav-link" type="button" data-section="danger" aria-current="false">Danger zone</button></li>
       </ul>
@@ -360,6 +361,42 @@
                             </tbody>
                           </table>
                         </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="account-section" data-section-content="email-preferences">
+                    <div class="card account-card shadow-sm">
+                      <div class="card-body">
+                        <div class="text-muted small">Notifications</div>
+                        <h3 class="h5 mb-2">Email preferences</h3>
+                        <p class="text-muted small">Choose which non-essential emails you would like to receive.</p>
+
+                        <div class="form-check mb-3">
+                          <input class="form-check-input" type="checkbox" id="emailPrefEssential" checked disabled>
+                          <label class="form-check-label" for="emailPrefEssential">Essential account emails (required)</label>
+                          <div class="form-text text-muted">Security and access emails are always sent.</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                          <input class="form-check-input" type="checkbox" id="emailPrefAccountUpdates">
+                          <label class="form-check-label" for="emailPrefAccountUpdates">Account updates</label>
+                          <div class="form-text text-muted" id="emailPrefAccountHelp">Updates about changes to your account.</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                          <input class="form-check-input" type="checkbox" id="emailPrefDevFeatures">
+                          <label class="form-check-label" for="emailPrefDevFeatures">Development and features</label>
+                          <div class="form-text text-muted" id="emailPrefDevHelp">Optional updates about new features and notes.</div>
+                        </div>
+
+                        <div class="small text-muted" id="emailPrefChanges">No changes yet.</div>
+                        <div class="d-flex gap-2 mt-3">
+                          <button class="btn btn-outline-secondary" type="button" id="emailPrefResetBtn">Reset</button>
+                          <button class="btn btn-primary" type="button" id="emailPrefSaveBtn" disabled>Save preferences</button>
+                        </div>
+                        <div class="alert alert-danger d-none mt-3" id="emailPrefError"></div>
+                        <div class="alert alert-success d-none mt-3" id="emailPrefSuccess"></div>
                       </div>
                     </div>
                   </section>

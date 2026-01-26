@@ -22,7 +22,8 @@
     profileCompleteness: null,
     recycleItems: [],
     recycleSelection: new Set(),
-    recycleActionTargets: []
+    recycleActionTargets: [],
+    emailPreferences: null
   };
 
   const elements = {
@@ -112,6 +113,15 @@
     changeEmailHelp: document.getElementById('changeEmailHelp'),
     changeEmailChanges: document.getElementById('changeEmailChanges'),
     changeEmailSaveBtn: document.getElementById('changeEmailSaveBtn'),
+    emailPrefAccountUpdates: document.getElementById('emailPrefAccountUpdates'),
+    emailPrefDevFeatures: document.getElementById('emailPrefDevFeatures'),
+    emailPrefAccountHelp: document.getElementById('emailPrefAccountHelp'),
+    emailPrefDevHelp: document.getElementById('emailPrefDevHelp'),
+    emailPrefChanges: document.getElementById('emailPrefChanges'),
+    emailPrefResetBtn: document.getElementById('emailPrefResetBtn'),
+    emailPrefSaveBtn: document.getElementById('emailPrefSaveBtn'),
+    emailPrefError: document.getElementById('emailPrefError'),
+    emailPrefSuccess: document.getElementById('emailPrefSuccess'),
     revokeSessionDetail: document.getElementById('revokeSessionDetail'),
     revokeSessionError: document.getElementById('revokeSessionError'),
     confirmRevokeSessionBtn: document.getElementById('confirmRevokeSessionBtn'),
@@ -211,7 +221,7 @@
     btn.disabled = !!isLoading;
   }
 
-  const validSections = new Set(['overview', 'profile', 'security', 'recycle', 'danger']);
+  const validSections = new Set(['overview', 'profile', 'security', 'email-preferences', 'recycle', 'danger']);
 
   function updateHash(section, { push = false } = {}) {
     const newUrl = `${window.location.pathname}#${section}`;
@@ -650,6 +660,91 @@
       elements.securityEmailCurrent.textContent = `Current email: ${maskEmail(data.email)}`;
     }
     log('Profile loaded.');
+  }
+
+  function clearEmailPrefAlerts() {
+    if (controls.emailPrefError) controls.emailPrefError.classList.add('d-none');
+    if (controls.emailPrefSuccess) controls.emailPrefSuccess.classList.add('d-none');
+  }
+
+  function setEmailPrefAlert(element, message, type) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove('d-none');
+    element.classList.toggle('alert-danger', type === 'danger');
+    element.classList.toggle('alert-success', type === 'success');
+  }
+
+  function collectEmailPrefValues() {
+    return {
+      accountUpdates: Boolean(controls.emailPrefAccountUpdates?.checked),
+      devFeatures: Boolean(controls.emailPrefDevFeatures?.checked)
+    };
+  }
+
+  function updateEmailPrefChanges() {
+    if (!controls.emailPrefChanges || !controls.emailPrefSaveBtn) return;
+    const current = collectEmailPrefValues();
+    const baseline = state.emailPreferences || current;
+    const changes = [];
+
+    if (current.accountUpdates !== baseline.accountUpdates) {
+      changes.push(`Account updates ${current.accountUpdates ? 'enabled' : 'disabled'}`);
+    }
+    if (current.devFeatures !== baseline.devFeatures) {
+      changes.push(`Development updates ${current.devFeatures ? 'enabled' : 'disabled'}`);
+    }
+
+    controls.emailPrefChanges.textContent = changes.length ? `Changes: ${changes.join(', ')}.` : 'No changes yet.';
+    controls.emailPrefSaveBtn.disabled = changes.length === 0;
+  }
+
+  function renderEmailPreferences(preferences) {
+    if (!preferences) return;
+    state.emailPreferences = {
+      accountUpdates: Boolean(preferences.accountUpdates),
+      devFeatures: Boolean(preferences.devFeatures)
+    };
+    if (controls.emailPrefAccountUpdates) controls.emailPrefAccountUpdates.checked = state.emailPreferences.accountUpdates;
+    if (controls.emailPrefDevFeatures) controls.emailPrefDevFeatures.checked = state.emailPreferences.devFeatures;
+    updateEmailPrefChanges();
+  }
+
+  async function loadEmailPreferences() {
+    try {
+      const data = await fetchJson('/users/me/email-preferences', { method: 'GET' });
+      renderEmailPreferences(data.preferences || data);
+    } catch (error) {
+      warn('Failed to load email preferences', error);
+      setEmailPrefAlert(controls.emailPrefError, 'Unable to load email preferences.', 'danger');
+    }
+  }
+
+  async function saveEmailPreferences() {
+    clearEmailPrefAlerts();
+    const current = collectEmailPrefValues();
+    try {
+      const payload = {
+        accountUpdates: current.accountUpdates,
+        devFeatures: current.devFeatures
+      };
+      const data = await fetchJson('/users/me/email-preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      renderEmailPreferences(data.preferences || data);
+      setEmailPrefAlert(controls.emailPrefSuccess, 'Email preferences updated.', 'success');
+    } catch (error) {
+      setEmailPrefAlert(controls.emailPrefError, error.message || 'Unable to update email preferences.', 'danger');
+    }
+  }
+
+  function resetEmailPreferences() {
+    if (!state.emailPreferences) return;
+    if (controls.emailPrefAccountUpdates) controls.emailPrefAccountUpdates.checked = state.emailPreferences.accountUpdates;
+    if (controls.emailPrefDevFeatures) controls.emailPrefDevFeatures.checked = state.emailPreferences.devFeatures;
+    updateEmailPrefChanges();
   }
 
   async function loadStats() {
@@ -1402,6 +1497,20 @@
     controls.changeEmailSaveBtn?.addEventListener('click', handleChangeEmail);
     controls.newEmail?.addEventListener('input', validateEmailInput);
 
+    controls.emailPrefAccountUpdates?.addEventListener('change', () => {
+      clearEmailPrefAlerts();
+      updateEmailPrefChanges();
+    });
+    controls.emailPrefDevFeatures?.addEventListener('change', () => {
+      clearEmailPrefAlerts();
+      updateEmailPrefChanges();
+    });
+    controls.emailPrefResetBtn?.addEventListener('click', () => {
+      clearEmailPrefAlerts();
+      resetEmailPreferences();
+    });
+    controls.emailPrefSaveBtn?.addEventListener('click', saveEmailPreferences);
+
     elements.sessionsTable?.addEventListener('click', (event) => {
       const btn = event.target.closest('.js-revoke-session');
       if (btn) openRevokeSession(btn.dataset.fp);
@@ -1475,7 +1584,7 @@
     if (!ok) return;
     await showPageLoading();
     try {
-      await Promise.all([loadProfile(), loadStats(), loadSessions(), loadApiKeys(), loadRecycleBin()]);
+      await Promise.all([loadProfile(), loadStats(), loadSessions(), loadApiKeys(), loadRecycleBin(), loadEmailPreferences()]);
     } catch (error) {
       console.error('[Account] Initial load failed', error);
       if (modalManager) await modalManager.showModal(apiErrorModal);

@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
   role            user_role NOT NULL DEFAULT 'user',
   is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
   is_disabled     BOOLEAN NOT NULL DEFAULT FALSE, -- Added for disabling accounts
+  email_pref_account_updates BOOLEAN NOT NULL DEFAULT TRUE,
+  email_pref_dev_features BOOLEAN NOT NULL DEFAULT FALSE,
+  email_pref_created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  email_pref_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   password_updated TIMESTAMPTZ, -- Nullable; set whenever the user changes or sets a password

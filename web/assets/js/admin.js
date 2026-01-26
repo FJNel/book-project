@@ -74,6 +74,30 @@
     emailTypesRefreshBtn: document.getElementById('emailTypesRefreshBtn'),
     emailResetBtn: document.getElementById('emailResetBtn'),
     emailSendTestBtn: document.getElementById('emailSendTestBtn'),
+    devEmailStatus: document.getElementById('devEmailStatus'),
+    devEmailSubject: document.getElementById('devEmailSubject'),
+    devEmailSubjectHelp: document.getElementById('devEmailSubjectHelp'),
+    devEmailBody: document.getElementById('devEmailBody'),
+    devEmailBodyHelp: document.getElementById('devEmailBodyHelp'),
+    devEmailTestRecipient: document.getElementById('devEmailTestRecipient'),
+    devEmailTestHelp: document.getElementById('devEmailTestHelp'),
+    devEmailTestBtn: document.getElementById('devEmailTestBtn'),
+    devEmailSendBtn: document.getElementById('devEmailSendBtn'),
+    devEmailSummary: document.getElementById('devEmailSummary'),
+    refreshSiteStatsBtn: document.getElementById('refreshSiteStatsBtn'),
+    siteStatsAlert: document.getElementById('siteStatsAlert'),
+    siteUsersTotal: document.getElementById('siteUsersTotal'),
+    siteUsersVerified: document.getElementById('siteUsersVerified'),
+    siteUsersDisabled: document.getElementById('siteUsersDisabled'),
+    siteBooksTotal: document.getElementById('siteBooksTotal'),
+    siteBooksActive: document.getElementById('siteBooksActive'),
+    siteBooksDeleted: document.getElementById('siteBooksDeleted'),
+    siteAuthorsTotal: document.getElementById('siteAuthorsTotal'),
+    sitePublishersTotal: document.getElementById('sitePublishersTotal'),
+    siteSeriesTotal: document.getElementById('siteSeriesTotal'),
+    siteBookTypesTotal: document.getElementById('siteBookTypesTotal'),
+    siteTagsTotal: document.getElementById('siteTagsTotal'),
+    siteStorageTotal: document.getElementById('siteStorageTotal'),
     createUserModal: document.getElementById('createUserModal'),
     createUserAlert: document.getElementById('createUserAlert'),
     createUserSubmit: document.getElementById('createUserSubmit'),
@@ -176,6 +200,7 @@
     emailTypesLoading: false,
     emailDefaultExpiryMinutes: null,
     emailDefaultExpiryLabel: 'Default',
+    siteStatsLoaded: false,
     successTimers: new Map()
   };
 
@@ -426,6 +451,34 @@
     }
   }
 
+  function renderSiteStats(stats) {
+    if (!stats) return;
+    if (dom.siteUsersTotal) dom.siteUsersTotal.textContent = stats.users?.total ?? '—';
+    if (dom.siteUsersVerified) dom.siteUsersVerified.textContent = stats.users?.verified ?? '—';
+    if (dom.siteUsersDisabled) dom.siteUsersDisabled.textContent = stats.users?.disabled ?? '—';
+    if (dom.siteBooksTotal) dom.siteBooksTotal.textContent = stats.books?.total ?? '—';
+    if (dom.siteBooksActive) dom.siteBooksActive.textContent = stats.books?.active ?? '—';
+    if (dom.siteBooksDeleted) dom.siteBooksDeleted.textContent = stats.books?.deleted ?? '—';
+    if (dom.siteAuthorsTotal) dom.siteAuthorsTotal.textContent = stats.library?.authors ?? '—';
+    if (dom.sitePublishersTotal) dom.sitePublishersTotal.textContent = stats.library?.publishers ?? '—';
+    if (dom.siteSeriesTotal) dom.siteSeriesTotal.textContent = stats.library?.series ?? '—';
+    if (dom.siteBookTypesTotal) dom.siteBookTypesTotal.textContent = stats.library?.bookTypes ?? '—';
+    if (dom.siteTagsTotal) dom.siteTagsTotal.textContent = stats.library?.tags ?? '—';
+    if (dom.siteStorageTotal) dom.siteStorageTotal.textContent = stats.library?.storageLocations ?? '—';
+  }
+
+  async function fetchSiteStats() {
+    try {
+      const response = await apiFetch('/admin/stats/summary', { method: 'GET' });
+      const data = await parseResponse(response);
+      renderSiteStats(data?.stats);
+      state.siteStatsLoaded = true;
+    } catch (err) {
+      errorLog('Failed to load site stats', err);
+      showAlert(dom.siteStatsAlert, err.message || 'Unable to load site stats.');
+    }
+  }
+
   function getUserFilters() {
     const search = dom.userSearchInput?.value?.trim() || '';
     const role = dom.userRoleFilter?.value || '';
@@ -470,6 +523,8 @@
               <div class="btn-group btn-group-sm" role="group">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
                 <div class="dropdown-menu dropdown-menu-end">
+                  <button class="dropdown-item js-view-library" type="button" data-user-id="${user.id}">View library</button>
+                  <div class="dropdown-divider"></div>
                   <button class="dropdown-item ${verificationActionClass}" type="button" data-user-id="${user.id}">${verifyLabel}</button>
                   <button class="dropdown-item js-send-verification" type="button" data-user-id="${user.id}">Send verification email</button>
                   <button class="dropdown-item js-reset-password" type="button" data-user-id="${user.id}">Send password reset</button>
@@ -599,6 +654,8 @@
       ensureLogsInitialized().catch(() => {});
     } else if (section === 'emails' && state.authorized) {
       ensureEmailTypesLoaded().catch(() => {});
+    } else if (section === 'site-stats' && state.authorized) {
+      fetchSiteStats();
     } else if (state.logsLiveEnabled) {
       stopLogsLive();
       if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
@@ -611,13 +668,14 @@
     if (hash.includes('language')) return 'languages';
     if (hash.includes('email')) return 'emails';
     if (hash.includes('log')) return 'logs';
+    if (hash.includes('site-stats')) return 'site-stats';
     return null;
   }
 
   function resolveSectionFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const section = (params.get('section') || '').toLowerCase();
-    if (['overview', 'users', 'languages', 'emails', 'logs'].includes(section)) return section;
+    if (['overview', 'site-stats', 'users', 'languages', 'emails', 'logs'].includes(section)) return section;
     return null;
   }
 
@@ -633,7 +691,7 @@
       return;
     }
     const stored = window.localStorage.getItem('adminSection');
-    const target = ['overview', 'users', 'languages', 'emails', 'logs'].includes(stored) ? stored : 'overview';
+    const target = ['overview', 'site-stats', 'users', 'languages', 'emails', 'logs'].includes(stored) ? stored : 'overview';
     setSection(target);
   }
 
@@ -967,17 +1025,14 @@
     if (dom.confirmActionSummaryUser) dom.confirmActionSummaryUser.innerHTML = userLabel;
     if (dom.confirmActionSummaryAction) dom.confirmActionSummaryAction.textContent = state.confirmActionConfig.actionLabel;
     if (dom.confirmActionSummaryImpact) dom.confirmActionSummaryImpact.textContent = state.confirmActionConfig.impact;
-    dom.confirmActionNotifyBadge?.classList.toggle('d-none', !state.confirmActionConfig.willNotify);
-    dom.confirmActionSummaryWarning?.classList.toggle('d-none', !state.confirmActionConfig.destructive);
-    if (dom.confirmActionSummaryMeta) {
-      dom.confirmActionSummaryMeta.innerHTML = '';
-      dom.confirmActionSummaryMeta.classList.add('d-none');
-      if (state.confirmActionConfig.summaryItems.length) {
-        const metaRows = state.confirmActionConfig.summaryItems.map((item) => `<div class="d-flex justify-content-between small"><span class="text-muted">${escapeHtml(item.label)}:</span><span class="fw-semibold">${escapeHtml(item.value)}</span></div>`).join('');
-        dom.confirmActionSummaryMeta.innerHTML = metaRows;
-        dom.confirmActionSummaryMeta.classList.remove('d-none');
-      }
+    if (dom.confirmActionNotifyBadge) {
+      dom.confirmActionNotifyBadge.textContent = 'This action will notify the user by email.';
+      dom.confirmActionNotifyBadge.classList.remove('text-bg-secondary');
+      dom.confirmActionNotifyBadge.classList.add('text-bg-warning-subtle');
+      dom.confirmActionNotifyBadge.classList.toggle('d-none', !state.confirmActionConfig.willNotify);
     }
+    dom.confirmActionSummaryWarning?.classList.toggle('d-none', !state.confirmActionConfig.destructive);
+    renderConfirmActionSummaryMeta(state.confirmActionConfig.summaryItems);
     if (dom.confirmActionSubmit) {
       dom.confirmActionSubmit.textContent = state.confirmActionConfig.confirmLabel;
       dom.confirmActionSubmit.classList.toggle('btn-danger', state.confirmActionConfig.destructive);
@@ -999,6 +1054,49 @@
     const instance = bootstrap.Modal.getOrCreateInstance(dom.confirmActionModal);
     instance.show();
     validateConfirmAction();
+    checkConfirmEmailPreferences();
+  }
+
+  function renderConfirmActionSummaryMeta(items = []) {
+    if (!dom.confirmActionSummaryMeta) return;
+    dom.confirmActionSummaryMeta.innerHTML = '';
+    dom.confirmActionSummaryMeta.classList.add('d-none');
+    if (items.length) {
+      const metaRows = items.map((item) => `<div class="d-flex justify-content-between small"><span class="text-muted">${escapeHtml(item.label)}:</span><span class="fw-semibold">${escapeHtml(item.value)}</span></div>`).join('');
+      dom.confirmActionSummaryMeta.innerHTML = metaRows;
+      dom.confirmActionSummaryMeta.classList.remove('d-none');
+    }
+  }
+
+  async function checkConfirmEmailPreferences() {
+    const cfg = state.confirmActionConfig;
+    if (!cfg?.emailType || !cfg?.userId) return;
+
+    try {
+      const response = await apiFetch(`/admin/users/${cfg.userId}/email-preferences/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailType: cfg.emailType })
+      });
+      const data = await parseResponse(response);
+      const willSend = data?.canSend;
+      const statusLabel = willSend ? 'Will send' : 'Blocked by preferences';
+      const reason = data?.reason ? ` • ${data.reason}` : '';
+      const summaryItems = [...(cfg.summaryItems || [])];
+      summaryItems.push({ label: 'Email delivery', value: `${statusLabel}${reason}` });
+      renderConfirmActionSummaryMeta(summaryItems);
+      if (dom.confirmActionNotifyBadge) {
+        dom.confirmActionNotifyBadge.textContent = willSend
+          ? 'This action will notify the user by email.'
+          : 'Email will not be sent due to user preferences.';
+        dom.confirmActionNotifyBadge.classList.toggle('text-bg-warning-subtle', willSend);
+        dom.confirmActionNotifyBadge.classList.toggle('text-bg-secondary', !willSend);
+      }
+    } catch (err) {
+      const summaryItems = [...(cfg.summaryItems || [])];
+      summaryItems.push({ label: 'Email delivery', value: 'Unable to validate preferences' });
+      renderConfirmActionSummaryMeta(summaryItems);
+    }
   }
 
   function validateConfirmAction() {
@@ -1143,6 +1241,13 @@
       return;
     }
 
+    if (btn.classList.contains('js-view-library')) {
+      const userName = user?.preferredName || user?.fullName || '';
+      const url = `admin-library?userId=${encodeURIComponent(userId)}${userName ? `&userName=${encodeURIComponent(userName)}` : ''}`;
+      window.location.href = url;
+      return;
+    }
+
     if (btn.classList.contains('js-toggle-disable')) {
       const isDisabled = btn.dataset.disabled === 'true';
       if (state.currentUserId && userId === state.currentUserId) {
@@ -1155,6 +1260,7 @@
         message: isDisabled ? 'Re-enable this account and allow logins?' : 'Disable this account and revoke active sessions?',
         impact: isDisabled ? 'Account will be restored and login allowed. A notification email will be sent.' : 'Account will be disabled and active sessions revoked. A notification email will be sent.',
         willNotify: true,
+        emailType: isDisabled ? 'admin_account_enabled' : 'admin_account_disabled',
         destructive: !isDisabled,
         confirmText: isDisabled ? '' : 'DISABLE',
         user,
@@ -1176,6 +1282,7 @@
         message: 'Mark this user as verified? Provide a short reason.',
         impact: 'User will be marked as verified and notified by email.',
         willNotify: true,
+        emailType: 'admin_email_verified',
         user,
         userId,
         url: `/admin/users/${userId}/verify`,
@@ -1197,6 +1304,7 @@
         message: 'Unverify this user? Provide a reason for audit.',
         impact: 'User will be marked as unverified and notified by email.',
         willNotify: true,
+        emailType: 'admin_email_unverified',
         user,
         userId,
         url: `/admin/users/${userId}/unverify`,
@@ -1223,6 +1331,7 @@
         message: 'Send a new verification email to this user?',
         impact: 'User will receive a verification link via email (default 30 minutes expiry).',
         willNotify: true,
+        emailType: 'verification',
         user,
         userId,
         url: `/admin/users/${userId}/send-verification`,
@@ -1251,6 +1360,7 @@
         message: 'Send a password reset email to this user?',
         impact: 'User will receive a password reset link via email (default 30 minutes expiry).',
         willNotify: true,
+        emailType: 'password_reset',
         user,
         userId,
         url: `/admin/users/${userId}/reset-password`,
@@ -1892,8 +2002,88 @@
     });
   }
 
+  function validateDevEmailForm({ requireRecipient = false } = {}) {
+    const subject = dom.devEmailSubject?.value.trim() || '';
+    const body = dom.devEmailBody?.value.trim() || '';
+    const recipient = dom.devEmailTestRecipient?.value.trim() || '';
+    const subjectError = subject ? '' : 'Subject is required.';
+    const bodyError = body ? '' : 'Markdown body is required.';
+    const recipientError = requireRecipient ? validateEmail(recipient) : '';
+
+    if (dom.devEmailSubjectHelp) dom.devEmailSubjectHelp.textContent = subjectError;
+    if (dom.devEmailBodyHelp) dom.devEmailBodyHelp.textContent = bodyError;
+    if (dom.devEmailTestHelp) dom.devEmailTestHelp.textContent = recipientError;
+
+    const validBase = !subjectError && !bodyError;
+    const recipientOk = !recipientError && !!recipient;
+    if (dom.devEmailTestBtn) dom.devEmailTestBtn.disabled = !validBase || !recipientOk;
+    if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase;
+    return { valid: validBase && (!requireRecipient || recipientOk), subject, body, recipient };
+  }
+
+  async function handleDevEmailTest() {
+    const { valid, subject, body, recipient } = validateDevEmailForm({ requireRecipient: true });
+    if (!valid) return;
+
+    openConfirmAction({
+      title: 'Send development update test',
+      actionLabel: 'Send test',
+      message: 'Send a test email for this update? This will respect recipient preferences.',
+      impact: 'Only the selected recipient will be contacted.',
+      willNotify: true,
+      user: { id: '—', fullName: 'Development updates', email: recipient },
+      baseBody: {
+        toEmail: recipient,
+        subject,
+        markdownBody: body
+      },
+      url: '/admin/emails/dev-features/test',
+      method: 'POST',
+      summaryItems: [
+        { label: 'Recipient', value: recipient },
+        { label: 'Subject', value: subject }
+      ],
+      successTarget: 'emails',
+      successMessage: `Test email queued for ${recipient}.`,
+      afterSuccess: () => {
+        if (dom.devEmailSummary) dom.devEmailSummary.textContent = `Last test queued for ${recipient}.`;
+        if (dom.devEmailStatus) dom.devEmailStatus.textContent = 'Test queued';
+      }
+    });
+  }
+
+  async function handleDevEmailSend() {
+    const { valid, subject, body } = validateDevEmailForm();
+    if (!valid) return;
+
+    openConfirmAction({
+      title: 'Send development update',
+      actionLabel: 'Send update',
+      message: 'Send this update to all users who opted in? This cannot be undone.',
+      impact: 'Only users who opted in will receive the update.',
+      willNotify: true,
+      user: { id: '—', fullName: 'Development updates', email: 'Opted-in users' },
+      baseBody: {
+        subject,
+        markdownBody: body
+      },
+      url: '/admin/emails/dev-features/send',
+      method: 'POST',
+      summaryItems: [
+        { label: 'Subject', value: subject }
+      ],
+      successTarget: 'emails',
+      successMessage: 'Development update queued for opted-in users.',
+      afterSuccess: () => {
+        if (dom.devEmailSummary) dom.devEmailSummary.textContent = 'Development update queued for opted-in users.';
+        if (dom.devEmailStatus) dom.devEmailStatus.textContent = 'Sent';
+      }
+    });
+  }
+
   function bindEvents() {
     dom.refreshStatusBtn?.addEventListener('click', () => fetchStatus().catch(() => {}));
+    dom.refreshSiteStatsBtn?.addEventListener('click', () => fetchSiteStats());
 
     dom.adminSectionNav?.addEventListener('click', (event) => {
       const btn = event.target.closest('button[data-section]');
@@ -2059,6 +2249,13 @@
     dom.emailContextInput?.addEventListener('input', handleEmailFormChange);
     dom.emailResetBtn?.addEventListener('click', handleEmailReset);
     dom.emailSendTestBtn?.addEventListener('click', handleEmailSendTest);
+
+    dom.devEmailSubject?.addEventListener('input', () => validateDevEmailForm());
+    dom.devEmailBody?.addEventListener('input', () => validateDevEmailForm());
+    dom.devEmailTestRecipient?.addEventListener('input', () => validateDevEmailForm({ requireRecipient: true }));
+    dom.devEmailTestBtn?.addEventListener('click', handleDevEmailTest);
+    dom.devEmailSendBtn?.addEventListener('click', handleDevEmailSend);
+    validateDevEmailForm();
   }
 
   function denyAccess() {
@@ -2095,6 +2292,9 @@
     }
     if (state.currentSection === 'emails') {
       ensureEmailTypesLoaded().catch(() => {});
+    }
+    if (state.currentSection === 'site-stats') {
+      fetchSiteStats();
     }
     return true;
   }

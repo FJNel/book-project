@@ -18,7 +18,13 @@ const {
 	sendAdminEmailUnverifiedEmail,
 	sendAdminEmailVerifiedEmail,
 	sendAdminAccountSetupEmail,
+	sendDevelopmentFeaturesEmail,
 } = require('./email');
+const {
+	canSendEmailForUser,
+	getEmailCategoryForType,
+	logPreferenceSkip
+} = require('./email-preferences');
 
 const config = {
 	maxRetries: 3,
@@ -82,7 +88,25 @@ async function processQueue() {
 	isProcessing = true;
 	const sendStartedAt = Date.now();
 	try {
-		await runJob(job);
+		const result = await runJob(job);
+		if (result?.skipped) {
+			logToFile(
+				'EMAIL_SEND',
+				{
+					status: 'SKIPPED',
+					job_id: job.id,
+					type: job.type,
+					user_id: job.userId,
+					details: {
+						context: job.context,
+						wait_ms: waitMs,
+						reason: result.reason
+					}
+				},
+				'info',
+			);
+			return;
+		}
 		const sendDurationMs = Date.now() - sendStartedAt;
 		logToFile(
 			'EMAIL_SEND',
@@ -156,6 +180,24 @@ async function processQueue() {
 
 async function runJob(job) {
 	const { type, params } = job;
+	const category = getEmailCategoryForType(type);
+	const preferenceCheck = await canSendEmailForUser({
+		userId: job.userId,
+		emailType: type,
+		category
+	});
+
+	if (!preferenceCheck.canSend) {
+		logPreferenceSkip({
+			userId: job.userId,
+			emailType: type,
+			category,
+			reason: preferenceCheck.reason,
+			context: job.context
+		});
+		return { skipped: true, reason: preferenceCheck.reason };
+	}
+
 	switch (type) {
 		case 'verification':
 			// params: toEmail, token, preferredName, expiresIn
@@ -200,6 +242,8 @@ async function runJob(job) {
 				params.verificationExpiresIn,
 				params.resetExpiresIn
 			);
+		case 'dev_features_announcement':
+			return sendDevelopmentFeaturesEmail(params.toEmail, params.preferredName, params.subject, params.markdownBody);
 		default:
 			logToFile(
 				'EMAIL_SEND',

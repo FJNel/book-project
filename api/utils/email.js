@@ -40,6 +40,71 @@ function buildActionUrl(action) {
 	return `${base}/?action=${encodeURIComponent(action)}`;
 }
 
+function renderMarkdownToHtml(markdown = "") {
+	const escaped = escapeHtml(markdown);
+	const bolded = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+	const italicized = bolded.replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g, '$1<em>$2</em>');
+	const paragraphs = italicized
+		.split(/\n\n+/)
+		.map((block) => `<p style="margin: 0 0 12px;">${block.replace(/\n/g, '<br>')}</p>`)
+		.join('');
+	return paragraphs || '<p style="margin: 0;">&nbsp;</p>';
+}
+
+async function sendDevelopmentFeaturesEmail(toEmail, preferredName, subject, markdownBody) {
+	logEmailAttempt("dev_features_announcement", toEmail, { subject });
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type: "dev_features_announcement", to: toEmail }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const year = new Date().getFullYear();
+	const htmlBody = renderMarkdownToHtml(markdownBody || "");
+	const manageUrl = `${normalizeFrontendUrl(FRONTEND_URL)}/account`;
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 620px; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+		<tr>
+		  <td align="center" style="padding: 24px;">
+			<img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project" style="display: block; height: 50px; margin-bottom: 16px;">
+		  </td>
+		</tr>
+		<tr>
+		  <td style="padding: 0 32px 32px 32px; color: #333;">
+			<h2 style="color: #2d3748; margin-bottom: 12px;">${escapeHtml(subject)}</h2>
+			<p style="font-size: 16px; color: #4a5568; line-height: 1.6; margin: 0 0 16px;">Hello${preferredName ? `, ${escapeHtml(preferredName)}` : ''}!</p>
+			<div style="font-size: 15px; color: #4a5568; line-height: 1.6;">
+			  ${htmlBody}
+			</div>
+			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;">
+			<p style="font-size: 12px; color: #718096; line-height: 1.5;">
+			  You are receiving this because you opted in to development updates. You can update your preferences in your
+			  <a href="${manageUrl}" style="color: #3182ce;">account settings</a>.
+			</p>
+			<p style="font-size: 12px; color: #a0aec0; text-align: center; margin: 18px 0 0;">&copy; ${year} Book Project. All rights reserved.</p>
+		  </td>
+		</tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type: "dev_features_announcement", id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error("Error sending development features email:", error.message);
+		return false;
+	}
+}
+
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
   username: "api",
@@ -1161,5 +1226,6 @@ module.exports = {
 	sendAdminAccountEnabledEmail,
 	sendAdminEmailUnverifiedEmail,
 	sendAdminEmailVerifiedEmail,
-	sendAdminAccountSetupEmail
+	sendAdminAccountSetupEmail,
+	sendDevelopmentFeaturesEmail
 };

@@ -10,6 +10,7 @@ const { validateFullName, validatePreferredName, validateEmail, validatePassword
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../utils/email-queue");
+const { getUserEmailPreferences, updateUserEmailPreferences, preferenceSummary } = require("../utils/email-preferences");
 const fetch = global.fetch
 	? global.fetch.bind(global)
 	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
@@ -322,6 +323,77 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the user profile."]);
 	}
 }); // router.get("/me")
+
+// GET /users/me/email-preferences - Get email preferences
+router.get("/me/email-preferences", requiresAuth, authenticatedLimiter, async (req, res) => {
+	try {
+		const preferences = await getUserEmailPreferences(req.user.id);
+		return successResponse(res, 200, "Email preferences retrieved successfully.", {
+			preferences: preferenceSummary(preferences)
+		});
+	} catch (error) {
+		logToFile("EMAIL_PREFERENCES_GET", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve email preferences at this time."]);
+	}
+});
+
+// PUT /users/me/email-preferences - Update email preferences
+router.put("/me/email-preferences", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const errors = [];
+	const rawAccount = req.body?.accountUpdates;
+	const rawDev = req.body?.devFeatures;
+	const accountUpdates = rawAccount === undefined ? undefined : parseBooleanFlag(rawAccount);
+	const devFeatures = rawDev === undefined ? undefined : parseBooleanFlag(rawDev);
+
+	if (rawAccount !== undefined && accountUpdates === null) {
+		errors.push("accountUpdates must be a boolean value.");
+	}
+	if (rawDev !== undefined && devFeatures === null) {
+		errors.push("devFeatures must be a boolean value.");
+	}
+	if (accountUpdates === undefined && devFeatures === undefined) {
+		errors.push("Please provide at least one preference to update.");
+	}
+
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	try {
+		const result = await updateUserEmailPreferences(req.user.id, { accountUpdates, devFeatures });
+		if (!result) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+
+		logToFile("EMAIL_PREFERENCES_UPDATE", {
+			status: "SUCCESS",
+			user_id: req.user.id,
+			updated: result.updated,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "Email preferences updated successfully.", {
+			updated: result.updated,
+			preferences: preferenceSummary(result.preferences)
+		});
+	} catch (error) {
+		logToFile("EMAIL_PREFERENCES_UPDATE", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to update email preferences at this time."]);
+	}
+});
 
 
 // Update the profile information of the currently authenticated user

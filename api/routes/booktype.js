@@ -91,6 +91,20 @@ function parseId(value) {
 	return parsed;
 }
 
+function parseIdArray(input, label) {
+	if (input === undefined || input === null) return { ids: [], error: null };
+	const raw = Array.isArray(input) ? input : [input];
+	const ids = [];
+	for (const item of raw) {
+		const parsed = parseId(item);
+		if (!Number.isInteger(parsed)) {
+			return { ids: [], error: `${label} must be an integer or array of integers.` };
+		}
+		ids.push(parsed);
+	}
+	return { ids, error: null };
+}
+
 function parseSortOrder(value) {
 	if (!value) return "asc";
 	const normalized = String(value).trim().toLowerCase();
@@ -382,6 +396,226 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book types."]);
+	}
+});
+
+// POST /booktype/list - List book types with JSON body
+router.post("/list", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const listParams = { ...(req.query || {}), ...(req.body || {}) };
+	listParams.sortBy = listParams.sortBy ?? listParams.sort;
+	listParams.filterName = listParams.filterName ?? listParams.name;
+	listParams.filterDescription = listParams.filterDescription ?? listParams.description;
+	listParams.filterCreatedAfter = listParams.filterCreatedAfter ?? listParams.createdAfter;
+	listParams.filterCreatedBefore = listParams.filterCreatedBefore ?? listParams.createdBefore;
+	listParams.filterUpdatedAfter = listParams.filterUpdatedAfter ?? listParams.updatedAfter;
+	listParams.filterUpdatedBefore = listParams.filterUpdatedBefore ?? listParams.updatedBefore;
+
+	const nameOnly = parseBooleanFlag(listParams.nameOnly);
+	const fields = nameOnly
+		? "id, name"
+		: "id, name, description, created_at, updated_at";
+
+	try {
+		const errors = [];
+		const sortFields = {
+			id: "id",
+			name: "name",
+			description: "description",
+			createdAt: "created_at",
+			updatedAt: "updated_at"
+		};
+		const sortBy = normalizeText(listParams.sortBy) || "name";
+		const sortColumn = sortFields[sortBy];
+		if (!sortColumn) {
+			errors.push("sortBy must be one of: id, name, description, createdAt, updatedAt.");
+		}
+
+		const order = parseSortOrder(listParams.order);
+		if (!order) {
+			errors.push("order must be either asc or desc.");
+		}
+
+		const { value: limit, error: limitError } = parseOptionalInt(listParams.limit, "limit", { min: 1, max: MAX_LIST_LIMIT });
+		if (limitError) errors.push(limitError);
+		const { value: page, error: pageError } = parseOptionalInt(listParams.page, "page", { min: 1 });
+		if (pageError) errors.push(pageError);
+		let { value: offset, error: offsetError } = parseOptionalInt(listParams.offset, "offset", { min: 0 });
+		if (offsetError) errors.push(offsetError);
+		if (offset === null && page !== null && limit !== null) {
+			offset = Math.max(0, (page - 1) * limit);
+		}
+
+		const filters = [];
+		const values = [userId];
+		let paramIndex = 2;
+
+		if (listParams.filterId !== undefined) {
+			const { ids, error } = parseIdArray(listParams.filterId, "filterId");
+			if (error) {
+				errors.push(error);
+			} else if (ids.length > 0) {
+				const mode = String(listParams.filterIdMode || "and").toLowerCase() === "or" ? "or" : "and";
+				if (mode === "or") {
+					filters.push(`id = ANY($${paramIndex++}::int[])`);
+					values.push(ids);
+				} else {
+					ids.forEach((id) => {
+						filters.push(`id = $${paramIndex++}`);
+						values.push(id);
+					});
+				}
+			}
+		}
+
+		const filterName = normalizeText(listParams.filterName);
+		if (filterName) {
+			if (filterName.length > MAX_BOOK_TYPE_NAME_LENGTH) {
+				errors.push(`filterName must be ${MAX_BOOK_TYPE_NAME_LENGTH} characters or fewer.`);
+			} else {
+				filters.push(`name ILIKE $${paramIndex++}`);
+				values.push(`%${filterName}%`);
+			}
+		}
+
+		const filterDescription = normalizeText(listParams.filterDescription);
+		if (filterDescription) {
+			if (filterDescription.length > MAX_BOOK_TYPE_DESCRIPTION_LENGTH) {
+				errors.push(`filterDescription must be ${MAX_BOOK_TYPE_DESCRIPTION_LENGTH} characters or fewer.`);
+			} else {
+				filters.push(`description ILIKE $${paramIndex++}`);
+				values.push(`%${filterDescription}%`);
+			}
+		}
+
+		const dateFilters = [
+			{ key: "filterCreatedAt", column: "created_at", op: "=" },
+			{ key: "filterUpdatedAt", column: "updated_at", op: "=" },
+			{ key: "filterCreatedAfter", column: "created_at", op: ">=" },
+			{ key: "filterCreatedBefore", column: "created_at", op: "<=" },
+			{ key: "filterUpdatedAfter", column: "updated_at", op: ">=" },
+			{ key: "filterUpdatedBefore", column: "updated_at", op: "<=" }
+		];
+
+		for (const filter of dateFilters) {
+			const { value, error } = parseDateFilter(listParams[filter.key], filter.key);
+			if (error) {
+				errors.push(error);
+			} else if (value) {
+				filters.push(`${filter.column} ${filter.op} $${paramIndex++}`);
+				values.push(value);
+			}
+		}
+
+		if (errors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", errors);
+		}
+
+		let query = `SELECT ${fields}
+			 FROM book_types
+			 WHERE user_id = $1`;
+		if (filters.length > 0) {
+			query += ` AND ${filters.join(" AND ")}`;
+		}
+		query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+		if (limit !== null) {
+			query += ` LIMIT $${paramIndex++}`;
+			values.push(limit);
+		}
+		if (offset !== null) {
+			query += ` OFFSET $${paramIndex++}`;
+			values.push(offset);
+		}
+
+		const result = await pool.query(query, values);
+
+		logToFile("BOOK_TYPE_LIST", {
+			status: "SUCCESS",
+			user_id: userId,
+			count: result.rows.length,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		const payload = nameOnly
+			? result.rows.map((row) => ({ id: row.id, name: row.name }))
+			: result.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				description: row.description,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at
+			}));
+
+		return successResponse(res, 200, "Book types retrieved successfully.", { bookTypes: payload });
+	} catch (error) {
+		logToFile("BOOK_TYPE_LIST", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving book types."]);
+	}
+});
+
+// POST /booktype/get - Fetch a specific book type
+router.post("/get", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const targetId = parseId(req.body?.id ?? req.query?.id);
+	const targetName = normalizeText(req.body?.name ?? req.query?.name);
+	const nameOnly = parseBooleanFlag(req.body?.nameOnly ?? req.query?.nameOnly);
+	const returnStats = parseBooleanFlag(req.body?.returnStats ?? req.query?.returnStats);
+
+	if (targetName) {
+		const nameErrors = validateBookTypeName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+	}
+
+	try {
+		const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+		}
+		if (!Number.isInteger(resolved.id)) {
+			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+		}
+
+		const result = await pool.query(
+			`SELECT id, name, description, created_at, updated_at
+			 FROM book_types
+			 WHERE user_id = $1 AND id = $2`,
+			[userId, resolved.id]
+		);
+
+		const row = result.rows[0];
+		const payload = nameOnly
+			? { id: row.id, name: row.name }
+			: {
+				id: row.id,
+				name: row.name,
+				description: row.description,
+				createdAt: row.created_at,
+				updatedAt: row.updated_at
+			};
+
+		if (returnStats) {
+			payload.stats = await fetchBookTypeStats(userId, row.id);
+		}
+
+		return successResponse(res, 200, "Book type retrieved successfully.", payload);
+	} catch (error) {
+		logToFile("BOOK_TYPE_GET", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the book type."]);
 	}
 });
 
