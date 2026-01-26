@@ -463,12 +463,12 @@
             <label class="form-label" for="editPreferredName">Preferred name</label>
             <input class="form-control" id="editPreferredName" type="text" maxlength="100" />
             <small class="form-text text-muted" id="editPreferredNameHelp"></small>
-            <div class="form-text text-muted mt-2" id="editProfileChanges">No changes yet.</div>
           </div>
+          <div class="small text-muted mt-3" id="editProfileChanges" aria-live="polite">No changes yet.</div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" id="editProfileResetBtn">Revert</button>
-          <button class="btn btn-primary" type="button" id="editProfileSaveBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Save changes</button>
+          <button class="btn btn-primary" type="button" id="editProfileSaveBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Save changes</button>
         </div>
       </div>
     </div>
@@ -499,10 +499,11 @@
             <input class="form-control" id="confirmNewPassword" type="password" autocomplete="new-password" />
             <small class="form-text text-muted" id="confirmNewPasswordHelp"></small>
           </div>
+          <div class="small text-muted mt-3" id="changePasswordChanges" aria-live="polite">No changes yet.</div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-primary" type="button" id="changePasswordSaveBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Update password</button>
+          <button class="btn btn-primary" type="button" id="changePasswordSaveBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Update password</button>
         </div>
       </div>
     </div>
@@ -524,10 +525,11 @@
             <input class="form-control" id="newEmail" type="email" autocomplete="email" />
             <small class="form-text text-muted" id="changeEmailHelp">We will send a confirmation email to the new address. This may sign you out of all devices once confirmed.</small>
           </div>
+          <div class="small text-muted mt-3" id="changeEmailChanges" aria-live="polite">No changes yet.</div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-primary" type="button" id="changeEmailSaveBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send request</button>
+          <button class="btn btn-primary" type="button" id="changeEmailSaveBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Send request</button>
         </div>
       </div>
     </div>
@@ -603,7 +605,7 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
-          <button class="btn btn-primary" type="button" id="createApiKeySaveBtn"><span class="spinner-border spinner-border-sm d-none" role="status"></span> Create</button>
+          <button class="btn btn-primary" type="button" id="createApiKeySaveBtn" disabled><span class="spinner-border spinner-border-sm d-none" role="status"></span> Create</button>
         </div>
       </div>
     </div>

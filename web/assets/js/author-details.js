@@ -470,8 +470,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextInput = getAuthorRoleValue();
     const nextLabel = nextInput || 'No role';
     const hasChanges = nextInput !== roleEditTarget.originalInputValue;
+    const authorName = authorRecord.displayName || 'this author';
     authorRoleChangeSummary.textContent = hasChanges
-      ? `Changing ${authorRecord.displayName || 'this author'}'s role on ${roleEditTarget.book.title || 'this book'} from ${currentLabel} to ${nextLabel}.`
+      ? `Changing author role for '${authorName}' from '${currentLabel}' to '${nextLabel}'.`
       : 'No changes yet.';
     if (authorRoleSaveBtn) authorRoleSaveBtn.disabled = authorRoleModalState.locked || !hasChanges;
   };

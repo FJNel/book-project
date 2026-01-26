@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
@@ -73,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         registerButtonText.textContent = 'Register';
         setRegisterInputsDisabled(false);
         setModalLocked(false);
+        refreshRegisterState();
     }
 
     function setRegisterInputsDisabled(disabled) {
@@ -124,32 +124,43 @@ document.addEventListener('DOMContentLoaded', () => {
         field.focus({ preventScroll: true });
     }
 
-    function showRegisterError(htmlContent) {
+    function showRegisterError(message, errors = []) {
         console.log('[UI] Displaying register error alert.');
         successAlert.style.display = 'none';
-        errorAlert.innerHTML = htmlContent;
+        if (typeof window.renderApiErrorAlert === 'function') {
+            window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+        } else {
+            errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+        }
         errorAlert.style.display = 'block';
     }
     
-    function showRegisterSuccess(htmlContent) {
+    function showRegisterSuccess(message) {
         console.log('[UI] Displaying register success alert.');
         errorAlert.style.display = 'none';
-        successAlert.innerHTML = htmlContent;
+        successAlert.textContent = message || '';
         successAlert.style.display = 'block';
     }
 
     function clearRegisterErrors() {
         console.log('[UI] Clearing register error messages.');
         clearRegisterAlerts();
-        fullNameHelp.textContent = '';
-        preferredNameHelp.textContent = '';
-        emailHelp.textContent = '';
-        passwordHelp.textContent = '';
+        setHelpText(fullNameHelp, '', false);
+        setHelpText(preferredNameHelp, '', false);
+        setHelpText(emailHelp, '', false);
+        setHelpText(passwordHelp, '', false);
     }
 
     function clearRegisterAlerts() {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
+    }
+
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
     }
 
     // --- Form Validation ---
@@ -166,33 +177,41 @@ document.addEventListener('DOMContentLoaded', () => {
         // Full Name
         if (!fullNameInput.checkValidity()) {
             isValid = false;
-            if (fullName.length === 0) fullNameHelp.textContent = 'Please enter your full name.';
-            else if (fullName.length < 2) fullNameHelp.textContent = 'Full name is too short.';
-            else fullNameHelp.textContent = 'Full name contains invalid characters (allowed: letters, spaces, -, ., \').';
+            if (fullName.length === 0) setHelpText(fullNameHelp, 'Please enter your full name.', true);
+            else if (fullName.length < 2) setHelpText(fullNameHelp, 'Full name is too short.', true);
+            else setHelpText(fullNameHelp, 'Full name contains invalid characters (allowed: letters, spaces, -, ., \' ).', true);
             if (!firstInvalidField) firstInvalidField = fullNameInput;
+        } else {
+            setHelpText(fullNameHelp, '', false);
         }
 
         // Preferred Name (optional, but validate if present)
         if (preferredName && !preferredNameInput.checkValidity()) {
             isValid = false;
-            preferredNameHelp.textContent = 'Preferred name can only contain letters and must be at least 2 characters long.';
+            setHelpText(preferredNameHelp, 'Preferred name can only contain letters and must be at least 2 characters long.', true);
             if (!firstInvalidField) firstInvalidField = preferredNameInput;
+        } else if (preferredName) {
+            setHelpText(preferredNameHelp, '', false);
         }
 
         // Email
         if (!emailInput.checkValidity()) {
             isValid = false;
-            if (email.length === 0) emailHelp.textContent = 'Please enter your email address.';
-            else emailHelp.textContent = 'Please enter a valid email address format.';
+            if (email.length === 0) setHelpText(emailHelp, 'Please enter your email address.', true);
+            else setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             if (!firstInvalidField) firstInvalidField = emailInput;
+        } else {
+            setHelpText(emailHelp, '', false);
         }
 
         // Password
         if (!passwordInput.checkValidity()) {
             isValid = false;
-            if (password.length === 0) passwordHelp.textContent = 'Please enter a password.';
-            else passwordHelp.textContent = 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.';
+            if (password.length === 0) setHelpText(passwordHelp, 'Please enter a password.', true);
+            else setHelpText(passwordHelp, 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.', true);
             if (!firstInvalidField) firstInvalidField = passwordInput;
+        } else {
+            setHelpText(passwordHelp, '', false);
         }
         
         console.log(`[Validation] Register form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
@@ -203,18 +222,18 @@ document.addEventListener('DOMContentLoaded', () => {
         clearRegisterAlerts();
         const fullName = fullNameInput.value;
         if (!fullName) {
-            fullNameHelp.textContent = 'Please enter your full name.';
+            setHelpText(fullNameHelp, 'Please enter your full name.', true);
             return false;
         }
         if (fullName.length < 2) {
-            fullNameHelp.textContent = 'Full name is too short.';
+            setHelpText(fullNameHelp, 'Full name is too short.', true);
             return false;
         }
         if (!fullNameInput.checkValidity()) {
-            fullNameHelp.textContent = 'Full name contains invalid characters (allowed: letters, spaces, -, ., \').';
+            setHelpText(fullNameHelp, 'Full name contains invalid characters (allowed: letters, spaces, -, ., \' ).', true);
             return false;
         }
-        fullNameHelp.textContent = '';
+        setHelpText(fullNameHelp, '', false);
         return true;
     }
 
@@ -222,14 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
         clearRegisterAlerts();
         const preferredName = preferredNameInput.value;
         if (!preferredName) {
-            preferredNameHelp.textContent = '';
+            setHelpText(preferredNameHelp, '', false);
             return true;
         }
         if (!preferredNameInput.checkValidity()) {
-            preferredNameHelp.textContent = 'Preferred name can only contain letters and must be at least 2 characters long.';
+            setHelpText(preferredNameHelp, 'Preferred name can only contain letters and must be at least 2 characters long.', true);
             return false;
         }
-        preferredNameHelp.textContent = '';
+        setHelpText(preferredNameHelp, '', false);
         return true;
     }
 
@@ -237,14 +256,14 @@ document.addEventListener('DOMContentLoaded', () => {
         clearRegisterAlerts();
         const email = emailInput.value;
         if (!email) {
-            emailHelp.textContent = 'Please enter your email address.';
+            setHelpText(emailHelp, 'Please enter your email address.', true);
             return false;
         }
         if (!emailInput.checkValidity()) {
-            emailHelp.textContent = 'Please enter a valid email address format.';
+            setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             return false;
         }
-        emailHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
         return true;
     }
 
@@ -252,15 +271,23 @@ document.addEventListener('DOMContentLoaded', () => {
         clearRegisterAlerts();
         const password = passwordInput.value;
         if (!password) {
-            passwordHelp.textContent = 'Please enter a password.';
+            setHelpText(passwordHelp, 'Please enter a password.', true);
             return false;
         }
         if (!passwordInput.checkValidity()) {
-            passwordHelp.textContent = 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.';
+            setHelpText(passwordHelp, 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.', true);
             return false;
         }
-        passwordHelp.textContent = '';
+        setHelpText(passwordHelp, '', false);
         return true;
+    }
+
+    function refreshRegisterState() {
+        const fullOk = validateFullNameRealtime();
+        const preferredOk = validatePreferredNameRealtime();
+        const emailOk = validateEmailRealtime();
+        const passwordOk = validatePasswordRealtime();
+        registerButton.disabled = registerControlsLocked || !(fullOk && preferredOk && emailOk && passwordOk);
     }
 
     // --- Main Registration Handler ---
@@ -289,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 captchaToken = await window.recaptchaV3.getToken('register');
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for register:', e);
-                showRegisterError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                showRegisterError('Security Check Failed', ['Please refresh the page and try again.']);
                 setRegisterInputsDisabled(false);
                 toggleSpinner(false);
                 return;
@@ -317,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('[API] Network or fetch error during registration:', error);
-            showRegisterError('<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+            showRegisterError('Connection Error', ['Could not connect to the server. Please try again.']);
         } finally {
             registerControlsLocked = shouldKeepDisabled;
             toggleSpinner(false);
@@ -333,10 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         registerForm.reset(); // Clear the form fields
         const messageText = data?.message || 'If this email can be registered, you will receive an email with the next steps shortly.';
         const disclaimerText = typeof data?.data?.disclaimer === 'string' ? data.data.disclaimer : '';
-        const html = disclaimerText
-            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
-            : `<strong>${messageText}</strong>`;
-        showRegisterSuccess(html);
+        const text = disclaimerText ? `${messageText} ${disclaimerText}` : messageText;
+        showRegisterSuccess(text);
         setRegisterInputsDisabled(true);
         registerControlsLocked = true;
         registerButton.disabled = true;
@@ -346,22 +371,23 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[Register] Registration failed with status:', status);
         const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
         if (isCaptchaFailureMessage(rawMessage)) {
-            showRegisterError(SECURITY_CHECK_ERROR_HTML);
+            showRegisterError('Security Check Failed', ['Please refresh the page and try again.']);
             return;
         }
-        const message = `<strong>${rawMessage}:</strong>`;
-        const details = Array.isArray(data.errors) ? data.errors.map(getLangString).join(' ') : getLangString(data.errors);
-        showRegisterError(`${message} ${details}`);
+        const details = Array.isArray(data?.errors)
+            ? data.errors.map(getLangString)
+            : (data?.errors ? [getLangString(data.errors)] : []);
+        showRegisterError(rawMessage, details);
     }
 
     // --- Event Listeners ---
     registerForm.addEventListener('submit', handleRegister);
     registerButton.addEventListener('click', handleRegister);
 
-    fullNameInput.addEventListener('input', validateFullNameRealtime);
-    preferredNameInput.addEventListener('input', validatePreferredNameRealtime);
-    emailInput.addEventListener('input', validateEmailRealtime);
-    passwordInput.addEventListener('input', validatePasswordRealtime);
+    fullNameInput.addEventListener('input', refreshRegisterState);
+    preferredNameInput.addEventListener('input', refreshRegisterState);
+    emailInput.addEventListener('input', refreshRegisterState);
+    passwordInput.addEventListener('input', refreshRegisterState);
     
     [fullNameInput, preferredNameInput, emailInput, passwordInput].forEach(input => {
         input.addEventListener('input', clearRegisterAlerts);

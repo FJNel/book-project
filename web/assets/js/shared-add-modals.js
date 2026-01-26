@@ -127,6 +127,37 @@
                 return null;
             }
         };
+        const truncateText = (value, maxLength = 120) => {
+            if (!value) return '';
+            const text = String(value).trim();
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return `${text.slice(0, maxLength - 1)}…`;
+        };
+        const formatPartialDateDisplay = (value) => {
+            if (!value) return '';
+            if (typeof value === 'object' && value.text) return String(value.text).trim();
+            const raw = String(value).trim();
+            if (!raw) return '';
+            if (window.partialDateParser && typeof window.partialDateParser.parsePartialDate === 'function') {
+                const parsed = window.partialDateParser.parsePartialDate(raw);
+                if (parsed && parsed.text) return String(parsed.text).trim();
+            }
+            return raw;
+        };
+        const formatBooleanLabel = (value) => (value ? 'Yes' : 'No');
+        const describeChange = (fieldLabel, fromValue, toValue, { formatter, maxLength = 120 } = {}) => {
+            const format = (value) => {
+                const formatted = formatter ? formatter(value) : value;
+                return truncateText(formatted, maxLength);
+            };
+            const from = format(fromValue);
+            const to = format(toValue);
+            if (from === to) return null;
+            if (!from && to) return `Adding ${fieldLabel}: '${to}'.`;
+            if (from && !to) return `Clearing ${fieldLabel} (was '${from}').`;
+            return `Changing ${fieldLabel} from '${from}' to '${to}'.`;
+        };
         const cacheModalValues = (modalId, fields) => {
             const store = window.sharedAddModals?.cache || (window.sharedAddModals.cache = {});
             if (!modalId) return;
@@ -180,6 +211,10 @@
             parsePartialDateInput,
             setPartialDateHelp,
             normalizeUrl,
+            truncateText,
+            formatPartialDateDisplay,
+            formatBooleanLabel,
+            describeChange,
             cacheModalValues,
             restoreModalValues,
             clearModalValues
@@ -207,8 +242,9 @@
                                                                         <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"></path>
                                                                 </svg><textarea class="form-control" id="threeRdtBookTypeDescription" name="bookTypeDescription" autocomplete="off" spellcheck="true" minlength="2" maxlength="500"></textarea><small class="form-text" id="threeBookTypeDescriptionHelp"></small></div>
         </form>
+                <small class="text-muted d-block mt-3" id="threeBookTypeChangeSummary"></small>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" id="threeBtnResetBookType" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button">Add Book Type</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="threeBtnResetBookType" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="threeBtnSaveBookType" type="button" disabled>Add Book Type</button></div>
     </div>
   </div>
 </div>
@@ -251,7 +287,7 @@
         </form>
                 <small class="text-muted d-block mt-3" id="fourAuthorChangeSummary"></small>
       </div>
-    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button"><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> Add Author</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fourBtnResetAuthor" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fourBtnSaveAuthor" type="button" disabled><span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> Add Author</button></div>
     </div>
   </div>
 </div>
@@ -275,7 +311,7 @@
         </form>
                 <small class="text-muted d-block mt-3" id="fivePublisherChangeSummary"></small>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" id="fiveBtnResetPublisher" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button">Add Publisher</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="fiveBtnResetPublisher" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="fiveBtnSavePublisher" type="button" disabled>Add Publisher</button></div>
     </div>
   </div>
 </div>
@@ -295,7 +331,7 @@
         </form>
                 <small class="text-muted d-block mt-3" id="sixSeriesChangeSummary"></small>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" id="sixBtnResetSeries" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button">Add Series</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="sixBtnResetSeries" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="sixBtnSaveSeries" type="button" disabled>Add Series</button></div>
     </div>
   </div>
 </div>
@@ -331,7 +367,7 @@
         </form>
                 <small class="text-muted d-block mt-3" id="eightLocationChangeSummary"></small>
       </div>
-      <div class="modal-footer"><button class="btn btn-outline-secondary" id="eightBtnResetLocation" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button">Add Location</button></div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" id="eightBtnResetLocation" type="button">Reset</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="btn btn-primary" id="eightBtnSaveLocation" type="button" disabled>Add Location</button></div>
     </div>
   </div>
 </div>
@@ -382,6 +418,7 @@
         const nameHelp = utils.byId('threeBookTypeNameHelp');
         const descHelp = utils.byId('threeBookTypeDescriptionHelp');
         const errorAlert = utils.byId('threeBookTypeErrorAlert');
+        const changeSummary = utils.byId('threeBookTypeChangeSummary');
         const saveButton = utils.byId('threeBtnSaveBookType');
         const resetButton = utils.byId('threeBtnResetBookType');
         const spinnerState = utils.attachButtonSpinner(saveButton);
@@ -402,6 +439,57 @@
 
         utils.bindModalLock(modalEl, modalState);
         setMode('add');
+
+        const getCurrentValues = () => ({
+            name: nameInput.value.trim(),
+            description: descInput.value.trim()
+        });
+
+        const getOriginalValues = () => ({
+            name: (bookTypeMode.original?.name || '').trim(),
+            description: (bookTypeMode.original?.description || '').trim()
+        });
+
+        const buildChangeList = () => {
+            if (bookTypeMode.mode !== 'edit') return [];
+            const current = getCurrentValues();
+            const original = getOriginalValues();
+            const changes = [];
+            const nameChange = utils.describeChange('name', original.name, current.name);
+            const descriptionChange = utils.describeChange('description', original.description, current.description, { maxLength: 160 });
+            if (nameChange) changes.push(nameChange);
+            if (descriptionChange) changes.push(descriptionChange);
+            return changes;
+        };
+
+        const updateChangeSummary = (changes = buildChangeList()) => {
+            if (!changeSummary) return;
+            if (bookTypeMode.mode !== 'edit') {
+                changeSummary.textContent = '';
+                return;
+            }
+            changeSummary.textContent = changes.length ? changes.join(' ') : 'No changes yet.';
+        };
+
+        const isValidForSave = () => {
+            const errors = [];
+            const name = nameInput.value.trim();
+            if (!name || name.length < 2 || name.length > 100 || !namePattern.test(name)) {
+                errors.push('name');
+            }
+            if (descInput.value.trim().length > 500) {
+                errors.push('description');
+            }
+            return errors.length === 0;
+        };
+
+        const refreshSaveState = () => {
+            const changes = buildChangeList();
+            if (bookTypeMode.mode === 'edit') updateChangeSummary(changes);
+            const isValid = isValidForSave();
+            const hasChanges = bookTypeMode.mode !== 'edit' || changes.length > 0;
+            if (saveButton) saveButton.disabled = modalState.locked || !isValid || !hasChanges;
+        };
 
         const validate = () => {
             utils.hideAlert(errorAlert);
@@ -435,6 +523,7 @@
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, descInput, resetButton], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
+            refreshSaveState();
         };
 
         const save = async () => {
@@ -481,6 +570,7 @@
             utils.clearHelpText(nameHelp);
             utils.clearHelpText(descHelp);
             utils.hideAlert(errorAlert);
+            refreshSaveState();
         };
 
         nameInput.addEventListener('input', () => {
@@ -494,6 +584,7 @@
                 return;
             }
             utils.clearHelpText(nameHelp);
+            refreshSaveState();
         });
         descInput.addEventListener('input', () => {
             if (descInput.value.trim().length > 500) {
@@ -501,6 +592,7 @@
             } else {
                 utils.clearHelpText(descHelp);
             }
+            refreshSaveState();
         });
 
         modalEl.addEventListener('hidden.bs.modal', () => {
@@ -512,6 +604,7 @@
             if (!nameInput.value.trim()) {
                 utils.setHelpText(nameHelp, 'This field is required.', true);
             }
+            refreshSaveState();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
@@ -579,46 +672,56 @@
             const current = getCurrentValues();
             const original = getOriginalValues();
             const changes = [];
-            if (current.name !== original.name) {
-                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
-            }
-            if (current.foundedDate !== original.foundedDate) {
-                const fromLabel = original.foundedDate || 'No date';
-                const toLabel = current.foundedDate || 'No date';
-                changes.push(`Updated founded date from "${fromLabel}" to "${toLabel}".`);
-            }
-            if (current.website !== original.website) {
-                if (original.website && !current.website) {
-                    changes.push(`Removed website "${original.website}".`);
-                } else if (!original.website && current.website) {
-                    changes.push(`Added website "${current.website}".`);
-                } else {
-                    changes.push(`Updated website from "${original.website || 'None'}" to "${current.website || 'None'}".`);
-                }
-            }
-            if (current.notes !== original.notes) {
-                if (original.notes && !current.notes) {
-                    changes.push('Removed notes.');
-                } else if (!original.notes && current.notes) {
-                    changes.push('Added notes.');
-                } else {
-                    changes.push('Updated notes.');
-                }
-            }
+            const nameChange = utils.describeChange('name', original.name, current.name);
+            if (nameChange) changes.push(nameChange);
+            const foundedChange = utils.describeChange('founded date', original.foundedDate, current.foundedDate, {
+                formatter: utils.formatPartialDateDisplay
+            });
+            if (foundedChange) changes.push(foundedChange);
+            const websiteChange = utils.describeChange('website', original.website, current.website);
+            if (websiteChange) changes.push(websiteChange);
+            const notesChange = utils.describeChange('notes', original.notes, current.notes, { maxLength: 160 });
+            if (notesChange) changes.push(notesChange);
             return changes;
         };
 
-        const updateChangeSummary = () => {
+        const updateChangeSummary = (changes = buildChangeList()) => {
             if (!changeSummary) return;
             if (publisherMode.mode !== 'edit') {
                 changeSummary.textContent = '';
                 return;
             }
-            const changes = buildChangeList();
             changeSummary.textContent = changes.length
-                ? `Changing ${publisherMode.original?.name || 'this publisher'}: ${changes.join(' ')}`
+                ? changes.join(' ')
                 : 'No changes yet.';
-            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
+        const isValidForSave = () => {
+            const errors = [];
+            const name = nameInput.value.trim();
+            if (!name || name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+                errors.push('name');
+            }
+            if (foundedInput.value.trim()) {
+                const parsed = utils.parsePartialDateInput(foundedInput.value);
+                if (parsed.error) errors.push('foundedDate');
+            }
+            const websiteRaw = websiteInput.value.trim();
+            if (websiteRaw && !utils.normalizeUrl(websiteRaw)) {
+                errors.push('website');
+            }
+            if (notesInput.value.trim().length > 1000) {
+                errors.push('notes');
+            }
+            return errors.length === 0;
+        };
+
+        const refreshSaveState = () => {
+            const changes = buildChangeList();
+            if (publisherMode.mode === 'edit') updateChangeSummary(changes);
+            const isValid = isValidForSave();
+            const hasChanges = publisherMode.mode !== 'edit' || changes.length > 0;
+            if (saveButton) saveButton.disabled = modalState.locked || !isValid || !hasChanges;
         };
 
         utils.bindModalLock(modalEl, modalState);
@@ -663,7 +766,7 @@
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, foundedInput, websiteInput, notesInput, resetButton], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
-            if (publisherMode.mode === 'edit') updateChangeSummary();
+            refreshSaveState();
         };
 
         const save = async () => {
@@ -733,7 +836,7 @@
             utils.clearHelpText(websiteHelp);
             utils.clearHelpText(notesHelp);
             utils.hideAlert(errorAlert);
-            updateChangeSummary();
+            refreshSaveState();
         };
 
         foundedInput.addEventListener('input', () => utils.setPartialDateHelp(foundedInput, foundedHelp));
@@ -744,7 +847,7 @@
                 return utils.setHelpText(nameHelp, 'Publisher Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(nameHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         websiteInput.addEventListener('input', () => {
             const value = websiteInput.value.trim();
@@ -753,7 +856,7 @@
                 return utils.setHelpText(websiteHelp, 'Website must be a valid URL starting with http:// or https://', true);
             }
             utils.setHelpText(websiteHelp, `Will be saved as: ${utils.normalizeUrl(value)}`, false);
-            updateChangeSummary();
+            refreshSaveState();
         });
         notesInput.addEventListener('input', () => {
             if (notesInput.value.trim().length > 1000) {
@@ -761,9 +864,9 @@
             } else {
                 utils.clearHelpText(notesHelp);
             }
-            updateChangeSummary();
+            refreshSaveState();
         });
-        foundedInput.addEventListener('input', updateChangeSummary);
+        foundedInput.addEventListener('input', refreshSaveState);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
             if (publisherMode.mode === 'add') {
@@ -785,7 +888,7 @@
             if (!nameInput.value.trim()) {
                 utils.setHelpText(nameHelp, 'This field is required.', true);
             }
-            updateChangeSummary();
+            refreshSaveState();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
@@ -869,63 +972,81 @@
             const current = getCurrentValues();
             const original = getOriginalValues();
             const changes = [];
-            if (current.displayName !== original.displayName) {
-                changes.push(`Renamed "${original.displayName || 'Untitled'}" to "${current.displayName || 'Untitled'}".`);
-            }
-            if (current.firstNames !== original.firstNames) {
-                if (original.firstNames && !current.firstNames) {
-                    changes.push('Removed first names.');
-                } else if (!original.firstNames && current.firstNames) {
-                    changes.push(`Added first names "${current.firstNames}".`);
-                } else {
-                    changes.push('Updated first names.');
-                }
-            }
-            if (current.lastName !== original.lastName) {
-                if (original.lastName && !current.lastName) {
-                    changes.push('Removed last name.');
-                } else if (!original.lastName && current.lastName) {
-                    changes.push(`Added last name "${current.lastName}".`);
-                } else {
-                    changes.push('Updated last name.');
-                }
-            }
-            if (current.birthDate !== original.birthDate) {
-                const fromLabel = original.birthDate || 'No date';
-                const toLabel = current.birthDate || 'No date';
-                changes.push(`Updated birth date from "${fromLabel}" to "${toLabel}".`);
-            }
+            const displayNameChange = utils.describeChange('display name', original.displayName, current.displayName);
+            if (displayNameChange) changes.push(displayNameChange);
+            const firstNamesChange = utils.describeChange('first name(s)', original.firstNames, current.firstNames);
+            if (firstNamesChange) changes.push(firstNamesChange);
+            const lastNameChange = utils.describeChange('last name', original.lastName, current.lastName);
+            if (lastNameChange) changes.push(lastNameChange);
+            const birthDateChange = utils.describeChange('birth date', original.birthDate, current.birthDate, {
+                formatter: utils.formatPartialDateDisplay
+            });
+            if (birthDateChange) changes.push(birthDateChange);
             if (current.deceased !== original.deceased) {
-                changes.push(current.deceased ? 'Marked author as deceased.' : 'Marked author as living.');
+                const deceasedChange = utils.describeChange(
+                    'deceased status',
+                    utils.formatBooleanLabel(original.deceased),
+                    utils.formatBooleanLabel(current.deceased)
+                );
+                if (deceasedChange) changes.push(deceasedChange);
             }
-            if (current.deathDate !== original.deathDate) {
-                const fromLabel = original.deathDate || 'No date';
-                const toLabel = current.deathDate || 'No date';
-                changes.push(`Updated death date from "${fromLabel}" to "${toLabel}".`);
-            }
-            if (current.bio !== original.bio) {
-                if (original.bio && !current.bio) {
-                    changes.push('Removed bio.');
-                } else if (!original.bio && current.bio) {
-                    changes.push('Added bio.');
-                } else {
-                    changes.push('Updated bio.');
-                }
-            }
+            const deathDateChange = utils.describeChange('death date', original.deathDate, current.deathDate, {
+                formatter: utils.formatPartialDateDisplay
+            });
+            if (deathDateChange) changes.push(deathDateChange);
+            const bioChange = utils.describeChange('short bio', original.bio, current.bio, { maxLength: 160 });
+            if (bioChange) changes.push(bioChange);
             return changes;
         };
 
-        const updateChangeSummary = () => {
+        const updateChangeSummary = (changes = buildChangeList()) => {
             if (!changeSummary) return;
             if (authorMode.mode !== 'edit') {
                 changeSummary.textContent = '';
                 return;
             }
-            const changes = buildChangeList();
             changeSummary.textContent = changes.length
-                ? `Changing ${authorMode.original?.displayName || 'this author'}: ${changes.join(' ')}`
+                ? changes.join(' ')
                 : 'No changes yet.';
-            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
+        const isValidForSave = () => {
+            const errors = [];
+            const displayName = displayNameInput.value.trim();
+            if (!displayName || displayName.length < 2 || displayName.length > 150 || !namePattern.test(displayName)) {
+                errors.push('displayName');
+            }
+            const firstNames = firstNameInput.value.trim();
+            if (firstNames && (firstNames.length < 2 || firstNames.length > 150 || !namePattern.test(firstNames))) {
+                errors.push('firstNames');
+            }
+            const lastName = lastNameInput.value.trim();
+            if (lastName && (lastName.length < 2 || lastName.length > 100 || !namePattern.test(lastName))) {
+                errors.push('lastName');
+            }
+            if (birthDateInput.value.trim()) {
+                const parsed = utils.parsePartialDateInput(birthDateInput.value);
+                if (parsed.error) errors.push('birthDate');
+            }
+            if (deathDateInput.value.trim() && !deceasedToggle.checked) {
+                errors.push('deathDate');
+            }
+            if (deceasedToggle.checked && deathDateInput.value.trim()) {
+                const parsed = utils.parsePartialDateInput(deathDateInput.value);
+                if (parsed.error) errors.push('deathDateInvalid');
+            }
+            if (bioInput.value.trim().length > 1000) {
+                errors.push('bio');
+            }
+            return errors.length === 0;
+        };
+
+        const refreshSaveState = () => {
+            const changes = buildChangeList();
+            if (authorMode.mode === 'edit') updateChangeSummary(changes);
+            const isValid = isValidForSave();
+            const hasChanges = authorMode.mode !== 'edit' || changes.length > 0;
+            if (saveButton) saveButton.disabled = modalState.locked || !isValid || !hasChanges;
         };
 
         const setDeathDateVisibility = (show) => {
@@ -1025,7 +1146,7 @@
                 resetButton
             ], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
-            if (authorMode.mode === 'edit') updateChangeSummary();
+            refreshSaveState();
         };
 
         const save = async () => {
@@ -1121,7 +1242,7 @@
             utils.clearHelpText(bioHelp);
             utils.hideAlert(errorAlert);
             applyDeceasedState();
-            updateChangeSummary();
+            refreshSaveState();
         };
 
         birthDateInput.addEventListener('input', () => utils.setPartialDateHelp(birthDateInput, birthHelp));
@@ -1131,7 +1252,7 @@
                 return;
             }
             utils.setPartialDateHelp(deathDateInput, deathHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         deceasedToggle.addEventListener('change', () => {
             if (!deceasedToggle.checked && deathDateInput.value.trim()) {
@@ -1140,7 +1261,7 @@
             }
             utils.setPartialDateHelp(deathDateInput, deathHelp);
             applyDeceasedState();
-            updateChangeSummary();
+            refreshSaveState();
         });
         displayNameInput.addEventListener('input', () => {
             const value = displayNameInput.value.trim();
@@ -1149,7 +1270,7 @@
                 return utils.setHelpText(displayNameHelp, 'Display Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(displayNameHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         firstNameInput.addEventListener('input', () => {
             const value = firstNameInput.value.trim();
@@ -1158,7 +1279,7 @@
                 return utils.setHelpText(firstNameHelp, 'First Name(s) must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(firstNameHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         lastNameInput.addEventListener('input', () => {
             const value = lastNameInput.value.trim();
@@ -1167,7 +1288,7 @@
                 return utils.setHelpText(lastNameHelp, 'Last Name must be 2-100 characters and valid.', true);
             }
             utils.clearHelpText(lastNameHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         bioInput.addEventListener('input', () => {
             if (bioInput.value.trim().length > 1000) {
@@ -1175,9 +1296,9 @@
             } else {
                 utils.clearHelpText(bioHelp);
             }
-            updateChangeSummary();
+            refreshSaveState();
         });
-        birthDateInput.addEventListener('input', updateChangeSummary);
+        birthDateInput.addEventListener('input', refreshSaveState);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
             if (authorMode.mode === 'add') {
@@ -1220,7 +1341,7 @@
                 utils.setHelpText(displayNameHelp, 'This field is required.', true);
             }
             applyDeceasedState();
-            updateChangeSummary();
+            refreshSaveState();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
@@ -1299,41 +1420,48 @@
             const current = getCurrentValues();
             const original = getOriginalValues();
             const changes = [];
-            if (current.name !== original.name) {
-                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
-            }
-            if (current.website !== original.website) {
-                if (original.website && !current.website) {
-                    changes.push(`Removed website "${original.website}".`);
-                } else if (!original.website && current.website) {
-                    changes.push(`Added website "${current.website}".`);
-                } else {
-                    changes.push(`Updated website from "${original.website || 'None'}" to "${current.website || 'None'}".`);
-                }
-            }
-            if (current.description !== original.description) {
-                if (original.description && !current.description) {
-                    changes.push('Removed description.');
-                } else if (!original.description && current.description) {
-                    changes.push('Added description.');
-                } else {
-                    changes.push('Updated description.');
-                }
-            }
+            const nameChange = utils.describeChange('name', original.name, current.name);
+            if (nameChange) changes.push(nameChange);
+            const websiteChange = utils.describeChange('website', original.website, current.website);
+            if (websiteChange) changes.push(websiteChange);
+            const descriptionChange = utils.describeChange('description', original.description, current.description, { maxLength: 160 });
+            if (descriptionChange) changes.push(descriptionChange);
             return changes;
         };
 
-        const updateChangeSummary = () => {
+        const updateChangeSummary = (changes = buildChangeList()) => {
             if (!changeSummary) return;
             if (seriesMode.mode !== 'edit') {
                 changeSummary.textContent = '';
                 return;
             }
-            const changes = buildChangeList();
             changeSummary.textContent = changes.length
-                ? `Changing ${seriesMode.original?.name || 'this series'}: ${changes.join(' ')}`
+                ? changes.join(' ')
                 : 'No changes yet.';
-            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
+        const isValidForSave = () => {
+            const errors = [];
+            const name = nameInput.value.trim();
+            if (!name || name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+                errors.push('name');
+            }
+            const websiteRaw = websiteInput.value.trim();
+            if (websiteRaw && !utils.normalizeUrl(websiteRaw)) {
+                errors.push('website');
+            }
+            if (descInput.value.trim().length > 1000) {
+                errors.push('description');
+            }
+            return errors.length === 0;
+        };
+
+        const refreshSaveState = () => {
+            const changes = buildChangeList();
+            if (seriesMode.mode === 'edit') updateChangeSummary(changes);
+            const isValid = isValidForSave();
+            const hasChanges = seriesMode.mode !== 'edit' || changes.length > 0;
+            if (saveButton) saveButton.disabled = modalState.locked || !isValid || !hasChanges;
         };
 
         utils.bindModalLock(modalEl, modalState);
@@ -1374,9 +1502,7 @@
             utils.setModalLocked(modalEl, locked);
             utils.toggleDisabled([nameInput, websiteInput, descInput, resetButton], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
-            if (seriesMode.mode === 'edit') {
-                updateChangeSummary();
-            }
+            refreshSaveState();
         };
 
         const save = async () => {
@@ -1440,7 +1566,7 @@
             utils.clearHelpText(websiteHelp);
             utils.clearHelpText(descHelp);
             utils.hideAlert(errorAlert);
-            updateChangeSummary();
+            refreshSaveState();
         };
 
         nameInput.addEventListener('input', () => {
@@ -1450,20 +1576,20 @@
                 return utils.setHelpText(nameHelp, 'Series Name must be 2-150 characters and valid.', true);
             }
             utils.clearHelpText(nameHelp);
-            updateChangeSummary();
+            refreshSaveState();
         });
         websiteInput.addEventListener('input', () => {
             const value = websiteInput.value.trim();
             if (!value) {
                 utils.clearHelpText(websiteHelp);
-                updateChangeSummary();
+                refreshSaveState();
                 return;
             }
             if (!utils.normalizeUrl(value)) {
                 return utils.setHelpText(websiteHelp, 'Series Website must be a valid URL starting with http:// or https://', true);
             }
             utils.setHelpText(websiteHelp, `Will be saved as: ${utils.normalizeUrl(value)}`, false);
-            updateChangeSummary();
+            refreshSaveState();
         });
         descInput.addEventListener('input', () => {
             if (descInput.value.trim().length > 1000) {
@@ -1471,7 +1597,7 @@
             } else {
                 utils.clearHelpText(descHelp);
             }
-            updateChangeSummary();
+            refreshSaveState();
         });
 
         modalEl.addEventListener('hidden.bs.modal', () => {
@@ -1490,7 +1616,7 @@
             if (!nameInput.value.trim()) {
                 utils.setHelpText(nameHelp, 'This field is required.', true);
             }
-            updateChangeSummary();
+            refreshSaveState();
         });
         saveButton.addEventListener('click', save);
         resetButton.addEventListener('click', reset);
@@ -1563,33 +1689,57 @@
             const current = getCurrentValues();
             const original = getOriginalValues();
             const changes = [];
-            if (current.name !== original.name) {
-                changes.push(`Renamed "${original.name || 'Untitled'}" to "${current.name || 'Untitled'}".`);
-            }
-            if (current.notes !== original.notes) {
-                if (original.notes && !current.notes) {
-                    changes.push('Removed notes.');
-                } else if (!original.notes && current.notes) {
-                    changes.push('Added notes.');
-                } else {
-                    changes.push('Updated notes.');
-                }
-            }
+            const nameChange = utils.describeChange('name', original.name, current.name);
+            if (nameChange) changes.push(nameChange);
+            const notesChange = utils.describeChange('notes', original.notes, current.notes, { maxLength: 160 });
+            if (notesChange) changes.push(notesChange);
             return changes;
         };
 
-        const updateChangeSummary = () => {
+        const updateChangeSummary = (changes = buildChangeList()) => {
             const changeSummary = utils.byId('eightLocationChangeSummary');
             if (!changeSummary) return;
             if (locationMode.mode !== 'edit') {
                 changeSummary.textContent = '';
                 return;
             }
-            const changes = buildChangeList();
             changeSummary.textContent = changes.length
-                ? `Changing ${locationMode.original?.name || 'this location'}: ${changes.join(' ')}`
+                ? changes.join(' ')
                 : 'No changes yet.';
-            if (saveButton) saveButton.disabled = modalState.locked || changes.length === 0;
+        };
+
+        const isValidForSave = () => {
+            const errors = [];
+            if (baseRadio.checked) {
+                const name = baseNameInput.value.trim();
+                if (!name || name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+                    errors.push('name');
+                }
+                if (baseNotesInput.value.trim().length > 2000) {
+                    errors.push('notes');
+                }
+            } else {
+                const parentId = parentSelect.value;
+                if (!parentId || parentId === 'none') {
+                    errors.push('parent');
+                }
+                const name = nestedNameInput.value.trim();
+                if (!name || name.length < 2 || name.length > 150 || !namePattern.test(name)) {
+                    errors.push('name');
+                }
+                if (nestedNotesInput.value.trim().length > 2000) {
+                    errors.push('notes');
+                }
+            }
+            return errors.length === 0;
+        };
+
+        const refreshSaveState = () => {
+            const changes = buildChangeList();
+            if (locationMode.mode === 'edit') updateChangeSummary(changes);
+            const isValid = isValidForSave();
+            const hasChanges = locationMode.mode !== 'edit' || changes.length > 0;
+            if (saveButton) saveButton.disabled = modalState.locked || !isValid || !hasChanges;
         };
 
         const baseNameHelp = utils.byId('eightLocationBaseNameHelp');
@@ -1655,6 +1805,7 @@
                 utils.clearHelpText(parentHelp);
                 utils.clearHelpText(nestedNameHelp);
                 utils.clearHelpText(nestedNotesHelp);
+                refreshSaveState();
                 return;
             }
 
@@ -1683,6 +1834,7 @@
             }
             utils.clearHelpText(baseNameHelp);
             utils.clearHelpText(baseNotesHelp);
+            refreshSaveState();
         }
 
         function applyLocationMode() {
@@ -1767,7 +1919,7 @@
                 resetButton
             ], locked);
             if (spinnerState) utils.setButtonLoading(saveButton, spinnerState.spinner, locked);
-            if (locationMode.mode === 'edit') updateChangeSummary();
+            refreshSaveState();
         };
 
         const save = async () => {
@@ -1855,7 +2007,7 @@
                 applyLocationMode();
             }
             utils.hideAlert(errorAlert);
-            updateChangeSummary();
+            refreshSaveState();
         };
 
         baseRadio.addEventListener('change', applyLocationMode);
@@ -1867,10 +2019,10 @@
         parentSelect.addEventListener('change', updateInlineHelp);
         nestedNameInput.addEventListener('input', updateInlineHelp);
         nestedNotesInput.addEventListener('input', updateInlineHelp);
-        baseNameInput.addEventListener('input', updateChangeSummary);
-        baseNotesInput.addEventListener('input', updateChangeSummary);
-        nestedNameInput.addEventListener('input', updateChangeSummary);
-        nestedNotesInput.addEventListener('input', updateChangeSummary);
+        baseNameInput.addEventListener('input', refreshSaveState);
+        baseNotesInput.addEventListener('input', refreshSaveState);
+        nestedNameInput.addEventListener('input', refreshSaveState);
+        nestedNotesInput.addEventListener('input', refreshSaveState);
 
         modalEl.addEventListener('hidden.bs.modal', () => {
             utils.cacheModalValues('addLocationModal', [
@@ -1938,7 +2090,7 @@
             }
             utils.hideAlert(errorAlert);
             applyLocationMode();
-            updateChangeSummary();
+            refreshSaveState();
             if (window.sharedAddModalsConfig && 'defaultLocationParentId' in window.sharedAddModalsConfig) {
                 window.sharedAddModalsConfig.defaultLocationParentId = null;
             }

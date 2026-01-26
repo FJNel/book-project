@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- Helper to get URL Query Parameters ---
@@ -60,6 +60,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
+    }
+
     // --- Toggle Spinner on Button ---
     function toggleSpinner(show) {
         if (show) {
@@ -71,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding password reset spinner.');
             resetSpinner.style.display = 'none';
             resetButtonText.textContent = 'Reset Password'; // Restore button text
-            resetButton.disabled = redirectScheduled;
+            refreshResetState();
         }
     }
 
@@ -83,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         toggleSpinner(false);
+        refreshResetState();
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
         const token = getQueryParam('token');
@@ -110,19 +118,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showAlert(type, htmlContent) {
-        console.log(`[UI] Displaying password reset ${type} alert.`);
+    function showErrorAlert(message, errors = []) {
+        console.log('[UI] Displaying password reset error alert.');
         successAlert.style.display = 'none';
+        if (typeof window.renderApiErrorAlert === 'function') {
+            window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+        } else {
+            errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+        }
+        errorAlert.style.display = 'block';
+    }
+
+    function showSuccessAlert(messageText, detailText = '') {
+        console.log('[UI] Displaying password reset success alert.');
         errorAlert.style.display = 'none';
-        const alertToShow = type === 'success' ? successAlert : errorAlert;
-        alertToShow.innerHTML = htmlContent;
-        alertToShow.style.display = 'block';
+        successAlert.innerHTML = '';
+        const strong = document.createElement('strong');
+        strong.textContent = messageText;
+        successAlert.appendChild(strong);
+        if (detailText) {
+            successAlert.appendChild(document.createTextNode(` ${detailText}`));
+        }
+        successAlert.style.display = 'block';
     }
 
     function clearErrors() {
         errorAlert.style.display = 'none';
-        emailHelp.textContent = '';
-        passwordHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
+        setHelpText(passwordHelp, '', false);
+    }
+
+    function updateValidationHints() {
+        const email = emailInput.value.trim();
+        if (!email) {
+            setHelpText(emailHelp, '', false);
+        } else if (!emailInput.checkValidity()) {
+            setHelpText(emailHelp, 'Please enter a valid email address.', true);
+        } else {
+            setHelpText(emailHelp, '', false);
+        }
+
+        const password = passwordInput.value;
+        if (!password) {
+            setHelpText(passwordHelp, '', false);
+        } else if (!passwordInput.checkValidity()) {
+            setHelpText(passwordHelp, 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.', true);
+        } else {
+            setHelpText(passwordHelp, '', false);
+        }
+    }
+
+    function refreshResetState() {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const isValid = email.length > 0 && password.length > 0 && emailInput.checkValidity() && passwordInput.checkValidity();
+        resetButton.disabled = redirectScheduled || !isValid;
     }
 
     // --- Form Validation ---
@@ -132,11 +182,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!emailInput.checkValidity()) {
             isValid = false;
-            emailHelp.textContent = 'Please enter a valid email address.';
+            if (!email) {
+                setHelpText(emailHelp, 'Please enter your email address.', true);
+            } else {
+                setHelpText(emailHelp, 'Please enter a valid email address.', true);
+            }
         }
         if (!passwordInput.checkValidity()) {
             isValid = false;
-            passwordHelp.textContent = 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.';
+            if (!passwordInput.value) {
+                setHelpText(passwordHelp, 'Please enter your password.', true);
+            } else {
+                setHelpText(passwordHelp, 'Password must be 10-100 characters and include uppercase, lowercase, a number, and a special character.', true);
+            }
         }
         
         console.log(`[Validation] Password reset form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
@@ -157,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const token = getQueryParam('token');
 
         if (!token) {
-            showAlert('error', getLangString("INVALID_TOKEN"));
+            showErrorAlert(getLangString('INVALID_TOKEN'));
             toggleSpinner(false);
             return;
         }
@@ -171,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             captchaToken = await window.recaptchaV3.getToken('reset_password');
         } catch (e) {
             console.error('[reCAPTCHA] Failed to obtain token for reset-password:', e);
-            showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+            showErrorAlert(SECURITY_CHECK_ERROR);
             setFormDisabledState(false);
             toggleSpinner(false);
             return;
@@ -193,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 const message = getLangString(data.message);
-                showAlert('success', `<strong>${message}</strong> You can now log in with your new password.`);
+                showSuccessAlert(message, 'You can now log in with your new password.');
                 redirectScheduled = true;
                 setFormDisabledState(true);
                 setTimeout(() => {
@@ -203,16 +261,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const rawMessage = getLangString(data.message);
                 if (isCaptchaFailureMessage(rawMessage)) {
-                    showAlert('error', SECURITY_CHECK_ERROR_HTML);
+                    showErrorAlert(SECURITY_CHECK_ERROR);
                 } else {
-                    const message = `<strong>${rawMessage}:</strong>`;
+                    const message = rawMessage;
                     const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-                    showAlert('error', `${message} ${details}`);
+                    showErrorAlert(message, details ? [details] : []);
                 }
             }
         } catch (error) {
             console.error('[API] Network or fetch error during password reset:', error);
-            showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+            showErrorAlert('Connection Error', ['Could not connect to the server.']);
         } finally {
             if (!redirectScheduled) {
                 setFormDisabledState(false);
@@ -224,7 +282,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     resetForm.addEventListener('submit', handlePasswordReset);
     resetButton.addEventListener('click', handlePasswordReset);
-    [emailInput, passwordInput].forEach(input => input.addEventListener('input', clearErrors));
+    [emailInput, passwordInput].forEach(input => input.addEventListener('input', () => {
+        errorAlert.style.display = 'none';
+        updateValidationHints();
+        refreshResetState();
+    }));
 
     // --- App Initialization ---
     loadLanguageFile();

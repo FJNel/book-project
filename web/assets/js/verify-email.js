@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Selection ---
     const emailInput = document.getElementById('resendEmail');
     const verifyButton = document.getElementById('verifyButton');
+    const emailHelp = document.getElementById('resendEmailHelp');
     const successAlert = document.getElementById('emailVerificationAlertSuccess');
     const errorAlert = document.getElementById('emailVerificationAlertError');
     const verificationForm = document.getElementById('emailVerificationForm');
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- Helper to get URL Query Parameters ---
@@ -57,6 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
+    }
+
     // --- Spinner Toggle ---
     function toggleSpinner(show) {
         if (show) {
@@ -68,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding verification spinner.');
             verifySpinner.style.display = 'none';
             verifyButtonText.textContent = 'Verify Email'; // Restore button text
-            verifyButton.disabled = redirectScheduled;
+            refreshVerifyState();
         }
     }
 
@@ -79,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         toggleSpinner(false);
+        refreshVerifyState();
     
         const invalidLinkModalEl = document.getElementById('invalidLinkModal');
         const token = getQueryParam('token');
@@ -104,13 +113,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }
 
-    function showAlert(type, htmlContent) {
-        console.log(`[UI] Displaying email verification ${type} alert.`);
+    function showErrorAlert(message, errors = []) {
+        console.log('[UI] Displaying email verification error alert.');
         successAlert.style.display = 'none';
+        if (typeof window.renderApiErrorAlert === 'function') {
+            window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+        } else {
+            errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+        }
+        errorAlert.style.display = 'block';
+    }
+
+    function showSuccessAlert(messageText, detailText = '') {
+        console.log('[UI] Displaying email verification success alert.');
         errorAlert.style.display = 'none';
-        const alertToShow = type === 'success' ? successAlert : errorAlert;
-        alertToShow.innerHTML = htmlContent;
-        alertToShow.style.display = 'block';
+        successAlert.innerHTML = '';
+        const strong = document.createElement('strong');
+        strong.textContent = messageText;
+        successAlert.appendChild(strong);
+        if (detailText) {
+            successAlert.appendChild(document.createTextNode(` ${detailText}`));
+        }
+        successAlert.style.display = 'block';
+    }
+
+    function refreshVerifyState() {
+        const email = emailInput.value.trim();
+        const isValid = email.length > 0 && emailInput.checkValidity();
+        verifyButton.disabled = redirectScheduled || !isValid;
+    }
+
+    function validateForm() {
+        const email = emailInput.value.trim();
+        let isValid = true;
+        if (!email) {
+            setHelpText(emailHelp, 'Please enter your email address.', true);
+            isValid = false;
+        } else if (!emailInput.checkValidity()) {
+            setHelpText(emailHelp, 'Please enter a valid email address.', true);
+            isValid = false;
+        } else {
+            setHelpText(emailHelp, '', false);
+        }
+        return isValid;
     }
 
     // --- Main Verification Handler ---
@@ -121,14 +166,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = emailInput.value.trim();
         const token = getQueryParam('token');
 
-        // Basic local validation
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showAlert('error', 'Please enter a valid email address.');
+        if (!validateForm()) {
+            refreshVerifyState();
             return;
         }
 
         if (!token) {
-            showAlert('error', getLangString("INVALID_TOKEN"));
+            showErrorAlert(getLangString('INVALID_TOKEN'));
             return;
         }
 
@@ -141,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             captchaToken = await window.recaptchaV3.getToken('verify_email');
         } catch (e) {
             console.error('[reCAPTCHA] Failed to obtain token for verify-email:', e);
-            showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+            showErrorAlert(SECURITY_CHECK_ERROR);
             setFormDisabledState(false);
             toggleSpinner(false);
             return;
@@ -158,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 const message = getLangString(data.message);
-                showAlert('success', `<strong>${message}</strong> You can now log in.`);
+                showSuccessAlert(message, 'You can now log in.');
                 redirectScheduled = true;
                 setFormDisabledState(true);
                 setTimeout(() => {
@@ -168,16 +212,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const rawMessage = getLangString(data.message);
                 if (isCaptchaFailureMessage(rawMessage)) {
-                    showAlert('error', SECURITY_CHECK_ERROR_HTML);
+                    showErrorAlert(SECURITY_CHECK_ERROR);
                 } else {
-                    const message = `<strong>${rawMessage}:</strong>`;
                     const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-                    showAlert('error', `${message} ${details}`);
+                    showErrorAlert(rawMessage, details ? [details] : []);
                 }
             }
         } catch (error) {
             console.error('[API] Network or fetch error during verification:', error);
-            showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+            showErrorAlert('Connection Error', ['Could not connect to the server.']);
         } finally {
             if (!redirectScheduled) {
                 setFormDisabledState(false);
@@ -189,6 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     verificationForm.addEventListener('submit', handleVerification);
     verifyButton.addEventListener('click', handleVerification);
+    emailInput.addEventListener('input', () => {
+        errorAlert.style.display = 'none';
+        validateForm();
+        refreshVerifyState();
+    });
 
     // --- App Initialization ---
     loadLanguageFile();

@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const editBookType = document.getElementById('editBookType');
   const editBookPublisher = document.getElementById('editBookPublisher');
   const editBookSaveBtn = document.getElementById('editBookSaveBtn');
+  const editBookChangesSummary = document.getElementById('editBookChangesSummary');
   const editBookTitleHelp = document.getElementById('editBookTitleHelp');
   const editBookSubtitleHelp = document.getElementById('editBookSubtitleHelp');
   const editBookIsbnHelp = document.getElementById('editBookIsbnHelp');
@@ -312,6 +313,32 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const clearHelpText = (el) => setHelpText(el, '', false);
+
+  const formatPartialDateDisplay = (value) => {
+    if (!value) return '';
+    if (typeof value === 'object' && value.text) return String(value.text).trim();
+    const raw = String(value).trim();
+    if (!raw) return '';
+    const parsed = parsePartialDateInput(raw);
+    if (parsed && parsed.value && parsed.value.text) return parsed.value.text;
+    return raw;
+  };
+
+  const describeChange = (fieldLabel, fromValue, toValue) => {
+    const from = (fromValue || '').trim();
+    const to = (toValue || '').trim();
+    if (from === to) return null;
+    if (!from && to) return `Adding ${fieldLabel}: '${to}'.`;
+    if (from && !to) return `Clearing ${fieldLabel} (was '${from}').`;
+    return `Changing ${fieldLabel} from '${from}' to '${to}'.`;
+  };
+
+  const formatList = (items) => {
+    const list = items.filter(Boolean);
+    if (!list.length) return '';
+    if (list.length <= 6) return list.join(', ');
+    return `${list.slice(0, 6).join(', ')}, and ${list.length - 6} more`;
+  };
 
   const initializeTooltips = () => {
     if (typeof window.initializeTooltips === 'function') {
@@ -1209,10 +1236,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
       [editBookTitleHelp, editBookSubtitleHelp, editBookIsbnHelp, editBookPublicationHelp, editBookPagesHelp, editBookCoverHelp, editBookDescriptionHelp]
         .forEach((el) => clearHelpText(el));
+      updateEditBookState();
       await showModal(editBookModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
       errorLog('Failed to prepare edit modal.', error);
     }
+  };
+
+  const buildEditBookChanges = () => {
+    if (!bookRecord) return [];
+    const changes = [];
+    const currentTitle = editBookTitle?.value.trim() || '';
+    const currentSubtitle = editBookSubtitle?.value.trim() || '';
+    const currentIsbn = editBookIsbn?.value.trim() || '';
+    const currentPublication = formatPartialDateDisplay(editBookPublication?.value || '');
+    const currentPages = editBookPages?.value.trim() || '';
+    const currentCover = editBookCover?.value.trim() || '';
+    const currentDescription = editBookDescription?.value.trim() || '';
+    const currentBookType = editBookType?.value ? (editBookType.selectedOptions?.[0]?.textContent || '').trim() : '';
+    const currentPublisher = editBookPublisher?.value ? (editBookPublisher.selectedOptions?.[0]?.textContent || '').trim() : '';
+
+    const originalTitle = bookRecord.title || '';
+    const originalSubtitle = bookRecord.subtitle || '';
+    const originalIsbn = bookRecord.isbn || '';
+    const originalPublication = formatPartialDateDisplay(bookRecord.publicationDate?.text || bookRecord.publicationDate || '');
+    const originalPages = Number.isInteger(bookRecord.pageCount) ? String(bookRecord.pageCount) : '';
+    const originalCover = bookRecord.coverImageUrl || '';
+    const originalDescription = bookRecord.description || '';
+    const originalBookType = bookRecord.bookType?.name || '';
+    const originalPublisher = bookRecord.publisher?.name || '';
+
+    const titleChange = describeChange('title', originalTitle, currentTitle);
+    const subtitleChange = describeChange('subtitle', originalSubtitle, currentSubtitle);
+    const isbnChange = describeChange('ISBN', originalIsbn, currentIsbn);
+    const publicationChange = describeChange('publication date', originalPublication, currentPublication);
+    const pagesChange = describeChange('page count', originalPages, currentPages);
+    const coverChange = describeChange('cover image URL', originalCover, currentCover);
+    const descriptionChange = describeChange('description', originalDescription, currentDescription);
+    const typeChange = describeChange('book type', originalBookType, currentBookType);
+    const publisherChange = describeChange('publisher', originalPublisher, currentPublisher);
+
+    [titleChange, subtitleChange, isbnChange, publicationChange, pagesChange, coverChange, descriptionChange, typeChange, publisherChange]
+      .forEach((entry) => { if (entry) changes.push(entry); });
+
+    const originalLanguages = (bookRecord.languages || []).map((lang) => lang?.name).filter(Boolean);
+    const currentLanguages = Array.from(editBookLanguages?.selectedOptions || [])
+      .map((option) => option.textContent.trim())
+      .filter(Boolean);
+    const addedLangs = currentLanguages.filter((name) => !originalLanguages.includes(name));
+    const removedLangs = originalLanguages.filter((name) => !currentLanguages.includes(name));
+    if (addedLangs.length) changes.push(`Adding languages: ${formatList(addedLangs)}.`);
+    if (removedLangs.length) changes.push(`Removing languages: ${formatList(removedLangs)}.`);
+
+    return changes;
+  };
+
+  const updateEditBookState = () => {
+    const valid = validateEditBook();
+    const changes = buildEditBookChanges();
+    if (editBookChangesSummary) {
+      editBookChangesSummary.textContent = changes.length ? changes.join(' ') : 'No changes yet.';
+    }
+    if (editBookSaveBtn) editBookSaveBtn.disabled = !valid || changes.length === 0;
   };
 
   const validateEditBook = () => {
@@ -1308,7 +1393,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const saveBookEdits = async () => {
     if (!bookRecord) return;
+    const changes = buildEditBookChanges();
     if (!validateEditBook()) return;
+    if (changes.length === 0) return;
     const publicationRaw = editBookPublication.value.trim();
     const pagesRaw = editBookPages.value.trim();
     const languagesSelected = Array.from(editBookLanguages?.selectedOptions || []).map((option) => Number(option.value)).filter(Number.isFinite);
@@ -1342,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', () => {
       errorLog('Book update failed.', error);
       if (editBookErrorAlert) renderApiErrorAlert(editBookErrorAlert, { message: 'Unable to update book right now.' }, 'Unable to update book right now.');
     } finally {
-      editBookSaveBtn.disabled = false;
+      updateEditBookState();
     }
   };
 
@@ -1590,8 +1677,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasChanges = nextInput !== originalInput;
     const currentLabel = authorRoleTarget.currentRole || 'No role';
     const nextLabel = nextInput || 'No role';
+    const authorName = authorRoleTarget.author.authorName || 'this author';
     authorRoleChangeSummary.textContent = hasChanges
-      ? `Changing ${authorRoleTarget.author.authorName || 'this author'}'s role on ${bookRecord.title || 'this book'} from ${currentLabel} to ${nextLabel}.`
+      ? `Changing author role for '${authorName}' from '${currentLabel}' to '${nextLabel}'.`
       : 'No changes yet.';
     if (authorRoleSaveBtn) authorRoleSaveBtn.disabled = authorRoleModalState.locked || !hasChanges;
   };
@@ -1925,8 +2013,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ? String(seriesOrderTarget.currentOrder)
       : 'No order';
     const nextLabel = nextInput ? nextInput : 'No order';
+    const seriesName = seriesOrderTarget.seriesEntry.seriesName || 'this series';
     seriesOrderChangeSummary.textContent = hasChanges
-      ? `Changing ${bookRecord.title || 'this book'}'s order in ${seriesOrderTarget.seriesEntry.seriesName || 'this series'} from ${currentLabel} to ${nextLabel}.`
+      ? `Changing series order in '${seriesName}' from '${currentLabel}' to '${nextLabel}'.`
       : 'No changes yet.';
     if (seriesOrderSaveBtn) seriesOrderSaveBtn.disabled = seriesOrderModalState.locked || !hasChanges;
   };
@@ -2120,9 +2209,9 @@ document.addEventListener('DOMContentLoaded', () => {
         manageTagsChangeSummary.textContent = 'No changes yet.';
       } else {
         const lines = [];
-        additions.forEach((tag) => lines.push(`Adding tag: ${tag}`));
-        removals.forEach((tag) => lines.push(`Removing tag: ${tag}`));
-        manageTagsChangeSummary.textContent = lines.join(' • ');
+        if (additions.length) lines.push(`Adding tags: ${formatList(additions)}.`);
+        if (removals.length) lines.push(`Removing tags: ${formatList(removals)}.`);
+        manageTagsChangeSummary.textContent = lines.join(' ');
       }
     }
     if (manageTagsSaveBtn) manageTagsSaveBtn.disabled = manageTagsModalState.locked || !hasChanges;
@@ -2304,61 +2393,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const current = getCopyCurrentValues();
     const original = getCopyOriginalValues();
     const changes = [];
-    if (current.locationId !== original.locationId) {
-      const fromLabel = original.locationLabel || 'No location';
-      const toLabel = current.locationLabel || 'No location';
-      changes.push(`Updated storage location from "${fromLabel}" to "${toLabel}".`);
-    }
-    if (current.acquisitionDate !== original.acquisitionDate) {
-      const fromLabel = original.acquisitionDate || 'No date';
-      const toLabel = current.acquisitionDate || 'No date';
-      changes.push(`Updated acquisition date from "${fromLabel}" to "${toLabel}".`);
-    }
-    if (current.acquiredFrom !== original.acquiredFrom) {
-      if (!original.acquiredFrom && current.acquiredFrom) {
-        changes.push(`Added acquired from "${current.acquiredFrom}".`);
-      } else if (original.acquiredFrom && !current.acquiredFrom) {
-        changes.push('Cleared acquired from.');
-      } else {
-        changes.push(`Updated acquired from to "${current.acquiredFrom || 'None'}".`);
-      }
-    }
-    if (current.acquisitionType !== original.acquisitionType) {
-      if (!original.acquisitionType && current.acquisitionType) {
-        changes.push(`Set acquisition type to "${current.acquisitionType}".`);
-      } else if (original.acquisitionType && !current.acquisitionType) {
-        changes.push('Cleared acquisition type.');
-      } else {
-        changes.push(`Updated acquisition type to "${current.acquisitionType || 'None'}".`);
-      }
-    }
-    if (current.acquisitionLocation !== original.acquisitionLocation) {
-      if (!original.acquisitionLocation && current.acquisitionLocation) {
-        changes.push(`Added acquisition location "${current.acquisitionLocation}".`);
-      } else if (original.acquisitionLocation && !current.acquisitionLocation) {
-        changes.push('Cleared acquisition location.');
-      } else {
-        changes.push(`Updated acquisition location to "${current.acquisitionLocation || 'None'}".`);
-      }
-    }
-    if (current.acquisitionStory !== original.acquisitionStory) {
-      if (!original.acquisitionStory && current.acquisitionStory) {
-        changes.push('Added acquisition story.');
-      } else if (original.acquisitionStory && !current.acquisitionStory) {
-        changes.push('Cleared acquisition story.');
-      } else {
-        changes.push('Updated acquisition story.');
-      }
-    }
-    if (current.notes !== original.notes) {
-      if (!original.notes && current.notes) {
-        changes.push('Added notes.');
-      } else if (original.notes && !current.notes) {
-        changes.push('Cleared notes.');
-      } else {
-        changes.push('Updated notes.');
-      }
-    }
+    const locationChange = describeChange('storage location', original.locationLabel || '', current.locationLabel || '');
+    const acquisitionDateChange = describeChange(
+      'acquisition date',
+      formatPartialDateDisplay(original.acquisitionDate || ''),
+      formatPartialDateDisplay(current.acquisitionDate || '')
+    );
+    const acquiredFromChange = describeChange('acquired from', original.acquiredFrom, current.acquiredFrom);
+    const acquisitionTypeChange = describeChange('acquisition type', original.acquisitionType, current.acquisitionType);
+    const acquisitionLocationChange = describeChange('acquisition location', original.acquisitionLocation, current.acquisitionLocation);
+    const acquisitionStoryChange = describeChange('acquisition story', original.acquisitionStory, current.acquisitionStory);
+    const notesChange = describeChange('notes', original.notes, current.notes);
+    [
+      locationChange,
+      acquisitionDateChange,
+      acquiredFromChange,
+      acquisitionTypeChange,
+      acquisitionLocationChange,
+      acquisitionStoryChange,
+      notesChange
+    ].forEach((entry) => { if (entry) changes.push(entry); });
     return changes;
   };
 
@@ -2371,7 +2425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const changes = buildCopyChangeList();
     copyChangeSummary.textContent = changes.length
-      ? `Changing this copy: ${changes.join(' ')}`
+      ? changes.join(' ')
       : 'No changes yet.';
     if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked || changes.length === 0;
   };
@@ -2678,13 +2732,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = `add-book?id=${bookRecord.id}`;
   });
   if (editBookSaveBtn) editBookSaveBtn.addEventListener('click', saveBookEdits);
-  if (editBookTitle) editBookTitle.addEventListener('input', validateEditBook);
-  if (editBookSubtitle) editBookSubtitle.addEventListener('input', validateEditBook);
-  if (editBookIsbn) editBookIsbn.addEventListener('input', validateEditBook);
-  if (editBookPublication) editBookPublication.addEventListener('input', validateEditBook);
-  if (editBookPages) editBookPages.addEventListener('input', validateEditBook);
-  if (editBookCover) editBookCover.addEventListener('input', validateEditBook);
-  if (editBookDescription) editBookDescription.addEventListener('input', validateEditBook);
+  if (editBookTitle) editBookTitle.addEventListener('input', updateEditBookState);
+  if (editBookSubtitle) editBookSubtitle.addEventListener('input', updateEditBookState);
+  if (editBookIsbn) editBookIsbn.addEventListener('input', updateEditBookState);
+  if (editBookPublication) editBookPublication.addEventListener('input', updateEditBookState);
+  if (editBookPages) editBookPages.addEventListener('input', updateEditBookState);
+  if (editBookCover) editBookCover.addEventListener('input', updateEditBookState);
+  if (editBookDescription) editBookDescription.addEventListener('input', updateEditBookState);
+  if (editBookLanguages) editBookLanguages.addEventListener('change', updateEditBookState);
+  if (editBookType) editBookType.addEventListener('change', updateEditBookState);
+  if (editBookPublisher) editBookPublisher.addEventListener('change', updateEditBookState);
   if (deleteBookBtn) deleteBookBtn.addEventListener('click', openDeleteBookModal);
   if (deleteBookConfirmBtn) deleteBookConfirmBtn.addEventListener('click', confirmDeleteBook);
   if (manageAuthorsBtn) manageAuthorsBtn.addEventListener('click', openManageAuthorsModal);

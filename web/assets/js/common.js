@@ -34,7 +34,13 @@ function renderApiErrorAlert(alertEl, apiResponse = {}, fallbackMessage = 'Reque
 	const message = apiResponse.message || fallbackMessage;
 	const errors = Array.isArray(apiResponse.errors) ? apiResponse.errors.filter(Boolean) : [];
 	const detail = errors.length ? `: ${errors.join(' ')}` : '';
-	alertEl.innerHTML = `<strong>${message}</strong>${detail}`;
+	alertEl.innerHTML = '';
+	const strong = document.createElement('strong');
+	strong.textContent = message;
+	alertEl.appendChild(strong);
+	if (detail) {
+		alertEl.appendChild(document.createTextNode(detail));
+	}
 	alertEl.classList.remove('d-none');
 }
 

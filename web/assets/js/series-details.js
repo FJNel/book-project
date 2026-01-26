@@ -458,8 +458,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextInput = seriesOrderInput.value.trim();
     const nextLabel = nextInput ? nextInput : 'No order';
     const hasChanges = nextInput !== orderEditTarget.originalInputValue;
+    const seriesName = seriesRecord.name || 'this series';
     seriesOrderChangeSummary.textContent = hasChanges
-      ? `Changing ${orderEditTarget.book.title || 'this book'}'s order in ${seriesRecord.name || 'this series'} from ${currentLabel} to ${nextLabel}.`
+      ? `Changing series order in '${seriesName}' from '${currentLabel}' to '${nextLabel}'.`
       : 'No changes yet.';
     if (seriesOrderSaveBtn) {
       seriesOrderSaveBtn.disabled = orderModalState.locked || !hasChanges;

@@ -62,16 +62,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+    const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
     function resetControlsState() {
         controlsLocked = false;
         emailInput.removeAttribute('disabled');
-        sendLinkButton.removeAttribute('disabled');
         spinner.style.display = 'none';
         buttonText.textContent = 'Send Link';
+        refreshSendLinkState();
     }
 
     function initializeUI() {
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[UI] Hiding password reset spinner.');
             spinner.style.display = 'none';
             buttonText.textContent = 'Send Link';
-            sendLinkButton.disabled = false;
+            refreshSendLinkState();
             setModalLocked(false);
         }
     }
@@ -120,17 +120,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function showAlert(type, htmlContent, { disableControls = false } = {}) {
-        console.log(`[UI] Displaying password reset ${type} alert.`);
-        // Hide both alerts first
+    function showErrorAlert(message, errors = []) {
+        console.log('[UI] Displaying password reset error alert.');
         successAlert.style.display = 'none';
+        if (typeof window.renderApiErrorAlert === 'function') {
+            window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+        } else {
+            errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+        }
+        errorAlert.style.display = 'block';
+    }
+
+    function showSuccessAlert(messageText, disclaimerText = '', { disableControls = false } = {}) {
+        console.log('[UI] Displaying password reset success alert.');
         errorAlert.style.display = 'none';
+        successAlert.innerHTML = '';
+        const strong = document.createElement('strong');
+        strong.textContent = messageText;
+        successAlert.appendChild(strong);
+        if (disclaimerText) {
+            successAlert.appendChild(document.createElement('br'));
+            const em = document.createElement('em');
+            em.textContent = disclaimerText;
+            successAlert.appendChild(em);
+        }
+        successAlert.style.display = 'block';
 
-        const alertToShow = type === 'success' ? successAlert : errorAlert;
-        alertToShow.innerHTML = htmlContent;
-        alertToShow.style.display = 'block';
-
-        if (disableControls && type === 'success') {
+        if (disableControls) {
             controlsLocked = true;
             spinner.style.display = 'none';
             buttonText.textContent = 'Send Link';
@@ -144,10 +160,17 @@ document.addEventListener('DOMContentLoaded', () => {
         errorAlert.style.display = 'none';
     }
 
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
+    }
+
     function clearAlertsAndErrors() {
         console.log('[UI] Clearing password reset alerts and help text.');
         clearAlerts();
-        emailHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
     }
 
     // --- Form Validation ---
@@ -160,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!emailInput.checkValidity()) {
             isValid = false;
             if (email.length === 0) {
-                emailHelp.textContent = 'Please enter your email address.';
+                setHelpText(emailHelp, 'Please enter your email address.', true);
             } else {
-                emailHelp.textContent = 'Please enter a valid email address format.';
+                setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             }
             if (!firstInvalidField) firstInvalidField = emailInput;
         }
@@ -175,15 +198,22 @@ document.addEventListener('DOMContentLoaded', () => {
         clearAlerts();
         const email = emailInput.value.trim();
         if (!email) {
-            emailHelp.textContent = 'Please enter your email address.';
+            setHelpText(emailHelp, 'Please enter your email address.', true);
             return false;
         }
         if (!emailInput.checkValidity()) {
-            emailHelp.textContent = 'Please enter a valid email address format.';
+            setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             return false;
         }
-        emailHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
         return true;
+    }
+
+    function refreshSendLinkState() {
+        const email = emailInput.value.trim();
+        const emailValid = email.length > 0 && emailInput.checkValidity();
+        const canSubmit = !controlsLocked && !isSubmitting && emailValid;
+        sendLinkButton.disabled = !canSubmit;
     }
 
     // --- Main Handler ---
@@ -209,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 captchaToken = await window.recaptchaV3.getToken('request_password_reset');
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for request-password-reset:', e);
-                showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                showErrorAlert(SECURITY_CHECK_ERROR);
                 return;
             }
 
@@ -224,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			// Handle Too Many Requests (429)
 			if (response.status === 429) {
 				console.warn('[Password Reset] Too many requests (429).');
-				showAlert('error', '<strong>Too many requests:</strong> Please try again later.');
+                showErrorAlert('Too many requests', ['Please try again later.']);
 				return;
 			}
 
@@ -238,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			}
 		} catch (error) {
 			console.error('[API] Network or fetch error during password reset request:', error);
-			showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+			showErrorAlert('Connection Error', ['Could not connect to the server. Please try again.']);
 		} finally {
             if (controlsLocked) {
                 spinner.style.display = 'none';
@@ -261,36 +291,34 @@ document.addEventListener('DOMContentLoaded', () => {
             ? data.data.disclaimer
             : data?.message?.disclaimer || '';
         const disclaimerText = disclaimerSource ? getLangString(disclaimerSource) : '';
-        const alertHtml = disclaimerText
-            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
-            : `<strong>${messageText}</strong>`;
-        showAlert('success', alertHtml, { disableControls: true });
+        showSuccessAlert(messageText, disclaimerText, { disableControls: true });
     }
 
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
         const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
         if (isCaptchaFailureMessage(rawMessage)) {
-            showAlert('error', SECURITY_CHECK_ERROR_HTML);
+            showErrorAlert(SECURITY_CHECK_ERROR);
             return;
         }
         const messageText = rawMessage;
         const detailsText = Array.isArray(data?.errors) && data.errors.length
             ? data.errors.map(getLangString).join(' ')
             : '';
-        const alertHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
-
         if (status === 400) {
-            showAlert('error', alertHtml);
+            showErrorAlert(messageText, detailsText ? [detailsText] : []);
             return;
         }
 
-        showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
+        showErrorAlert('An unexpected error occurred', ['Please try again.']);
     }
 
     // --- Event Listeners ---
     forgotPasswordForm.addEventListener('submit', handlePasswordResetRequest);
-    emailInput.addEventListener('input', validateEmailRealtime);
+    emailInput.addEventListener('input', () => {
+        validateEmailRealtime();
+        refreshSendLinkState();
+    });
     sendLinkButton.addEventListener('click', handlePasswordResetRequest);
     emailInput.addEventListener('input', clearAlerts);
 

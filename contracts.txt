@@ -1,0 +1,97 @@
+Book Project Contracts (UI/UX)
+================================
+
+A) Modal Contract (Book Project standard)
+----------------------------------------
+Applies to any modal that accepts user input, performs a server action, or confirms a destructive change.
+
+1) Live validation
+- Each field has help text below it.
+- Help text has two states:
+  - Neutral guidance: class "form-text text-muted" (e.g., format hints).
+  - Validation error: class "form-text text-danger" (e.g., "This field is required.").
+- Validation runs on input/change and on submit.
+- Field validity rules:
+  - Required fields are valid only when trimmed value is non-empty and passes any format rules.
+  - Optional fields are valid when empty OR valid per format rules.
+  - Date fields use the partial date parser; invalid input is invalid.
+- Field visual state:
+  - When invalid: add "is-invalid" to the input/select/textarea; show error help text.
+  - When valid and non-empty: add "is-valid" (optional if the UI already avoids green validation); clear error help.
+  - When empty and optional: no validation classes, neutral guidance only.
+
+2) Primary action enable/disable rules
+- Primary action is disabled until:
+  - all required fields are valid, AND
+  - there is at least one meaningful change from the original values,
+    OR (for confirm-only modals) the confirmation requirement is satisfied.
+- Confirm-only modals (type-to-confirm):
+  - Required phrase is shown in the modal (e.g., DELETE).
+  - Input is trimmed and compared case-insensitively.
+  - The primary button is enabled only when the phrase matches.
+
+3) Request locking
+- When a request is in flight:
+  - inputs, selects, textareas, and all buttons are disabled (including close buttons),
+  - modal cannot be closed (static backdrop + keyboard disabled),
+  - the primary button shows a spinner.
+- Use the shared modal lock helper (window.modalLock) where available.
+
+4) Success + error outcomes
+- On success:
+  - modal closes by default,
+  - UI updates in place (avoid full-page reload when feasible),
+  - show inline success alerts when the flow stays on the same page.
+- On error:
+  - modal remains open,
+  - show a standard alert:
+    "<strong>API message</strong>: errors joined"
+  - errors are rendered safely (no HTML injection; use renderApiErrorAlert or textContent).
+
+5) Logging
+Minimum console logs per modal:
+- [Feature][Modal] opened
+- [Feature][Modal] validation state changed (optional)
+- [Feature][Modal] request started
+- [Feature][Modal] request finished (success)
+- [Feature][Modal] request failed with status/message
+
+B) Changes Contract (applies to edit/change modals)
+---------------------------------------------------
+This is the standard "Changes" summary area for edit/change modals.
+
+1) Placement + appearance
+- Always placed at the bottom of the modal content, directly above the footer.
+- Uses a stable container (no layout shift), e.g.,
+  - <div class="small text-muted" id="...">No changes yet.</div>
+
+2) Empty state
+- When nothing differs from original values: "No changes yet."
+
+3) Change phrasing rules (old → new)
+- Each change is a full human-readable sentence.
+- Consistent patterns:
+  - "Changing title from 'Old' to 'New'."
+  - "Changing preferred name from 'Johan' to 'Johan Nel'."
+  - "Clearing subtitle (was 'Old')."
+  - "Adding language: Afrikaans."
+  - "Removing publisher (was 'Penguin')."
+- Use single quotes around values. Use title case only where it belongs in the original value.
+
+4) Date display rules
+- Dates in the changes summary must use the normalized display format (not raw input).
+- Use the same partial-date normalization rules used elsewhere in the app.
+  - Example: user input "12/3/2023" → display "12 March 2023".
+
+5) Null/empty behavior
+- Field becomes empty: "Clearing <field> (was '<old>')."
+- Field was empty and becomes filled: "Adding <field>: '<new>'."
+- Field remains empty: no change entry.
+
+6) Multi-item changes
+- For tags/languages/authors lists:
+  - Adds: "Adding tags: A, B, C." (list each item; if more than 6, show first 6 + "and N more").
+  - Removes: "Removing tags: A, B." (same list rule).
+  - Reorders (if applicable): "Reordering tags." (do not list every move).
+
+These contracts are the single source of truth for modal behavior and edit/change summaries in the Book Project.

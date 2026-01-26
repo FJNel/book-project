@@ -60,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {string} The translated string or the key itself if not found.
      */
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
@@ -75,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loginSuccessAlert.style.display = 'none'; // Explicitly hide loginSuccessAlert
         loginErrorResendVerificationAlert.style.display = 'none'; // Explicitly hide loginErrorResendVerificationAlert
         setModalLocked(false);
+        refreshLoginState();
     }
 
     /**
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 captchaToken = await window.recaptchaV3.getToken('login');
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for login:', e);
-                showLoginError('<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                showLoginError('Security Check Failed', ['Please refresh the page and try again.']);
                 return;
             }
 
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('[API] Network or fetch error:', error);
-            showLoginError('<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+            showLoginError('Connection Error', ['Could not connect to the server. Please try again.']);
         } finally {
             toggleSpinner(false);
             isSubmitting = false;
@@ -185,9 +185,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * Displays an error message in the login error alert.
      * @param {string} htmlContent The HTML content to display in the alert.
      */
-    function showLoginError(htmlContent) {
+    function showLoginError(message, errors = []) {
         console.log('[UI] Displaying login error alert.');
-        loginErrorAlert.innerHTML = htmlContent;
+        if (typeof window.renderApiErrorAlert === 'function') {
+            window.renderApiErrorAlert(loginErrorAlert, { message, errors }, message);
+        } else {
+            loginErrorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+        }
         loginErrorAlert.style.display = 'block';
     }
 
@@ -197,6 +201,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearLoginAlerts() {
         loginErrorAlert.style.display = 'none';
         loginErrorResendVerificationAlert.style.display = 'none';
+    }
+
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
     }
 
     function clearLoginErrors() {
@@ -220,20 +231,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Email validation
         if (!email) {
-            loginEmailHelp.textContent = 'Please enter your email address.';
+            setHelpText(loginEmailHelp, 'Please enter your email address.', true);
             isValid = false;
             if (!firstInvalidField) firstInvalidField = loginEmailInput;
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            loginEmailHelp.textContent = 'Please enter a valid email format.';
+            setHelpText(loginEmailHelp, 'Please enter a valid email format.', true);
             isValid = false;
             if (!firstInvalidField) firstInvalidField = loginEmailInput;
+        } else {
+            setHelpText(loginEmailHelp, '', false);
         }
 
         // Password validation
         if (!password) {
-            loginPasswordHelp.textContent = 'Please enter your password.';
+            setHelpText(loginPasswordHelp, 'Please enter your password.', true);
             isValid = false;
             if (!firstInvalidField) firstInvalidField = loginPasswordInput;
+        } else {
+            setHelpText(loginPasswordHelp, '', false);
         }
 
         console.log(`[Validation] Form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
@@ -244,14 +259,14 @@ document.addEventListener('DOMContentLoaded', () => {
         clearLoginAlerts();
         const email = loginEmailInput.value.trim();
         if (!email) {
-            loginEmailHelp.textContent = 'Please enter your email address.';
+            setHelpText(loginEmailHelp, 'Please enter your email address.', true);
             return false;
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            loginEmailHelp.textContent = 'Please enter a valid email format.';
+            setHelpText(loginEmailHelp, 'Please enter a valid email format.', true);
             return false;
         }
-        loginEmailHelp.textContent = '';
+        setHelpText(loginEmailHelp, '', false);
         return true;
     }
 
@@ -259,11 +274,17 @@ document.addEventListener('DOMContentLoaded', () => {
         clearLoginAlerts();
         const password = loginPasswordInput.value;
         if (!password) {
-            loginPasswordHelp.textContent = 'Please enter your password.';
+            setHelpText(loginPasswordHelp, 'Please enter your password.', true);
             return false;
         }
-        loginPasswordHelp.textContent = '';
+        setHelpText(loginPasswordHelp, '', false);
         return true;
+    }
+
+    function refreshLoginState() {
+        const emailOk = validateEmailRealtime();
+        const passwordOk = validatePasswordRealtime();
+        loginButton.disabled = !(emailOk && passwordOk);
     }
 
     /**
@@ -345,37 +366,32 @@ document.addEventListener('DOMContentLoaded', () => {
         loginErrorResendVerificationAlert.style.display = 'none';
         const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
         if (isCaptchaFailureMessage(rawMessage)) {
-            showLoginError(SECURITY_CHECK_ERROR_HTML);
+            showLoginError('Security Check Failed', ['Please refresh the page and try again.']);
             return;
         }
         const messageText = rawMessage;
-        const detailsText = Array.isArray(data?.errors) && data.errors.length
-            ? data.errors.map(getLangString).join(' ')
-            : '';
-        const errorHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
+        const detailErrors = Array.isArray(data?.errors) && data.errors.length
+            ? data.errors.map(getLangString)
+            : [];
 
         if (status === 401) {
-            showLoginError(errorHtml);
+            showLoginError(messageText, detailErrors);
             loginErrorResendVerificationAlert.style.display = 'block';
             return;
         }
 
         if (status === 429 || status === 400) {
-            showLoginError(errorHtml);
+            showLoginError(messageText, detailErrors);
             return;
         }
 
-        showLoginError('<strong>An unexpected error occurred:</strong> Please try again.');
+        showLoginError('Unexpected error', ['Please try again.']);
     }
 
     loginForm.addEventListener('submit', handleLogin);
 
-    loginEmailInput.addEventListener('input', () => {
-        validateEmailRealtime();
-    });
-    loginPasswordInput.addEventListener('input', () => {
-        validatePasswordRealtime();
-    });
+    loginEmailInput.addEventListener('input', refreshLoginState);
+    loginPasswordInput.addEventListener('input', refreshLoginState);
     loginButton.addEventListener('click', handleLogin);
 
     loadLanguageFile();

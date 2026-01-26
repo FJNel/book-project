@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const getLangString = (key) => lang[key] || key;
-  const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+  const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
   const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
   const getQueryParam = (param) => params.get(param);
@@ -63,6 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
     [emailInput, submitBtn].forEach((el) => { if (el) el.disabled = disabled; });
   }
 
+  function setHelpText(el, message, isError) {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(isError));
+    el.classList.toggle('text-muted', !isError);
+  }
+
   function toggleSpinner(show) {
     if (show) {
       submitSpinner.style.display = 'inline-block';
@@ -71,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       submitSpinner.style.display = 'none';
       submitButtonText.textContent = 'Disable Account';
-      submitBtn.disabled = redirectScheduled;
+      refreshSubmitState();
     }
   }
 
@@ -81,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     successAlert.style.display = 'none';
     errorAlert.style.display = 'none';
     toggleSpinner(false);
+    refreshSubmitState();
 
     const invalidLinkModalEl = document.getElementById('invalidLinkModal');
     if (!invalidLinkModalEl) return;
@@ -97,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function clearErrors() {
     errorAlert.style.display = 'none';
-    emailHelp.textContent = '';
+    setHelpText(emailHelp, '', false);
   }
 
   function validateForm() {
@@ -106,24 +114,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(emailInput.value.trim())) {
       isValid = false;
-      emailHelp.textContent = 'Please enter a valid email address.';
+      if (!emailInput.value.trim()) {
+        setHelpText(emailHelp, 'Please enter your email address.', true);
+      } else {
+        setHelpText(emailHelp, 'Please enter a valid email address.', true);
+      }
     }
     return isValid;
   }
 
-  function showAlert(type, htmlContent) {
+  function showErrorAlert(message, errors = []) {
     successAlert.style.display = 'none';
+    if (typeof window.renderApiErrorAlert === 'function') {
+      window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+    } else {
+      errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+    }
+    errorAlert.style.display = 'block';
+  }
+
+  function showSuccessAlert(messageText, detailText = '') {
     errorAlert.style.display = 'none';
-    const target = type === 'success' ? successAlert : errorAlert;
-    target.innerHTML = htmlContent;
-    target.style.display = 'block';
+    successAlert.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = messageText;
+    successAlert.appendChild(strong);
+    if (detailText) {
+      successAlert.appendChild(document.createTextNode(` ${detailText}`));
+    }
+    successAlert.style.display = 'block';
+  }
+
+  function refreshSubmitState() {
+    const email = emailInput.value.trim();
+    const isValid = email.length > 0 && emailInput.checkValidity();
+    submitBtn.disabled = redirectScheduled || !token || !isValid;
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!validateForm()) return;
     if (!token) {
-      showAlert('error', getLangString('INVALID_TOKEN'));
+      showErrorAlert(getLangString('INVALID_TOKEN'));
       return;
     }
 
@@ -135,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
       captchaToken = await window.recaptchaV3.getToken('verify_delete');
     } catch (e) {
       console.error('[reCAPTCHA] Failed to obtain token for verify-disable:', e);
-      showAlert('error', SECURITY_CHECK_ERROR_HTML);
+      showErrorAlert(SECURITY_CHECK_ERROR);
       setFormDisabledState(false);
       toggleSpinner(false);
       return;
@@ -150,22 +182,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
         const message = getLangString(data.message) || getLangString('DISABLE_SUCCESS');
-        showAlert('success', `<strong>${message}</strong>`);
+        showSuccessAlert(message);
         redirectScheduled = true;
         setFormDisabledState(true);
         setTimeout(() => { window.location.href = 'https://bookproject.fjnel.co.za?action=login'; }, 5000);
       } else {
         const rawMessage = getLangString(data.message || getLangString('DISABLE_ERROR'));
         if (isCaptchaFailureMessage(rawMessage)) {
-          showAlert('error', SECURITY_CHECK_ERROR_HTML);
+          showErrorAlert(SECURITY_CHECK_ERROR);
         } else {
           const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-          showAlert('error', `<strong>${rawMessage}:</strong> ${details}`);
+          showErrorAlert(rawMessage, details ? [details] : []);
         }
       }
     } catch (error) {
       console.error('[API] Network or fetch error during disable verification:', error);
-      showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+      showErrorAlert('Connection Error', ['Could not connect to the server.']);
     } finally {
       if (!redirectScheduled) setFormDisabledState(false);
       toggleSpinner(false);
@@ -173,7 +205,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   form.addEventListener('submit', handleSubmit);
-  emailInput.addEventListener('input', clearErrors);
+  emailInput.addEventListener('input', () => {
+    clearErrors();
+    validateForm();
+    refreshSubmitState();
+  });
 
   loadLanguageFile();
   initializeUI();

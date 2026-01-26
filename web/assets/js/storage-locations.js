@@ -20,7 +20,7 @@
     forms: {
       add: { parentId: null, locked: false },
       edit: { locationId: null, initialName: '', initialNotes: '', locked: false },
-      move: { locationId: null, locked: false },
+      move: { locationId: null, initialParentId: null, initialParentLabel: '', locked: false },
       delete: { locationId: null, locked: false }
     }
   };
@@ -84,6 +84,7 @@
     moveLocationHelp: document.getElementById('moveLocationHelp'),
     moveLocationError: document.getElementById('moveLocationError'),
     moveSummaryText: document.getElementById('moveSummaryText'),
+    moveChangesSummary: document.getElementById('moveChangesSummary'),
     moveLocationConfirmBtn: document.getElementById('moveLocationConfirmBtn'),
     // Delete modal
     deleteLocationModal: document.getElementById('deleteLocationModal'),
@@ -131,6 +132,27 @@
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+  const describeChange = (fieldLabel, fromValue, toValue) => {
+    const from = (fromValue || '').trim();
+    const to = (toValue || '').trim();
+    if (from === to) return null;
+    if (!from && to) return `Adding ${fieldLabel}: '${to}'.`;
+    if (from && !to) return `Clearing ${fieldLabel} (was '${from}').`;
+    return `Changing ${fieldLabel} from '${from}' to '${to}'.`;
+  };
+
+  const renderInlineError = (alertEl, message, errors) => {
+    if (!alertEl) return;
+    const safeErrors = Array.isArray(errors) ? errors.filter(Boolean) : [];
+    if (typeof window.renderApiErrorAlert === 'function') {
+      window.renderApiErrorAlert(alertEl, { message, errors: safeErrors }, message);
+    } else {
+      alertEl.textContent = `${message}${safeErrors.length ? `: ${safeErrors.join(' ')}` : ''}`;
+      alertEl.classList.remove('d-none');
+    }
+    alertEl.classList.remove('d-none');
+  };
 
   const extractAuthorNames = (book) => {
     if (!book) return [];
@@ -796,6 +818,44 @@
     return true;
   };
 
+  const updateAddSaveState = () => {
+    const nameValid = validateName(dom.addNameInput, dom.addNameHelp);
+    const notesValid = validateNotes(dom.addNotesInput, dom.addNotesHelp);
+    if (dom.addLocationSaveBtn) dom.addLocationSaveBtn.disabled = !(nameValid && notesValid);
+  };
+
+  const updateEditState = () => {
+    const nameValid = validateName(dom.editNameInput, dom.editNameHelp);
+    const notesValid = validateNotes(dom.editNotesInput, dom.editNotesHelp);
+    const changes = [];
+    const nameChange = describeChange('name', state.forms.edit.initialName, dom.editNameInput.value);
+    const notesChange = describeChange('notes', state.forms.edit.initialNotes, dom.editNotesInput.value);
+    if (nameChange) changes.push(nameChange);
+    if (notesChange) changes.push(notesChange);
+    if (dom.editChangesSummary) {
+      dom.editChangesSummary.textContent = changes.length ? changes.join(' ') : 'No changes yet.';
+    }
+    if (dom.editLocationSaveBtn) dom.editLocationSaveBtn.disabled = !(nameValid && notesValid) || changes.length === 0;
+  };
+
+  const updateMoveState = () => {
+    const selectedValue = dom.moveLocationSelect?.value || '';
+    const selectedId = parseNumber(selectedValue);
+    const selectedLabel = selectedValue
+      ? (dom.moveLocationSelect?.selectedOptions?.[0]?.textContent || '').trim()
+      : '';
+    const hasChange = selectedId && selectedId !== state.forms.move.initialParentId;
+    const changeSentence = hasChange
+      ? describeChange('parent', state.forms.move.initialParentLabel, selectedLabel)
+      : null;
+    if (dom.moveChangesSummary) {
+      dom.moveChangesSummary.textContent = changeSentence || 'No changes yet.';
+    }
+    if (dom.moveLocationConfirmBtn) {
+      dom.moveLocationConfirmBtn.disabled = !selectedId || !changeSentence;
+    }
+  };
+
   const getParentLabel = (locationId) => {
     const loc = state.locations.find((l) => l.id === locationId);
     return loc?.name || 'Root';
@@ -808,10 +868,11 @@
     dom.addNotesInput.value = '';
     dom.addParentLine.textContent = parentId ? `Parent: ${getParentLabel(parentId)}` : 'Parent: Root';
     setModalLocked(dom.addLocationModal, false);
-    dom.addLocationSaveBtn.disabled = false;
+    dom.addLocationSaveBtn.disabled = true;
     dom.addLocationSaveBtn.querySelector('.spinner-border')?.classList.add('d-none');
     showModal(dom.addLocationModal);
     dom.addNameInput.focus();
+    updateAddSaveState();
   };
 
   const openEditModal = (loc) => {
@@ -824,16 +885,19 @@
     dom.editNotesInput.value = loc.notes || '';
     dom.editChangesSummary.textContent = 'No changes yet.';
     setModalLocked(dom.editLocationModal, false);
-    dom.editLocationSaveBtn.disabled = false;
+    dom.editLocationSaveBtn.disabled = true;
     dom.editLocationSaveBtn.querySelector('.spinner-border')?.classList.add('d-none');
     showModal(dom.editLocationModal);
     dom.editNameInput.focus();
+    updateEditState();
   };
 
   const openMoveModal = (loc) => {
     if (!loc) return;
     resetFormErrors();
     state.forms.move.locationId = loc.id;
+    state.forms.move.initialParentId = loc.parentId ?? null;
+    state.forms.move.initialParentLabel = getParentLabel(loc.parentId ?? null);
     populateMoveOptions(loc.id);
     dom.moveLocationSelect.value = '';
     dom.moveSummaryText.textContent = `Move "${loc.name}" to another parent.`;
@@ -841,6 +905,7 @@
     dom.moveLocationConfirmBtn.disabled = true;
     dom.moveLocationConfirmBtn.querySelector('.spinner-border')?.classList.add('d-none');
     showModal(dom.moveLocationModal);
+    updateMoveState();
   };
 
   const openDeleteModal = (loc) => {
@@ -879,10 +944,7 @@
       await fetchLocations();
       hideModal(dom.addLocationModal);
     } catch (err) {
-      const errors = err?.errors || [];
-      dom.addLocationError.classList.remove('d-none');
-      dom.addLocationError.textContent = err?.message || 'Could not create location.';
-      if (errors.length) dom.addLocationError.textContent += ` (${errors.join(', ')})`;
+      renderInlineError(dom.addLocationError, err?.message || 'Could not create location.', err?.errors || []);
     } finally {
       setButtonLoading(dom.addLocationSaveBtn, spinnerObj, false);
       setModalLocked(dom.addLocationModal, false);
@@ -913,10 +975,7 @@
       await fetchLocations();
       hideModal(dom.editLocationModal);
     } catch (err) {
-      const errors = err?.errors || [];
-      dom.editLocationError.classList.remove('d-none');
-      dom.editLocationError.textContent = err?.message || 'Could not update location.';
-      if (errors.length) dom.editLocationError.textContent += ` (${errors.join(', ')})`;
+      renderInlineError(dom.editLocationError, err?.message || 'Could not update location.', err?.errors || []);
     } finally {
       setButtonLoading(dom.editLocationSaveBtn, spinnerObj, false);
       setModalLocked(dom.editLocationModal, false);
@@ -926,8 +985,7 @@
   const handleMoveSubmit = async () => {
     const newParentId = parseNumber(dom.moveLocationSelect.value);
     if (!newParentId) {
-      dom.moveLocationError.classList.remove('d-none');
-      dom.moveLocationError.textContent = 'Choose a parent to move to.';
+      renderInlineError(dom.moveLocationError, 'Choose a parent to move to.', []);
       return;
     }
     const spinnerObj = attachButtonSpinner(dom.moveLocationConfirmBtn);
@@ -944,10 +1002,7 @@
       await fetchLocations();
       hideModal(dom.moveLocationModal);
     } catch (err) {
-      const errors = err?.errors || [];
-      dom.moveLocationError.classList.remove('d-none');
-      dom.moveLocationError.textContent = err?.message || 'Could not move location.';
-      if (errors.length) dom.moveLocationError.textContent += ` (${errors.join(', ')})`;
+      renderInlineError(dom.moveLocationError, err?.message || 'Could not move location.', err?.errors || []);
     } finally {
       setButtonLoading(dom.moveLocationConfirmBtn, spinnerObj, false);
       setModalLocked(dom.moveLocationModal, false);
@@ -956,8 +1011,7 @@
 
   const handleDeleteSubmit = async () => {
     if (dom.deleteConfirmInput.value.trim().toUpperCase() !== 'DELETE') {
-      dom.deleteLocationError.classList.remove('d-none');
-      dom.deleteLocationError.textContent = 'Type DELETE to confirm.';
+      renderInlineError(dom.deleteLocationError, 'Type DELETE to confirm.', []);
       return;
     }
     const spinnerObj = attachButtonSpinner(dom.deleteLocationConfirmBtn);
@@ -972,10 +1026,7 @@
       renderDetails(null);
       hideModal(dom.deleteLocationModal);
     } catch (err) {
-      const errors = err?.errors || [];
-      dom.deleteLocationError.classList.remove('d-none');
-      dom.deleteLocationError.textContent = err?.message || 'Could not delete location.';
-      if (errors.length) dom.deleteLocationError.textContent += ` (${errors.join(', ')})`;
+      renderInlineError(dom.deleteLocationError, err?.message || 'Could not delete location.', err?.errors || []);
     } finally {
       setButtonLoading(dom.deleteLocationConfirmBtn, spinnerObj, false);
       setModalLocked(dom.deleteLocationModal, false);
@@ -1037,8 +1088,13 @@
     dom.moveLocationConfirmBtn?.addEventListener('click', handleMoveSubmit);
     dom.deleteLocationConfirmBtn?.addEventListener('click', handleDeleteSubmit);
 
+    dom.addNameInput?.addEventListener('input', updateAddSaveState);
+    dom.addNotesInput?.addEventListener('input', updateAddSaveState);
+    dom.editNameInput?.addEventListener('input', updateEditState);
+    dom.editNotesInput?.addEventListener('input', updateEditState);
+
     dom.moveLocationSelect?.addEventListener('change', () => {
-      dom.moveLocationConfirmBtn.disabled = !dom.moveLocationSelect.value;
+      updateMoveState();
       dom.moveLocationError.classList.add('d-none');
     });
 

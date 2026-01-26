@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const getLangString = (key) => lang[key] || key;
-  const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
+  const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
   const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
   const getQueryParam = (param) => params.get(param);
@@ -68,6 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
     [oldEmailInput, newEmailInput, passwordInput, submitBtn].forEach((el) => { if (el) el.disabled = disabled; });
   }
 
+  function setHelpText(el, message, isError) {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(isError));
+    el.classList.toggle('text-muted', !isError);
+  }
+
   function toggleSpinner(show) {
     if (show) {
       submitSpinner.style.display = 'inline-block';
@@ -76,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       submitSpinner.style.display = 'none';
       submitButtonText.textContent = 'Confirm Email Change';
-      submitBtn.disabled = redirectScheduled;
+      refreshSubmitState();
     }
   }
 
@@ -86,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     successAlert.style.display = 'none';
     errorAlert.style.display = 'none';
     toggleSpinner(false);
+    refreshSubmitState();
 
     const invalidLinkModalEl = document.getElementById('invalidLinkModal');
     if (!invalidLinkModalEl) return;
@@ -102,9 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function clearErrors() {
     errorAlert.style.display = 'none';
-    oldEmailHelp.textContent = '';
-    newEmailHelp.textContent = '';
-    passwordHelp.textContent = '';
+    setHelpText(oldEmailHelp, '', false);
+    setHelpText(newEmailHelp, '', false);
+    setHelpText(passwordHelp, '', false);
   }
 
   function validateForm() {
@@ -114,32 +122,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(oldEmailInput.value.trim())) {
       isValid = false;
-      oldEmailHelp.textContent = 'Please enter a valid current email.';
+      setHelpText(oldEmailHelp, 'Please enter a valid current email.', true);
     }
     if (!emailPattern.test(newEmailInput.value.trim())) {
       isValid = false;
-      newEmailHelp.textContent = 'Please enter a valid new email.';
+      setHelpText(newEmailHelp, 'Please enter a valid new email.', true);
     }
     if (!passwordInput.value) {
       isValid = false;
-      passwordHelp.textContent = 'Password is required to confirm this change.';
+      setHelpText(passwordHelp, 'Password is required to confirm this change.', true);
     }
     return isValid;
   }
 
-  function showAlert(type, htmlContent) {
+  function showErrorAlert(message, errors = []) {
     successAlert.style.display = 'none';
+    if (typeof window.renderApiErrorAlert === 'function') {
+      window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+    } else {
+      errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+    }
+    errorAlert.style.display = 'block';
+  }
+
+  function showSuccessAlert(messageText, detailText = '') {
     errorAlert.style.display = 'none';
-    const target = type === 'success' ? successAlert : errorAlert;
-    target.innerHTML = htmlContent;
-    target.style.display = 'block';
+    successAlert.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = messageText;
+    successAlert.appendChild(strong);
+    if (detailText) {
+      successAlert.appendChild(document.createTextNode(` ${detailText}`));
+    }
+    successAlert.style.display = 'block';
+  }
+
+  function refreshSubmitState() {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const oldValid = emailPattern.test(oldEmailInput.value.trim());
+    const newValid = emailPattern.test(newEmailInput.value.trim());
+    const hasPassword = Boolean(passwordInput.value);
+    const canSubmit = !redirectScheduled && token && oldValid && newValid && hasPassword;
+    submitBtn.disabled = !canSubmit;
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!validateForm()) return;
     if (!token) {
-      showAlert('error', getLangString('INVALID_TOKEN'));
+      showErrorAlert(getLangString('INVALID_TOKEN'));
       return;
     }
 
@@ -151,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
       captchaToken = await window.recaptchaV3.getToken('verify_email_change');
     } catch (e) {
       console.error('[reCAPTCHA] Failed to obtain token for verify-email-change:', e);
-      showAlert('error', SECURITY_CHECK_ERROR_HTML);
+      showErrorAlert(SECURITY_CHECK_ERROR);
       setFormDisabledState(false);
       toggleSpinner(false);
       return;
@@ -172,22 +203,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
         const message = getLangString(data.message) || getLangString('EMAIL_CHANGE_SUCCESS');
-        showAlert('success', `<strong>${message}</strong> You can now sign in with the new email.`);
+        showSuccessAlert(message, 'You can now sign in with the new email.');
         redirectScheduled = true;
         setFormDisabledState(true);
         setTimeout(() => { window.location.href = 'https://bookproject.fjnel.co.za?action=login'; }, 5000);
       } else {
         const rawMessage = getLangString(data.message || getLangString('EMAIL_CHANGE_ERROR'));
         if (isCaptchaFailureMessage(rawMessage)) {
-          showAlert('error', SECURITY_CHECK_ERROR_HTML);
+          showErrorAlert(SECURITY_CHECK_ERROR);
         } else {
           const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-          showAlert('error', `<strong>${rawMessage}:</strong> ${details}`);
+          showErrorAlert(rawMessage, details ? [details] : []);
         }
       }
     } catch (error) {
       console.error('[API] Network or fetch error during email change verification:', error);
-      showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server.');
+      showErrorAlert('Connection Error', ['Could not connect to the server.']);
     } finally {
       if (!redirectScheduled) setFormDisabledState(false);
       toggleSpinner(false);
@@ -195,7 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   form.addEventListener('submit', handleSubmit);
-  [oldEmailInput, newEmailInput, passwordInput].forEach((input) => input.addEventListener('input', clearErrors));
+  [oldEmailInput, newEmailInput, passwordInput].forEach((input) => input.addEventListener('input', () => {
+    clearErrors();
+    validateForm();
+    refreshSubmitState();
+  }));
 
   loadLanguageFile();
   initializeUI();

@@ -1238,7 +1238,7 @@
     const field = dom.timeline.field?.value || '';
 
     if (!entity) {
-      setFieldError(dom.timeline.entity, dom.timeline.entityError, 'Select an entity.');
+      setFieldError(dom.timeline.entity, dom.timeline.entityError, 'Select a record type.');
       isValid = false;
     }
     if (!field) {

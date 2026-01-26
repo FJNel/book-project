@@ -63,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const getLangString = (key) => lang[key] || key;
-    const SECURITY_CHECK_ERROR_HTML = '<strong>CAPTCHA verification failed:</strong> Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
 
     // --- UI Initialization and State Management ---
@@ -80,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearAlerts();
         resetControlsState();
         setModalLocked(false);
+        refreshResendState();
     }
 
     function toggleSpinner(show) {
@@ -121,15 +121,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function showAlert(type, htmlContent, { disableControls = false } = {}) {
+    function showAlert(type, message, { errors = [], disableControls = false } = {}) {
         console.log(`[UI] Displaying resend verification ${type} alert.`);
-        // Hide both alerts first
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
 
-        const alertToShow = type === 'success' ? successAlert : errorAlert;
-        alertToShow.innerHTML = htmlContent;
-        alertToShow.style.display = 'block';
+        if (type === 'success') {
+            successAlert.textContent = message || '';
+            successAlert.style.display = 'block';
+        } else {
+            if (typeof window.renderApiErrorAlert === 'function') {
+                window.renderApiErrorAlert(errorAlert, { message, errors }, message);
+            } else {
+                errorAlert.textContent = `${message}${errors.length ? `: ${errors.join(' ')}` : ''}`;
+            }
+            errorAlert.style.display = 'block';
+        }
 
         if (disableControls && type === 'success') {
             controlsLocked = true;
@@ -145,10 +152,17 @@ document.addEventListener('DOMContentLoaded', () => {
         errorAlert.style.display = 'none';
     }
 
+    function setHelpText(el, message, isError) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('text-danger', Boolean(isError));
+        el.classList.toggle('text-muted', !isError);
+    }
+
     function clearAlertsAndErrors() {
         console.log('[UI] Clearing resend verification alerts and help text.');
         clearAlerts();
-        emailHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
     }
 
     // --- Form Validation ---
@@ -161,11 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!emailInput.checkValidity()) {
             isValid = false;
             if (email.length === 0) {
-                emailHelp.textContent = 'Please enter your email address.';
+                setHelpText(emailHelp, 'Please enter your email address.', true);
             } else {
-                emailHelp.textContent = 'Please enter a valid email address format.';
+                setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             }
             if (!firstInvalidField) firstInvalidField = emailInput;
+        } else {
+            setHelpText(emailHelp, '', false);
         }
 
         console.log(`[Validation] Resend verification form validation result: ${isValid ? 'Valid' : 'Invalid'}`);
@@ -176,15 +192,20 @@ document.addEventListener('DOMContentLoaded', () => {
         clearAlerts();
         const email = emailInput.value.trim();
         if (!email) {
-            emailHelp.textContent = 'Please enter your email address.';
+            setHelpText(emailHelp, 'Please enter your email address.', true);
             return false;
         }
         if (!emailInput.checkValidity()) {
-            emailHelp.textContent = 'Please enter a valid email address format.';
+            setHelpText(emailHelp, 'Please enter a valid email address format.', true);
             return false;
         }
-        emailHelp.textContent = '';
+        setHelpText(emailHelp, '', false);
         return true;
+    }
+
+    function refreshResendState() {
+        const { isValid } = validateForm();
+        sendLinkButton.disabled = controlsLocked || !isValid;
     }
 
     // --- Main Handler ---
@@ -210,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 captchaToken = await window.recaptchaV3.getToken('resend_verification');
             } catch (e) {
                 console.error('[reCAPTCHA] Failed to obtain token for resend-verification:', e);
-                showAlert('error', '<strong>Security Check Failed:</strong> Please refresh the page and try again.');
+                showAlert('error', 'Security Check Failed', { errors: ['Please refresh the page and try again.'] });
                 return;
             }
 
@@ -232,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('[API] Network or fetch error during resend verification request:', error);
-            showAlert('error', '<strong>Connection Error:</strong> Could not connect to the server. Please try again.');
+            showAlert('error', 'Connection Error', { errors: ['Could not connect to the server. Please try again.'] });
         } finally {
             if (controlsLocked) {
                 spinner.style.display = 'none';
@@ -255,36 +276,33 @@ document.addEventListener('DOMContentLoaded', () => {
             ? data.data.disclaimer
             : data?.message?.disclaimer || '';
         const disclaimerText = disclaimerSource ? getLangString(disclaimerSource) : '';
-        const alertHtml = disclaimerText
-            ? `<strong>${messageText}</strong><br><em>${disclaimerText}</em>`
-            : `<strong>${messageText}</strong>`;
-        showAlert('success', alertHtml, { disableControls: true });
+        const message = disclaimerText ? `${messageText} ${disclaimerText}` : messageText;
+        showAlert('success', message, { disableControls: true });
     }
 
     function handleError(status, data) {
         console.warn('[Resend Verification] API request failed with status:', status);
         const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
         if (isCaptchaFailureMessage(rawMessage)) {
-            showAlert('error', SECURITY_CHECK_ERROR_HTML);
+            showAlert('error', 'Security Check Failed', { errors: ['Please refresh the page and try again.'] });
             return;
         }
         const messageText = rawMessage;
-        const detailsText = Array.isArray(data?.errors) && data.errors.length
-            ? data.errors.map(getLangString).join(' ')
-            : '';
-        const alertHtml = `<strong>${messageText}</strong>${detailsText ? ` ${detailsText}` : ''}`;
+        const detailErrors = Array.isArray(data?.errors) && data.errors.length
+            ? data.errors.map(getLangString)
+            : [];
 
         if (status === 429 || status === 400) {
-            showAlert('error', alertHtml);
+            showAlert('error', messageText, { errors: detailErrors });
             return;
         }
 
-        showAlert('error', '<strong>An unexpected error occurred:</strong> Please try again.');
+        showAlert('error', 'Unexpected error', { errors: ['Please try again.'] });
     }
 
     // --- Event Listeners ---
     resendForm.addEventListener('submit', handleResendVerificationRequest);
-    emailInput.addEventListener('input', validateEmailRealtime);
+    emailInput.addEventListener('input', refreshResendState);
     sendLinkButton.addEventListener('click', handleResendVerificationRequest);
     emailInput.addEventListener('input', clearAlerts);
 

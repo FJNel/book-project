@@ -80,6 +80,7 @@
     editProfileResetBtn: document.getElementById('editProfileResetBtn'),
     editProfileSaveBtn: document.getElementById('editProfileSaveBtn'),
     editProfileChanges: document.getElementById('editProfileChanges'),
+    changePasswordChanges: document.getElementById('changePasswordChanges'),
     completeProfileBtn: document.getElementById('completeProfileBtn'),
     changePasswordError: document.getElementById('changePasswordError'),
     currentPassword: document.getElementById('currentPassword'),
@@ -93,6 +94,7 @@
     changeEmailSuccess: document.getElementById('changeEmailSuccess'),
     newEmail: document.getElementById('newEmail'),
     changeEmailHelp: document.getElementById('changeEmailHelp'),
+    changeEmailChanges: document.getElementById('changeEmailChanges'),
     changeEmailSaveBtn: document.getElementById('changeEmailSaveBtn'),
     revokeSessionDetail: document.getElementById('revokeSessionDetail'),
     revokeSessionError: document.getElementById('revokeSessionError'),
@@ -159,6 +161,22 @@
     el.textContent = text;
   }
 
+  function setHelpText(el, message, isError) {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('text-danger', Boolean(isError));
+    el.classList.toggle('text-muted', !isError);
+  }
+
+  function describeChange(fieldLabel, fromValue, toValue) {
+    const from = (fromValue || '').trim();
+    const to = (toValue || '').trim();
+    if (from === to) return null;
+    if (!from && to) return `Adding ${fieldLabel}: '${to}'.`;
+    if (from && !to) return `Clearing ${fieldLabel} (was '${from}').`;
+    return `Changing ${fieldLabel} from '${from}' to '${to}'.`;
+  }
+
   function setButtonLoading(btn, isLoading) {
     if (!btn) return;
     const spinner = btn.querySelector('.spinner-border');
@@ -210,9 +228,15 @@
     });
   }
 
-  function validationMessage(prefix, errors) {
-    if (!errors || errors.length === 0) return '';
-    return `**${prefix}**: ${errors.join(', ')}`;
+  function renderInlineError(alertEl, title, errors) {
+    if (!alertEl) return;
+    const safeErrors = Array.isArray(errors) ? errors.filter(Boolean) : [];
+    if (typeof window.renderApiErrorAlert === 'function') {
+      window.renderApiErrorAlert(alertEl, { message: title, errors: safeErrors }, title);
+    } else {
+      alertEl.textContent = `${title}${safeErrors.length ? `: ${safeErrors.join(' ')}` : ''}`;
+    }
+    alertEl.classList.remove('d-none');
   }
 
   async function showPageLoading() {
@@ -372,16 +396,19 @@
     }
     const fullNameErrors = validateFullNameInput(fullName);
     const preferredErrors = validatePreferredNameInput(preferredName);
-    safeText(controls.editFullNameHelp, fullNameErrors[0] || 'Enter your full name (2-255 characters).', 'editFullNameHelp');
-    safeText(controls.editPreferredNameHelp, preferredErrors[0] || 'Optional; 2-100 letters, no spaces.', 'editPreferredNameHelp');
+    setHelpText(controls.editFullNameHelp, fullNameErrors[0] || 'Enter your full name (2-255 characters).', fullNameErrors.length > 0);
+    setHelpText(controls.editPreferredNameHelp, preferredErrors[0] || 'Optional; 2-100 letters, no spaces.', preferredErrors.length > 0);
 
-    const changed = (fullName || '').trim() !== (state.profile?.fullName || '') || (preferredName || '').trim() !== (state.profile?.preferredName || '');
-    safeText(controls.editProfileChanges, changed
-      ? `Changing display name from ${state.profile?.preferredName || state.profile?.fullName || 'current'} to ${(preferredName || fullName || '').trim()}.`
-      : 'No changes yet.', 'editProfileChanges');
+    const changes = [];
+    const fullNameChange = describeChange('full name', state.profile?.fullName || '', fullName);
+    const preferredNameChange = describeChange('preferred name', state.profile?.preferredName || '', preferredName);
+    if (fullNameChange) changes.push(fullNameChange);
+    if (preferredNameChange) changes.push(preferredNameChange);
+    safeText(controls.editProfileChanges, changes.length ? changes.join(' ') : 'No changes yet.', 'editProfileChanges');
 
     const hasErrors = fullNameErrors.length > 0 || preferredErrors.length > 0;
-    if (controls.editProfileSaveBtn) controls.editProfileSaveBtn.disabled = hasErrors || !changed;
+    const hasChanges = changes.length > 0;
+    if (controls.editProfileSaveBtn) controls.editProfileSaveBtn.disabled = hasErrors || !hasChanges;
     return { fullName, preferredName, hasErrors };
   }
 
@@ -634,8 +661,7 @@
       await loadProfile();
       if (modalManager) await modalManager.hideModal(modals.editProfile);
     }).catch((err) => {
-      controls.editProfileError.innerHTML = validationMessage('Unable to save', [err.message]);
-      controls.editProfileError.classList.remove('d-none');
+      renderInlineError(controls.editProfileError, 'Unable to save', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.editProfileSaveBtn, false);
       setModalDisabled(modals.editProfile, false);
@@ -676,12 +702,13 @@
     }
 
     const allErrors = [...fieldErrors.current, ...fieldErrors.next, ...fieldErrors.confirm];
-    safeText(controls.currentPasswordHelp, fieldErrors.current[0] || 'Enter your current password.', 'currentPasswordHelp');
-    safeText(controls.newPasswordHelp, fieldErrors.next[0] || 'Minimum 10 characters with upper, lower, number, and special character.', 'newPasswordHelp');
-    safeText(controls.confirmNewPasswordHelp, fieldErrors.confirm[0] || 'Re-enter the new password.', 'confirmNewPasswordHelp');
+    setHelpText(controls.currentPasswordHelp, fieldErrors.current[0] || 'Enter your current password.', fieldErrors.current.length > 0);
+    setHelpText(controls.newPasswordHelp, fieldErrors.next[0] || 'Minimum 10 characters with upper, lower, number, and special character.', fieldErrors.next.length > 0);
+    setHelpText(controls.confirmNewPasswordHelp, fieldErrors.confirm[0] || 'Re-enter the new password.', fieldErrors.confirm.length > 0);
 
     const anyInput = currentPassword || newPassword || confirmPassword;
     if (controls.changePasswordSaveBtn) controls.changePasswordSaveBtn.disabled = allErrors.length > 0 || !anyInput;
+    safeText(controls.changePasswordChanges, anyInput ? 'Changing password.' : 'No changes yet.', 'changePasswordChanges');
     return { currentPassword, newPassword, errors: allErrors };
   }
 
@@ -698,7 +725,9 @@
       if (!regex.test(email)) errors.push('Email format is incorrect.');
       if (email.toLowerCase() === currentEmail) errors.push('Enter a different email from your current one.');
     }
-    safeText(controls.changeEmailHelp, errors[0] || 'We will send a confirmation email to the new address. This may sign you out once confirmed.', 'changeEmailHelp');
+    setHelpText(controls.changeEmailHelp, errors[0] || 'We will send a confirmation email to the new address. This may sign you out once confirmed.', errors.length > 0);
+    const changeSentence = describeChange('email', state.profile?.email || '', email);
+    safeText(controls.changeEmailChanges, changeSentence || 'No changes yet.', 'changeEmailChanges');
     if (controls.changeEmailSaveBtn) controls.changeEmailSaveBtn.disabled = errors.length > 0;
     return { email, errors };
   }
@@ -732,8 +761,7 @@
         showPageAlert('Password updated. You will be signed out on other devices.', 'success');
       });
     } catch (err) {
-      controls.changePasswordError.innerHTML = validationMessage('Unable to change password', [err.message]);
-      controls.changePasswordError.classList.remove('d-none');
+      renderInlineError(controls.changePasswordError, 'Unable to change password', [err.message]);
     } finally {
       setButtonLoading(controls.changePasswordSaveBtn, false);
       setModalDisabled(modals.changePassword, false);
@@ -746,8 +774,7 @@
     controls.changeEmailSuccess.classList.add('d-none');
     const { email, errors } = validateEmailInput();
     if (errors.length > 0) {
-      controls.changeEmailError.innerHTML = validationMessage('Unable to request change', errors);
-      controls.changeEmailError.classList.remove('d-none');
+      renderInlineError(controls.changeEmailError, 'Unable to request change', errors);
       return;
     }
     await modalLock.withLock({ modal: modals.changeEmail, action: 'change-email' }, async () => {
@@ -761,8 +788,7 @@
       if (modalManager) await modalManager.hideModal(modals.changeEmail);
       showPageAlert('Check your inbox to confirm the email change.', 'success');
     }).catch((err) => {
-      controls.changeEmailError.innerHTML = validationMessage('Unable to request change', [err.message]);
-      controls.changeEmailError.classList.remove('d-none');
+      renderInlineError(controls.changeEmailError, 'Unable to request change', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.changeEmailSaveBtn, false);
       setModalDisabled(modals.changeEmail, false);
@@ -790,8 +816,7 @@
       state.revokeSessionTarget = null;
       if (modalManager) await modalManager.hideModal(modals.revokeSession);
     }).catch((err) => {
-      controls.revokeSessionError.innerHTML = validationMessage('Unable to log out', [err.message]);
-      controls.revokeSessionError.classList.remove('d-none');
+      renderInlineError(controls.revokeSessionError, 'Unable to log out', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.confirmRevokeSessionBtn, false);
       setModalDisabled(modals.revokeSession, false);
@@ -833,8 +858,7 @@
     controls.apiKeySecretWrap.classList.add('d-none');
     const { name, errors } = validateApiKeyInput();
     if (errors.length > 0) {
-      controls.createApiKeyError.innerHTML = validationMessage('Unable to create key', errors);
-      controls.createApiKeyError.classList.remove('d-none');
+      renderInlineError(controls.createApiKeyError, 'Unable to create key', errors);
       return;
     }
     const expiresAt = controls.apiKeyExpiresAt.value ? new Date(controls.apiKeyExpiresAt.value).toISOString() : null;
@@ -883,8 +907,7 @@
       state.revokeApiKeyTarget = null;
       if (modalManager) await modalManager.hideModal(modals.revokeApiKey);
     }).catch((err) => {
-      controls.revokeApiKeyError.innerHTML = `<strong>Unable to revoke</strong>: ${err.message}`;
-      controls.revokeApiKeyError.classList.remove('d-none');
+      renderInlineError(controls.revokeApiKeyError, 'Unable to revoke', [err.message]);
     }).finally(() => setButtonLoading(controls.confirmRevokeApiKeyBtn, false));
   }
 
@@ -897,8 +920,7 @@
       if (modalManager) await modalManager.hideModal(modals.disableAccount);
       showPageAlert('Disable request sent. Check your email for confirmation.', 'success');
     }).catch((err) => {
-      controls.disableAccountError.innerHTML = validationMessage('Unable to request disable', [err.message]);
-      controls.disableAccountError.classList.remove('d-none');
+      renderInlineError(controls.disableAccountError, 'Unable to request disable', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.confirmDisableAccountBtn, false);
       setModalDisabled(modals.disableAccount, false);
@@ -909,7 +931,7 @@
     const value = (controls.deleteAccountConfirmInput?.value || '').trim();
     const ok = value.toUpperCase() === 'DELETE';
     if (controls.confirmDeleteAccountBtn) controls.confirmDeleteAccountBtn.disabled = !ok;
-    safeText(controls.deleteAccountHelp, ok ? 'Ready to send the deletion request.' : 'Type DELETE to enable the request.', 'deleteAccountHelp');
+    setHelpText(controls.deleteAccountHelp, ok ? 'Ready to send the deletion request.' : 'Type DELETE to enable the request.', !ok);
     return ok;
   }
 
@@ -929,8 +951,7 @@
       updateDeleteConfirmState();
       showPageAlert('Deletion request sent. Check your email to confirm.', 'success');
     }).catch((err) => {
-      controls.deleteAccountError.innerHTML = validationMessage('Unable to request deletion', [err.message]);
-      controls.deleteAccountError.classList.remove('d-none');
+      renderInlineError(controls.deleteAccountError, 'Unable to request deletion', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.confirmDeleteAccountBtn, false);
       setModalDisabled(modals.deleteAccount, false);
