@@ -29,9 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidBookModalMessage');
   const invalidModalClose = document.getElementById('invalidBookModalClose');
   const defaultInvalidBookMessage = "This link doesn't seem to lead to a book in your library. Try going back to your book list and selecting it again.";
+  const bookDeletedNotice = document.getElementById('bookDeletedNotice');
+  const bookDeletedText = document.getElementById('bookDeletedText');
 
   const editBookBtn = document.getElementById('editBookBtn');
   const deleteBookBtn = document.getElementById('deleteBookBtn');
+  const restoreBookBtn = document.getElementById('restoreBookBtn');
+  const permanentDeleteBookBtn = document.getElementById('permanentDeleteBookBtn');
   const manageAuthorsBtn = document.getElementById('manageAuthorsBtn');
   const manageSeriesBtn = document.getElementById('manageSeriesBtn');
   const manageTagsBtn = document.getElementById('manageTagsBtn');
@@ -65,6 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteBookName = document.getElementById('deleteBookName');
   const deleteBookConfirmBtn = document.getElementById('deleteBookConfirmBtn');
   const deleteBookErrorAlert = document.getElementById('deleteBookErrorAlert');
+  const restoreBookModal = document.getElementById('restoreBookModal');
+  const restoreBookMode = document.getElementById('restoreBookMode');
+  const restoreBookModeHelp = document.getElementById('restoreBookModeHelp');
+  const restoreBookChangesSummary = document.getElementById('restoreBookChangesSummary');
+  const restoreBookError = document.getElementById('restoreBookError');
+  const restoreBookConfirmBtn = document.getElementById('restoreBookConfirmBtn');
+  const permanentDeleteBookModal = document.getElementById('permanentDeleteBookModal');
+  const permanentDeleteBookConfirm = document.getElementById('permanentDeleteBookConfirm');
+  const permanentDeleteBookHelp = document.getElementById('permanentDeleteBookHelp');
+  const permanentDeleteBookError = document.getElementById('permanentDeleteBookError');
+  const permanentDeleteBookConfirmBtn = document.getElementById('permanentDeleteBookConfirmBtn');
 
   const manageAuthorsModal = document.getElementById('manageAuthorsModal');
   const manageAuthorsList = document.getElementById('manageAuthorsList');
@@ -162,6 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const seriesOrderModalState = { locked: false };
   const copyModalState = { locked: false };
   const deleteBookModalState = { locked: false };
+  const restoreBookModalState = { locked: false };
+  const permanentDeleteBookModalState = { locked: false };
   const removeAuthorModalState = { locked: false };
   const removeSeriesModalState = { locked: false };
   const deleteCopyModalState = { locked: false };
@@ -229,6 +246,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Johannesburg',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    try {
+      const parts = dateTimeFormatter.formatToParts(new Date(value));
+      const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${lookup.day} ${lookup.month} ${lookup.year} ${lookup.hour}:${lookup.minute}`;
+    } catch (e) {
+      return value;
+    }
+  };
+
   const setTextOrMuted = (el, text, fallback) => {
     if (!el) return;
     if (text) {
@@ -238,6 +276,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     el.textContent = fallback;
     el.classList.add('text-muted');
+  };
+
+  const applyDeletedState = (isDeleted, deletedAt) => {
+    document.querySelectorAll('[data-active-only]').forEach((el) => {
+      el.classList.toggle('d-none', isDeleted);
+    });
+    document.querySelectorAll('[data-deleted-only]').forEach((el) => {
+      el.classList.toggle('d-none', !isDeleted);
+    });
+    if (bookDeletedNotice) {
+      bookDeletedNotice.classList.toggle('d-none', !isDeleted);
+    }
+    if (bookDeletedText) {
+      if (isDeleted) {
+        const formatted = formatDateTime(deletedAt) || 'Unknown date';
+        bookDeletedText.textContent = `This book was deleted on ${formatted}.`;
+      } else {
+        bookDeletedText.textContent = 'This book is in the recycle bin.';
+      }
+    }
   };
 
   const clearElement = (el) => {
@@ -284,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const refreshBook = async () => {
     try {
-      const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true`, { method: 'GET' });
+      const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true&includeDeleted=true`, { method: 'GET' });
       if (!response.ok) return null;
       const payload = await response.json().catch(() => ({}));
       if (!payload || payload.status !== 'success' || !payload.data) return null;
@@ -511,6 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const seriesOrderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
   const copySpinner = attachButtonSpinner(copySaveBtn);
   const deleteBookSpinner = attachButtonSpinner(deleteBookConfirmBtn);
+  const restoreBookSpinner = attachButtonSpinner(restoreBookConfirmBtn);
+  const permanentDeleteBookSpinner = attachButtonSpinner(permanentDeleteBookConfirmBtn);
   const removeAuthorSpinner = attachButtonSpinner(removeAuthorConfirmBtn);
   const removeSeriesSpinner = attachButtonSpinner(removeSeriesConfirmBtn);
   const deleteCopySpinner = attachButtonSpinner(deleteCopyConfirmBtn);
@@ -519,6 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
   bindModalLock(editSeriesOrderModal, seriesOrderModalState);
   bindModalLock(editCopyModal, copyModalState);
   bindModalLock(deleteBookModal, deleteBookModalState);
+  bindModalLock(restoreBookModal, restoreBookModalState);
+  bindModalLock(permanentDeleteBookModal, permanentDeleteBookModalState);
   bindModalLock(removeAuthorModal, removeAuthorModalState);
   bindModalLock(removeSeriesModal, removeSeriesModalState);
   bindModalLock(deleteCopyModal, deleteCopyModalState);
@@ -1051,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAuthors(book.authors || []);
     renderSeries(book.series || []);
     renderCopies(book.bookCopies || []);
+    applyDeletedState(Boolean(book.deletedAt), book.deletedAt);
     initializeTooltips();
     log('Render complete.');
   };
@@ -1465,6 +1528,120 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteBookConfirmBtn.disabled = false;
       setDeleteBookLocked(false);
       window.modalLock?.unlock(deleteBookModal, 'finally');
+    }
+  };
+
+  const updateRestoreSummary = () => {
+    if (!restoreBookMode || !restoreBookChangesSummary) return;
+    const mode = restoreBookMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    restoreBookChangesSummary.textContent = `Restore this book using ${label} mode.`;
+    if (restoreBookModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into the existing book when possible.'
+        : mode === 'override'
+          ? 'Override replaces the existing book by restoring this one.'
+          : 'Decline leaves the book deleted if a conflict is found.';
+      restoreBookModeHelp.textContent = helpText;
+      restoreBookModeHelp.classList.remove('text-danger');
+      restoreBookModeHelp.classList.add('text-muted');
+    }
+  };
+
+  const openRestoreBookModal = () => {
+    if (!bookRecord || !restoreBookModal) return;
+    restoreBookModalState.locked = false;
+    setModalLocked(restoreBookModal, false);
+    if (restoreBookMode) restoreBookMode.value = 'decline';
+    if (restoreBookError) clearApiAlert(restoreBookError);
+    updateRestoreSummary();
+    restoreBookConfirmBtn.disabled = false;
+    showModal(restoreBookModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmRestoreBook = async () => {
+    if (!bookRecord || !restoreBookConfirmBtn) return;
+    const mode = restoreBookMode?.value || 'decline';
+    if (restoreBookError) clearApiAlert(restoreBookError);
+    restoreBookModalState.locked = true;
+    setModalLocked(restoreBookModal, true);
+    setButtonLoading(restoreBookConfirmBtn, restoreBookSpinner?.spinner, true);
+    window.modalLock?.lock(restoreBookModal, 'Restore book');
+    try {
+      const response = await apiFetch('/book/restore', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [bookRecord.id], mode })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (restoreBookError) renderApiErrorAlert(restoreBookError, data, data.message || 'Unable to restore book.');
+        return;
+      }
+      await hideModal(restoreBookModal);
+      await loadBook();
+    } catch (error) {
+      errorLog('Restore book failed.', error);
+      if (restoreBookError) renderApiErrorAlert(restoreBookError, { message: 'Unable to restore book right now.' }, 'Unable to restore book right now.');
+    } finally {
+      restoreBookModalState.locked = false;
+      setModalLocked(restoreBookModal, false);
+      setButtonLoading(restoreBookConfirmBtn, restoreBookSpinner?.spinner, false);
+      restoreBookConfirmBtn.disabled = false;
+      window.modalLock?.unlock(restoreBookModal, 'finally');
+    }
+  };
+
+  const updatePermanentDeleteState = () => {
+    if (!permanentDeleteBookConfirmBtn || !permanentDeleteBookConfirm) return;
+    const value = permanentDeleteBookConfirm.value.trim();
+    const matches = value.toLowerCase() === 'delete';
+    permanentDeleteBookConfirmBtn.disabled = !matches;
+    if (permanentDeleteBookHelp) {
+      setHelpText(permanentDeleteBookHelp, matches ? 'Confirmed.' : 'Enter DELETE to enable permanent deletion.', !matches);
+    }
+  };
+
+  const openPermanentDeleteBookModal = () => {
+    if (!bookRecord || !permanentDeleteBookModal) return;
+    permanentDeleteBookModalState.locked = false;
+    setModalLocked(permanentDeleteBookModal, false);
+    if (permanentDeleteBookConfirm) permanentDeleteBookConfirm.value = '';
+    updatePermanentDeleteState();
+    if (permanentDeleteBookError) clearApiAlert(permanentDeleteBookError);
+    showModal(permanentDeleteBookModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmPermanentDeleteBook = async () => {
+    if (!bookRecord || !permanentDeleteBookConfirmBtn) return;
+    const value = permanentDeleteBookConfirm?.value.trim().toLowerCase();
+    if (value !== 'delete') {
+      updatePermanentDeleteState();
+      return;
+    }
+    permanentDeleteBookModalState.locked = true;
+    setModalLocked(permanentDeleteBookModal, true);
+    setButtonLoading(permanentDeleteBookConfirmBtn, permanentDeleteBookSpinner?.spinner, true);
+    window.modalLock?.lock(permanentDeleteBookModal, 'Delete book permanently');
+    try {
+      const response = await apiFetch('/book/delete-permanent', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [bookRecord.id] })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (permanentDeleteBookError) renderApiErrorAlert(permanentDeleteBookError, data, data.message || 'Unable to delete book.');
+        return;
+      }
+      sessionStorage.setItem('booksFlash', 'Book deleted permanently.');
+      window.location.href = 'books';
+    } catch (error) {
+      errorLog('Permanent delete failed.', error);
+      if (permanentDeleteBookError) renderApiErrorAlert(permanentDeleteBookError, { message: 'Unable to delete book right now.' }, 'Unable to delete book right now.');
+    } finally {
+      permanentDeleteBookModalState.locked = false;
+      setModalLocked(permanentDeleteBookModal, false);
+      setButtonLoading(permanentDeleteBookConfirmBtn, permanentDeleteBookSpinner?.spinner, false);
+      window.modalLock?.unlock(permanentDeleteBookModal, 'finally');
     }
   };
 
@@ -2743,7 +2920,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editBookType) editBookType.addEventListener('change', updateEditBookState);
   if (editBookPublisher) editBookPublisher.addEventListener('change', updateEditBookState);
   if (deleteBookBtn) deleteBookBtn.addEventListener('click', openDeleteBookModal);
+  if (restoreBookBtn) restoreBookBtn.addEventListener('click', openRestoreBookModal);
+  if (permanentDeleteBookBtn) permanentDeleteBookBtn.addEventListener('click', openPermanentDeleteBookModal);
   if (deleteBookConfirmBtn) deleteBookConfirmBtn.addEventListener('click', confirmDeleteBook);
+  if (restoreBookMode) restoreBookMode.addEventListener('change', updateRestoreSummary);
+  if (restoreBookConfirmBtn) restoreBookConfirmBtn.addEventListener('click', confirmRestoreBook);
+  if (permanentDeleteBookConfirm) permanentDeleteBookConfirm.addEventListener('input', updatePermanentDeleteState);
+  if (permanentDeleteBookConfirmBtn) permanentDeleteBookConfirmBtn.addEventListener('click', confirmPermanentDeleteBook);
   if (manageAuthorsBtn) manageAuthorsBtn.addEventListener('click', openManageAuthorsModal);
   if (manageSeriesBtn) manageSeriesBtn.addEventListener('click', openManageSeriesModal);
   if (manageTagsBtn) manageTagsBtn.addEventListener('click', openManageTagsModal);

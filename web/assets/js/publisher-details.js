@@ -25,12 +25,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidPublisherModalMessage');
   const invalidModalClose = document.getElementById('invalidPublisherModalClose');
   const defaultInvalidPublisherMessage = "This link doesn't seem to lead to a publisher in your library. Try going back to your publisher list and selecting it again.";
+  const publisherDeletedNotice = document.getElementById('publisherDeletedNotice');
+  const publisherDeletedText = document.getElementById('publisherDeletedText');
   const editPublisherBtn = document.getElementById('editPublisherBtn');
   const deletePublisherBtn = document.getElementById('deletePublisherBtn');
+  const restorePublisherBtn = document.getElementById('restorePublisherBtn');
+  const permanentDeletePublisherBtn = document.getElementById('permanentDeletePublisherBtn');
   const deletePublisherModal = document.getElementById('deletePublisherModal');
   const deletePublisherName = document.getElementById('deletePublisherName');
   const publisherDeleteConfirmBtn = document.getElementById('publisherDeleteConfirmBtn');
   const publisherDeleteErrorAlert = document.getElementById('publisherDeleteErrorAlert');
+  const restorePublisherModal = document.getElementById('restorePublisherModal');
+  const restorePublisherMode = document.getElementById('restorePublisherMode');
+  const restorePublisherModeHelp = document.getElementById('restorePublisherModeHelp');
+  const restorePublisherChangesSummary = document.getElementById('restorePublisherChangesSummary');
+  const restorePublisherError = document.getElementById('restorePublisherError');
+  const restorePublisherConfirmBtn = document.getElementById('restorePublisherConfirmBtn');
+  const permanentDeletePublisherModal = document.getElementById('permanentDeletePublisherModal');
+  const permanentDeletePublisherConfirm = document.getElementById('permanentDeletePublisherConfirm');
+  const permanentDeletePublisherHelp = document.getElementById('permanentDeletePublisherHelp');
+  const permanentDeletePublisherError = document.getElementById('permanentDeletePublisherError');
+  const permanentDeletePublisherConfirmBtn = document.getElementById('permanentDeletePublisherConfirmBtn');
   const removePublisherBookModal = document.getElementById('removePublisherBookModal');
   const removePublisherBookText = document.getElementById('removePublisherBookText');
   const removePublisherBookConfirmBtn = document.getElementById('removePublisherBookConfirmBtn');
@@ -61,6 +76,27 @@ document.addEventListener('DOMContentLoaded', () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Johannesburg',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    try {
+      const parts = dateTimeFormatter.formatToParts(new Date(value));
+      const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${lookup.day} ${lookup.month} ${lookup.year} ${lookup.hour}:${lookup.minute}`;
+    } catch (e) {
+      return value;
+    }
   };
 
   const escapeHtml = (value) => String(value)
@@ -162,6 +198,26 @@ document.addEventListener('DOMContentLoaded', () => {
     wrap.classList.add('d-none');
   };
 
+  const applyDeletedState = (isDeleted, deletedAt) => {
+    document.querySelectorAll('[data-active-only]').forEach((el) => {
+      el.classList.toggle('d-none', isDeleted);
+    });
+    document.querySelectorAll('[data-deleted-only]').forEach((el) => {
+      el.classList.toggle('d-none', !isDeleted);
+    });
+    if (publisherDeletedNotice) {
+      publisherDeletedNotice.classList.toggle('d-none', !isDeleted);
+    }
+    if (publisherDeletedText) {
+      if (isDeleted) {
+        const formatted = formatDateTime(deletedAt) || 'Unknown date';
+        publisherDeletedText.textContent = `This publisher was deleted on ${formatted}.`;
+      } else {
+        publisherDeletedText.textContent = 'This publisher is in the recycle bin.';
+      }
+    }
+  };
+
   const showModal = async (target, options) => {
     if (window.modalManager && typeof window.modalManager.showModal === 'function') {
       await window.modalManager.showModal(target, options);
@@ -192,11 +248,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const deleteModalState = { locked: false };
   const removeModalState = { locked: false };
+  const restoreModalState = { locked: false };
+  const permanentDeleteModalState = { locked: false };
   const deleteSpinner = attachButtonSpinner(publisherDeleteConfirmBtn);
   const removeSpinner = attachButtonSpinner(removePublisherBookConfirmBtn);
+  const restoreSpinner = attachButtonSpinner(restorePublisherConfirmBtn);
+  const permanentDeleteSpinner = attachButtonSpinner(permanentDeletePublisherConfirmBtn);
 
   bindModalLock(deletePublisherModal, deleteModalState);
   bindModalLock(removePublisherBookModal, removeModalState);
+  bindModalLock(restorePublisherModal, restoreModalState);
+  bindModalLock(permanentDeletePublisherModal, permanentDeleteModalState);
 
   if (invalidModalClose) {
     invalidModalClose.addEventListener('click', () => {
@@ -262,6 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
         notesSection.classList.add('d-none');
       }
     }
+
+    applyDeletedState(Boolean(publisher.deletedAt), publisher.deletedAt);
   };
 
   const renderBooks = (books) => {
@@ -448,6 +512,124 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const updateRestoreSummary = () => {
+    if (!restorePublisherMode || !restorePublisherChangesSummary) return;
+    const mode = restorePublisherMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    restorePublisherChangesSummary.textContent = `Restore this publisher using ${label} mode.`;
+    if (restorePublisherModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into the existing publisher when possible.'
+        : mode === 'override'
+          ? 'Override replaces the existing publisher by restoring this one.'
+          : 'Decline leaves the publisher deleted if a conflict is found.';
+      restorePublisherModeHelp.textContent = helpText;
+      restorePublisherModeHelp.classList.remove('text-danger');
+      restorePublisherModeHelp.classList.add('text-muted');
+    }
+  };
+
+  const openRestoreModal = () => {
+    if (!publisherRecord || !restorePublisherModal) return;
+    restoreModalState.locked = false;
+    setModalLocked(restorePublisherModal, false);
+    if (restorePublisherMode) restorePublisherMode.value = 'decline';
+    if (restorePublisherError) clearApiAlert(restorePublisherError);
+    updateRestoreSummary();
+    restorePublisherConfirmBtn.disabled = false;
+    showModal(restorePublisherModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmRestore = async () => {
+    if (!publisherRecord || !restorePublisherConfirmBtn) return;
+    const mode = restorePublisherMode?.value || 'decline';
+    if (restorePublisherError) clearApiAlert(restorePublisherError);
+    restoreModalState.locked = true;
+    setModalLocked(restorePublisherModal, true);
+    setButtonLoading(restorePublisherConfirmBtn, restoreSpinner?.spinner, true);
+    window.modalLock?.lock(restorePublisherModal, 'Restore publisher');
+    try {
+      const response = await apiFetch('/publisher/restore', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [publisherRecord.id], mode })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (restorePublisherError) renderApiErrorAlert(restorePublisherError, data, data.message || 'Unable to restore publisher.');
+        return;
+      }
+      await hideModal(restorePublisherModal);
+      const refreshed = await loadPublisher();
+      if (refreshed && !refreshed.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      }
+    } catch (error) {
+      errorLog('Restore publisher failed.', error);
+      if (restorePublisherError) renderApiErrorAlert(restorePublisherError, { message: 'Unable to restore publisher right now.' }, 'Unable to restore publisher right now.');
+    } finally {
+      restoreModalState.locked = false;
+      setModalLocked(restorePublisherModal, false);
+      setButtonLoading(restorePublisherConfirmBtn, restoreSpinner?.spinner, false);
+      restorePublisherConfirmBtn.disabled = false;
+      window.modalLock?.unlock(restorePublisherModal, 'finally');
+    }
+  };
+
+  const updatePermanentDeleteState = () => {
+    if (!permanentDeletePublisherConfirmBtn || !permanentDeletePublisherConfirm) return;
+    const value = permanentDeletePublisherConfirm.value.trim();
+    const matches = value.toLowerCase() === 'delete';
+    permanentDeletePublisherConfirmBtn.disabled = !matches;
+    if (permanentDeletePublisherHelp) {
+      setHelpText(permanentDeletePublisherHelp, matches ? 'Confirmed.' : 'Enter DELETE to enable permanent deletion.', !matches);
+    }
+  };
+
+  const openPermanentDeleteModal = () => {
+    if (!publisherRecord || !permanentDeletePublisherModal) return;
+    permanentDeleteModalState.locked = false;
+    setModalLocked(permanentDeletePublisherModal, false);
+    if (permanentDeletePublisherConfirm) permanentDeletePublisherConfirm.value = '';
+    updatePermanentDeleteState();
+    if (permanentDeletePublisherError) clearApiAlert(permanentDeletePublisherError);
+    showModal(permanentDeletePublisherModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!publisherRecord || !permanentDeletePublisherConfirmBtn) return;
+    const value = permanentDeletePublisherConfirm?.value.trim().toLowerCase();
+    if (value !== 'delete') {
+      updatePermanentDeleteState();
+      return;
+    }
+    permanentDeleteModalState.locked = true;
+    setModalLocked(permanentDeletePublisherModal, true);
+    setButtonLoading(permanentDeletePublisherConfirmBtn, permanentDeleteSpinner?.spinner, true);
+    window.modalLock?.lock(permanentDeletePublisherModal, 'Delete publisher permanently');
+    try {
+      const response = await apiFetch('/publisher/delete-permanent', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [publisherRecord.id] })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (permanentDeletePublisherError) renderApiErrorAlert(permanentDeletePublisherError, data, data.message || 'Unable to delete publisher.');
+        return;
+      }
+      sessionStorage.setItem('publishersFlash', 'Publisher deleted permanently.');
+      window.location.href = 'publishers';
+    } catch (error) {
+      errorLog('Permanent delete failed.', error);
+      if (permanentDeletePublisherError) renderApiErrorAlert(permanentDeletePublisherError, { message: 'Unable to delete publisher right now.' }, 'Unable to delete publisher right now.');
+    } finally {
+      permanentDeleteModalState.locked = false;
+      setModalLocked(permanentDeletePublisherModal, false);
+      setButtonLoading(permanentDeletePublisherConfirmBtn, permanentDeleteSpinner?.spinner, false);
+      window.modalLock?.unlock(permanentDeletePublisherModal, 'finally');
+    }
+  };
+
   const handleResponseError = async (response) => {
     warn('Publisher request failed.', { status: response.status });
     if (response.status === 429 && window.rateLimitGuard) {
@@ -462,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loadPublisher = async () => {
     log('Loading publisher data from API.');
-    const response = await apiFetch(`/publisher/${publisherId}`, { method: 'GET' });
+    const response = await apiFetch(`/publisher/${publisherId}?includeDeleted=true`, { method: 'GET' });
     log('Publisher API response received.', { ok: response.ok, status: response.status });
     if (!response.ok) {
       await handleResponseError(response);
@@ -508,8 +690,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const publisher = await loadPublisher();
       if (!publisher) return;
-      const books = await loadBooks();
-      renderBooks(books);
+      if (!publisher.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      } else {
+        renderBooks([]);
+      }
       pageLoaded = true;
     } catch (error) {
       errorLog('Publisher details load failed with exception.', error);
@@ -530,8 +716,26 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deletePublisherBtn) {
     deletePublisherBtn.addEventListener('click', openDeleteModal);
   }
+  if (restorePublisherBtn) {
+    restorePublisherBtn.addEventListener('click', openRestoreModal);
+  }
+  if (permanentDeletePublisherBtn) {
+    permanentDeletePublisherBtn.addEventListener('click', openPermanentDeleteModal);
+  }
   if (publisherDeleteConfirmBtn) {
     publisherDeleteConfirmBtn.addEventListener('click', confirmDelete);
+  }
+  if (restorePublisherMode) {
+    restorePublisherMode.addEventListener('change', updateRestoreSummary);
+  }
+  if (restorePublisherConfirmBtn) {
+    restorePublisherConfirmBtn.addEventListener('click', confirmRestore);
+  }
+  if (permanentDeletePublisherConfirm) {
+    permanentDeletePublisherConfirm.addEventListener('input', updatePermanentDeleteState);
+  }
+  if (permanentDeletePublisherConfirmBtn) {
+    permanentDeletePublisherConfirmBtn.addEventListener('click', confirmPermanentDelete);
   }
   if (removePublisherBookConfirmBtn) {
     removePublisherBookConfirmBtn.addEventListener('click', confirmRemovePublisherBook);

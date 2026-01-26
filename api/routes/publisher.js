@@ -127,6 +127,40 @@ function parseSortOrder(value) {
 	return null;
 }
 
+function parseConflictMode(value) {
+	if (!value) return "decline";
+	const normalized = String(value).trim().toLowerCase();
+	if (["decline", "merge", "override"].includes(normalized)) return normalized;
+	return null;
+}
+
+function parseIdsInput(value) {
+	if (value === undefined || value === null || value === "") return { ids: [] };
+	if (Array.isArray(value)) {
+		const ids = value.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? { ids: [value] } : { ids: [] };
+	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed) return { ids: [] };
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				const ids = parsed.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+				return { ids };
+			}
+		} catch (e) {
+			// Ignore JSON parse errors and fallback to comma parsing.
+		}
+		const ids = trimmed.split(",").map((entry) => Number.parseInt(entry.trim(), 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	return { ids: [] };
+}
+
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Number.parseInt(value, 10);
@@ -181,13 +215,14 @@ function parseDateFilter(value, fieldLabel) {
 	return { value: new Date(parsed).toISOString() };
 }
 
-async function resolvePublisherId({ userId, id, name }) {
+async function resolvePublisherId({ userId, id, name, includeDeleted = false }) {
 	const hasId = Number.isInteger(id);
 	const hasName = Boolean(name);
+	const deletedClause = includeDeleted ? "" : " AND deleted_at IS NULL";
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			`SELECT id, name FROM publishers WHERE user_id = $1 AND id = $2${deletedClause}`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].name !== name) {
@@ -202,7 +237,7 @@ async function resolvePublisherId({ userId, id, name }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL`,
+			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2${deletedClause}`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
@@ -244,7 +279,7 @@ async function listPublishersHandler(req, res) {
 		}
 
 		try {
-			const resolved = await resolvePublisherId({ userId, id: targetId, name: targetName });
+			const resolved = await resolvePublisherId({ userId, id: targetId, name: targetName, includeDeleted });
 			if (resolved.mismatch) {
 				return errorResponse(res, 400, "Validation Error", ["Publisher id and name must refer to the same record."]);
 			}
@@ -253,11 +288,11 @@ async function listPublishersHandler(req, res) {
 			}
 
 			const result = await pool.query(
-				`SELECT p.id, p.name, p.website, p.notes, p.created_at, p.updated_at,
+				`SELECT p.id, p.name, p.website, p.notes, p.created_at, p.updated_at, p.deleted_at,
 				        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
 				 FROM publishers p
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-				 WHERE p.user_id = $1 AND p.id = $2 AND p.deleted_at IS NULL`,
+				 WHERE p.user_id = $1 AND p.id = $2${includeDeleted ? "" : " AND p.deleted_at IS NULL"}`,
 				[userId, resolved.id]
 			);
 
@@ -273,7 +308,8 @@ async function listPublishersHandler(req, res) {
 					website: row.website,
 					notes: row.notes,
 					createdAt: row.created_at,
-					updatedAt: row.updated_at
+					updatedAt: row.updated_at,
+					deletedAt: row.deleted_at
 				};
 
 			if (returnStats) {
@@ -920,17 +956,18 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = parseId(req.params.id);
 	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
+	const includeDeleted = parseBooleanFlag(req.query.includeDeleted ?? req.body?.includeDeleted) ?? false;
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Publisher id must be a valid integer."]);
 	}
 
 	try {
 		const result = await pool.query(
-			`SELECT p.id, p.name, p.website, p.notes, p.created_at, p.updated_at,
+			`SELECT p.id, p.name, p.website, p.notes, p.created_at, p.updated_at, p.deleted_at,
 			        fd.id AS founded_date_id, fd.day AS founded_day, fd.month AS founded_month, fd.year AS founded_year, fd.text AS founded_text
 			 FROM publishers p
 			 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-			 WHERE p.user_id = $1 AND p.id = $2 AND p.deleted_at IS NULL`,
+			 WHERE p.user_id = $1 AND p.id = $2${includeDeleted ? "" : " AND p.deleted_at IS NULL"}`,
 			[userId, id]
 		);
 
@@ -948,7 +985,8 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			website: row.website,
 			notes: row.notes,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
 		};
 		if (returnStats) {
 			payload.stats = await fetchPublisherStats(userId, row.id);
@@ -1190,65 +1228,232 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	return handlePublisherDelete(req, res, resolved.id);
 });
 
-// POST /publisher/restore - Restore a deleted publisher
+// POST /publisher/restore - Restore deleted publishers (single or bulk)
 router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetName = normalizeText(req.body?.name);
-
-	if (!Number.isInteger(targetId) && !targetName) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a publisher id or name to restore."]);
+	const params = { ...req.query, ...(req.body || {}) };
+	const mode = parseConflictMode(params.mode);
+	if (!mode) {
+		return errorResponse(res, 400, "Validation Error", ["mode must be one of: decline, merge, override."]);
 	}
-	if (targetName) {
+
+	const idsPayload = params.ids ?? params.id;
+	let { ids } = parseIdsInput(idsPayload);
+	const targetName = normalizeText(params.name);
+
+	if (!ids.length && targetName) {
 		const nameErrors = validatePublisherName(targetName);
 		if (nameErrors.length > 0) {
 			return errorResponse(res, 400, "Validation Error", nameErrors);
 		}
-	}
-
-	const values = [userId];
-	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
-	let idx = 2;
-
-	if (Number.isInteger(targetId)) {
-		clauses.push(`id = $${idx++}`);
-		values.push(targetId);
-	}
-	if (targetName) {
-		clauses.push(`name = $${idx++}`);
-		values.push(targetName);
-	}
-
-	try {
 		const match = await pool.query(
-			`SELECT id FROM publishers WHERE ${clauses.join(" AND ")}`,
-			values
+			`SELECT id FROM publishers WHERE user_id = $1 AND name = $2 AND deleted_at IS NOT NULL`,
+			[userId, targetName]
 		);
-		if (match.rows.length === 0) {
-			return errorResponse(res, 404, "Publisher not found.", ["The requested publisher could not be located."]);
-		}
-		if (match.rows.length > 1) {
-			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific publisher identifier."]);
-		}
-
-		const restored = await pool.query(
-			`UPDATE publishers SET deleted_at = NULL WHERE id = $1 RETURNING id`,
-			[match.rows[0].id]
-		);
-
-		return successResponse(res, 200, "Publisher restored successfully.", {
-			id: restored.rows[0].id
-		});
-	} catch (error) {
-		logToFile("PUBLISHER_RESTORE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the publisher."]);
+		ids = match.rows.map((row) => row.id);
 	}
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a publisher id, ids array, or name to restore."]);
+	}
+
+	const results = [];
+	let restoredCount = 0;
+	let failedCount = 0;
+
+	for (const publisherId of ids) {
+		if (!Number.isInteger(publisherId)) {
+			results.push({ id: publisherId, status: "failed", reason: "Publisher id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const deletedRes = await client.query(
+				`SELECT id, name, founded_date_id, website, notes
+				 FROM publishers
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, publisherId]
+			);
+			if (deletedRes.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: publisherId, status: "failed", reason: "Publisher not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			const deleted = deletedRes.rows[0];
+			const conflictRes = await client.query(
+				`SELECT id, name, founded_date_id, website, notes
+				 FROM publishers
+				 WHERE user_id = $1 AND deleted_at IS NULL AND LOWER(name) = LOWER($2) AND id <> $3`,
+				[userId, deleted.name, deleted.id]
+			);
+			const conflict = conflictRes.rows[0];
+
+			if (conflict && mode === "decline") {
+				await client.query("ROLLBACK");
+				results.push({
+					id: deleted.id,
+					status: "failed",
+					reason: `Could not restore '${deleted.name}' because another publisher with that name already exists in your library.`
+				});
+				failedCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "merge") {
+				await client.query(
+					`UPDATE publishers SET
+						founded_date_id = COALESCE(founded_date_id, $2),
+						website = CASE WHEN (website IS NULL OR website = '') AND $3 IS NOT NULL AND $3 <> '' THEN $3 ELSE website END,
+						notes = CASE WHEN (notes IS NULL OR notes = '') AND $4 IS NOT NULL AND $4 <> '' THEN $4 ELSE notes END
+					 WHERE id = $1`,
+					[conflict.id, deleted.founded_date_id, deleted.website, deleted.notes]
+				);
+				await client.query(
+					`UPDATE books SET publisher_id = $1 WHERE user_id = $2 AND publisher_id = $3`,
+					[conflict.id, userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM publishers WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored", effectiveId: conflict.id });
+				restoredCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "override") {
+				await client.query(
+					`UPDATE publishers SET deleted_at = NOW() WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE books SET publisher_id = $1 WHERE user_id = $2 AND publisher_id = $3`,
+					[deleted.id, userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE publishers SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored" });
+				restoredCount += 1;
+				continue;
+			}
+
+			await client.query(
+				`UPDATE publishers SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+				[userId, deleted.id]
+			);
+			await client.query("COMMIT");
+			results.push({ id: deleted.id, status: "restored" });
+			restoredCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("PUBLISHER_RESTORE", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				publisher_id: publisherId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: publisherId, status: "failed", reason: "An error occurred while restoring this publisher." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = restoredCount > 0 && failedCount > 0
+		? "Some items were restored successfully."
+		: restoredCount > 0
+			? "Publishers restored successfully."
+			: "No publishers were restored.";
+
+	return successResponse(res, 200, message, {
+		results,
+		restoredCount,
+		failedCount
+	});
+});
+
+// POST /publisher/delete-permanent - Permanently delete deleted publishers (single or bulk)
+router.post("/delete-permanent", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const idsPayload = params.ids ?? params.id;
+	const { ids } = parseIdsInput(idsPayload);
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a publisher id or ids array to permanently delete."]);
+	}
+
+	const results = [];
+	let deletedCount = 0;
+	let failedCount = 0;
+
+	for (const publisherId of ids) {
+		if (!Number.isInteger(publisherId)) {
+			results.push({ id: publisherId, status: "failed", reason: "Publisher id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const match = await client.query(
+				`SELECT id FROM publishers WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, publisherId]
+			);
+			if (match.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: publisherId, status: "failed", reason: "Publisher not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			await client.query(
+				`UPDATE books SET publisher_id = NULL WHERE user_id = $1 AND publisher_id = $2`,
+				[userId, publisherId]
+			);
+			await client.query(
+				`DELETE FROM publishers WHERE user_id = $1 AND id = $2`,
+				[userId, publisherId]
+			);
+			await client.query("COMMIT");
+			results.push({ id: publisherId, status: "deleted" });
+			deletedCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("PUBLISHER_DELETE_PERMANENT", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				publisher_id: publisherId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: publisherId, status: "failed", reason: "An error occurred while deleting this publisher." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = deletedCount > 0 && failedCount > 0
+		? "Some items were deleted successfully."
+		: deletedCount > 0
+			? "Publishers deleted permanently."
+			: "No publishers were deleted.";
+
+	return successResponse(res, 200, message, {
+		results,
+		deletedCount,
+		failedCount
+	});
 });
 
 module.exports = router;

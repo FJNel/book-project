@@ -25,12 +25,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidSeriesModalMessage');
   const invalidModalClose = document.getElementById('invalidSeriesModalClose');
   const defaultInvalidSeriesMessage = "This link doesn't seem to lead to a series in your library. Try going back to your series list and selecting it again.";
+  const seriesDeletedNotice = document.getElementById('seriesDeletedNotice');
+  const seriesDeletedText = document.getElementById('seriesDeletedText');
   const editSeriesBtn = document.getElementById('editSeriesBtn');
   const deleteSeriesBtn = document.getElementById('deleteSeriesBtn');
+  const restoreSeriesBtn = document.getElementById('restoreSeriesBtn');
+  const permanentDeleteSeriesBtn = document.getElementById('permanentDeleteSeriesBtn');
   const deleteSeriesModal = document.getElementById('deleteSeriesModal');
   const deleteSeriesName = document.getElementById('deleteSeriesName');
   const seriesDeleteConfirmBtn = document.getElementById('seriesDeleteConfirmBtn');
   const seriesDeleteErrorAlert = document.getElementById('seriesDeleteErrorAlert');
+  const restoreSeriesModal = document.getElementById('restoreSeriesModal');
+  const restoreSeriesMode = document.getElementById('restoreSeriesMode');
+  const restoreSeriesModeHelp = document.getElementById('restoreSeriesModeHelp');
+  const restoreSeriesChangesSummary = document.getElementById('restoreSeriesChangesSummary');
+  const restoreSeriesError = document.getElementById('restoreSeriesError');
+  const restoreSeriesConfirmBtn = document.getElementById('restoreSeriesConfirmBtn');
+  const permanentDeleteSeriesModal = document.getElementById('permanentDeleteSeriesModal');
+  const permanentDeleteSeriesConfirm = document.getElementById('permanentDeleteSeriesConfirm');
+  const permanentDeleteSeriesHelp = document.getElementById('permanentDeleteSeriesHelp');
+  const permanentDeleteSeriesError = document.getElementById('permanentDeleteSeriesError');
+  const permanentDeleteSeriesConfirmBtn = document.getElementById('permanentDeleteSeriesConfirmBtn');
   const editSeriesOrderModal = document.getElementById('editSeriesOrderModal');
   const seriesOrderInput = document.getElementById('seriesOrderInput');
   const seriesOrderResetBtn = document.getElementById('seriesOrderResetBtn');
@@ -70,6 +85,27 @@ document.addEventListener('DOMContentLoaded', () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Johannesburg',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    try {
+      const parts = dateTimeFormatter.formatToParts(new Date(value));
+      const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${lookup.day} ${lookup.month} ${lookup.year} ${lookup.hour}:${lookup.minute}`;
+    } catch (e) {
+      return value;
+    }
   };
 
   const escapeHtml = (value) => String(value)
@@ -157,13 +193,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const orderModalState = { locked: false };
   const deleteModalState = { locked: false };
   const removeModalState = { locked: false };
+  const restoreModalState = { locked: false };
+  const permanentDeleteModalState = { locked: false };
   const orderSpinner = attachButtonSpinner(seriesOrderSaveBtn);
   const deleteSpinner = attachButtonSpinner(seriesDeleteConfirmBtn);
   const removeSpinner = attachButtonSpinner(removeSeriesBookConfirmBtn);
+  const restoreSpinner = attachButtonSpinner(restoreSeriesConfirmBtn);
+  const permanentDeleteSpinner = attachButtonSpinner(permanentDeleteSeriesConfirmBtn);
 
   bindModalLock(editSeriesOrderModal, orderModalState);
   bindModalLock(deleteSeriesModal, deleteModalState);
   bindModalLock(removeSeriesBookModal, removeModalState);
+  bindModalLock(restoreSeriesModal, restoreModalState);
+  bindModalLock(permanentDeleteSeriesModal, permanentDeleteModalState);
 
   const renderLink = (url, text) => {
     const normalized = normalizeUrl(url);
@@ -180,6 +222,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     el.textContent = '';
     wrap.classList.add('d-none');
+  };
+
+  const applyDeletedState = (isDeleted, deletedAt) => {
+    document.querySelectorAll('[data-active-only]').forEach((el) => {
+      el.classList.toggle('d-none', isDeleted);
+    });
+    document.querySelectorAll('[data-deleted-only]').forEach((el) => {
+      el.classList.toggle('d-none', !isDeleted);
+    });
+    if (seriesDeletedNotice) {
+      seriesDeletedNotice.classList.toggle('d-none', !isDeleted);
+    }
+    if (seriesDeletedText) {
+      if (isDeleted) {
+        const formatted = formatDateTime(deletedAt) || 'Unknown date';
+        seriesDeletedText.textContent = `This series was deleted on ${formatted}.`;
+      } else {
+        seriesDeletedText.textContent = 'This series is in the recycle bin.';
+      }
+    }
   };
 
   const showModal = async (target, options) => {
@@ -283,6 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
         descriptionSection.classList.add('d-none');
       }
     }
+
+    applyDeletedState(Boolean(series.deletedAt), series.deletedAt);
   };
 
   const getSeriesOrder = (book) => {
@@ -452,6 +516,124 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const updateRestoreSummary = () => {
+    if (!restoreSeriesMode || !restoreSeriesChangesSummary) return;
+    const mode = restoreSeriesMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    restoreSeriesChangesSummary.textContent = `Restore this series using ${label} mode.`;
+    if (restoreSeriesModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into the existing series when possible.'
+        : mode === 'override'
+          ? 'Override replaces the existing series by restoring this one.'
+          : 'Decline leaves the series deleted if a conflict is found.';
+      restoreSeriesModeHelp.textContent = helpText;
+      restoreSeriesModeHelp.classList.remove('text-danger');
+      restoreSeriesModeHelp.classList.add('text-muted');
+    }
+  };
+
+  const openRestoreModal = () => {
+    if (!seriesRecord || !restoreSeriesModal) return;
+    restoreModalState.locked = false;
+    setModalLocked(restoreSeriesModal, false);
+    if (restoreSeriesMode) restoreSeriesMode.value = 'decline';
+    if (restoreSeriesError) clearApiAlert(restoreSeriesError);
+    updateRestoreSummary();
+    restoreSeriesConfirmBtn.disabled = false;
+    showModal(restoreSeriesModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmRestore = async () => {
+    if (!seriesRecord || !restoreSeriesConfirmBtn) return;
+    const mode = restoreSeriesMode?.value || 'decline';
+    if (restoreSeriesError) clearApiAlert(restoreSeriesError);
+    restoreModalState.locked = true;
+    setModalLocked(restoreSeriesModal, true);
+    setButtonLoading(restoreSeriesConfirmBtn, restoreSpinner?.spinner, true);
+    window.modalLock?.lock(restoreSeriesModal, 'Restore series');
+    try {
+      const response = await apiFetch('/bookseries/restore', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [seriesRecord.id], mode })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (restoreSeriesError) renderApiErrorAlert(restoreSeriesError, data, data.message || 'Unable to restore series.');
+        return;
+      }
+      await hideModal(restoreSeriesModal);
+      const refreshed = await loadSeries();
+      if (refreshed && !refreshed.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      }
+    } catch (error) {
+      errorLog('Restore series failed.', error);
+      if (restoreSeriesError) renderApiErrorAlert(restoreSeriesError, { message: 'Unable to restore series right now.' }, 'Unable to restore series right now.');
+    } finally {
+      restoreModalState.locked = false;
+      setModalLocked(restoreSeriesModal, false);
+      setButtonLoading(restoreSeriesConfirmBtn, restoreSpinner?.spinner, false);
+      restoreSeriesConfirmBtn.disabled = false;
+      window.modalLock?.unlock(restoreSeriesModal, 'finally');
+    }
+  };
+
+  const updatePermanentDeleteState = () => {
+    if (!permanentDeleteSeriesConfirmBtn || !permanentDeleteSeriesConfirm) return;
+    const value = permanentDeleteSeriesConfirm.value.trim();
+    const matches = value.toLowerCase() === 'delete';
+    permanentDeleteSeriesConfirmBtn.disabled = !matches;
+    if (permanentDeleteSeriesHelp) {
+      setHelpText(permanentDeleteSeriesHelp, matches ? 'Confirmed.' : 'Enter DELETE to enable permanent deletion.', !matches);
+    }
+  };
+
+  const openPermanentDeleteModal = () => {
+    if (!seriesRecord || !permanentDeleteSeriesModal) return;
+    permanentDeleteModalState.locked = false;
+    setModalLocked(permanentDeleteSeriesModal, false);
+    if (permanentDeleteSeriesConfirm) permanentDeleteSeriesConfirm.value = '';
+    updatePermanentDeleteState();
+    if (permanentDeleteSeriesError) clearApiAlert(permanentDeleteSeriesError);
+    showModal(permanentDeleteSeriesModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!seriesRecord || !permanentDeleteSeriesConfirmBtn) return;
+    const value = permanentDeleteSeriesConfirm?.value.trim().toLowerCase();
+    if (value !== 'delete') {
+      updatePermanentDeleteState();
+      return;
+    }
+    permanentDeleteModalState.locked = true;
+    setModalLocked(permanentDeleteSeriesModal, true);
+    setButtonLoading(permanentDeleteSeriesConfirmBtn, permanentDeleteSpinner?.spinner, true);
+    window.modalLock?.lock(permanentDeleteSeriesModal, 'Delete series permanently');
+    try {
+      const response = await apiFetch('/bookseries/delete-permanent', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [seriesRecord.id] })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (permanentDeleteSeriesError) renderApiErrorAlert(permanentDeleteSeriesError, data, data.message || 'Unable to delete series.');
+        return;
+      }
+      sessionStorage.setItem('seriesFlash', 'Series deleted permanently.');
+      window.location.href = 'series';
+    } catch (error) {
+      errorLog('Permanent delete failed.', error);
+      if (permanentDeleteSeriesError) renderApiErrorAlert(permanentDeleteSeriesError, { message: 'Unable to delete series right now.' }, 'Unable to delete series right now.');
+    } finally {
+      permanentDeleteModalState.locked = false;
+      setModalLocked(permanentDeleteSeriesModal, false);
+      setButtonLoading(permanentDeleteSeriesConfirmBtn, permanentDeleteSpinner?.spinner, false);
+      window.modalLock?.unlock(permanentDeleteSeriesModal, 'finally');
+    }
+  };
+
   const updateOrderChangeSummary = () => {
     if (!orderEditTarget || !seriesRecord || !seriesOrderChangeSummary) return;
     const currentLabel = orderEditTarget.originalInputValue || 'No order';
@@ -601,7 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loadSeries = async () => {
     log('Loading series data from API.');
-    const response = await apiFetch(`/bookseries/${seriesId}`, { method: 'GET' });
+    const response = await apiFetch(`/bookseries/${seriesId}?includeDeleted=true`, { method: 'GET' });
     log('Series API response received.', { ok: response.ok, status: response.status });
     if (!response.ok) {
       await handleResponseError(response);
@@ -647,8 +829,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const series = await loadSeries();
       if (!series) return;
-      const books = await loadBooks();
-      renderBooks(books);
+      if (!series.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      } else {
+        renderBooks([]);
+      }
       pageLoaded = true;
     } catch (error) {
       errorLog('Series details load failed with exception.', error);
@@ -667,8 +853,26 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deleteSeriesBtn) {
     deleteSeriesBtn.addEventListener('click', openDeleteModal);
   }
+  if (restoreSeriesBtn) {
+    restoreSeriesBtn.addEventListener('click', openRestoreModal);
+  }
+  if (permanentDeleteSeriesBtn) {
+    permanentDeleteSeriesBtn.addEventListener('click', openPermanentDeleteModal);
+  }
   if (seriesDeleteConfirmBtn) {
     seriesDeleteConfirmBtn.addEventListener('click', confirmDelete);
+  }
+  if (restoreSeriesMode) {
+    restoreSeriesMode.addEventListener('change', updateRestoreSummary);
+  }
+  if (restoreSeriesConfirmBtn) {
+    restoreSeriesConfirmBtn.addEventListener('click', confirmRestore);
+  }
+  if (permanentDeleteSeriesConfirm) {
+    permanentDeleteSeriesConfirm.addEventListener('input', updatePermanentDeleteState);
+  }
+  if (permanentDeleteSeriesConfirmBtn) {
+    permanentDeleteSeriesConfirmBtn.addEventListener('click', confirmPermanentDelete);
   }
   if (seriesOrderSaveBtn) {
     seriesOrderSaveBtn.addEventListener('click', saveOrderChange);

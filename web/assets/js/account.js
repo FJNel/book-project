@@ -19,7 +19,10 @@
     revokeSessionTarget: null,
     revokeApiKeyTarget: null,
     activeSection: 'overview',
-    profileCompleteness: null
+    profileCompleteness: null,
+    recycleItems: [],
+    recycleSelection: new Set(),
+    recycleActionTargets: []
   };
 
   const elements = {
@@ -56,7 +59,18 @@
     apiKeysEmpty: document.getElementById('apiKeysEmpty'),
     apiKeysTable: document.getElementById('apiKeysTable'),
     disableAccountBtn: document.getElementById('disableAccountBtn'),
-    deleteAccountBtn: document.getElementById('deleteAccountBtn')
+    deleteAccountBtn: document.getElementById('deleteAccountBtn'),
+    recycleTable: document.getElementById('recycleTable'),
+    recycleSelectAll: document.getElementById('recycleSelectAll'),
+    recycleEmptyState: document.getElementById('recycleEmptyState'),
+    recycleError: document.getElementById('recycleError'),
+    recycleRefreshBtn: document.getElementById('recycleRefreshBtn'),
+    recycleRestoreBtn: document.getElementById('recycleRestoreBtn'),
+    recycleDeleteBtn: document.getElementById('recycleDeleteBtn'),
+    recycleFilterBooks: document.getElementById('recycleFilterBooks'),
+    recycleFilterAuthors: document.getElementById('recycleFilterAuthors'),
+    recycleFilterPublishers: document.getElementById('recycleFilterPublishers'),
+    recycleFilterSeries: document.getElementById('recycleFilterSeries')
   };
 
   const modals = {
@@ -68,7 +82,9 @@
     createApiKey: document.getElementById('createApiKeyModal'),
     revokeApiKey: document.getElementById('revokeApiKeyModal'),
     disableAccount: document.getElementById('disableAccountModal'),
-    deleteAccount: document.getElementById('deleteAccountModal')
+    deleteAccount: document.getElementById('deleteAccountModal'),
+    recycleRestore: document.getElementById('recycleRestoreModal'),
+    recycleDelete: document.getElementById('recycleDeleteModal')
   };
 
   const controls = {
@@ -116,7 +132,18 @@
     deleteAccountError: document.getElementById('deleteAccountError'),
     deleteAccountConfirmInput: document.getElementById('deleteAccountConfirmInput'),
     deleteAccountHelp: document.getElementById('deleteAccountHelp'),
-    confirmDeleteAccountBtn: document.getElementById('confirmDeleteAccountBtn')
+    confirmDeleteAccountBtn: document.getElementById('confirmDeleteAccountBtn'),
+    recycleRestoreSummary: document.getElementById('recycleRestoreSummary'),
+    recycleRestoreMode: document.getElementById('recycleRestoreMode'),
+    recycleRestoreModeHelp: document.getElementById('recycleRestoreModeHelp'),
+    recycleRestoreError: document.getElementById('recycleRestoreError'),
+    recycleRestoreChanges: document.getElementById('recycleRestoreChanges'),
+    recycleRestoreConfirmBtn: document.getElementById('recycleRestoreConfirmBtn'),
+    recycleDeleteSummary: document.getElementById('recycleDeleteSummary'),
+    recycleDeleteConfirmInput: document.getElementById('recycleDeleteConfirmInput'),
+    recycleDeleteHelp: document.getElementById('recycleDeleteHelp'),
+    recycleDeleteError: document.getElementById('recycleDeleteError'),
+    recycleDeleteConfirmBtn: document.getElementById('recycleDeleteConfirmBtn')
   };
 
   const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -184,7 +211,7 @@
     btn.disabled = !!isLoading;
   }
 
-  const validSections = new Set(['overview', 'profile', 'security', 'danger']);
+  const validSections = new Set(['overview', 'profile', 'security', 'recycle', 'danger']);
 
   function updateHash(section, { push = false } = {}) {
     const newUrl = `${window.location.pathname}#${section}`;
@@ -649,6 +676,368 @@
     log('API keys loaded:', state.apiKeys.length);
   }
 
+  const recycleTypeConfig = {
+    book: {
+      label: 'Book',
+      trashEndpoint: '/book/trash',
+      restoreEndpoint: '/book/restore',
+      deleteEndpoint: '/book/delete-permanent',
+      detailUrl: 'book-details'
+    },
+    author: {
+      label: 'Author',
+      trashEndpoint: '/author/trash',
+      restoreEndpoint: '/author/restore',
+      deleteEndpoint: '/author/delete-permanent',
+      detailUrl: 'author-details'
+    },
+    publisher: {
+      label: 'Publisher',
+      trashEndpoint: '/publisher/trash',
+      restoreEndpoint: '/publisher/restore',
+      deleteEndpoint: '/publisher/delete-permanent',
+      detailUrl: 'publisher-details'
+    },
+    series: {
+      label: 'Series',
+      trashEndpoint: '/bookseries/trash',
+      restoreEndpoint: '/bookseries/restore',
+      deleteEndpoint: '/bookseries/delete-permanent',
+      detailUrl: 'series-details'
+    }
+  };
+
+  function recycleKey(item) {
+    return `${item.type}:${item.id}`;
+  }
+
+  function getRecycleFilters() {
+    return new Set([
+      elements.recycleFilterBooks?.checked ? 'book' : null,
+      elements.recycleFilterAuthors?.checked ? 'author' : null,
+      elements.recycleFilterPublishers?.checked ? 'publisher' : null,
+      elements.recycleFilterSeries?.checked ? 'series' : null
+    ].filter(Boolean));
+  }
+
+  function pruneRecycleSelection(items) {
+    const validKeys = new Set(items.map((item) => recycleKey(item)));
+    Array.from(state.recycleSelection).forEach((key) => {
+      if (!validKeys.has(key)) state.recycleSelection.delete(key);
+    });
+  }
+
+  function updateRecycleBulkActions(filteredItems) {
+    const hasSelection = state.recycleSelection.size > 0;
+    if (elements.recycleRestoreBtn) elements.recycleRestoreBtn.disabled = !hasSelection;
+    if (elements.recycleDeleteBtn) elements.recycleDeleteBtn.disabled = !hasSelection;
+
+    if (elements.recycleSelectAll) {
+      const visibleKeys = filteredItems.map((item) => recycleKey(item));
+      const selectedVisible = visibleKeys.filter((key) => state.recycleSelection.has(key));
+      elements.recycleSelectAll.checked = visibleKeys.length > 0 && selectedVisible.length === visibleKeys.length;
+      elements.recycleSelectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visibleKeys.length;
+    }
+  }
+
+  function renderRecycleBin() {
+    if (!elements.recycleTable) return;
+    const tbody = elements.recycleTable.querySelector('tbody');
+    if (!tbody) return;
+
+    const filters = getRecycleFilters();
+    const filteredItems = state.recycleItems.filter((item) => filters.has(item.type));
+    pruneRecycleSelection(state.recycleItems);
+
+    tbody.innerHTML = '';
+    if (filteredItems.length === 0) {
+      elements.recycleTable.classList.add('d-none');
+      if (elements.recycleEmptyState) elements.recycleEmptyState.classList.remove('d-none');
+      updateRecycleBulkActions(filteredItems);
+      return;
+    }
+
+    elements.recycleTable.classList.remove('d-none');
+    if (elements.recycleEmptyState) elements.recycleEmptyState.classList.add('d-none');
+
+    filteredItems.forEach((item) => {
+      const config = recycleTypeConfig[item.type];
+      const row = document.createElement('tr');
+      row.dataset.recycleType = item.type;
+      row.dataset.recycleId = String(item.id);
+
+      const selectCell = document.createElement('td');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'form-check-input';
+      checkbox.checked = state.recycleSelection.has(recycleKey(item));
+      checkbox.setAttribute('aria-label', `Select ${config.label}`);
+      checkbox.addEventListener('click', (event) => event.stopPropagation());
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          state.recycleSelection.add(recycleKey(item));
+        } else {
+          state.recycleSelection.delete(recycleKey(item));
+        }
+        updateRecycleBulkActions(filteredItems);
+      });
+      selectCell.appendChild(checkbox);
+
+      const typeCell = document.createElement('td');
+      typeCell.textContent = config.label;
+
+      const nameCell = document.createElement('td');
+      nameCell.textContent = item.name || 'Untitled';
+
+      const deletedCell = document.createElement('td');
+      deletedCell.textContent = formatDate(item.deletedAt);
+
+      const actionsCell = document.createElement('td');
+      actionsCell.className = 'text-end';
+      const restoreBtn = document.createElement('button');
+      restoreBtn.type = 'button';
+      restoreBtn.className = 'btn btn-outline-success btn-sm me-2';
+      restoreBtn.textContent = 'Restore';
+      restoreBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openRecycleRestoreModal([item]);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn-outline-danger btn-sm';
+      deleteBtn.textContent = 'Delete permanently';
+      deleteBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openRecycleDeleteModal([item]);
+      });
+
+      actionsCell.appendChild(restoreBtn);
+      actionsCell.appendChild(deleteBtn);
+
+      row.appendChild(selectCell);
+      row.appendChild(typeCell);
+      row.appendChild(nameCell);
+      row.appendChild(deletedCell);
+      row.appendChild(actionsCell);
+
+      row.addEventListener('click', () => {
+        window.location.href = `${config.detailUrl}?id=${item.id}`;
+      });
+
+      tbody.appendChild(row);
+    });
+
+    updateRecycleBulkActions(filteredItems);
+  }
+
+  async function loadRecycleBin() {
+    if (!elements.recycleTable) return;
+    if (elements.recycleError) elements.recycleError.classList.add('d-none');
+    try {
+      const [books, authors, publishers, series] = await Promise.all([
+        fetchJson(recycleTypeConfig.book.trashEndpoint, { method: 'GET' }),
+        fetchJson(recycleTypeConfig.author.trashEndpoint, { method: 'GET' }),
+        fetchJson(recycleTypeConfig.publisher.trashEndpoint, { method: 'GET' }),
+        fetchJson(recycleTypeConfig.series.trashEndpoint, { method: 'GET' })
+      ]);
+
+      const bookItems = (books.books || []).map((book) => ({
+        type: 'book',
+        id: book.id,
+        name: book.subtitle ? `${book.title}: ${book.subtitle}` : book.title,
+        deletedAt: book.deletedAt
+      }));
+      const authorItems = (authors.authors || []).map((author) => ({
+        type: 'author',
+        id: author.id,
+        name: author.displayName || `${author.firstNames || ''} ${author.lastName || ''}`.trim(),
+        deletedAt: author.deletedAt
+      }));
+      const publisherItems = (publishers.publishers || []).map((publisher) => ({
+        type: 'publisher',
+        id: publisher.id,
+        name: publisher.name,
+        deletedAt: publisher.deletedAt
+      }));
+      const seriesItems = (series.series || []).map((entry) => ({
+        type: 'series',
+        id: entry.id,
+        name: entry.name,
+        deletedAt: entry.deletedAt
+      }));
+
+      state.recycleItems = [...bookItems, ...authorItems, ...publisherItems, ...seriesItems]
+        .sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
+      renderRecycleBin();
+    } catch (error) {
+      if (elements.recycleError) {
+        renderInlineError(elements.recycleError, 'Unable to load recycle bin', [error.message]);
+      }
+    }
+  }
+
+  function getSelectedRecycleItems() {
+    return state.recycleItems.filter((item) => state.recycleSelection.has(recycleKey(item)));
+  }
+
+  function describeRecycleSelection(items) {
+    const counts = items.reduce((acc, item) => {
+      acc[item.type] = (acc[item.type] || 0) + 1;
+      return acc;
+    }, {});
+    const parts = Object.entries(counts).map(([type, count]) => `${count} ${recycleTypeConfig[type].label.toLowerCase()}${count === 1 ? '' : 's'}`);
+    return parts.length ? parts.join(', ') : 'No items selected.';
+  }
+
+  function updateRecycleRestoreChanges() {
+    if (!controls.recycleRestoreChanges || !controls.recycleRestoreMode) return;
+    const mode = controls.recycleRestoreMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    controls.recycleRestoreChanges.textContent = `Restoring ${state.recycleActionTargets.length} item${state.recycleActionTargets.length === 1 ? '' : 's'} using ${label} mode.`;
+    if (controls.recycleRestoreModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into existing items when possible.'
+        : mode === 'override'
+          ? 'Override replaces existing items by restoring these.'
+          : 'Decline leaves items deleted if a conflict is found.';
+      controls.recycleRestoreModeHelp.textContent = helpText;
+      controls.recycleRestoreModeHelp.classList.remove('text-danger');
+      controls.recycleRestoreModeHelp.classList.add('text-muted');
+    }
+  }
+
+  function openRecycleRestoreModal(items) {
+    state.recycleActionTargets = items;
+    if (controls.recycleRestoreSummary) {
+      controls.recycleRestoreSummary.textContent = `Restore ${describeRecycleSelection(items)}.`;
+    }
+    if (controls.recycleRestoreMode) controls.recycleRestoreMode.value = 'decline';
+    if (controls.recycleRestoreError) controls.recycleRestoreError.classList.add('d-none');
+    updateRecycleRestoreChanges();
+    if (modalManager) modalManager.showModal(modals.recycleRestore, { backdrop: 'static', keyboard: false });
+  }
+
+  function updateRecycleDeleteState() {
+    if (!controls.recycleDeleteConfirmInput || !controls.recycleDeleteConfirmBtn) return;
+    const value = controls.recycleDeleteConfirmInput.value.trim().toLowerCase();
+    const isMatch = value === 'delete';
+    controls.recycleDeleteConfirmBtn.disabled = !isMatch;
+    if (controls.recycleDeleteHelp) {
+      setHelpText(controls.recycleDeleteHelp, isMatch ? 'Confirmed.' : 'Type DELETE to enable permanent deletion.', !isMatch);
+    }
+  }
+
+  function openRecycleDeleteModal(items) {
+    state.recycleActionTargets = items;
+    if (controls.recycleDeleteSummary) {
+      controls.recycleDeleteSummary.textContent = `Delete ${describeRecycleSelection(items)} permanently.`;
+    }
+    if (controls.recycleDeleteConfirmInput) controls.recycleDeleteConfirmInput.value = '';
+    if (controls.recycleDeleteError) controls.recycleDeleteError.classList.add('d-none');
+    updateRecycleDeleteState();
+    if (modalManager) modalManager.showModal(modals.recycleDelete, { backdrop: 'static', keyboard: false });
+  }
+
+  async function submitRecycleRestore() {
+    const targets = state.recycleActionTargets;
+    if (!targets.length) return;
+    const mode = controls.recycleRestoreMode?.value || 'decline';
+    const grouped = targets.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item.id);
+      return acc;
+    }, {});
+
+    const perform = async () => {
+      setButtonLoading(controls.recycleRestoreConfirmBtn, true);
+      setModalDisabled(modals.recycleRestore, true);
+      const failures = [];
+      for (const [type, ids] of Object.entries(grouped)) {
+        const endpoint = recycleTypeConfig[type].restoreEndpoint;
+        try {
+          const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify({ ids, mode }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            failures.push(data.message || `Unable to restore ${type}.`);
+          }
+        } catch (error) {
+          failures.push(error.message || `Unable to restore ${type}.`);
+        }
+      }
+      if (failures.length) {
+        renderInlineError(controls.recycleRestoreError, 'Unable to restore items', failures);
+        setButtonLoading(controls.recycleRestoreConfirmBtn, false);
+        setModalDisabled(modals.recycleRestore, false);
+        return;
+      }
+      await loadRecycleBin();
+      state.recycleSelection.clear();
+      showPageAlert('Items restored successfully.', 'success');
+      if (modalManager) await modalManager.hideModal(modals.recycleRestore);
+      setButtonLoading(controls.recycleRestoreConfirmBtn, false);
+      setModalDisabled(modals.recycleRestore, false);
+    };
+
+    if (modalLock?.withLock) {
+      await modalLock.withLock({ modal: modals.recycleRestore, action: 'recycle-restore' }, perform).catch(() => {});
+    } else {
+      await perform();
+    }
+  }
+
+  async function submitRecycleDelete() {
+    const targets = state.recycleActionTargets;
+    if (!targets.length) return;
+    const confirmValue = controls.recycleDeleteConfirmInput?.value.trim().toLowerCase();
+    if (confirmValue !== 'delete') {
+      updateRecycleDeleteState();
+      return;
+    }
+
+    const grouped = targets.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item.id);
+      return acc;
+    }, {});
+
+    const perform = async () => {
+      setButtonLoading(controls.recycleDeleteConfirmBtn, true);
+      setModalDisabled(modals.recycleDelete, true);
+      const failures = [];
+      for (const [type, ids] of Object.entries(grouped)) {
+        const endpoint = recycleTypeConfig[type].deleteEndpoint;
+        try {
+          const res = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify({ ids }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            failures.push(data.message || `Unable to delete ${type}.`);
+          }
+        } catch (error) {
+          failures.push(error.message || `Unable to delete ${type}.`);
+        }
+      }
+      if (failures.length) {
+        renderInlineError(controls.recycleDeleteError, 'Unable to delete items', failures);
+        setButtonLoading(controls.recycleDeleteConfirmBtn, false);
+        setModalDisabled(modals.recycleDelete, false);
+        return;
+      }
+      await loadRecycleBin();
+      state.recycleSelection.clear();
+      showPageAlert('Items deleted permanently.', 'success');
+      if (modalManager) await modalManager.hideModal(modals.recycleDelete);
+      setButtonLoading(controls.recycleDeleteConfirmBtn, false);
+      setModalDisabled(modals.recycleDelete, false);
+    };
+
+    if (modalLock?.withLock) {
+      await modalLock.withLock({ modal: modals.recycleDelete, action: 'recycle-delete' }, perform).catch(() => {});
+    } else {
+      await perform();
+    }
+  }
+
   async function handleEditProfileSave() {
     controls.editProfileError.classList.add('d-none');
     const { fullName, preferredName, hasErrors } = updateProfileValidationState();
@@ -1051,6 +1440,34 @@
     });
     controls.deleteAccountConfirmInput?.addEventListener('input', updateDeleteConfirmState);
     controls.confirmDeleteAccountBtn?.addEventListener('click', handleDeleteAccount);
+
+    elements.recycleRefreshBtn?.addEventListener('click', loadRecycleBin);
+    elements.recycleRestoreBtn?.addEventListener('click', () => {
+      const items = getSelectedRecycleItems();
+      if (items.length) openRecycleRestoreModal(items);
+    });
+    elements.recycleDeleteBtn?.addEventListener('click', () => {
+      const items = getSelectedRecycleItems();
+      if (items.length) openRecycleDeleteModal(items);
+    });
+    elements.recycleFilterBooks?.addEventListener('change', renderRecycleBin);
+    elements.recycleFilterAuthors?.addEventListener('change', renderRecycleBin);
+    elements.recycleFilterPublishers?.addEventListener('change', renderRecycleBin);
+    elements.recycleFilterSeries?.addEventListener('change', renderRecycleBin);
+    elements.recycleSelectAll?.addEventListener('change', () => {
+      const filters = getRecycleFilters();
+      const visibleItems = state.recycleItems.filter((item) => filters.has(item.type));
+      if (elements.recycleSelectAll.checked) {
+        visibleItems.forEach((item) => state.recycleSelection.add(recycleKey(item)));
+      } else {
+        visibleItems.forEach((item) => state.recycleSelection.delete(recycleKey(item)));
+      }
+      renderRecycleBin();
+    });
+    controls.recycleRestoreMode?.addEventListener('change', updateRecycleRestoreChanges);
+    controls.recycleRestoreConfirmBtn?.addEventListener('click', submitRecycleRestore);
+    controls.recycleDeleteConfirmInput?.addEventListener('input', updateRecycleDeleteState);
+    controls.recycleDeleteConfirmBtn?.addEventListener('click', submitRecycleDelete);
   }
 
   async function bootstrap() {
@@ -1058,7 +1475,7 @@
     if (!ok) return;
     await showPageLoading();
     try {
-      await Promise.all([loadProfile(), loadStats(), loadSessions(), loadApiKeys()]);
+      await Promise.all([loadProfile(), loadStats(), loadSessions(), loadApiKeys(), loadRecycleBin()]);
     } catch (error) {
       console.error('[Account] Initial load failed', error);
       if (modalManager) await modalManager.showModal(apiErrorModal);

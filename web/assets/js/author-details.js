@@ -25,12 +25,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const invalidModalMessage = document.getElementById('invalidAuthorModalMessage');
   const invalidModalClose = document.getElementById('invalidAuthorModalClose');
   const defaultInvalidAuthorMessage = "This link doesn't seem to lead to an author in your library. Try going back to your author list and selecting it again.";
+  const authorDeletedNotice = document.getElementById('authorDeletedNotice');
+  const authorDeletedText = document.getElementById('authorDeletedText');
   const editAuthorBtn = document.getElementById('editAuthorBtn');
   const deleteAuthorBtn = document.getElementById('deleteAuthorBtn');
+  const restoreAuthorBtn = document.getElementById('restoreAuthorBtn');
+  const permanentDeleteAuthorBtn = document.getElementById('permanentDeleteAuthorBtn');
   const deleteAuthorModal = document.getElementById('deleteAuthorModal');
   const deleteAuthorName = document.getElementById('deleteAuthorName');
   const authorDeleteConfirmBtn = document.getElementById('authorDeleteConfirmBtn');
   const authorDeleteErrorAlert = document.getElementById('authorDeleteErrorAlert');
+  const restoreAuthorModal = document.getElementById('restoreAuthorModal');
+  const restoreAuthorMode = document.getElementById('restoreAuthorMode');
+  const restoreAuthorModeHelp = document.getElementById('restoreAuthorModeHelp');
+  const restoreAuthorChangesSummary = document.getElementById('restoreAuthorChangesSummary');
+  const restoreAuthorError = document.getElementById('restoreAuthorError');
+  const restoreAuthorConfirmBtn = document.getElementById('restoreAuthorConfirmBtn');
+  const permanentDeleteAuthorModal = document.getElementById('permanentDeleteAuthorModal');
+  const permanentDeleteAuthorConfirm = document.getElementById('permanentDeleteAuthorConfirm');
+  const permanentDeleteAuthorHelp = document.getElementById('permanentDeleteAuthorHelp');
+  const permanentDeleteAuthorError = document.getElementById('permanentDeleteAuthorError');
+  const permanentDeleteAuthorConfirmBtn = document.getElementById('permanentDeleteAuthorConfirmBtn');
   const editAuthorRoleModal = document.getElementById('editAuthorRoleModal');
   const authorRoleSelect = document.getElementById('authorRoleSelect');
   const authorRoleOtherWrap = document.getElementById('authorRoleOtherWrap');
@@ -75,6 +90,27 @@ document.addEventListener('DOMContentLoaded', () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Johannesburg',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    try {
+      const parts = dateTimeFormatter.formatToParts(new Date(value));
+      const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return `${lookup.day} ${lookup.month} ${lookup.year} ${lookup.hour}:${lookup.minute}`;
+    } catch (e) {
+      return value;
+    }
   };
 
   const escapeHtml = (value) => String(value)
@@ -156,6 +192,26 @@ document.addEventListener('DOMContentLoaded', () => {
     wrap.classList.add('d-none');
   };
 
+  const applyDeletedState = (isDeleted, deletedAt) => {
+    document.querySelectorAll('[data-active-only]').forEach((el) => {
+      el.classList.toggle('d-none', isDeleted);
+    });
+    document.querySelectorAll('[data-deleted-only]').forEach((el) => {
+      el.classList.toggle('d-none', !isDeleted);
+    });
+    if (authorDeletedNotice) {
+      authorDeletedNotice.classList.toggle('d-none', !isDeleted);
+    }
+    if (authorDeletedText) {
+      if (isDeleted) {
+        const formatted = formatDateTime(deletedAt) || 'Unknown date';
+        authorDeletedText.textContent = `This author was deleted on ${formatted}.`;
+      } else {
+        authorDeletedText.textContent = 'This author is in the recycle bin.';
+      }
+    }
+  };
+
   const showModal = async (target, options) => {
     if (window.modalManager && typeof window.modalManager.showModal === 'function') {
       await window.modalManager.showModal(target, options);
@@ -186,13 +242,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const deleteModalState = { locked: false };
   const removeModalState = { locked: false };
+  const restoreModalState = { locked: false };
+  const permanentDeleteModalState = { locked: false };
   const authorRoleSpinner = attachButtonSpinner(authorRoleSaveBtn);
   const deleteSpinner = attachButtonSpinner(authorDeleteConfirmBtn);
   const removeSpinner = attachButtonSpinner(removeAuthorBookConfirmBtn);
+  const restoreSpinner = attachButtonSpinner(restoreAuthorConfirmBtn);
+  const permanentDeleteSpinner = attachButtonSpinner(permanentDeleteAuthorConfirmBtn);
 
   bindModalLock(editAuthorRoleModal, authorRoleModalState);
   bindModalLock(deleteAuthorModal, deleteModalState);
   bindModalLock(removeAuthorBookModal, removeModalState);
+  bindModalLock(restoreAuthorModal, restoreModalState);
+  bindModalLock(permanentDeleteAuthorModal, permanentDeleteModalState);
 
   if (invalidModalClose) {
     invalidModalClose.addEventListener('click', () => {
@@ -272,6 +334,8 @@ document.addEventListener('DOMContentLoaded', () => {
         bioSection.classList.add('d-none');
       }
     }
+
+    applyDeletedState(Boolean(author.deletedAt), author.deletedAt);
   };
 
   const extractAuthorRole = (book) => {
@@ -434,6 +498,124 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonLoading(authorDeleteConfirmBtn, deleteSpinner?.spinner, false);
       authorDeleteConfirmBtn.disabled = false;
       window.modalLock?.unlock(deleteAuthorModal, 'finally');
+    }
+  };
+
+  const updateRestoreSummary = () => {
+    if (!restoreAuthorMode || !restoreAuthorChangesSummary) return;
+    const mode = restoreAuthorMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    restoreAuthorChangesSummary.textContent = `Restore this author using ${label} mode.`;
+    if (restoreAuthorModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into the existing author when possible.'
+        : mode === 'override'
+          ? 'Override replaces the existing author by restoring this one.'
+          : 'Decline leaves the author deleted if a conflict is found.';
+      restoreAuthorModeHelp.textContent = helpText;
+      restoreAuthorModeHelp.classList.remove('text-danger');
+      restoreAuthorModeHelp.classList.add('text-muted');
+    }
+  };
+
+  const openRestoreModal = () => {
+    if (!authorRecord || !restoreAuthorModal) return;
+    restoreModalState.locked = false;
+    setModalLocked(restoreAuthorModal, false);
+    if (restoreAuthorMode) restoreAuthorMode.value = 'decline';
+    if (restoreAuthorError) clearApiAlert(restoreAuthorError);
+    updateRestoreSummary();
+    restoreAuthorConfirmBtn.disabled = false;
+    showModal(restoreAuthorModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmRestore = async () => {
+    if (!authorRecord || !restoreAuthorConfirmBtn) return;
+    const mode = restoreAuthorMode?.value || 'decline';
+    if (restoreAuthorError) clearApiAlert(restoreAuthorError);
+    restoreModalState.locked = true;
+    setModalLocked(restoreAuthorModal, true);
+    setButtonLoading(restoreAuthorConfirmBtn, restoreSpinner?.spinner, true);
+    window.modalLock?.lock(restoreAuthorModal, 'Restore author');
+    try {
+      const response = await apiFetch('/author/restore', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [authorRecord.id], mode })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (restoreAuthorError) renderApiErrorAlert(restoreAuthorError, data, data.message || 'Unable to restore author.');
+        return;
+      }
+      await hideModal(restoreAuthorModal);
+      const refreshed = await loadAuthor();
+      if (refreshed && !refreshed.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      }
+    } catch (error) {
+      errorLog('Restore author failed.', error);
+      if (restoreAuthorError) renderApiErrorAlert(restoreAuthorError, { message: 'Unable to restore author right now.' }, 'Unable to restore author right now.');
+    } finally {
+      restoreModalState.locked = false;
+      setModalLocked(restoreAuthorModal, false);
+      setButtonLoading(restoreAuthorConfirmBtn, restoreSpinner?.spinner, false);
+      restoreAuthorConfirmBtn.disabled = false;
+      window.modalLock?.unlock(restoreAuthorModal, 'finally');
+    }
+  };
+
+  const updatePermanentDeleteState = () => {
+    if (!permanentDeleteAuthorConfirmBtn || !permanentDeleteAuthorConfirm) return;
+    const value = permanentDeleteAuthorConfirm.value.trim();
+    const matches = value.toLowerCase() === 'delete';
+    permanentDeleteAuthorConfirmBtn.disabled = !matches;
+    if (permanentDeleteAuthorHelp) {
+      setHelpText(permanentDeleteAuthorHelp, matches ? 'Confirmed.' : 'Enter DELETE to enable permanent deletion.', !matches);
+    }
+  };
+
+  const openPermanentDeleteModal = () => {
+    if (!authorRecord || !permanentDeleteAuthorModal) return;
+    permanentDeleteModalState.locked = false;
+    setModalLocked(permanentDeleteAuthorModal, false);
+    if (permanentDeleteAuthorConfirm) permanentDeleteAuthorConfirm.value = '';
+    updatePermanentDeleteState();
+    if (permanentDeleteAuthorError) clearApiAlert(permanentDeleteAuthorError);
+    showModal(permanentDeleteAuthorModal, { backdrop: 'static', keyboard: false });
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!authorRecord || !permanentDeleteAuthorConfirmBtn) return;
+    const value = permanentDeleteAuthorConfirm?.value.trim().toLowerCase();
+    if (value !== 'delete') {
+      updatePermanentDeleteState();
+      return;
+    }
+    permanentDeleteModalState.locked = true;
+    setModalLocked(permanentDeleteAuthorModal, true);
+    setButtonLoading(permanentDeleteAuthorConfirmBtn, permanentDeleteSpinner?.spinner, true);
+    window.modalLock?.lock(permanentDeleteAuthorModal, 'Delete author permanently');
+    try {
+      const response = await apiFetch('/author/delete-permanent', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [authorRecord.id] })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (permanentDeleteAuthorError) renderApiErrorAlert(permanentDeleteAuthorError, data, data.message || 'Unable to delete author.');
+        return;
+      }
+      sessionStorage.setItem('authorsFlash', 'Author deleted permanently.');
+      window.location.href = 'authors';
+    } catch (error) {
+      errorLog('Permanent delete failed.', error);
+      if (permanentDeleteAuthorError) renderApiErrorAlert(permanentDeleteAuthorError, { message: 'Unable to delete author right now.' }, 'Unable to delete author right now.');
+    } finally {
+      permanentDeleteModalState.locked = false;
+      setModalLocked(permanentDeleteAuthorModal, false);
+      setButtonLoading(permanentDeleteAuthorConfirmBtn, permanentDeleteSpinner?.spinner, false);
+      window.modalLock?.unlock(permanentDeleteAuthorModal, 'finally');
     }
   };
 
@@ -644,7 +826,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loadAuthor = async () => {
     log('Loading author data from API.');
-    const response = await apiFetch(`/author/${authorId}`, { method: 'GET' });
+    const response = await apiFetch(`/author/${authorId}?includeDeleted=true`, { method: 'GET' });
     log('Author API response received.', { ok: response.ok, status: response.status });
     if (!response.ok) {
       await handleResponseError(response);
@@ -690,8 +872,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const author = await loadAuthor();
       if (!author) return;
-      const books = await loadBooks();
-      renderBooks(books);
+      if (!author.deletedAt) {
+        const books = await loadBooks();
+        renderBooks(books);
+      } else {
+        renderBooks([]);
+      }
       pageLoaded = true;
     } catch (error) {
       errorLog('Author details load failed with exception.', error);
@@ -712,8 +898,26 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deleteAuthorBtn) {
     deleteAuthorBtn.addEventListener('click', openDeleteModal);
   }
+  if (restoreAuthorBtn) {
+    restoreAuthorBtn.addEventListener('click', openRestoreModal);
+  }
+  if (permanentDeleteAuthorBtn) {
+    permanentDeleteAuthorBtn.addEventListener('click', openPermanentDeleteModal);
+  }
   if (authorDeleteConfirmBtn) {
     authorDeleteConfirmBtn.addEventListener('click', confirmDelete);
+  }
+  if (restoreAuthorConfirmBtn) {
+    restoreAuthorConfirmBtn.addEventListener('click', confirmRestore);
+  }
+  if (restoreAuthorMode) {
+    restoreAuthorMode.addEventListener('change', updateRestoreSummary);
+  }
+  if (permanentDeleteAuthorConfirmBtn) {
+    permanentDeleteAuthorConfirmBtn.addEventListener('click', confirmPermanentDelete);
+  }
+  if (permanentDeleteAuthorConfirm) {
+    permanentDeleteAuthorConfirm.addEventListener('input', updatePermanentDeleteState);
   }
   if (authorRoleSelect) {
     authorRoleSelect.addEventListener('change', () => {

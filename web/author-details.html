@@ -184,26 +184,43 @@
 
         <h1 class="mb-1" id="authorNameHeading">Author</h1>
         <p class="text-muted mb-0" id="authorSubtitle"></p>
+        <div class="d-flex align-items-center gap-2 text-danger small mt-2 d-none" id="authorDeletedNotice">
+          <span class="badge text-bg-danger">Deleted</span>
+          <span id="authorDeletedText">This author is in the recycle bin.</span>
+        </div>
       </div>
 
       <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-outline-primary btn-sm d-flex align-items-center" type="button" id="editAuthorBtn">
+        <button class="btn btn-outline-primary btn-sm d-flex align-items-center" type="button" id="editAuthorBtn" data-active-only>
           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" class="me-1" aria-hidden="true">
             <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"></path>
           </svg>
           Edit
         </button>
-        <button class="btn btn-outline-danger btn-sm d-flex align-items-center" type="button" id="deleteAuthorBtn">
+        <button class="btn btn-outline-danger btn-sm d-flex align-items-center" type="button" id="deleteAuthorBtn" data-active-only>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash me-1" viewBox="0 0 16 16">
             <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
             <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
           </svg>
           Delete
         </button>
+        <button class="btn btn-success btn-sm d-flex align-items-center d-none" type="button" id="restoreAuthorBtn" data-deleted-only>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise me-1" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 1 1 .908-.417A4 4 0 1 0 8 4V1.5a.5.5 0 0 1 1 0V4a.5.5 0 0 1-.5.5H6a.5.5 0 0 1 0-1z"/>
+          </svg>
+          Restore
+        </button>
+        <button class="btn btn-danger btn-sm d-flex align-items-center d-none" type="button" id="permanentDeleteAuthorBtn" data-deleted-only>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash me-1" viewBox="0 0 16 16">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+          </svg>
+          Delete permanently
+        </button>
       </div>
     </div>
 
-    <div class="card shadow mb-3">
+    <div class="card shadow mb-3" data-active-only>
       <div class="card-body">
         <div class="row g-4">
           <div class="col-12 col-lg-4">
@@ -253,7 +270,7 @@
       </div>
     </div>
 
-    <div id="booksEmptyState" class="text-center text-muted py-4 d-none">
+    <div id="booksEmptyState" class="text-center text-muted py-4 d-none" data-active-only>
       <div class="h6 fw-semibold">No books yet</div>
       <div>This author isn't linked to any books right now.</div>
     </div>
@@ -274,6 +291,65 @@
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
           <button class="btn btn-danger" id="authorDeleteConfirmBtn" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="restoreAuthorModal" aria-labelledby="restoreAuthorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="restoreAuthorModalLabel">Restore author</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Restoring this author will return it to your library. If another author with the same name exists, you can choose how to handle the conflict.</p>
+          <div class="mb-3">
+            <label class="form-label" for="restoreAuthorMode"><strong>Conflict handling</strong></label>
+            <select class="form-select" id="restoreAuthorMode">
+              <option value="decline" selected>Decline (recommended)</option>
+              <option value="merge">Merge</option>
+              <option value="override">Override</option>
+            </select>
+            <small class="form-text text-muted" id="restoreAuthorModeHelp">Decline leaves the author deleted if a conflict is found.</small>
+          </div>
+          <div class="alert alert-danger d-none" id="restoreAuthorError"></div>
+          <div class="small text-muted" id="restoreAuthorChangesSummary">Restore this author using Decline mode.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-success" id="restoreAuthorConfirmBtn" type="button">
+            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+            Restore author
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="permanentDeleteAuthorModal" aria-labelledby="permanentDeleteAuthorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="permanentDeleteAuthorModalLabel">Delete author permanently</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">This will permanently delete the author and cannot be undone.</p>
+          <div class="mb-2">
+            <label class="form-label" for="permanentDeleteAuthorConfirm"><strong>Type DELETE to confirm</strong></label>
+            <input class="form-control" id="permanentDeleteAuthorConfirm" type="text" autocomplete="off" />
+            <small class="form-text text-muted" id="permanentDeleteAuthorHelp">Enter DELETE to enable permanent deletion.</small>
+          </div>
+          <div class="alert alert-danger d-none" id="permanentDeleteAuthorError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="permanentDeleteAuthorConfirmBtn" type="button" disabled>
+            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+            Delete permanently
+          </button>
         </div>
       </div>
     </div>

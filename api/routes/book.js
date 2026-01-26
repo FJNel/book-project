@@ -185,6 +185,40 @@ function parseSortOrder(value) {
 	return null;
 }
 
+function parseConflictMode(value) {
+	if (!value) return "decline";
+	const normalized = String(value).trim().toLowerCase();
+	if (["decline", "merge", "override"].includes(normalized)) return normalized;
+	return null;
+}
+
+function parseIdsInput(value) {
+	if (value === undefined || value === null || value === "") return { ids: [] };
+	if (Array.isArray(value)) {
+		const ids = value.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? { ids: [value] } : { ids: [] };
+	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed) return { ids: [] };
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				const ids = parsed.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+				return { ids };
+			}
+		} catch (e) {
+			// Ignore JSON parse errors and fallback to comma parsing.
+		}
+		const ids = trimmed.split(",").map((entry) => Number.parseInt(entry.trim(), 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	return { ids: [] };
+}
+
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Number.parseInt(value, 10);
@@ -435,16 +469,17 @@ async function fetchBookCopies(userId, bookId) {
 	}));
 }
 
-async function resolveBookId({ userId, id, isbn, title }) {
+async function resolveBookId({ userId, id, isbn, title, includeDeleted = false }) {
 	const hasId = Number.isInteger(id);
 	const hasIsbn = Boolean(isbn);
 	const hasTitle = Boolean(title);
 	const hasMultiple = Number(hasId) + Number(hasIsbn) + Number(hasTitle) > 1;
 	let resolvedId = null;
+	const deletedClause = includeDeleted ? "" : " AND deleted_at IS NULL";
 
 	if (hasId) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			`SELECT id FROM books WHERE user_id = $1 AND id = $2${deletedClause}`,
 			[userId, id]
 		);
 		if (result.rows.length === 0) {
@@ -455,7 +490,7 @@ async function resolveBookId({ userId, id, isbn, title }) {
 
 	if (hasIsbn) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2 AND deleted_at IS NULL`,
+			`SELECT id FROM books WHERE user_id = $1 AND isbn = $2${deletedClause}`,
 			[userId, isbn]
 		);
 		if (result.rows.length === 0) {
@@ -470,7 +505,7 @@ async function resolveBookId({ userId, id, isbn, title }) {
 
 	if (hasTitle) {
 		const result = await pool.query(
-			`SELECT id FROM books WHERE user_id = $1 AND title = $2 AND deleted_at IS NULL`,
+			`SELECT id FROM books WHERE user_id = $1 AND title = $2${deletedClause}`,
 			[userId, title]
 		);
 		if (result.rows.length === 0) {
@@ -706,7 +741,8 @@ function buildBookPayload(row, view, relations) {
 		coverImageUrl: row.cover_image_url,
 		description: row.description,
 		createdAt: row.created_at,
-		updatedAt: row.updated_at
+		updatedAt: row.updated_at,
+		deletedAt: row.deleted_at
 	};
 
 	if (view === "card") {
@@ -803,7 +839,7 @@ async function listBooksHandler(req, res) {
 		}
 
 		try {
-			const resolved = await resolveBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
+			const resolved = await resolveBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle, includeDeleted });
 			if (resolved.mismatch) {
 				return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
 			}
@@ -816,7 +852,7 @@ async function listBooksHandler(req, res) {
 
 			const result = await pool.query(
 				`SELECT b.id, b.title, b.subtitle, b.isbn, b.page_count, b.cover_image_url,
-				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
+				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id, b.deleted_at,
 				        bt.name AS book_type_name, bt.description AS book_type_description,
 				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
 				        fd.id AS publisher_founded_date_id, fd.day AS publisher_founded_day,
@@ -827,12 +863,12 @@ async function listBooksHandler(req, res) {
 				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
-				 WHERE b.user_id = $1 AND b.id = $2 AND b.deleted_at IS NULL`,
+				 WHERE b.user_id = $1 AND b.id = $2${includeDeleted ? "" : " AND b.deleted_at IS NULL"}`,
 				[userId, resolved.id]
 			);
 
 			const row = result.rows[0];
-			const relations = view === "nameOnly" ? null : await fetchBookRelations(userId, resolved.id);
+			const relations = view === "nameOnly" || includeDeleted ? null : await fetchBookRelations(userId, resolved.id);
 			const payload = buildBookPayload(row, view, relations);
 			if (returnStats) {
 				payload.stats = await fetchSingleBookStats(userId, resolved.id, row);
@@ -2404,53 +2440,366 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 });
 
-// POST /book/restore - Restore a deleted book
+// POST /book/restore - Restore deleted books (single or bulk)
 router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetIsbn = normalizeIsbn(req.body?.isbn);
-	const targetTitle = normalizeText(req.body?.title);
+	const params = { ...req.query, ...(req.body || {}) };
+	const mode = parseConflictMode(params.mode);
+	if (!mode) {
+		return errorResponse(res, 400, "Validation Error", ["mode must be one of: decline, merge, override."]);
+	}
 
-	if (!Number.isInteger(targetId) && !targetIsbn && !targetTitle) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a book id, ISBN, or title to restore."]);
-	}
-	if (req.body?.isbn && !targetIsbn) {
-		return errorResponse(res, 400, "Validation Error", ["ISBN must be 10–17 characters and contain only digits, hyphens, or X."]);
-	}
-	if (targetTitle) {
-		const titleErrors = validateTitle(targetTitle);
-		if (titleErrors.length > 0) {
-			return errorResponse(res, 400, "Validation Error", titleErrors);
+	const idsPayload = params.ids ?? params.id;
+	let { ids } = parseIdsInput(idsPayload);
+	const targetIsbn = normalizeIsbn(params.isbn);
+	const targetTitle = normalizeText(params.title);
+
+	if (!ids.length && (targetIsbn || targetTitle)) {
+		if (params.isbn && !targetIsbn) {
+			return errorResponse(res, 400, "Validation Error", ["ISBN must be 10–17 characters and contain only digits, hyphens, or X."]);
+		}
+		if (targetTitle) {
+			const titleErrors = validateTitle(targetTitle);
+			if (titleErrors.length > 0) {
+				return errorResponse(res, 400, "Validation Error", titleErrors);
+			}
+		}
+		const resolved = await resolveDeletedBookId({ userId, id: null, isbn: targetIsbn, title: targetTitle });
+		if (resolved.mismatch) {
+			return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
+		}
+		if (resolved.conflict) {
+			return errorResponse(res, 409, "Multiple books matched.", ["Multiple deleted books share this title. Please use id or ISBN."]);
+		}
+		if (Number.isInteger(resolved.id)) {
+			ids = [resolved.id];
 		}
 	}
 
-	const resolved = await resolveDeletedBookId({ userId, id: targetId, isbn: targetIsbn, title: targetTitle });
-	if (resolved.mismatch) {
-		return errorResponse(res, 400, "Validation Error", ["Book id, ISBN, and title must refer to the same record."]);
-	}
-	if (resolved.conflict) {
-		return errorResponse(res, 409, "Multiple books matched.", ["Multiple deleted books share this title. Please use id or ISBN."]);
-	}
-	if (!Number.isInteger(resolved.id)) {
-		return errorResponse(res, 404, "Book not found.", ["The requested book could not be located."]);
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book id, ids array, ISBN, or title to restore."]);
 	}
 
-	try {
-		const result = await pool.query(
-			`UPDATE books SET deleted_at = NULL WHERE user_id = $1 AND id = $2 RETURNING id`,
-			[userId, resolved.id]
-		);
-		return successResponse(res, 200, "Book restored successfully.", { id: result.rows[0].id });
-	} catch (error) {
-		logToFile("BOOK_RESTORE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the book."]);
+	const results = [];
+	let restoredCount = 0;
+	let failedCount = 0;
+
+	for (const bookId of ids) {
+		if (!Number.isInteger(bookId)) {
+			results.push({ id: bookId, status: "failed", reason: "Book id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const deletedRes = await client.query(
+				`SELECT id, title, subtitle, isbn, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
+				 FROM books
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, bookId]
+			);
+			if (deletedRes.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: bookId, status: "failed", reason: "Book not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			const deleted = deletedRes.rows[0];
+			let conflict = null;
+			if (deleted.isbn) {
+				const conflictRes = await client.query(
+					`SELECT id, title, isbn, subtitle, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
+					 FROM books
+					 WHERE user_id = $1 AND deleted_at IS NULL AND isbn = $2 AND id <> $3`,
+					[userId, deleted.isbn, deleted.id]
+				);
+				conflict = conflictRes.rows[0];
+			}
+
+			if (conflict && mode === "decline") {
+				await client.query("ROLLBACK");
+				results.push({
+					id: deleted.id,
+					status: "failed",
+					reason: `Could not restore '${deleted.title}' because another book with that ISBN already exists in your library.`
+				});
+				failedCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "merge") {
+				await client.query(
+					`UPDATE books SET
+						subtitle = CASE WHEN (subtitle IS NULL OR subtitle = '') AND $2 IS NOT NULL AND $2 <> '' THEN $2 ELSE subtitle END,
+						publication_date_id = COALESCE(publication_date_id, $3),
+						page_count = COALESCE(page_count, $4),
+						cover_image_url = CASE WHEN (cover_image_url IS NULL OR cover_image_url = '') AND $5 IS NOT NULL AND $5 <> '' THEN $5 ELSE cover_image_url END,
+						description = CASE WHEN (description IS NULL OR description = '') AND $6 IS NOT NULL AND $6 <> '' THEN $6 ELSE description END,
+						book_type_id = COALESCE(book_type_id, $7),
+						publisher_id = COALESCE(publisher_id, $8)
+					 WHERE id = $1`,
+					[conflict.id, deleted.subtitle, deleted.publication_date_id, deleted.page_count, deleted.cover_image_url, deleted.description, deleted.book_type_id, deleted.publisher_id]
+				);
+				await client.query(
+					`INSERT INTO book_authors (user_id, book_id, author_id, role, created_at, updated_at)
+					 SELECT user_id, $3, author_id, role, created_at, updated_at
+					 FROM book_authors ba
+					 WHERE ba.user_id = $1 AND ba.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_authors ba2
+						WHERE ba2.user_id = $1 AND ba2.book_id = $3 AND ba2.author_id = ba.author_id
+					 )`,
+					[userId, deleted.id, conflict.id]
+				);
+				await client.query(
+					`INSERT INTO book_tags (user_id, book_id, tag_id, created_at, updated_at)
+					 SELECT user_id, $3, tag_id, created_at, updated_at
+					 FROM book_tags bt
+					 WHERE bt.user_id = $1 AND bt.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_tags bt2
+						WHERE bt2.user_id = $1 AND bt2.book_id = $3 AND bt2.tag_id = bt.tag_id
+					 )`,
+					[userId, deleted.id, conflict.id]
+				);
+				await client.query(
+					`INSERT INTO book_languages (user_id, book_id, language_id, created_at, updated_at)
+					 SELECT user_id, $3, language_id, created_at, updated_at
+					 FROM book_languages bl
+					 WHERE bl.user_id = $1 AND bl.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_languages bl2
+						WHERE bl2.user_id = $1 AND bl2.book_id = $3 AND bl2.language_id = bl.language_id
+					 )`,
+					[userId, deleted.id, conflict.id]
+				);
+				await client.query(
+					`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+					 SELECT user_id, series_id, $3, book_order, created_at, updated_at
+					 FROM book_series_books bsb
+					 WHERE bsb.user_id = $1 AND bsb.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_series_books bsb2
+						WHERE bsb2.user_id = $1 AND bsb2.book_id = $3 AND bsb2.series_id = bsb.series_id
+					 )`,
+					[userId, deleted.id, conflict.id]
+				);
+				await client.query(
+					`UPDATE book_copies SET book_id = $1 WHERE user_id = $2 AND book_id = $3`,
+					[conflict.id, userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_authors WHERE user_id = $1 AND book_id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_tags WHERE user_id = $1 AND book_id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_languages WHERE user_id = $1 AND book_id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_series_books WHERE user_id = $1 AND book_id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM books WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored", effectiveId: conflict.id });
+				restoredCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "override") {
+				await client.query(
+					`UPDATE books SET deleted_at = NOW() WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`INSERT INTO book_authors (user_id, book_id, author_id, role, created_at, updated_at)
+					 SELECT user_id, $3, author_id, role, created_at, updated_at
+					 FROM book_authors ba
+					 WHERE ba.user_id = $1 AND ba.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_authors ba2
+						WHERE ba2.user_id = $1 AND ba2.book_id = $3 AND ba2.author_id = ba.author_id
+					 )`,
+					[userId, conflict.id, deleted.id]
+				);
+				await client.query(
+					`INSERT INTO book_tags (user_id, book_id, tag_id, created_at, updated_at)
+					 SELECT user_id, $3, tag_id, created_at, updated_at
+					 FROM book_tags bt
+					 WHERE bt.user_id = $1 AND bt.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_tags bt2
+						WHERE bt2.user_id = $1 AND bt2.book_id = $3 AND bt2.tag_id = bt.tag_id
+					 )`,
+					[userId, conflict.id, deleted.id]
+				);
+				await client.query(
+					`INSERT INTO book_languages (user_id, book_id, language_id, created_at, updated_at)
+					 SELECT user_id, $3, language_id, created_at, updated_at
+					 FROM book_languages bl
+					 WHERE bl.user_id = $1 AND bl.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_languages bl2
+						WHERE bl2.user_id = $1 AND bl2.book_id = $3 AND bl2.language_id = bl.language_id
+					 )`,
+					[userId, conflict.id, deleted.id]
+				);
+				await client.query(
+					`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+					 SELECT user_id, series_id, $3, book_order, created_at, updated_at
+					 FROM book_series_books bsb
+					 WHERE bsb.user_id = $1 AND bsb.book_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_series_books bsb2
+						WHERE bsb2.user_id = $1 AND bsb2.book_id = $3 AND bsb2.series_id = bsb.series_id
+					 )`,
+					[userId, conflict.id, deleted.id]
+				);
+				await client.query(
+					`UPDATE book_copies SET book_id = $1 WHERE user_id = $2 AND book_id = $3`,
+					[deleted.id, userId, conflict.id]
+				);
+				await client.query(
+					`DELETE FROM book_authors WHERE user_id = $1 AND book_id = $2`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`DELETE FROM book_tags WHERE user_id = $1 AND book_id = $2`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`DELETE FROM book_languages WHERE user_id = $1 AND book_id = $2`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`DELETE FROM book_series_books WHERE user_id = $1 AND book_id = $2`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE books SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored" });
+				restoredCount += 1;
+				continue;
+			}
+
+			await client.query(
+				`UPDATE books SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+				[userId, deleted.id]
+			);
+			await client.query("COMMIT");
+			results.push({ id: deleted.id, status: "restored" });
+			restoredCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_RESTORE", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				book_id: bookId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: bookId, status: "failed", reason: "An error occurred while restoring this book." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
 	}
+
+	const message = restoredCount > 0 && failedCount > 0
+		? "Some items were restored successfully."
+		: restoredCount > 0
+			? "Books restored successfully."
+			: "No books were restored.";
+
+	return successResponse(res, 200, message, {
+		results,
+		restoredCount,
+		failedCount
+	});
+});
+
+// POST /book/delete-permanent - Permanently delete deleted books (single or bulk)
+router.post("/delete-permanent", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const idsPayload = params.ids ?? params.id;
+	const { ids } = parseIdsInput(idsPayload);
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book id or ids array to permanently delete."]);
+	}
+
+	const results = [];
+	let deletedCount = 0;
+	let failedCount = 0;
+
+	for (const bookId of ids) {
+		if (!Number.isInteger(bookId)) {
+			results.push({ id: bookId, status: "failed", reason: "Book id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const match = await client.query(
+				`SELECT id FROM books WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, bookId]
+			);
+			if (match.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: bookId, status: "failed", reason: "Book not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			await client.query(
+				`DELETE FROM books WHERE user_id = $1 AND id = $2`,
+				[userId, bookId]
+			);
+			await client.query("COMMIT");
+			results.push({ id: bookId, status: "deleted" });
+			deletedCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_DELETE_PERMANENT", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				book_id: bookId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: bookId, status: "failed", reason: "An error occurred while deleting this book." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = deletedCount > 0 && failedCount > 0
+		? "Some items were deleted successfully."
+		: deletedCount > 0
+			? "Books deleted permanently."
+			: "No books were deleted.";
+
+	return successResponse(res, 200, message, {
+		results,
+		deletedCount,
+		failedCount
+	});
 });
 
 module.exports = router;

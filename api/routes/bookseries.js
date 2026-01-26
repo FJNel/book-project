@@ -126,6 +126,40 @@ function parseSortOrder(value) {
 	return null;
 }
 
+function parseConflictMode(value) {
+	if (!value) return "decline";
+	const normalized = String(value).trim().toLowerCase();
+	if (["decline", "merge", "override"].includes(normalized)) return normalized;
+	return null;
+}
+
+function parseIdsInput(value) {
+	if (value === undefined || value === null || value === "") return { ids: [] };
+	if (Array.isArray(value)) {
+		const ids = value.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? { ids: [value] } : { ids: [] };
+	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed) return { ids: [] };
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				const ids = parsed.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+				return { ids };
+			}
+		} catch (e) {
+			// Ignore JSON parse errors and fallback to comma parsing.
+		}
+		const ids = trimmed.split(",").map((entry) => Number.parseInt(entry.trim(), 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	return { ids: [] };
+}
+
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Number.parseInt(value, 10);
@@ -230,13 +264,14 @@ function parseBookOrder(value, fieldLabel) {
 	return { value: parsed };
 }
 
-async function resolveSeriesId({ userId, id, name }) {
+async function resolveSeriesId({ userId, id, name, includeDeleted = false }) {
 	const hasId = Number.isInteger(id);
 	const hasName = Boolean(name);
+	const deletedClause = includeDeleted ? "" : " AND deleted_at IS NULL";
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+			`SELECT id, name FROM book_series WHERE user_id = $1 AND id = $2${deletedClause}`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].name !== name) {
@@ -251,7 +286,7 @@ async function resolveSeriesId({ userId, id, name }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2 AND deleted_at IS NULL`,
+			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2${deletedClause}`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
@@ -339,7 +374,7 @@ async function listBookSeriesHandler(req, res) {
 		}
 
 		try {
-			const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName });
+			const resolved = await resolveSeriesId({ userId, id: targetId, name: targetName, includeDeleted });
 			if (resolved.mismatch) {
 				return errorResponse(res, 400, "Validation Error", ["Series id and name must refer to the same record."]);
 			}
@@ -348,14 +383,14 @@ async function listBookSeriesHandler(req, res) {
 			}
 
 			const result = await pool.query(
-				`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
+				`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at, s.deleted_at
 				 FROM book_series s
-				 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
+				 WHERE s.user_id = $1 AND s.id = $2${includeDeleted ? "" : " AND s.deleted_at IS NULL"}`,
 				[userId, resolved.id]
 			);
 
 			const row = result.rows[0];
-			const books = await fetchSeriesBooks(userId, resolved.id);
+			const books = includeDeleted ? [] : await fetchSeriesBooks(userId, resolved.id);
 			const { startDate, endDate } = await fetchSeriesDateRange(userId, resolved.id);
 			const payload = nameOnly
 				? { id: row.id, name: row.name }
@@ -368,7 +403,8 @@ async function listBookSeriesHandler(req, res) {
 					website: row.website,
 					books,
 					createdAt: row.created_at,
-					updatedAt: row.updated_at
+					updatedAt: row.updated_at,
+					deletedAt: row.deleted_at
 				};
 
 			if (returnStats) {
@@ -1503,15 +1539,16 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const id = parseId(req.params.id);
 	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
+	const includeDeleted = parseBooleanFlag(req.query.includeDeleted ?? req.body?.includeDeleted) ?? false;
 	if (!Number.isInteger(id)) {
 		return errorResponse(res, 400, "Validation Error", ["Series id must be a valid integer."]);
 	}
 
 	try {
 		const result = await pool.query(
-			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at
+			`SELECT s.id, s.name, s.description, s.website, s.created_at, s.updated_at, s.deleted_at
 			 FROM book_series s
-			 WHERE s.user_id = $1 AND s.id = $2 AND s.deleted_at IS NULL`,
+			 WHERE s.user_id = $1 AND s.id = $2${includeDeleted ? "" : " AND s.deleted_at IS NULL"}`,
 			[userId, id]
 		);
 
@@ -1520,7 +1557,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const row = result.rows[0];
-		const books = await fetchSeriesBooks(userId, row.id);
+		const books = includeDeleted ? [] : await fetchSeriesBooks(userId, row.id);
 		const { startDate, endDate } = await fetchSeriesDateRange(userId, row.id);
 		const payload = {
 			id: row.id,
@@ -1531,7 +1568,8 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			website: row.website,
 			books,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
 		};
 		if (returnStats) {
 			payload.stats = await fetchSeriesStats(userId, row.id);
@@ -1762,63 +1800,249 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	return handleSeriesDelete(req, res, resolved.id);
 });
 
-// POST /bookseries/restore - Restore a deleted series
+// POST /bookseries/restore - Restore deleted series (single or bulk)
 router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
-	const targetId = parseId(req.body?.id);
-	const targetName = normalizeText(req.body?.name);
-
-	if (!Number.isInteger(targetId) && !targetName) {
-		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or name to restore."]);
+	const params = { ...req.query, ...(req.body || {}) };
+	const mode = parseConflictMode(params.mode);
+	if (!mode) {
+		return errorResponse(res, 400, "Validation Error", ["mode must be one of: decline, merge, override."]);
 	}
-	if (targetName) {
+
+	const idsPayload = params.ids ?? params.id;
+	let { ids } = parseIdsInput(idsPayload);
+	const targetName = normalizeText(params.name);
+
+	if (!ids.length && targetName) {
 		const nameErrors = validateSeriesName(targetName);
 		if (nameErrors.length > 0) {
 			return errorResponse(res, 400, "Validation Error", nameErrors);
 		}
-	}
-
-	const values = [userId];
-	const clauses = ["user_id = $1", "deleted_at IS NOT NULL"];
-	let idx = 2;
-
-	if (Number.isInteger(targetId)) {
-		clauses.push(`id = $${idx++}`);
-		values.push(targetId);
-	}
-	if (targetName) {
-		clauses.push(`name = $${idx++}`);
-		values.push(targetName);
-	}
-
-	try {
 		const match = await pool.query(
-			`SELECT id FROM book_series WHERE ${clauses.join(" AND ")}`,
-			values
+			`SELECT id FROM book_series WHERE user_id = $1 AND name = $2 AND deleted_at IS NOT NULL`,
+			[userId, targetName]
 		);
-		if (match.rows.length === 0) {
-			return errorResponse(res, 404, "Series not found.", ["The requested series could not be located."]);
-		}
-		if (match.rows.length > 1) {
-			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific series identifier."]);
-		}
-
-		const restored = await pool.query(
-			`UPDATE book_series SET deleted_at = NULL WHERE id = $1 RETURNING id`,
-			[match.rows[0].id]
-		);
-
-		return successResponse(res, 200, "Series restored successfully.", { id: restored.rows[0].id });
-	} catch (error) {
-		logToFile("BOOK_SERIES_RESTORE", {
-			status: "FAILURE",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while restoring the series."]);
+		ids = match.rows.map((row) => row.id);
 	}
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id, ids array, or name to restore."]);
+	}
+
+	const results = [];
+	let restoredCount = 0;
+	let failedCount = 0;
+
+	for (const seriesId of ids) {
+		if (!Number.isInteger(seriesId)) {
+			results.push({ id: seriesId, status: "failed", reason: "Series id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const deletedRes = await client.query(
+				`SELECT id, name, description, website
+				 FROM book_series
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, seriesId]
+			);
+			if (deletedRes.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: seriesId, status: "failed", reason: "Series not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			const deleted = deletedRes.rows[0];
+			const conflictRes = await client.query(
+				`SELECT id, name, description, website
+				 FROM book_series
+				 WHERE user_id = $1 AND deleted_at IS NULL AND LOWER(name) = LOWER($2) AND id <> $3`,
+				[userId, deleted.name, deleted.id]
+			);
+			const conflict = conflictRes.rows[0];
+
+			if (conflict && mode === "decline") {
+				await client.query("ROLLBACK");
+				results.push({
+					id: deleted.id,
+					status: "failed",
+					reason: `Could not restore '${deleted.name}' because another series with that name already exists in your library.`
+				});
+				failedCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "merge") {
+				await client.query(
+					`UPDATE book_series SET
+						description = CASE WHEN (description IS NULL OR description = '') AND $2 IS NOT NULL AND $2 <> '' THEN $2 ELSE description END,
+						website = CASE WHEN (website IS NULL OR website = '') AND $3 IS NOT NULL AND $3 <> '' THEN $3 ELSE website END
+					 WHERE id = $1`,
+					[conflict.id, deleted.description, deleted.website]
+				);
+				await client.query(
+					`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+					 SELECT user_id, $3, book_id, book_order, created_at, updated_at
+					 FROM book_series_books bsb
+					 WHERE bsb.user_id = $1 AND bsb.series_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_series_books bsb2
+						WHERE bsb2.user_id = $1 AND bsb2.series_id = $3 AND bsb2.book_id = bsb.book_id
+					 )`,
+					[userId, deleted.id, conflict.id]
+				);
+				await client.query(
+					`DELETE FROM book_series_books WHERE user_id = $1 AND series_id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_series WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored", effectiveId: conflict.id });
+				restoredCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "override") {
+				await client.query(
+					`UPDATE book_series SET deleted_at = NOW() WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`INSERT INTO book_series_books (user_id, series_id, book_id, book_order, created_at, updated_at)
+					 SELECT user_id, $3, book_id, book_order, created_at, updated_at
+					 FROM book_series_books bsb
+					 WHERE bsb.user_id = $1 AND bsb.series_id = $2
+					 AND NOT EXISTS (
+						SELECT 1 FROM book_series_books bsb2
+						WHERE bsb2.user_id = $1 AND bsb2.series_id = $3 AND bsb2.book_id = bsb.book_id
+					 )`,
+					[userId, conflict.id, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_series_books WHERE user_id = $1 AND series_id = $2`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE book_series SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored" });
+				restoredCount += 1;
+				continue;
+			}
+
+			await client.query(
+				`UPDATE book_series SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+				[userId, deleted.id]
+			);
+			await client.query("COMMIT");
+			results.push({ id: deleted.id, status: "restored" });
+			restoredCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_SERIES_RESTORE", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				series_id: seriesId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: seriesId, status: "failed", reason: "An error occurred while restoring this series." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = restoredCount > 0 && failedCount > 0
+		? "Some items were restored successfully."
+		: restoredCount > 0
+			? "Series restored successfully."
+			: "No series were restored.";
+
+	return successResponse(res, 200, message, {
+		results,
+		restoredCount,
+		failedCount
+	});
+});
+
+// POST /bookseries/delete-permanent - Permanently delete deleted series (single or bulk)
+router.post("/delete-permanent", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const idsPayload = params.ids ?? params.id;
+	const { ids } = parseIdsInput(idsPayload);
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a series id or ids array to permanently delete."]);
+	}
+
+	const results = [];
+	let deletedCount = 0;
+	let failedCount = 0;
+
+	for (const seriesId of ids) {
+		if (!Number.isInteger(seriesId)) {
+			results.push({ id: seriesId, status: "failed", reason: "Series id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const match = await client.query(
+				`SELECT id FROM book_series WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, seriesId]
+			);
+			if (match.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: seriesId, status: "failed", reason: "Series not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			await client.query(
+				`DELETE FROM book_series WHERE user_id = $1 AND id = $2`,
+				[userId, seriesId]
+			);
+			await client.query("COMMIT");
+			results.push({ id: seriesId, status: "deleted" });
+			deletedCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_SERIES_DELETE_PERMANENT", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				series_id: seriesId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: seriesId, status: "failed", reason: "An error occurred while deleting this series." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = deletedCount > 0 && failedCount > 0
+		? "Some items were deleted successfully."
+		: deletedCount > 0
+			? "Series deleted permanently."
+			: "No series were deleted.";
+
+	return successResponse(res, 200, message, {
+		results,
+		deletedCount,
+		failedCount
+	});
 });
 
 module.exports = router;

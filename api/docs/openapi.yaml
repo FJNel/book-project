@@ -1668,6 +1668,21 @@ paths:
         window: minute
       parameters:
         - $ref: '#/components/parameters/id'
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted series when true.
+          schema:
+            type: boolean
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted publisher when true.
+          schema:
+            type: boolean
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted author when true.
+          schema:
+            type: boolean
       requestBody:
         required: false
         content:
@@ -2365,15 +2380,24 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id]
               properties:
                 id:
                   type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                displayName:
+                  type: string
+                mode:
+                  type: string
+                  enum: [decline, merge, override]
             examples:
               restore:
-                summary: Restore by id
+                summary: Restore by ids
                 value:
-                  id: 5
+                  ids: [5, 7]
+                  mode: merge
       responses:
         '200':
           description: Restored
@@ -2390,6 +2414,54 @@ paths:
                     message: Author restored successfully.
                     data:
                       id: 5
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /author/delete-permanent:
+    post:
+      tags: [Authors]
+      summary: Permanently delete authors
+      operationId: deleteAuthorPermanent
+      description: Permanently delete soft-deleted authors by id or ids.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                id:
+                  type: integer
+            examples:
+              delete:
+                summary: Delete by ids
+                value:
+                  ids: [5, 7]
+      responses:
+        '200':
+          description: Deleted permanently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.85"
+                    message: Authors deleted permanently.
+                    data:
+                      deletedCount: 2
+                      failedCount: 0
+                      results: []
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -3010,14 +3082,23 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id]
               properties:
                 id:
                   type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                name:
+                  type: string
+                mode:
+                  type: string
+                  enum: [decline, merge, override]
             examples:
               restore:
                 value:
-                  id: 9
+                  ids: [9, 11]
+                  mode: merge
       responses:
         '200':
           description: Restored
@@ -3034,6 +3115,54 @@ paths:
                     message: Publisher restored successfully.
                     data:
                       id: 9
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /publisher/delete-permanent:
+    post:
+      tags: [Publishers]
+      summary: Permanently delete publishers
+      operationId: deletePublisherPermanent
+      description: Permanently delete soft-deleted publishers by id or ids.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                id:
+                  type: integer
+            examples:
+              delete:
+                summary: Delete by ids
+                value:
+                  ids: [9, 11]
+      responses:
+        '200':
+          description: Deleted permanently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.85"
+                    message: Publishers deleted permanently.
+                    data:
+                      deletedCount: 2
+                      failedCount: 0
+                      results: []
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -3577,14 +3706,23 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id]
               properties:
                 id:
                   type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                name:
+                  type: string
+                mode:
+                  type: string
+                  enum: [decline, merge, override]
             examples:
               restore:
                 value:
-                  id: 20
+                  ids: [20, 21]
+                  mode: merge
       responses:
         '200':
           description: Restored
@@ -3601,6 +3739,51 @@ paths:
                     message: Series restored successfully.
                     data:
                       id: 20
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /bookseries/delete-permanent:
+    post:
+      tags: [Series]
+      summary: Permanently delete series
+      operationId: deleteSeriesPermanent
+      description: Permanently delete soft-deleted series by id or ids.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                id:
+                  type: integer
+            examples:
+              delete:
+                summary: Delete by ids
+                value:
+                  ids: [20, 21]
+      responses:
+        '200':
+          description: Deleted permanently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.70"
+                    message: Series deleted permanently.
+                    data:
+                      deletedCount: 2
+                      failedCount: 0
+                      results: []
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -4320,14 +4503,25 @@ paths:
           application/json:
             schema:
               type: object
-              required: [id]
               properties:
                 id:
                   type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                title:
+                  type: string
+                isbn:
+                  type: string
+                mode:
+                  type: string
+                  enum: [decline, merge, override]
             examples:
               restore:
                 value:
-                  id: 33
+                  ids: [33, 35]
+                  mode: merge
       responses:
         '200':
           description: Restored
@@ -4344,6 +4538,54 @@ paths:
                     message: Book restored successfully.
                     data:
                       id: 33
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /book/delete-permanent:
+    post:
+      tags: [Books]
+      summary: Permanently delete books
+      operationId: deleteBookPermanent
+      description: Permanently delete soft-deleted books by id or ids.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                id:
+                  type: integer
+            examples:
+              delete:
+                summary: Delete by ids
+                value:
+                  ids: [33, 35]
+      responses:
+        '200':
+          description: Deleted permanently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.75"
+                    message: Books deleted permanently.
+                    data:
+                      deletedCount: 2
+                      failedCount: 0
+                      results: []
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
