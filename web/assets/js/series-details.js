@@ -898,4 +898,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadPage();
+
+  if (window.actionRouter && typeof window.actionRouter.register === 'function') {
+    window.actionRouter.register('edit_series', async ({ params }) => {
+      const targetId = Number.parseInt(params.series_id || params.seriesId || params.id, 10);
+      if (!Number.isInteger(targetId) || targetId !== seriesId) return;
+      if (!seriesRecord) {
+        log('Action requested before series data loaded; waiting for page readiness.');
+      }
+      openEditModal();
+    }, { removeKeys: ['series_id', 'seriesId', 'id'] });
+    window.actionRouter.run({ source: 'series-details' });
+  }
 });

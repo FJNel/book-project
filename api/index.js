@@ -10,7 +10,8 @@ const yaml = require("yaml");
 
 //Import standard response handlers
 const { successResponse, errorResponse } = require("./utils/response");
-const { logToFile, sanitizeInput } = require("./utils/logging");
+const { logToFile } = require("./utils/logging");
+const { attachCorrelationId, createRequestLogger } = require("./utils/request-logger");
 
 //Start the Express app
 const app = express();
@@ -38,30 +39,11 @@ const searchRoutes = require("./routes/search");
 const importExportRoutes = require("./routes/import-export");
 const logRoutes = require("./routes/logs");
 
-//Log start time
-app.use((request, response, nextFunction) => {
-	request._startTime = process.hrtime();
-	nextFunction();
-}); // app.use(start time)
+// Attach correlation id early for request tracing
+app.use(attachCorrelationId);
 
-// Log all API requests to rotating files
-app.use((req, res, next) => {
-	res.on("finish", () => {
-		const diff = process.hrtime(req._startTime || process.hrtime());
-		const durationMs = Number((diff[0] * 1e3 + diff[1] / 1e6).toFixed(2));
-		logToFile("HTTP_REQUEST", {
-			method: req.method,
-			path: req.originalUrl || req.url,
-			http_status: res.statusCode,
-			duration_ms: durationMs,
-			ip: req.ip,
-			user_agent: req.get("user-agent"),
-			user_id: (req.user && req.user.id) || null,
-			request: sanitizeInput(req.body || {}),
-		});
-	});
-	next();
-}); // app.use(request logging)
+// Log all API requests to the database (sanitized + truncated)
+app.use(createRequestLogger());
 
 //Trust proxy headers for rate-limiting
 app.set("trust proxy", 1);

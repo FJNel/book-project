@@ -10,6 +10,13 @@ CREATE TABLE IF NOT EXISTS users (
   role            user_role NOT NULL DEFAULT 'user',
   is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
   is_disabled     BOOLEAN NOT NULL DEFAULT FALSE, -- Added for disabling accounts
+  api_key_ban_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  api_key_ban_reason TEXT,
+  api_key_ban_applied_at TIMESTAMPTZ,
+  api_key_ban_applied_by INT REFERENCES users(id) ON DELETE SET NULL,
+  usage_lockout_until TIMESTAMPTZ,
+  usage_lockout_reason TEXT,
+  usage_lockout_applied_by INT REFERENCES users(id) ON DELETE SET NULL,
   email_pref_account_updates BOOLEAN NOT NULL DEFAULT TRUE,
   email_pref_dev_features BOOLEAN NOT NULL DEFAULT FALSE,
   email_pref_created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -285,6 +292,47 @@ CREATE TABLE IF NOT EXISTS user_api_keys (
   UNIQUE (user_id, name),
   UNIQUE (key_hash)
 );
+
+CREATE TABLE IF NOT EXISTS request_logs (
+  id               BIGSERIAL PRIMARY KEY,
+  logged_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  level            VARCHAR(10) NOT NULL,
+  category         VARCHAR(40) NOT NULL,
+  correlation_id   VARCHAR(64),
+  method           VARCHAR(10),
+  path             TEXT,
+  route_pattern    TEXT,
+  query            JSONB,
+  headers          JSONB,
+  body             JSONB,
+  body_truncated   BOOLEAN NOT NULL DEFAULT FALSE,
+  ip               INET,
+  user_agent       TEXT,
+  actor_type       VARCHAR(20) NOT NULL,
+  user_id          INT REFERENCES users(id) ON DELETE SET NULL,
+  user_email       VARCHAR(255),
+  user_role        user_role,
+  api_key_id       INT REFERENCES user_api_keys(id) ON DELETE SET NULL,
+  api_key_label    VARCHAR(120),
+  api_key_prefix   VARCHAR(12),
+  status_code      INT,
+  response_body    JSONB,
+  response_truncated BOOLEAN NOT NULL DEFAULT FALSE,
+  duration_ms      NUMERIC(10,2),
+  error_summary    TEXT,
+  request_bytes    INT,
+  response_bytes   INT,
+  cost_units       INT
+);
+
+CREATE INDEX IF NOT EXISTS request_logs_logged_at_idx ON request_logs (logged_at);
+CREATE INDEX IF NOT EXISTS request_logs_user_id_idx ON request_logs (user_id);
+CREATE INDEX IF NOT EXISTS request_logs_user_email_idx ON request_logs (user_email);
+CREATE INDEX IF NOT EXISTS request_logs_api_key_id_idx ON request_logs (api_key_id);
+CREATE INDEX IF NOT EXISTS request_logs_method_path_idx ON request_logs (method, path);
+CREATE INDEX IF NOT EXISTS request_logs_status_code_idx ON request_logs (status_code);
+CREATE INDEX IF NOT EXISTS request_logs_level_idx ON request_logs (level);
+CREATE INDEX IF NOT EXISTS request_logs_category_idx ON request_logs (category);
 
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$

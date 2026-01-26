@@ -4,11 +4,28 @@ const pool = require("../db");
 const { errorResponse } = require("./response");
 const { logToFile } = require("./logging");
 const { hashApiKey } = require("./api-keys");
+const { invalidateUserStatsCache, invalidateAdminStatsCache } = require("./stats-cache");
 
 const ACCESS_TOKEN_SECRET = config.jwt.accessSecret;
 const REFRESH_TOKEN_SECRET = config.jwt.refreshSecret;
 const ACCESS_TOKEN_EXPIRES_IN = config.jwt.accessExpiresIn; // Short-lived
 const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn; // Long-lived
+
+const STAT_MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function attachStatsInvalidation(req, res) {
+	if (res._statsInvalidationBound) return;
+	res._statsInvalidationBound = true;
+	res.on("finish", () => {
+		if (!STAT_MUTATION_METHODS.has(req.method)) return;
+		if (res.statusCode >= 400) return;
+		const userId = req.user?.id;
+		if (Number.isInteger(userId)) {
+			invalidateUserStatsCache(userId);
+		}
+		invalidateAdminStatsCache();
+	});
+}
 
 function generateAccessToken(user) {
 	// Only include safe fields
@@ -75,7 +92,8 @@ async function requiresAuth(req, res, next) {
 		try {
 			const keyHash = hashApiKey(apiKey);
 			const { rows } = await pool.query(
-				`SELECT k.id AS key_id, k.user_id, k.revoked_at, k.expires_at, u.role, u.is_disabled
+				`SELECT k.id AS key_id, k.user_id, k.name, k.key_prefix, k.revoked_at, k.expires_at,
+				       u.role, u.email, u.is_disabled
 				 FROM user_api_keys k
 				 JOIN users u ON u.id = k.user_id
 				 WHERE k.key_hash = $1`,
@@ -125,12 +143,15 @@ async function requiresAuth(req, res, next) {
 				[key.key_id]
 			);
 
-			req.user = { id: key.user_id, role: key.role };
+			req.user = { id: key.user_id, role: key.role, email: key.email };
+			req.apiKey = { id: key.key_id, name: key.name, prefix: key.key_prefix };
 			req.authMethod = "apiKey";
+			attachStatsInvalidation(req, res);
 			logToFile("AUTH_CHECK", {
 				status: "SUCCESS",
 				method: "apiKey",
 				user_id: key.user_id,
+				api_key_id: key.key_id,
 				ip: req.ip,
 				path: req.originalUrl,
 				user_agent: req.get("user-agent")
@@ -167,7 +188,10 @@ async function requiresAuth(req, res, next) {
 	}
 
 	try {
-		const { rows } = await pool.query("SELECT id, role, is_disabled FROM users WHERE id = $1", [payload.id]);
+		const { rows } = await pool.query(
+			"SELECT id, role, email, is_disabled, usage_lockout_until FROM users WHERE id = $1",
+			[payload.id]
+		);
 		if (rows.length === 0) {
 			logToFile("AUTH_CHECK", {
 				status: "FAILURE",
@@ -193,11 +217,25 @@ async function requiresAuth(req, res, next) {
 			return errorResponse(res, 403, "Your account has been disabled.", ["Please contact the system administrator if you believe this is a mistake."]);
 		}
 
+		if (user.usage_lockout_until && new Date(user.usage_lockout_until) > new Date()) {
+			logToFile("AUTH_CHECK", {
+				status: "FAILURE",
+				reason: "Usage restriction active.",
+				user_id: user.id,
+				ip: req.ip,
+				path: req.originalUrl,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 429, "Usage restriction active.", ["Your access has been temporarily limited due to heavy usage. Please try again later."]);
+		}
+
 		req.user = {
 			id: user.id,
-			role: user.role
+			role: user.role,
+			email: user.email
 		};
 		req.authMethod = "accessToken";
+		attachStatsInvalidation(req, res);
 		logToFile("AUTH_CHECK", {
 			status: "SUCCESS",
 			method: "accessToken",

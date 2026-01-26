@@ -179,6 +179,7 @@
       <li class="nav-item"><button class="nav-link" type="button" data-section="languages">Languages</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="emails">Emails</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="logs">Logs</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="usage">Usage</button></li>
     </ul>
 
     <div class="alert alert-danger d-none" role="alert" id="adminAccessAlert">
@@ -526,8 +527,20 @@
                 <option value="PATCH">PATCH</option>
                 <option value="DELETE">DELETE</option>
               </select>
+              <select class="form-select form-select-sm" id="logsActorFilter" aria-label="Filter actor type" style="min-width: 150px">
+                <option value="">Actor: any</option>
+                <option value="user">User</option>
+                <option value="api_key">API key</option>
+                <option value="anonymous">Anonymous</option>
+              </select>
               <input class="form-control form-control-sm" type="text" placeholder="Path contains" id="logsPathFilter" aria-label="Path filter" style="min-width: 180px" />
               <input class="form-control form-control-sm" type="number" min="1" placeholder="User ID" id="logsUserIdFilter" aria-label="User id filter" style="width: 120px" />
+              <input class="form-control form-control-sm" type="email" placeholder="User email" id="logsUserEmailFilter" aria-label="User email filter" style="min-width: 200px" />
+              <input class="form-control form-control-sm" type="number" min="1" placeholder="API key ID" id="logsApiKeyIdFilter" aria-label="API key id filter" style="width: 130px" />
+              <input class="form-control form-control-sm" type="text" placeholder="API key label" id="logsApiKeyLabelFilter" aria-label="API key label filter" style="min-width: 180px" />
+              <input class="form-control form-control-sm" type="text" placeholder="API key prefix" id="logsApiKeyPrefixFilter" aria-label="API key prefix filter" style="min-width: 160px" />
+              <input class="form-control form-control-sm" type="number" min="100" max="599" placeholder="Status min" id="logsStatusMin" aria-label="Status code minimum" style="width: 120px" />
+              <input class="form-control form-control-sm" type="number" min="100" max="599" placeholder="Status max" id="logsStatusMax" aria-label="Status code maximum" style="width: 120px" />
               <input class="form-control form-control-sm" type="datetime-local" id="logsDateFrom" aria-label="Start date" />
               <input class="form-control form-control-sm" type="datetime-local" id="logsDateTo" aria-label="End date" />
             </div>
@@ -559,14 +572,109 @@
                   <th scope="col">Level</th>
                   <th scope="col">Type</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Message</th>
-                  <th scope="col">User</th>
+                  <th scope="col">Actor</th>
+                  <th scope="col">Details</th>
                   <th scope="col">Path</th>
+                  <th scope="col">Duration</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody id="logsTbody">
-                <tr><td colspan="8" class="text-center text-muted py-3">Load filters or refresh to view logs.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-3">Load filters or refresh to view logs.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4 admin-section d-none" id="usageSection" data-section-content="usage">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Usage</p>
+          <h2 class="h5 mb-0">Usage ranking for users and API keys</h2>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="usageRefreshBtn">Refresh</button>
+      </div>
+      <div class="alert alert-warning d-none" id="usageAlert"></div>
+
+      <div class="card admin-card mb-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <input class="form-control form-control-sm" type="datetime-local" id="usageDateFrom" aria-label="Usage start date" />
+            <input class="form-control form-control-sm" type="datetime-local" id="usageDateTo" aria-label="Usage end date" />
+            <select class="form-select form-select-sm" id="usageSortBy" aria-label="Usage sort" style="min-width: 160px">
+              <option value="usageScore">Sort: usage score</option>
+              <option value="requests">Sort: requests</option>
+              <option value="lastSeen">Sort: last seen</option>
+            </select>
+            <select class="form-select form-select-sm" id="usageSortOrder" aria-label="Usage sort order" style="width: 120px">
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <input class="form-control form-control-sm" type="number" id="usageTopLimit" min="1" max="15" value="5" style="width: 120px" aria-label="Top endpoints" placeholder="Top N" />
+          </div>
+        </div>
+      </div>
+
+      <ul class="nav nav-tabs" id="usageTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="usageUsersTab" data-bs-toggle="tab" data-bs-target="#usageUsers" type="button" role="tab">User usage</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="usageApiKeysTab" data-bs-toggle="tab" data-bs-target="#usageApiKeys" type="button" role="tab">API key usage</button>
+        </li>
+      </ul>
+      <div class="tab-content border border-top-0 rounded-bottom p-3">
+        <div class="tab-pane fade show active" id="usageUsers" role="tabpanel">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <input class="form-control form-control-sm" type="number" min="1" placeholder="User ID" id="usageUserId" aria-label="User id filter" style="width: 120px" />
+            <input class="form-control form-control-sm" type="email" placeholder="User email" id="usageUserEmail" aria-label="User email filter" style="min-width: 220px" />
+            <input class="form-control form-control-sm" type="text" placeholder="Path contains" id="usageUserPath" aria-label="Path filter" style="min-width: 200px" />
+          </div>
+          <div class="text-muted small mb-2" id="usageUsersSummary">No usage loaded yet.</div>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Rank</th>
+                  <th>User</th>
+                  <th>Usage score</th>
+                  <th>Requests</th>
+                  <th>Top endpoints</th>
+                  <th>Last seen</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usageUsersTbody">
+                <tr><td colspan="7" class="text-center text-muted py-3">Refresh to load usage.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="usageApiKeys" role="tabpanel">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <input class="form-control form-control-sm" type="number" min="1" placeholder="API key ID" id="usageApiKeyId" aria-label="API key id filter" style="width: 130px" />
+            <input class="form-control form-control-sm" type="text" placeholder="API key label" id="usageApiKeyLabel" aria-label="API key label filter" style="min-width: 200px" />
+            <input class="form-control form-control-sm" type="email" placeholder="User email" id="usageApiKeyEmail" aria-label="User email filter" style="min-width: 220px" />
+          </div>
+          <div class="text-muted small mb-2" id="usageApiKeysSummary">No usage loaded yet.</div>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Rank</th>
+                  <th>API key</th>
+                  <th>User</th>
+                  <th>Usage score</th>
+                  <th>Requests</th>
+                  <th>Top endpoints</th>
+                  <th>Last seen</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usageApiKeysTbody">
+                <tr><td colspan="8" class="text-center text-muted py-3">Refresh to load usage.</td></tr>
               </tbody>
             </table>
           </div>
@@ -867,9 +975,11 @@
           <div class="alert alert-danger d-none" id="logsDetailAlert"></div>
           <div class="row g-3" id="logsDetailContent"></div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer flex-wrap gap-2">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
-          <button class="btn btn-outline-primary" type="button" id="logsCopyJsonBtn">Copy JSON</button>
+          <button class="btn btn-outline-primary" type="button" id="logsCopyRequestBtn">Copy request</button>
+          <button class="btn btn-outline-primary" type="button" id="logsCopyResponseBtn">Copy response</button>
+          <button class="btn btn-outline-secondary" type="button" id="logsCopyCorrelationBtn">Copy correlation id</button>
         </div>
       </div>
     </div>

@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 const MAX_LIST_LIMIT = 200;
 const MAX_PAIR_LIMIT = 50;
@@ -59,8 +65,8 @@ function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	return { value: parsed };
 }
 
-// GET /bookauthor/stats - Book author statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /bookauthor/stats - Book author statistics
+const bookAuthorStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -86,6 +92,23 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "bookauthor/stats",
+			params: {
+				fields: [...selected].sort(),
+				pairLimit: pairLimit ?? null
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Book author stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 		const needsBookCounts = selected.includes("averageAuthorsPerBook")
 			|| selected.includes("singleVsMultiBreakdown")
@@ -223,7 +246,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			}));
 		}
 
-		return successResponse(res, 200, "Book author stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Book author stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("BOOK_AUTHOR_STATS", {
 			status: "FAILURE",
@@ -234,6 +262,9 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book author stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, bookAuthorStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, bookAuthorStatsHandler);
 
 module.exports = router;

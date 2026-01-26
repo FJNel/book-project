@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 const { validatePartialDateObject } = require("../utils/partial-date");
 
 const MAX_ACQUISITION_STORY_LENGTH = 2000;
@@ -673,8 +679,8 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
-// GET /bookcopy/stats - Book copy statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /bookcopy/stats - Book copy statistics
+const bookCopyStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -709,6 +715,23 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const limitValue = breakdownLimit ?? 50;
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "bookcopy/stats",
+			params: {
+				fields: [...selected].sort(),
+				breakdownLimit: breakdownLimit ?? null
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Book copy stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 
 		const totalResult = await pool.query(
@@ -866,7 +889,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 				: null;
 		}
 
-		return successResponse(res, 200, "Book copy stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Book copy stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("BOOK_COPY_STATS", {
 			status: "FAILURE",
@@ -877,7 +905,10 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book copy stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, bookCopyStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, bookCopyStatsHandler);
 
 // POST /bookcopy - Add a new book copy
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {

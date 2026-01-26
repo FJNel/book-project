@@ -45,8 +45,15 @@
     logsLevelFilter: document.getElementById('logsLevelFilter'),
     logsStatusFilter: document.getElementById('logsStatusFilter'),
     logsMethodFilter: document.getElementById('logsMethodFilter'),
+    logsActorFilter: document.getElementById('logsActorFilter'),
     logsPathFilter: document.getElementById('logsPathFilter'),
     logsUserIdFilter: document.getElementById('logsUserIdFilter'),
+    logsUserEmailFilter: document.getElementById('logsUserEmailFilter'),
+    logsApiKeyIdFilter: document.getElementById('logsApiKeyIdFilter'),
+    logsApiKeyLabelFilter: document.getElementById('logsApiKeyLabelFilter'),
+    logsApiKeyPrefixFilter: document.getElementById('logsApiKeyPrefixFilter'),
+    logsStatusMin: document.getElementById('logsStatusMin'),
+    logsStatusMax: document.getElementById('logsStatusMax'),
     logsDateFrom: document.getElementById('logsDateFrom'),
     logsDateTo: document.getElementById('logsDateTo'),
     logsPrevBtn: document.getElementById('logsPrevBtn'),
@@ -59,8 +66,27 @@
     logsDetailModal: document.getElementById('logsDetailModal'),
     logsDetailContent: document.getElementById('logsDetailContent'),
     logsDetailAlert: document.getElementById('logsDetailAlert'),
-    logsCopyJsonBtn: document.getElementById('logsCopyJsonBtn'),
+    logsCopyRequestBtn: document.getElementById('logsCopyRequestBtn'),
+    logsCopyResponseBtn: document.getElementById('logsCopyResponseBtn'),
+    logsCopyCorrelationBtn: document.getElementById('logsCopyCorrelationBtn'),
     logsDetailTitle: document.getElementById('logsDetailTitle'),
+    usageRefreshBtn: document.getElementById('usageRefreshBtn'),
+    usageAlert: document.getElementById('usageAlert'),
+    usageDateFrom: document.getElementById('usageDateFrom'),
+    usageDateTo: document.getElementById('usageDateTo'),
+    usageSortBy: document.getElementById('usageSortBy'),
+    usageSortOrder: document.getElementById('usageSortOrder'),
+    usageTopLimit: document.getElementById('usageTopLimit'),
+    usageUserId: document.getElementById('usageUserId'),
+    usageUserEmail: document.getElementById('usageUserEmail'),
+    usageUserPath: document.getElementById('usageUserPath'),
+    usageUsersSummary: document.getElementById('usageUsersSummary'),
+    usageUsersTbody: document.getElementById('usageUsersTbody'),
+    usageApiKeyId: document.getElementById('usageApiKeyId'),
+    usageApiKeyLabel: document.getElementById('usageApiKeyLabel'),
+    usageApiKeyEmail: document.getElementById('usageApiKeyEmail'),
+    usageApiKeysSummary: document.getElementById('usageApiKeysSummary'),
+    usageApiKeysTbody: document.getElementById('usageApiKeysTbody'),
     emailsAlert: document.getElementById('emailsAlert'),
     emailsSuccess: document.getElementById('emailsSuccess'),
     emailTypeSelect: document.getElementById('emailTypeSelect'),
@@ -192,6 +218,9 @@
     logsLiveTimer: null,
     logsLiveEnabled: false,
     currentLogDetail: null,
+    usageUsers: [],
+    usageApiKeys: [],
+    usageInitialized: false,
     authorized: false,
     currentUserId: null,
     actionCooldowns: new Map(),
@@ -656,6 +685,8 @@
       ensureEmailTypesLoaded().catch(() => {});
     } else if (section === 'site-stats' && state.authorized) {
       fetchSiteStats();
+    } else if (section === 'usage' && state.authorized) {
+      ensureUsageInitialized();
     } else if (state.logsLiveEnabled) {
       stopLogsLive();
       if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
@@ -669,13 +700,14 @@
     if (hash.includes('email')) return 'emails';
     if (hash.includes('log')) return 'logs';
     if (hash.includes('site-stats')) return 'site-stats';
+    if (hash.includes('usage')) return 'usage';
     return null;
   }
 
   function resolveSectionFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const section = (params.get('section') || '').toLowerCase();
-    if (['overview', 'site-stats', 'users', 'languages', 'emails', 'logs'].includes(section)) return section;
+    if (['overview', 'site-stats', 'users', 'languages', 'emails', 'logs', 'usage'].includes(section)) return section;
     return null;
   }
 
@@ -691,7 +723,7 @@
       return;
     }
     const stored = window.localStorage.getItem('adminSection');
-    const target = ['overview', 'site-stats', 'users', 'languages', 'emails', 'logs'].includes(stored) ? stored : 'overview';
+    const target = ['overview', 'site-stats', 'users', 'languages', 'emails', 'logs', 'usage'].includes(stored) ? stored : 'overview';
     setSection(target);
   }
 
@@ -1150,7 +1182,8 @@
     if (cfg.confirmFlag) body.confirm = true;
     const expirySelection = cfg.expirySelection;
     if (cfg.expiryEnabled && expirySelection && expirySelection.minutes !== null) {
-      body.duration = expirySelection.minutes;
+      const expiryField = cfg.expiryFieldName || 'duration';
+      body[expiryField] = expirySelection.minutes;
     }
 
     log(`Admin action started`, { action: cfg.actionLabel || cfg.title, userId: cfg.userId });
@@ -1550,7 +1583,7 @@
   }
 
   function resetLogsTablePlaceholder() {
-    if (dom.logsTbody) dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Loading logs…</td></tr>';
+    if (dom.logsTbody) dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Loading logs…</td></tr>';
   }
 
   function setLogFilterOptions(selectEl, values) {
@@ -1575,8 +1608,15 @@
       level: dom.logsLevelFilter?.value || '',
       status: dom.logsStatusFilter?.value || '',
       method: dom.logsMethodFilter?.value || '',
+      actorType: dom.logsActorFilter?.value || '',
       path: dom.logsPathFilter?.value.trim() || '',
       userId: dom.logsUserIdFilter?.value ? Number(dom.logsUserIdFilter.value) : null,
+      userEmail: dom.logsUserEmailFilter?.value.trim() || '',
+      apiKeyId: dom.logsApiKeyIdFilter?.value ? Number(dom.logsApiKeyIdFilter.value) : null,
+      apiKeyLabel: dom.logsApiKeyLabelFilter?.value.trim() || '',
+      apiKeyPrefix: dom.logsApiKeyPrefixFilter?.value.trim() || '',
+      statusMin: dom.logsStatusMin?.value ? Number(dom.logsStatusMin.value) : null,
+      statusMax: dom.logsStatusMax?.value ? Number(dom.logsStatusMax.value) : null,
       startDate: normalizeDateTimeLocalToIso(dom.logsDateFrom?.value),
       endDate: normalizeDateTimeLocalToIso(dom.logsDateTo?.value)
     };
@@ -1590,8 +1630,15 @@
       || filters.level
       || filters.status
       || filters.method
+      || filters.actorType
       || filters.path
       || Number.isFinite(filters.userId)
+      || filters.userEmail
+      || Number.isFinite(filters.apiKeyId)
+      || filters.apiKeyLabel
+      || filters.apiKeyPrefix
+      || Number.isFinite(filters.statusMin)
+      || Number.isFinite(filters.statusMax)
       || filters.startDate
       || filters.endDate
     );
@@ -1638,32 +1685,43 @@
     state.logs = Array.isArray(logs) ? logs : [];
     if (!dom.logsTbody) return;
     if (!state.logs.length) {
-      dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No logs found.</td></tr>';
+      dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">No logs found.</td></tr>';
       return;
     }
 
     const rows = state.logs.map((log, index) => {
-      const rawMessage = log.message || log.error_message || log.error_reason || log.details?.message || '—';
+      const rawMessage = log.error_summary || log.message || '—';
       const message = String(rawMessage);
-      const user = log.user_id ?? log.admin_id ?? log.details?.userId ?? '—';
-      const status = log.status || log.http_status || log.statusCode || '';
-      const typeBadge = renderLogBadge(log.event || log.action || '', 'type');
+      const status = log.status_code || '—';
+      const actor = log.actor_type || '—';
+      const actorLabel = log.actor_type === 'api_key'
+        ? `${log.user_email || 'API key'} · ${log.api_key_label || log.api_key_prefix || 'unknown'}`
+        : (log.user_email || log.user_id || 'anonymous');
+      const typeBadge = renderLogBadge(log.category || '', 'type');
       const levelBadge = renderLogBadge(log.level || '', 'level');
       const statusBadge = renderLogBadge(status, 'status');
       const pathText = [log.method, log.path].filter(Boolean).join(' ');
+      const detailText = log.api_key_id
+        ? `Key ${log.api_key_id}`
+        : (log.user_id ? `User ${log.user_id}` : 'Anonymous');
       return `
         <tr>
-          <td>${formatDateTime(log.timestamp)}</td>
+          <td>${formatDateTime(log.logged_at)}</td>
           <td>${levelBadge}</td>
           <td>${typeBadge}</td>
           <td>${statusBadge}</td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(actorLabel)}</div>
+            <div class="text-muted small">${escapeHtml(detailText)}</div>
+          </td>
           <td title="${escapeHtml(message)}">${escapeHtml(message.length > 80 ? `${message.slice(0, 77)}…` : message)}</td>
-          <td>${escapeHtml(String(user))}</td>
           <td title="${escapeHtml(pathText)}">${escapeHtml(pathText || '—')}</td>
+          <td>${Number.isFinite(log.duration_ms) ? `${log.duration_ms} ms` : '—'}</td>
           <td><button class="btn btn-outline-primary btn-sm js-view-log" type="button" data-log-index="${index}">View</button></td>
         </tr>
       `;
     }).join('');
+  if (dom.logsAlert) dom.logsAlert.innerHTML = '<strong>Admin access required.</strong> You do not have permission to view logs.';
 
     dom.logsTbody.innerHTML = rows;
   }
@@ -1684,12 +1742,18 @@
       if (useSearch) {
         const body = {
           search: filters.search || undefined,
-          events: filters.type ? [filters.type.toLowerCase()] : [],
-          levels: filters.level ? [filters.level.toLowerCase()] : [],
-          statuses: filters.status ? [filters.status.toLowerCase()] : [],
-          methods: filters.method ? [filters.method.toLowerCase()] : [],
-          paths: filters.path ? [filters.path] : [],
+          category: filters.type || undefined,
+          level: filters.level || undefined,
+          method: filters.method || undefined,
+          actorType: filters.actorType || undefined,
+          path: filters.path || undefined,
           userId: Number.isFinite(filters.userId) ? filters.userId : undefined,
+          userEmail: filters.userEmail || undefined,
+          apiKeyId: Number.isFinite(filters.apiKeyId) ? filters.apiKeyId : undefined,
+          apiKeyLabel: filters.apiKeyLabel || undefined,
+          apiKeyPrefix: filters.apiKeyPrefix || undefined,
+          statusCodeMin: Number.isFinite(filters.statusMin) ? filters.statusMin : (filters.status || undefined),
+          statusCodeMax: Number.isFinite(filters.statusMax) ? filters.statusMax : (filters.status || undefined),
           startDate: filters.startDate || undefined,
           endDate: filters.endDate || undefined,
           limit,
@@ -1719,6 +1783,7 @@
         showApiError(dom.logsAlert, err);
       }
       dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
+        dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
       throw err;
     }
   }
@@ -1766,8 +1831,15 @@
     if (dom.logsLevelFilter) dom.logsLevelFilter.value = '';
     if (dom.logsStatusFilter) dom.logsStatusFilter.value = '';
     if (dom.logsMethodFilter) dom.logsMethodFilter.value = '';
+    if (dom.logsActorFilter) dom.logsActorFilter.value = '';
     if (dom.logsPathFilter) dom.logsPathFilter.value = '';
     if (dom.logsUserIdFilter) dom.logsUserIdFilter.value = '';
+    if (dom.logsUserEmailFilter) dom.logsUserEmailFilter.value = '';
+    if (dom.logsApiKeyIdFilter) dom.logsApiKeyIdFilter.value = '';
+    if (dom.logsApiKeyLabelFilter) dom.logsApiKeyLabelFilter.value = '';
+    if (dom.logsApiKeyPrefixFilter) dom.logsApiKeyPrefixFilter.value = '';
+    if (dom.logsStatusMin) dom.logsStatusMin.value = '';
+    if (dom.logsStatusMax) dom.logsStatusMax.value = '';
     if (dom.logsDateFrom) dom.logsDateFrom.value = '';
     if (dom.logsDateTo) dom.logsDateTo.value = '';
   }
@@ -1797,20 +1869,37 @@
     state.currentLogDetail = logEntry;
     dom.logsDetailAlert?.classList.add('d-none');
     dom.logsDetailContent.innerHTML = '';
-    dom.logsDetailTitle.textContent = `Log · ${formatDateTime(logEntry.timestamp)}`;
+    dom.logsDetailTitle.textContent = `Log · ${formatDateTime(logEntry.logged_at)}`;
+
+    const requestPreview = logEntry.body_truncated
+      ? `${typeof logEntry.body === 'string' ? logEntry.body : JSON.stringify(logEntry.body)}\n(truncated)`
+      : (logEntry.body ? JSON.stringify(logEntry.body, null, 2) : '—');
+    const responsePreview = logEntry.response_truncated
+      ? `${typeof logEntry.response_body === 'string' ? logEntry.response_body : JSON.stringify(logEntry.response_body)}\n(truncated)`
+      : (logEntry.response_body ? JSON.stringify(logEntry.response_body, null, 2) : '—');
+
+    const actorLabel = logEntry.actor_type === 'api_key'
+      ? `${logEntry.user_email || 'API key'} · ${logEntry.api_key_label || logEntry.api_key_prefix || 'unknown'}`
+      : (logEntry.user_email || logEntry.user_id || 'anonymous');
 
     const fields = [
-      { label: 'Timestamp', value: formatDateTime(logEntry.timestamp) },
-      { label: 'Type', value: logEntry.event || logEntry.action || '—' },
+      { label: 'Timestamp', value: formatDateTime(logEntry.logged_at) },
+      { label: 'Category', value: logEntry.category || '—' },
       { label: 'Level', value: logEntry.level || '—' },
-      { label: 'Status', value: logEntry.status || logEntry.http_status || '—' },
-      { label: 'Message', value: logEntry.message || logEntry.error_message || '—' },
-      { label: 'User', value: logEntry.user_id ?? logEntry.admin_id ?? logEntry.details?.userId ?? '—' },
+      { label: 'Status code', value: logEntry.status_code || '—' },
+      { label: 'Correlation id', value: logEntry.correlation_id || '—' },
+      { label: 'Actor', value: actorLabel },
+      { label: 'Actor type', value: logEntry.actor_type || '—' },
+      { label: 'API key id', value: logEntry.api_key_id || '—' },
       { label: 'HTTP', value: [logEntry.method, logEntry.path].filter(Boolean).join(' ') || '—' },
-      { label: 'IP', value: logEntry.ip || logEntry.details?.ip || '—' },
-      { label: 'User Agent', value: logEntry.user_agent || logEntry.details?.userAgent || '—' },
+      { label: 'Route pattern', value: logEntry.route_pattern || '—' },
+      { label: 'IP', value: logEntry.ip || '—' },
+      { label: 'User Agent', value: logEntry.user_agent || '—' },
       { label: 'Duration (ms)', value: logEntry.duration_ms ?? '—' },
-      { label: 'Details', value: logEntry.details ? JSON.stringify(logEntry.details, null, 2) : '—', isPre: true }
+      { label: 'Request bytes', value: logEntry.request_bytes ?? '—' },
+      { label: 'Response bytes', value: logEntry.response_bytes ?? '—' },
+      { label: 'Request body', value: requestPreview, isPre: true },
+      { label: 'Response body', value: responsePreview, isPre: true }
     ];
 
     const fragments = fields.map((field) => {
@@ -1827,14 +1916,411 @@
     bootstrap.Modal.getOrCreateInstance(dom.logsDetailModal).show();
   }
 
-  async function copyLogJson() {
+  async function copyLogRequest() {
     if (!state.currentLogDetail) return;
     try {
-      const payload = JSON.stringify(state.currentLogDetail, null, 2);
+      const payload = JSON.stringify(state.currentLogDetail.body ?? {}, null, 2);
       await navigator.clipboard.writeText(payload);
     } catch (err) {
-      errorLog('[Admin][Logs] Copy JSON failed', err);
+      errorLog('[Admin][Logs] Copy request failed', err);
       showApiError(dom.logsDetailAlert, err);
+    }
+  }
+
+  async function copyLogResponse() {
+    if (!state.currentLogDetail) return;
+    try {
+      const payload = JSON.stringify(state.currentLogDetail.response_body ?? {}, null, 2);
+      await navigator.clipboard.writeText(payload);
+    } catch (err) {
+      errorLog('[Admin][Logs] Copy response failed', err);
+      showApiError(dom.logsDetailAlert, err);
+    }
+  }
+
+  async function copyCorrelationId() {
+    if (!state.currentLogDetail) return;
+    try {
+      const payload = state.currentLogDetail.correlation_id || '';
+      await navigator.clipboard.writeText(payload);
+    } catch (err) {
+      errorLog('[Admin][Logs] Copy correlation id failed', err);
+      showApiError(dom.logsDetailAlert, err);
+    }
+  }
+
+  function getUsageBaseFilters() {
+    const startDate = normalizeDateTimeLocalToIso(dom.usageDateFrom?.value);
+    const endDate = normalizeDateTimeLocalToIso(dom.usageDateTo?.value);
+    const sortBy = dom.usageSortBy?.value || 'usageScore';
+    const order = dom.usageSortOrder?.value || 'desc';
+    const rawTop = Number.parseInt(dom.usageTopLimit?.value, 10);
+    const topLimit = Number.isInteger(rawTop) ? Math.min(Math.max(rawTop, 1), 15) : 5;
+    if (dom.usageTopLimit) dom.usageTopLimit.value = String(topLimit);
+    return { startDate, endDate, sortBy, order, topLimit };
+  }
+
+  function getUsageUserFilters() {
+    return {
+      userId: dom.usageUserId?.value ? Number(dom.usageUserId.value) : null,
+      email: dom.usageUserEmail?.value.trim() || '',
+      path: dom.usageUserPath?.value.trim() || ''
+    };
+  }
+
+  function getUsageApiKeyFilters() {
+    return {
+      apiKeyId: dom.usageApiKeyId?.value ? Number(dom.usageApiKeyId.value) : null,
+      apiKeyLabel: dom.usageApiKeyLabel?.value.trim() || '',
+      email: dom.usageApiKeyEmail?.value.trim() || ''
+    };
+  }
+
+  function renderUsageLevelBadge(level) {
+    if (!level) return '<span class="badge text-bg-secondary">Low</span>';
+    const normalized = String(level).toLowerCase();
+    const classMap = {
+      low: 'text-bg-success',
+      medium: 'text-bg-warning',
+      high: 'text-bg-danger',
+      'very high': 'text-bg-dark'
+    };
+    const className = classMap[normalized] || 'text-bg-secondary';
+    return `<span class="badge ${className}">${escapeHtml(level)}</span>`;
+  }
+
+  function renderUsageEndpoints(endpoints) {
+    if (!Array.isArray(endpoints) || !endpoints.length) {
+      return '<span class="text-muted">—</span>';
+    }
+    return endpoints.map((endpoint) => {
+      const label = [endpoint.method, endpoint.path].filter(Boolean).join(' ');
+      const count = Number.isFinite(endpoint.count) ? endpoint.count : 0;
+      return `<div class="small"><span class="fw-semibold">${escapeHtml(label || '—')}</span> <span class="text-muted">× ${count}</span></div>`;
+    }).join('');
+  }
+
+  function updateUsageSummary(el, count, window) {
+    if (!el) return;
+    if (!count) {
+      el.textContent = 'No usage found for this window.';
+      return;
+    }
+    const start = window?.startDate ? formatDateTime(window.startDate) : '—';
+    const end = window?.endDate ? formatDateTime(window.endDate) : '—';
+    el.textContent = `Showing ${count} entries · ${start} → ${end}`;
+  }
+
+  function resolveUsageUser(userId, email) {
+    const match = Number.isInteger(userId) ? state.users.find((user) => user.id === userId) : null;
+    if (match) return match;
+    return { id: userId ?? '—', fullName: email || 'User', email: email || '—' };
+  }
+
+  function renderUsageUsers(users, window) {
+    state.usageUsers = Array.isArray(users) ? users : [];
+    if (!dom.usageUsersTbody) return;
+    if (!state.usageUsers.length) {
+      dom.usageUsersTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No usage found.</td></tr>';
+      updateUsageSummary(dom.usageUsersSummary, 0, window);
+      return;
+    }
+
+    const rows = state.usageUsers.map((user, index) => {
+      const userId = Number.isInteger(user.userId) ? user.userId : null;
+      const resolved = resolveUsageUser(userId, user.email);
+      const displayName = resolved.preferredName || resolved.fullName || resolved.email || 'User';
+      const emailText = resolved.email || user.email || '—';
+      const roleText = user.role ? ` · ${user.role}` : '';
+      const score = Number.isFinite(user.usageScore) ? user.usageScore : 0;
+      const requests = Number.isFinite(user.requestCount) ? user.requestCount : 0;
+      const levelBadge = renderUsageLevelBadge(user.usageLevel || 'Low');
+      const lastSeen = formatDateTime(user.lastSeen);
+      const topEndpoints = renderUsageEndpoints(user.topEndpoints);
+      const dropdown = userId ? `
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Block API key creation</button>
+            <button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Allow API key creation</button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Apply usage lockout</button>
+            <button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Clear usage lockout</button>
+          </div>
+        </div>
+      ` : '<span class="text-muted">—</span>';
+
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(displayName)}</div>
+            <div class="text-muted small">${escapeHtml(emailText)}${escapeHtml(roleText)}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">${score}</div>
+            <div class="mt-1">${levelBadge}</div>
+          </td>
+          <td>${requests}</td>
+          <td>${topEndpoints}</td>
+          <td>${lastSeen}</td>
+          <td>${dropdown}</td>
+        </tr>
+      `;
+    }).join('');
+
+    dom.usageUsersTbody.innerHTML = rows;
+    updateUsageSummary(dom.usageUsersSummary, state.usageUsers.length, window);
+  }
+
+  function renderUsageApiKeys(keys, window) {
+    state.usageApiKeys = Array.isArray(keys) ? keys : [];
+    if (!dom.usageApiKeysTbody) return;
+    if (!state.usageApiKeys.length) {
+      dom.usageApiKeysTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No usage found.</td></tr>';
+      updateUsageSummary(dom.usageApiKeysSummary, 0, window);
+      return;
+    }
+
+    const rows = state.usageApiKeys.map((key, index) => {
+      const apiKeyId = Number.isInteger(key.apiKeyId) ? key.apiKeyId : null;
+      const userId = Number.isInteger(key.userId) ? key.userId : null;
+      const keyLabel = key.apiKeyLabel || 'API key';
+      const keyPrefix = key.apiKeyPrefix ? `(${key.apiKeyPrefix})` : '';
+      const userEmail = key.email || '—';
+      const score = Number.isFinite(key.usageScore) ? key.usageScore : 0;
+      const requests = Number.isFinite(key.requestCount) ? key.requestCount : 0;
+      const levelBadge = renderUsageLevelBadge(key.usageLevel || 'Low');
+      const lastSeen = formatDateTime(key.lastSeen);
+      const topEndpoints = renderUsageEndpoints(key.topEndpoints);
+      const dropdown = apiKeyId ? `
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <button class="dropdown-item text-danger" type="button" data-usage-action="revoke-key" data-api-key-id="${apiKeyId}" data-api-key-label="${escapeHtml(keyLabel)}" data-api-key-prefix="${escapeHtml(key.apiKeyPrefix || '')}" data-user-id="${userId || ''}" data-user-email="${escapeHtml(userEmail)}">Revoke API key</button>
+            ${userId ? '<div class="dropdown-divider"></div>' : ''}
+            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Block API key creation</button>` : ''}
+            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Allow API key creation</button>` : ''}
+            ${userId ? '<div class="dropdown-divider"></div>' : ''}
+            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Apply usage lockout</button>` : ''}
+            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Clear usage lockout</button>` : ''}
+          </div>
+        </div>
+      ` : '<span class="text-muted">—</span>';
+
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(keyLabel)} ${escapeHtml(keyPrefix)}</div>
+            <div class="text-muted small">ID ${apiKeyId ?? '—'}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(userEmail)}</div>
+            <div class="text-muted small">User ${userId ?? '—'}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">${score}</div>
+            <div class="mt-1">${levelBadge}</div>
+          </td>
+          <td>${requests}</td>
+          <td>${topEndpoints}</td>
+          <td>${lastSeen}</td>
+          <td>${dropdown}</td>
+        </tr>
+      `;
+    }).join('');
+
+    dom.usageApiKeysTbody.innerHTML = rows;
+    updateUsageSummary(dom.usageApiKeysSummary, state.usageApiKeys.length, window);
+  }
+
+  async function fetchUsageUsers() {
+    if (!state.authorized) return;
+    hideAlert(dom.usageAlert);
+    if (dom.usageUsersTbody) dom.usageUsersTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Loading usage…</td></tr>';
+    const base = getUsageBaseFilters();
+    const filters = getUsageUserFilters();
+    const body = {
+      startDate: base.startDate || undefined,
+      endDate: base.endDate || undefined,
+      sortBy: base.sortBy,
+      order: base.order,
+      topLimit: base.topLimit,
+      limit: 25,
+      offset: 0,
+      userId: Number.isInteger(filters.userId) ? filters.userId : undefined,
+      email: filters.email || undefined,
+      path: filters.path || undefined
+    };
+
+    try {
+      const response = await apiFetch('/admin/usage/users', { method: 'POST', body });
+      const data = await parseResponse(response);
+      renderUsageUsers(data?.users || [], data?.window);
+    } catch (err) {
+      errorLog('[Admin][Usage] Failed to fetch user usage', err);
+      showApiError(dom.usageAlert, err);
+      if (dom.usageUsersTbody) dom.usageUsersTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Unable to load usage.</td></tr>';
+    }
+  }
+
+  async function fetchUsageApiKeys() {
+    if (!state.authorized) return;
+    hideAlert(dom.usageAlert);
+    if (dom.usageApiKeysTbody) dom.usageApiKeysTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Loading usage…</td></tr>';
+    const base = getUsageBaseFilters();
+    const filters = getUsageApiKeyFilters();
+    const body = {
+      startDate: base.startDate || undefined,
+      endDate: base.endDate || undefined,
+      sortBy: base.sortBy,
+      order: base.order,
+      topLimit: base.topLimit,
+      limit: 25,
+      offset: 0,
+      apiKeyId: Number.isInteger(filters.apiKeyId) ? filters.apiKeyId : undefined,
+      apiKeyLabel: filters.apiKeyLabel || undefined,
+      email: filters.email || undefined
+    };
+
+    try {
+      const response = await apiFetch('/admin/usage/api-keys', { method: 'POST', body });
+      const data = await parseResponse(response);
+      renderUsageApiKeys(data?.apiKeys || [], data?.window);
+    } catch (err) {
+      errorLog('[Admin][Usage] Failed to fetch API key usage', err);
+      showApiError(dom.usageAlert, err);
+      if (dom.usageApiKeysTbody) dom.usageApiKeysTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Unable to load usage.</td></tr>';
+    }
+  }
+
+  async function refreshUsage({ usersOnly = false, apiKeysOnly = false } = {}) {
+    hideAlert(dom.usageAlert);
+    const tasks = [];
+    if (!apiKeysOnly) tasks.push(fetchUsageUsers());
+    if (!usersOnly) tasks.push(fetchUsageApiKeys());
+    await Promise.all(tasks);
+    state.usageInitialized = true;
+  }
+
+  function ensureUsageInitialized() {
+    if (state.usageInitialized) return;
+    refreshUsage().catch(() => {});
+  }
+
+  function handleUsageActionClick(event) {
+    const btn = event.target.closest('button[data-usage-action]');
+    if (!btn) return;
+    const action = btn.dataset.usageAction;
+    const userId = btn.dataset.userId ? Number(btn.dataset.userId) : null;
+    const userEmail = btn.dataset.userEmail || '';
+    const apiKeyId = btn.dataset.apiKeyId ? Number(btn.dataset.apiKeyId) : null;
+    const apiKeyLabel = btn.dataset.apiKeyLabel || '';
+    const apiKeyPrefix = btn.dataset.apiKeyPrefix || '';
+
+    if (action === 'revoke-key' && Number.isInteger(apiKeyId)) {
+      const resolvedUser = resolveUsageUser(userId, userEmail);
+      const resolvedUserId = Number.isInteger(userId) ? userId : undefined;
+      openConfirmAction({
+        title: 'Revoke API key',
+        actionLabel: 'Revoke API key',
+        message: 'Revoke this API key? This action cannot be undone.',
+        impact: 'The key will stop working immediately. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'api_key_revoked',
+        destructive: true,
+        confirmText: 'REVOKE',
+        user: resolvedUser,
+        userId: resolvedUserId,
+        baseBody: { id: apiKeyId },
+        url: `/admin/api-keys/${apiKeyId}/revoke`,
+        method: 'POST',
+        summaryItems: [
+          { label: 'API key', value: `${apiKeyLabel || 'API key'} ${apiKeyPrefix ? `(${apiKeyPrefix})` : ''}`.trim() },
+          { label: 'API key id', value: String(apiKeyId) }
+        ],
+        afterSuccess: () => refreshUsage().catch(() => {})
+      });
+      return;
+    }
+
+    if (!Number.isInteger(userId)) return;
+    const resolvedUser = resolveUsageUser(userId, userEmail);
+
+    if (action === 'ban') {
+      openConfirmAction({
+        title: 'Block API key creation',
+        actionLabel: 'Block API key creation',
+        message: 'Block this user from creating new API keys?',
+        impact: 'New API keys will be blocked. Existing API keys will keep working. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'api_key_ban_applied',
+        destructive: true,
+        reasonRequired: true,
+        user: resolvedUser,
+        userId,
+        url: `/admin/users/${userId}/api-key-ban`,
+        method: 'POST',
+        afterSuccess: () => refreshUsage().catch(() => {})
+      });
+      return;
+    }
+
+    if (action === 'unban') {
+      openConfirmAction({
+        title: 'Allow API key creation',
+        actionLabel: 'Allow API key creation',
+        message: 'Allow this user to create new API keys again?',
+        impact: 'New API keys will be allowed. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'api_key_ban_removed',
+        user: resolvedUser,
+        userId,
+        url: `/admin/users/${userId}/api-key-unban`,
+        method: 'POST',
+        afterSuccess: () => refreshUsage().catch(() => {})
+      });
+      return;
+    }
+
+    if (action === 'lockout') {
+      openConfirmAction({
+        title: 'Apply usage lockout',
+        actionLabel: 'Apply usage lockout',
+        message: 'Apply a temporary usage lockout for this user?',
+        impact: 'All requests will be blocked until the lockout expires. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'usage_restriction_applied',
+        destructive: true,
+        reasonRequired: true,
+        expiryEnabled: true,
+        expiryDefaultMinutes: 60,
+        expiryFieldName: 'durationMinutes',
+        user: resolvedUser,
+        userId,
+        baseBody: { durationMinutes: 60 },
+        url: `/admin/users/${userId}/usage-lockout`,
+        method: 'POST',
+        afterSuccess: () => refreshUsage().catch(() => {})
+      });
+      return;
+    }
+
+    if (action === 'lockout-clear') {
+      openConfirmAction({
+        title: 'Clear usage lockout',
+        actionLabel: 'Clear usage lockout',
+        message: 'Clear the usage lockout for this user?',
+        impact: 'Requests will be allowed again immediately. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'usage_restriction_removed',
+        user: resolvedUser,
+        userId,
+        url: `/admin/users/${userId}/usage-lockout/clear`,
+        method: 'POST',
+        afterSuccess: () => refreshUsage().catch(() => {})
+      });
     }
   }
 
@@ -2024,7 +2510,12 @@
   async function handleDevEmailTest() {
     const { valid, subject, body, recipient } = validateDevEmailForm({ requireRecipient: true });
     if (!valid) return;
-
+    const normalized = String(value).toUpperCase();
+    if (type === 'status' && Number.isFinite(Number(value))) {
+      const code = Number(value);
+      const className = code >= 500 ? 'text-bg-danger' : code >= 400 ? 'text-bg-warning' : 'text-bg-success';
+      return `<span class="badge ${className}">${escapeHtml(String(code))}</span>`;
+    }
     openConfirmAction({
       title: 'Send development update test',
       actionLabel: 'Send test',
@@ -2183,8 +2674,15 @@
     dom.logsLevelFilter?.addEventListener('change', logFilterChange);
     dom.logsStatusFilter?.addEventListener('change', logFilterChange);
     dom.logsMethodFilter?.addEventListener('change', logFilterChange);
+    dom.logsActorFilter?.addEventListener('change', logFilterChange);
     dom.logsPathFilter?.addEventListener('input', debounce(logFilterChange));
     dom.logsUserIdFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsUserEmailFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsApiKeyIdFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsApiKeyLabelFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsApiKeyPrefixFilter?.addEventListener('input', debounce(logFilterChange));
+    dom.logsStatusMin?.addEventListener('input', debounce(logFilterChange));
+    dom.logsStatusMax?.addEventListener('input', debounce(logFilterChange));
     dom.logsDateFrom?.addEventListener('change', logFilterChange);
     dom.logsDateTo?.addEventListener('change', logFilterChange);
 
@@ -2239,7 +2737,25 @@
       openLogDetail(index);
     });
 
-    dom.logsCopyJsonBtn?.addEventListener('click', copyLogJson);
+    dom.logsCopyRequestBtn?.addEventListener('click', copyLogRequest);
+    dom.logsCopyResponseBtn?.addEventListener('click', copyLogResponse);
+    dom.logsCopyCorrelationBtn?.addEventListener('click', copyCorrelationId);
+
+    const usageBaseRefresh = debounce(() => refreshUsage().catch(() => {}));
+    dom.usageRefreshBtn?.addEventListener('click', () => refreshUsage().catch(() => {}));
+    dom.usageDateFrom?.addEventListener('change', () => refreshUsage().catch(() => {}));
+    dom.usageDateTo?.addEventListener('change', () => refreshUsage().catch(() => {}));
+    dom.usageSortBy?.addEventListener('change', () => refreshUsage().catch(() => {}));
+    dom.usageSortOrder?.addEventListener('change', () => refreshUsage().catch(() => {}));
+    dom.usageTopLimit?.addEventListener('input', usageBaseRefresh);
+    dom.usageUserId?.addEventListener('input', debounce(() => refreshUsage({ usersOnly: true }).catch(() => {})));
+    dom.usageUserEmail?.addEventListener('input', debounce(() => refreshUsage({ usersOnly: true }).catch(() => {})));
+    dom.usageUserPath?.addEventListener('input', debounce(() => refreshUsage({ usersOnly: true }).catch(() => {})));
+    dom.usageApiKeyId?.addEventListener('input', debounce(() => refreshUsage({ apiKeysOnly: true }).catch(() => {})));
+    dom.usageApiKeyLabel?.addEventListener('input', debounce(() => refreshUsage({ apiKeysOnly: true }).catch(() => {})));
+    dom.usageApiKeyEmail?.addEventListener('input', debounce(() => refreshUsage({ apiKeysOnly: true }).catch(() => {})));
+    dom.usageUsersTbody?.addEventListener('click', handleUsageActionClick);
+    dom.usageApiKeysTbody?.addEventListener('click', handleUsageActionClick);
 
     dom.emailTypesRefreshBtn?.addEventListener('click', () => fetchEmailTypes(true).catch(() => {}));
     dom.emailTypeSelect?.addEventListener('change', handleEmailFormChange);
@@ -2295,6 +2811,9 @@
     }
     if (state.currentSection === 'site-stats') {
       fetchSiteStats();
+    }
+    if (state.currentSection === 'usage') {
+      ensureUsageInitialized();
     }
     return true;
   }

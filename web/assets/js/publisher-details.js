@@ -710,6 +710,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadPage();
 
+  if (window.actionRouter && typeof window.actionRouter.register === 'function') {
+    window.actionRouter.register('edit_publisher', async ({ params }) => {
+      const targetId = Number.parseInt(params.publisher_id || params.publisherId || params.id, 10);
+      if (!Number.isInteger(targetId) || targetId !== publisherId) return;
+      if (!publisherRecord) {
+        log('Action requested before publisher data loaded; waiting for page readiness.');
+      }
+      openEditModal();
+    }, { removeKeys: ['publisher_id', 'publisherId', 'id'] });
+    window.actionRouter.run({ source: 'publisher-details' });
+  }
+
   if (editPublisherBtn) {
     editPublisherBtn.addEventListener('click', openEditModal);
   }

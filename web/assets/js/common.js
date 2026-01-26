@@ -258,6 +258,52 @@ window.modalStack = window.modalStack || (function createModalStack() {
 })();
 
 window.authGuard = window.authGuard || {};
+window.authRedirect = window.authRedirect || {};
+window.authRedirect.storageKey = window.authRedirect.storageKey || 'returnToUrl';
+window.authRedirect.buildReturnTo = function buildReturnTo() {
+	try {
+		return `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+	} catch (error) {
+		return null;
+	}
+};
+window.authRedirect.capture = function captureReturnTo({ url, force = false } = {}) {
+	const target = typeof url === 'string' ? url : window.authRedirect.buildReturnTo();
+	if (!target) return null;
+	try {
+		const parsed = new URL(target, window.location.origin);
+		const path = parsed.pathname.toLowerCase();
+		const action = parsed.searchParams.get('action');
+		const isLoginLanding = path === '/' || path.endsWith('/index') || path.endsWith('/index.html');
+		if (isLoginLanding && action === 'login') return null;
+		if (!force && sessionStorage.getItem(window.authRedirect.storageKey)) {
+			return sessionStorage.getItem(window.authRedirect.storageKey);
+		}
+		sessionStorage.setItem(window.authRedirect.storageKey, parsed.pathname + parsed.search + parsed.hash);
+		return parsed.pathname + parsed.search + parsed.hash;
+	} catch (error) {
+		return null;
+	}
+};
+window.authRedirect.consume = function consumeReturnTo() {
+	try {
+		const stored = sessionStorage.getItem(window.authRedirect.storageKey);
+		if (stored) {
+			sessionStorage.removeItem(window.authRedirect.storageKey);
+			return stored;
+		}
+		return null;
+	} catch (error) {
+		return null;
+	}
+};
+window.authRedirect.clear = function clearReturnTo() {
+	try {
+		sessionStorage.removeItem(window.authRedirect.storageKey);
+	} catch (error) {
+		// ignore
+	}
+};
 window.authGuard.waitForMaintenance = async function waitForMaintenance() {
 	const maintenancePromise = window.maintenanceModalPromise;
 	if (maintenancePromise && typeof maintenancePromise.then === 'function') {
@@ -275,6 +321,9 @@ window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ 
 	if (accessToken || refreshToken) {
 		return true;
 	}
+	if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
+		window.authRedirect.capture();
+	}
 	if (waitForMaintenance) {
 		await window.authGuard.waitForMaintenance();
 	}
@@ -284,7 +333,9 @@ window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ 
 		return false;
 	}
 	console.warn('[Auth Guard] Session expired modal unavailable; redirecting to login.');
-	window.location.href = 'https://bookproject.fjnel.co.za?action=login';
+	window.location.href = typeof window.getLoginRedirectUrl === 'function'
+		? window.getLoginRedirectUrl()
+		: 'index?action=login';
 	return false;
 };
 
@@ -507,8 +558,83 @@ async function checkApiHealth() {
 })();
 
 function getLoginRedirectUrl() {
-	return 'index?action=login';
+	const base = 'index?action=login';
+	const returnTo = window.authRedirect && typeof window.authRedirect.buildReturnTo === 'function'
+		? window.authRedirect.buildReturnTo()
+		: null;
+	if (returnTo) {
+		return `${base}&returnTo=${encodeURIComponent(returnTo)}`;
+	}
+	return base;
 }
+
+window.getLoginRedirectUrl = getLoginRedirectUrl;
+
+window.actionRouter = window.actionRouter || (function createActionRouter() {
+	const registry = new Map();
+
+	function normalizeAction(action) {
+		return typeof action === 'string' ? action.trim().toLowerCase() : '';
+	}
+
+	function parseUrl() {
+		try {
+			const url = new URL(window.location.href);
+			const action = normalizeAction(url.searchParams.get('action'));
+			if (!action) return null;
+			const params = {};
+			url.searchParams.forEach((value, key) => {
+				params[key] = value;
+			});
+			return { action, params, url };
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function removeParams(url, keys = []) {
+		if (!url) return;
+		url.searchParams.delete('action');
+		keys.forEach((key) => url.searchParams.delete(key));
+		const nextQuery = url.searchParams.toString();
+		const nextUrl = url.pathname + (nextQuery ? `?${nextQuery}` : '') + url.hash;
+		window.history.replaceState({}, document.title, nextUrl);
+	}
+
+	async function run({ source = 'auto' } = {}) {
+		const parsed = parseUrl();
+		if (!parsed) return { ran: false, reason: 'no-action' };
+		const entry = registry.get(parsed.action);
+		if (!entry) {
+			console.warn('[Action Router] No handler registered for action.', parsed.action);
+			return { ran: false, reason: 'unregistered' };
+		}
+		if (window.authGuard && typeof window.authGuard.checkSessionAndPrompt === 'function') {
+			const ok = await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
+			if (!ok) return { ran: false, reason: 'auth-required' };
+		}
+		if (window.pageContentReady?.promise) {
+			try {
+				await window.pageContentReady.promise;
+			} catch (error) {
+				console.warn('[Action Router] Page readiness promise rejected.', error);
+			}
+		}
+		await entry.handler({ action: parsed.action, params: parsed.params, source });
+		if (entry.options?.removeQuery !== false) {
+			removeParams(parsed.url, entry.options?.removeKeys || []);
+		}
+		return { ran: true };
+	}
+
+	function register(action, handler, options = {}) {
+		const key = normalizeAction(action);
+		if (!key || typeof handler !== 'function') return;
+		registry.set(key, { handler, options });
+	}
+
+	return { register, run };
+})();
 
 window.authSession = window.authSession || {};
 window.authSession.clearLocalSession = function clearLocalSession() {

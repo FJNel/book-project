@@ -19,6 +19,16 @@ const {
 	sendAdminEmailVerifiedEmail,
 	sendAdminAccountSetupEmail,
 	sendDevelopmentFeaturesEmail,
+	sendApiKeyCreatedEmail,
+	sendApiKeyRevokedEmail,
+	sendApiKeyBanAppliedEmail,
+	sendApiKeyBanRemovedEmail,
+	sendUsageRestrictionAppliedEmail,
+	sendUsageRestrictionRemovedEmail,
+	sendUsageWarningUserEmail,
+	sendUsageWarningApiKeyEmail,
+	sendApiKeyExpiringEmail,
+	sendApiKeyExpiredEmail,
 } = require('./email');
 const {
 	canSendEmailForUser,
@@ -244,6 +254,26 @@ async function runJob(job) {
 			);
 		case 'dev_features_announcement':
 			return sendDevelopmentFeaturesEmail(params.toEmail, params.preferredName, params.subject, params.markdownBody);
+		case 'api_key_created':
+			return sendApiKeyCreatedEmail(params.toEmail, params.preferredName, params.keyName, params.keyPrefix, params.expiresAt);
+		case 'api_key_revoked':
+			return sendApiKeyRevokedEmail(params.toEmail, params.preferredName, params.keyName, params.keyPrefix, params.initiator);
+		case 'api_key_ban_applied':
+			return sendApiKeyBanAppliedEmail(params.toEmail, params.preferredName, params.reason);
+		case 'api_key_ban_removed':
+			return sendApiKeyBanRemovedEmail(params.toEmail, params.preferredName);
+		case 'usage_restriction_applied':
+			return sendUsageRestrictionAppliedEmail(params.toEmail, params.preferredName, params.reason, params.lockoutUntil);
+		case 'usage_restriction_removed':
+			return sendUsageRestrictionRemovedEmail(params.toEmail, params.preferredName);
+		case 'usage_warning_user':
+			return sendUsageWarningUserEmail(params.toEmail, params.preferredName, params.usageLevel);
+		case 'usage_warning_api_key':
+			return sendUsageWarningApiKeyEmail(params.toEmail, params.preferredName, params.keyName, params.usageLevel);
+		case 'api_key_expiring':
+			return sendApiKeyExpiringEmail(params.toEmail, params.preferredName, params.keyName, params.expiresAt);
+		case 'api_key_expired':
+			return sendApiKeyExpiredEmail(params.toEmail, params.preferredName, params.keyName);
 		default:
 			logToFile(
 				'EMAIL_SEND',

@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 const MAX_LIST_LIMIT = 200;
 
@@ -53,8 +59,8 @@ function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	return { value: parsed };
 }
 
-// GET /tags/stats - Tag statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /tags/stats - Tag statistics
+const tagStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -86,6 +92,24 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	const unusedLimitValue = unusedLimit ?? 50;
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "tags/stats",
+			params: {
+				fields: [...selected].sort(),
+				leastLimit: leastLimit ?? null,
+				unusedLimit: unusedLimit ?? null
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Tag stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 
 		const totalTagsResult = await pool.query(
@@ -183,7 +207,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			}));
 		}
 
-		return successResponse(res, 200, "Tag stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Tag stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("TAG_STATS", {
 			status: "FAILURE",
@@ -194,7 +223,10 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve tag stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, tagStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, tagStatsHandler);
 
 // GET /tags - List all tags for the authenticated user
 router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {

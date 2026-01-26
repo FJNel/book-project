@@ -1210,6 +1210,220 @@ async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationTo
 	}
 } // sendAdminAccountSetupEmail
 
+async function sendSimpleNoticeEmail({ type, toEmail, preferredName, subject, headline, lines = [], ctaUrl = null, ctaLabel = null }) {
+	logEmailAttempt(type, toEmail, { subject });
+	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
+		logToFile("EMAIL_SERVICE_MISCONFIGURED", { message: "Email service environment variables are not set.", type, to: toEmail }, "error");
+		console.error("Email service is not configured. Please check environment variables.");
+		return false;
+	}
+
+	const year = new Date().getFullYear();
+	const safeLines = lines.filter(Boolean).map((line) => `<p style="font-size: 15px; color: #4a5568; line-height: 1.6; margin: 0 0 12px;">${escapeHtml(line)}</p>`).join('');
+	const greeting = preferredName ? `Hello, ${escapeHtml(preferredName)}!` : 'Hello!';
+	const ctaHtml = ctaUrl && ctaLabel
+		? `<div style="text-align:center; margin: 24px 0;">
+			<a href="${ctaUrl}" style="background-color:#3182ce; color:#fff; text-decoration:none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display:inline-block;">${escapeHtml(ctaLabel)}</a>
+		</div>`
+		: '';
+
+	const html = `
+	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 620px; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+		<tr>
+		  <td align="center" style="padding: 24px;">
+			<img src="https://placehold.co/150x50?text=The+Book+Project&font=Lora" alt="Book Project" style="display: block; height: 50px; margin-bottom: 16px;">
+		  </td>
+		</tr>
+		<tr>
+		  <td style="padding: 0 32px 32px 32px; color: #333;">
+			<h2 style="color: #2d3748; margin-bottom: 12px;">${escapeHtml(headline || subject)}</h2>
+			<p style="font-size: 16px; color: #4a5568; line-height: 1.6; margin: 0 0 16px;">${greeting}</p>
+			${safeLines}
+			${ctaHtml}
+			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;">
+			<p style="font-size: 12px; color: #a0aec0; text-align: center;">&copy; ${year} Book Project. All rights reserved.</p>
+		  </td>
+		</tr>
+	  </table>
+	</div>
+	`;
+
+	try {
+		const data = await mg.messages.create(MAILGUN_DOMAIN, {
+			from: `Book Project <${FROM_EMAIL}>`,
+			to: [preferredName ? `${preferredName} <${toEmail}>` : toEmail],
+			subject,
+			html
+		});
+		logToFile("EMAIL_SENT", { to: toEmail, type, id: data.id });
+		return true;
+	} catch (error) {
+		logToFile("EMAIL_SEND_ERROR", { to: toEmail, error: error.message }, "error");
+		console.error(`Error sending ${type} email:`, error.message);
+		return false;
+	}
+}
+
+function sendApiKeyCreatedEmail(toEmail, preferredName, keyName, keyPrefix, expiresAt) {
+	const subject = "API key created";
+	const lines = [
+		`A new API key named "${keyName}" was created for your account.`,
+		`Key prefix: ${keyPrefix}.`,
+		expiresAt ? `Expiry: ${new Date(expiresAt).toISOString()}.` : "Expiry: none."
+	];
+	return sendSimpleNoticeEmail({
+		type: "api_key_created",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "New API key created",
+		lines,
+		ctaUrl: `${normalizeFrontendUrl(FRONTEND_URL)}/account`,
+		ctaLabel: "Manage API keys"
+	});
+}
+
+function sendApiKeyRevokedEmail(toEmail, preferredName, keyName, keyPrefix, initiator = "user") {
+	const subject = "API key revoked";
+	const lines = [
+		keyName ? `The API key "${keyName}" was revoked.` : "An API key was revoked.",
+		keyPrefix ? `Key prefix: ${keyPrefix}.` : null,
+		initiator === "admin" ? "This action was completed by an administrator." : "This action was completed by you."
+	];
+	return sendSimpleNoticeEmail({
+		type: "api_key_revoked",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key revoked",
+		lines,
+		ctaUrl: `${normalizeFrontendUrl(FRONTEND_URL)}/account`,
+		ctaLabel: "Review API keys"
+	});
+}
+
+function sendApiKeyBanAppliedEmail(toEmail, preferredName, reason) {
+	const subject = "API key creation blocked";
+	const lines = [
+		"An administrator has blocked new API key creation for your account.",
+		reason ? `Reason: ${reason}` : "Please contact support if you need help."
+	];
+	return sendSimpleNoticeEmail({
+		type: "api_key_ban_applied",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key creation blocked",
+		lines
+	});
+}
+
+function sendApiKeyBanRemovedEmail(toEmail, preferredName) {
+	const subject = "API key creation restored";
+	const lines = ["API key creation has been restored for your account."];
+	return sendSimpleNoticeEmail({
+		type: "api_key_ban_removed",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key creation restored",
+		lines
+	});
+}
+
+function sendUsageRestrictionAppliedEmail(toEmail, preferredName, reason, lockoutUntil) {
+	const subject = "Usage restriction applied";
+	const untilText = lockoutUntil ? `Restriction ends at ${new Date(lockoutUntil).toISOString()}.` : "Restriction end time not available.";
+	const lines = [
+		"Your access has been temporarily limited due to heavy usage.",
+		untilText,
+		reason ? `Reason: ${reason}` : null
+	];
+	return sendSimpleNoticeEmail({
+		type: "usage_restriction_applied",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "Usage restriction applied",
+		lines
+	});
+}
+
+function sendUsageRestrictionRemovedEmail(toEmail, preferredName) {
+	const subject = "Usage restriction removed";
+	const lines = ["Your access restriction has been removed. Thank you for your patience."];
+	return sendSimpleNoticeEmail({
+		type: "usage_restriction_removed",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "Usage restriction removed",
+		lines
+	});
+}
+
+function sendUsageWarningUserEmail(toEmail, preferredName, usageLevel) {
+	const subject = "High usage alert";
+	const lines = [
+		`Your recent usage is currently ranked as ${usageLevel}.`,
+		"If you have any questions about usage limits, please contact support."
+	];
+	return sendSimpleNoticeEmail({
+		type: "usage_warning_user",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "Usage alert",
+		lines
+	});
+}
+
+function sendUsageWarningApiKeyEmail(toEmail, preferredName, keyName, usageLevel) {
+	const subject = "API key usage alert";
+	const lines = [
+		`Usage for API key "${keyName}" is currently ranked as ${usageLevel}.`,
+		"Consider rotating or reviewing your API key usage if this is unexpected."
+	];
+	return sendSimpleNoticeEmail({
+		type: "usage_warning_api_key",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key usage alert",
+		lines
+	});
+}
+
+function sendApiKeyExpiringEmail(toEmail, preferredName, keyName, expiresAt) {
+	const subject = "API key expiry approaching";
+	const lines = [
+		`API key "${keyName}" will expire soon.`,
+		`Expiry: ${new Date(expiresAt).toISOString()}.`
+	];
+	return sendSimpleNoticeEmail({
+		type: "api_key_expiring",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key expiring",
+		lines
+	});
+}
+
+function sendApiKeyExpiredEmail(toEmail, preferredName, keyName) {
+	const subject = "API key expired";
+	const lines = [`API key "${keyName}" has expired and can no longer be used.`];
+	return sendSimpleNoticeEmail({
+		type: "api_key_expired",
+		toEmail,
+		preferredName,
+		subject,
+		headline: "API key expired",
+		lines
+	});
+}
+
 module.exports = {
 	sendVerificationEmail,
 	sendPasswordResetEmail,
@@ -1227,5 +1441,15 @@ module.exports = {
 	sendAdminEmailUnverifiedEmail,
 	sendAdminEmailVerifiedEmail,
 	sendAdminAccountSetupEmail,
-	sendDevelopmentFeaturesEmail
+	sendDevelopmentFeaturesEmail,
+	sendApiKeyCreatedEmail,
+	sendApiKeyRevokedEmail,
+	sendApiKeyBanAppliedEmail,
+	sendApiKeyBanRemovedEmail,
+	sendUsageRestrictionAppliedEmail,
+	sendUsageRestrictionRemovedEmail,
+	sendUsageWarningUserEmail,
+	sendUsageWarningApiKeyEmail,
+	sendApiKeyExpiringEmail,
+	sendApiKeyExpiredEmail
 };

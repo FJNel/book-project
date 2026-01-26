@@ -190,6 +190,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 	await waitForMaintenanceModal();
 	if (getTokensPresent()) {
+		const returnTo = window.authRedirect && typeof window.authRedirect.consume === 'function'
+			? window.authRedirect.consume()
+			: null;
+		if (returnTo) {
+			console.log('[Index Actions] User already logged in; redirecting to original destination.', { returnTo });
+			window.location.href = returnTo;
+			return;
+		}
 		console.log('[Index Actions] User already logged in; redirecting to dashboard.');
 		window.location.href = 'dashboard';
 		return;

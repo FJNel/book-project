@@ -892,6 +892,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadPage();
 
+  if (window.actionRouter && typeof window.actionRouter.register === 'function') {
+    window.actionRouter.register('edit_author', async ({ params }) => {
+      const targetId = Number.parseInt(params.author_id || params.authorId || params.id, 10);
+      if (!Number.isInteger(targetId) || targetId !== authorId) return;
+      if (!authorRecord) {
+        log('Action requested before author data loaded; waiting for page readiness.');
+      }
+      openEditModal();
+    }, { removeKeys: ['author_id', 'authorId', 'id'] });
+    window.actionRouter.run({ source: 'author-details' });
+  }
+
   if (editAuthorBtn) {
     editAuthorBtn.addEventListener('click', openEditModal);
   }

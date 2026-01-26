@@ -23,12 +23,22 @@ const EMAIL_TYPE_CATEGORY_MAP = {
 	email_change_verification: EMAIL_CATEGORIES.ESSENTIAL,
 	email_change_confirmation: EMAIL_CATEGORIES.ESSENTIAL,
 	admin_account_setup: EMAIL_CATEGORIES.ESSENTIAL,
+	api_key_revoked: EMAIL_CATEGORIES.ESSENTIAL,
+	api_key_ban_applied: EMAIL_CATEGORIES.ESSENTIAL,
+	api_key_ban_removed: EMAIL_CATEGORIES.ESSENTIAL,
+	usage_restriction_applied: EMAIL_CATEGORIES.ESSENTIAL,
+	usage_restriction_removed: EMAIL_CATEGORIES.ESSENTIAL,
 	welcome: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_profile_update: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_account_disabled: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_account_enabled: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_email_unverified: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_email_verified: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	api_key_created: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	api_key_expiring: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	api_key_expired: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	usage_warning_user: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	usage_warning_api_key: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	dev_features_announcement: EMAIL_CATEGORIES.DEV_FEATURES
 };
 

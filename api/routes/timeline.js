@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 const MAX_BUCKETS = 200;
 
@@ -194,8 +200,8 @@ function resolveEntityConfig(entity, field) {
 	return null;
 }
 
-// POST /timeline/buckets - Timeline bucket statistics
-router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /timeline/buckets - Timeline bucket statistics
+const timelineBucketsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const entity = typeof req.body?.entity === "string" ? req.body.entity.trim() : "";
 	const field = typeof req.body?.field === "string" ? req.body.field.trim() : "";
@@ -234,6 +240,30 @@ router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", ["Entity and field combination is not supported."]);
 	}
 
+	const cacheKey = buildCacheKey({
+		scope: "user",
+		userId,
+		endpoint: "timeline/buckets",
+		params: {
+			entity,
+			field,
+			auto: autoMode,
+			step: autoMode ? null : step,
+			stepUnit: autoMode ? (req.body?.stepUnit ? stepUnit : "auto") : stepUnit,
+			numberOfBuckets: requestedBuckets ?? null,
+			hideEmptyBuckets,
+			start: startInput ?? null,
+			end: endInput ?? null
+		}
+	});
+	const cached = getCacheEntry(cacheKey);
+	if (cached) {
+		return successResponse(res, 200, "Timeline buckets retrieved successfully.", {
+			...cached.data,
+			cache: { hit: true, ageSeconds: cached.ageSeconds }
+		});
+	}
+
 	const baseJoin = config.joins ? `${config.joins}` : "";
 
 	let startDate = null;
@@ -256,7 +286,7 @@ router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
 			const minDate = rangeResult.rows[0]?.min_date;
 			const maxDate = rangeResult.rows[0]?.max_date;
 			if (!minDate || !maxDate) {
-				return successResponse(res, 200, "Timeline buckets retrieved successfully.", {
+				const responseData = {
 					entity,
 					field,
 					start: null,
@@ -266,8 +296,11 @@ router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
 					buckets: [],
 					beforeStart: 0,
 					afterEnd: 0,
-					unknown: 0
-				});
+					unknown: 0,
+					cache: { hit: false, ageSeconds: 0 }
+				};
+				setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+				return successResponse(res, 200, "Timeline buckets retrieved successfully.", responseData);
 			}
 			startDate = new Date(minDate);
 			endDateExclusive = addInterval(new Date(maxDate), 1, "day");
@@ -408,7 +441,12 @@ router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
 			unknown: unknownResult.rows[0]?.count ?? 0
 		};
 
-		return successResponse(res, 200, "Timeline buckets retrieved successfully.", payload);
+		const responseData = {
+			...payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Timeline buckets retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("TIMELINE_BUCKETS", {
 			status: "FAILURE",
@@ -419,6 +457,9 @@ router.post("/buckets", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve timeline buckets at this time."]);
 	}
-});
+};
+
+router.get("/buckets", requiresAuth, statsLimiter, timelineBucketsHandler);
+router.post("/buckets", requiresAuth, statsLimiter, timelineBucketsHandler);
 
 module.exports = router;

@@ -7,6 +7,12 @@ const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../utils/email-queue");
@@ -987,6 +993,30 @@ router.post("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res)
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
+	try {
+		const banCheck = await pool.query(
+			"SELECT api_key_ban_enabled, api_key_ban_reason FROM users WHERE id = $1",
+			[userId]
+		);
+		const banRow = banCheck.rows[0];
+		if (banRow?.api_key_ban_enabled) {
+			const reason = banRow.api_key_ban_reason
+				? `Reason: ${banRow.api_key_ban_reason}`
+				: "This action has been restricted by an administrator.";
+			return errorResponse(res, 403, "API key creation blocked.", ["You are currently prevented from creating new API keys.", reason]);
+		}
+	} catch (error) {
+		logToFile("API_KEY_CREATE", {
+			status: "FAILURE",
+			reason: "BAN_CHECK_FAILED",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Internal Server Error", ["Unable to verify API key permissions at this time."]);
+	}
+
 	const { token, prefix, hash } = generateApiKey();
 
 	try {
@@ -1005,6 +1035,39 @@ router.post("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res)
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
+
+		try {
+			const userResult = await pool.query(
+				"SELECT email, preferred_name FROM users WHERE id = $1",
+				[userId]
+			);
+			const userRow = userResult.rows[0];
+			if (userRow?.email) {
+				enqueueEmail({
+					type: "api_key_created",
+					userId,
+					params: {
+						toEmail: userRow.email,
+						preferredName: userRow.preferred_name || "there",
+						keyName: row.name,
+						keyPrefix: row.key_prefix,
+						expiresAt: row.expires_at
+					},
+					context: {
+						event: "api_key_created",
+						keyId: row.id
+					}
+				});
+			}
+		} catch (emailError) {
+			logToFile("API_KEY_CREATE", {
+				status: "FAILURE",
+				reason: "EMAIL_QUEUE_FAILED",
+				error_message: emailError.message,
+				user_id: userId,
+				key_id: row.id
+			}, "warn");
+		}
 
 		return successResponse(res, 201, "API key created successfully.", {
 			id: row.id,
@@ -1085,6 +1148,37 @@ router.delete("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, re
 			user_agent: req.get("user-agent")
 		}, "info");
 
+		try {
+			const userResult = await pool.query(
+				"SELECT email, preferred_name FROM users WHERE id = $1",
+				[userId]
+			);
+			const userRow = userResult.rows[0];
+			if (userRow?.email) {
+				enqueueEmail({
+					type: "api_key_revoked",
+					userId,
+					params: {
+						toEmail: userRow.email,
+						preferredName: userRow.preferred_name || "there",
+						keyId
+					},
+					context: {
+						event: "api_key_revoked",
+						keyId
+					}
+				});
+			}
+		} catch (emailError) {
+			logToFile("API_KEY_REVOKE", {
+				status: "FAILURE",
+				reason: "EMAIL_QUEUE_FAILED",
+				error_message: emailError.message,
+				user_id: userId,
+				key_id: keyId
+			}, "warn");
+		}
+
 		return successResponse(res, 200, "API key revoked successfully.", { id: keyId });
 	} catch (error) {
 		logToFile("API_KEY_REVOKE", {
@@ -1098,8 +1192,8 @@ router.delete("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, re
 	}
 });
 
-// GET /users/me/stats - Summary statistics for the user's library
-router.get("/me/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /users/me/stats - Summary statistics for the user's library
+const userStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(listParams.fields)
@@ -1136,6 +1230,20 @@ router.get("/me/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "users/me/stats",
+			params: { fields: [...selected].sort() }
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "User stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const query = `SELECT ${selected.map((field) => fieldMap[field]).join(", ")}
 			FROM users u
 			WHERE u.id = $1`;
@@ -1147,7 +1255,13 @@ router.get("/me/stats", requiresAuth, statsLimiter, async (req, res) => {
 			payload[field] = row[key] ?? null;
 		});
 
-		return successResponse(res, 200, "User stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+
+		return successResponse(res, 200, "User stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("USER_STATS", {
 			status: "FAILURE",
@@ -1158,7 +1272,10 @@ router.get("/me/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve stats at this time."]);
 	}
-});
+};
+
+router.get("/me/stats", requiresAuth, statsLimiter, userStatsHandler);
+router.post("/me/stats", requiresAuth, statsLimiter, userStatsHandler);
 
 async function changePassword(req, res) {
 	const userId = req.user.id;

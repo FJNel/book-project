@@ -8,6 +8,12 @@ const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters")
 const { logToFile } = require("../utils/logging");
 const { validatePartialDateObject } = require("../utils/partial-date");
 const { normalizeTagName, buildTagDisplayName } = require("../utils/tag-normalization");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 const MAX_TITLE_LENGTH = 255;
 const MAX_SUBTITLE_LENGTH = 255;
@@ -20,6 +26,8 @@ const MAX_ACQUISITION_TYPE_LENGTH = 100;
 const MAX_ACQUISITION_LOCATION_LENGTH = 255;
 const MAX_COPY_NOTES_LENGTH = 2000;
 const MAX_AUTHOR_ROLE_LENGTH = 100;
+const MIN_ASSOCIATION_SAMPLE = 20;
+const ASSOCIATION_DIFF_THRESHOLD = 10;
 
 router.use((req, res, next) => {
 	logToFile("BOOK_REQUEST", {
@@ -2147,8 +2155,8 @@ router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
-// GET /book/stats - Book statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /book/stats - Book statistics
+const bookStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -2183,7 +2191,9 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		"newestPublicationYear",
 		"metadataCompleteness",
 		"recentlyAdded",
-		"recentlyEdited"
+		"recentlyEdited",
+		"publisherPageCountAssociation",
+		"taggedPageCountAssociation"
 	]);
 
 	const selected = fields.length > 0 ? fields : Array.from(availableFields);
@@ -2217,6 +2227,20 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	].includes(field));
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "book/stats",
+			params: { fields: [...selected].sort() }
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Book stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 		let base = null;
 
@@ -2299,6 +2323,108 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 				last30Days: base?.edited_30 ?? 0,
 				last365Days: base?.edited_365 ?? 0
 			};
+		}
+
+		const buildAssociationPayload = ({ labelWith, labelWithout, withCount, withoutCount, withMedian, withoutMedian, withAvg, withoutAvg }) => {
+			const totalSample = (withCount ?? 0) + (withoutCount ?? 0);
+			const response = {
+				withGroup: {
+					label: labelWith,
+					count: withCount ?? 0,
+					avgPageCount: withAvg === null || withAvg === undefined ? null : Number.parseFloat(withAvg),
+					medianPageCount: withMedian === null || withMedian === undefined ? null : Number.parseFloat(withMedian)
+				},
+				withoutGroup: {
+					label: labelWithout,
+					count: withoutCount ?? 0,
+					avgPageCount: withoutAvg === null || withoutAvg === undefined ? null : Number.parseFloat(withoutAvg),
+					medianPageCount: withoutMedian === null || withoutMedian === undefined ? null : Number.parseFloat(withoutMedian)
+				},
+				sampleSize: totalSample,
+				minimumGroupSize: MIN_ASSOCIATION_SAMPLE,
+				insight: "Not enough data yet."
+			};
+
+			if ((withCount ?? 0) >= MIN_ASSOCIATION_SAMPLE && (withoutCount ?? 0) >= MIN_ASSOCIATION_SAMPLE) {
+				const metricWith = withMedian ?? withAvg ?? null;
+				const metricWithout = withoutMedian ?? withoutAvg ?? null;
+				if (metricWith !== null && metricWithout !== null) {
+					const diff = Number(metricWith) - Number(metricWithout);
+					const absDiff = Math.abs(diff);
+					let direction = "similar";
+					if (absDiff >= ASSOCIATION_DIFF_THRESHOLD) {
+						direction = diff > 0 ? "higher" : "lower";
+					}
+					response.insight = direction === "similar"
+						? `In your library, ${labelWith} are associated with similar page counts to ${labelWithout} (based on your data).`
+						: `In your library, ${labelWith} are associated with ${direction} page counts than ${labelWithout} (based on your data).`;
+				}
+			}
+
+			return response;
+		};
+
+		if (selected.includes("publisherPageCountAssociation")) {
+			const assocResult = await pool.query(
+				`SELECT
+					COUNT(*) FILTER (WHERE b.publisher_id IS NOT NULL AND b.page_count IS NOT NULL)::int AS with_publisher_count,
+					AVG(b.page_count) FILTER (WHERE b.publisher_id IS NOT NULL AND b.page_count IS NOT NULL) AS with_publisher_avg,
+					PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.page_count)
+						FILTER (WHERE b.publisher_id IS NOT NULL AND b.page_count IS NOT NULL) AS with_publisher_median,
+					COUNT(*) FILTER (WHERE b.publisher_id IS NULL AND b.page_count IS NOT NULL)::int AS without_publisher_count,
+					AVG(b.page_count) FILTER (WHERE b.publisher_id IS NULL AND b.page_count IS NOT NULL) AS without_publisher_avg,
+					PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.page_count)
+						FILTER (WHERE b.publisher_id IS NULL AND b.page_count IS NOT NULL) AS without_publisher_median
+				 FROM books b
+				 WHERE b.user_id = $1 AND b.deleted_at IS NULL`,
+				[userId]
+			);
+			const row = assocResult.rows[0] || {};
+			payload.publisherPageCountAssociation = buildAssociationPayload({
+				labelWith: "books with publishers",
+				labelWithout: "books without publishers",
+				withCount: row.with_publisher_count,
+				withoutCount: row.without_publisher_count,
+				withMedian: row.with_publisher_median,
+				withoutMedian: row.without_publisher_median,
+				withAvg: row.with_publisher_avg,
+				withoutAvg: row.without_publisher_avg
+			});
+		}
+
+		if (selected.includes("taggedPageCountAssociation")) {
+			const taggedResult = await pool.query(
+				`WITH tagged AS (
+					SELECT DISTINCT bt.book_id
+					FROM book_tags bt
+					JOIN books b2 ON b2.id = bt.book_id AND b2.deleted_at IS NULL
+					WHERE bt.user_id = $1
+				)
+				SELECT
+					COUNT(*) FILTER (WHERE t.book_id IS NOT NULL AND b.page_count IS NOT NULL)::int AS with_tags_count,
+					AVG(b.page_count) FILTER (WHERE t.book_id IS NOT NULL AND b.page_count IS NOT NULL) AS with_tags_avg,
+					PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.page_count)
+						FILTER (WHERE t.book_id IS NOT NULL AND b.page_count IS NOT NULL) AS with_tags_median,
+					COUNT(*) FILTER (WHERE t.book_id IS NULL AND b.page_count IS NOT NULL)::int AS without_tags_count,
+					AVG(b.page_count) FILTER (WHERE t.book_id IS NULL AND b.page_count IS NOT NULL) AS without_tags_avg,
+					PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.page_count)
+						FILTER (WHERE t.book_id IS NULL AND b.page_count IS NOT NULL) AS without_tags_median
+				 FROM books b
+				 LEFT JOIN tagged t ON t.book_id = b.id
+				 WHERE b.user_id = $1 AND b.deleted_at IS NULL`,
+				[userId]
+			);
+			const row = taggedResult.rows[0] || {};
+			payload.taggedPageCountAssociation = buildAssociationPayload({
+				labelWith: "tagged books",
+				labelWithout: "untagged books",
+				withCount: row.with_tags_count,
+				withoutCount: row.without_tags_count,
+				withMedian: row.with_tags_median,
+				withoutMedian: row.without_tags_median,
+				withAvg: row.with_tags_avg,
+				withoutAvg: row.without_tags_avg
+			});
 		}
 
 		if (selected.includes("metadataCompleteness")) {
@@ -2427,7 +2553,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			payload.shortestBook = row ? { id: row.id, title: row.title, pageCount: row.page_count } : null;
 		}
 
-		return successResponse(res, 200, "Book stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Book stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("BOOK_STATS", {
 			status: "FAILURE",
@@ -2438,7 +2569,10 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, bookStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, bookStatsHandler);
 
 // POST /book/restore - Restore deleted books (single or bulk)
 router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {

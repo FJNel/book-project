@@ -305,14 +305,13 @@ document.addEventListener('DOMContentLoaded', () => {
             role: data.data.user.role
         }));
 
-        // Remove ?action=login from URL so nothing re-opens the login modal later
+        // Remove action/returnTo from URL so nothing re-opens the login modal later
         try {
             const url = new URL(window.location.href);
-            if (url.searchParams.has('action')) {
-                url.searchParams.delete('action');
-                const query = url.searchParams.toString();
-                window.history.replaceState({}, document.title, url.pathname + (query ? `?${query}` : '') + url.hash);
-            }
+            if (url.searchParams.has('action')) url.searchParams.delete('action');
+            if (url.searchParams.has('returnTo')) url.searchParams.delete('returnTo');
+            const query = url.searchParams.toString();
+            window.history.replaceState({}, document.title, url.pathname + (query ? `?${query}` : '') + url.hash);
         } catch (error) {
             console.warn('[Login] Unable to update URL query params:', error);
         }
@@ -350,7 +349,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        const storedReturnTo = window.authRedirect && typeof window.authRedirect.consume === 'function'
+            ? window.authRedirect.consume()
+            : null;
+        let returnTo = storedReturnTo;
+        if (!returnTo) {
+            try {
+                const url = new URL(window.location.href);
+                returnTo = url.searchParams.get('returnTo');
+            } catch (error) {
+                returnTo = null;
+            }
+        }
+
         setTimeout(() => {
+            if (returnTo) {
+                console.log('[Redirect] Redirecting to original destination.', { returnTo });
+                window.location.href = returnTo;
+                return;
+            }
             console.log('[Redirect] Redirecting to dashboard...');
             window.location.href = 'dashboard';
         }, 3000);

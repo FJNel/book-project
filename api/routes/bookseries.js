@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 const MAX_SERIES_NAME_LENGTH = 150;
 const MAX_SERIES_DESCRIPTION_LENGTH = 1000;
@@ -924,8 +930,8 @@ router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
-// GET /bookseries/stats - Series statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /bookseries/stats - Series statistics
+const seriesStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -966,6 +972,24 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "bookseries/stats",
+			params: {
+				fields: [...selected].sort(),
+				orphanLimit: orphanLimit ?? null,
+				orphanOffset: orphanOffset ?? null
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Series stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 		const scalarFields = selected.filter((field) => fieldMap[field]);
 		if (scalarFields.length > 0) {
@@ -1169,7 +1193,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			}));
 		}
 
-		return successResponse(res, 200, "Series stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Series stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("BOOK_SERIES_STATS", {
 			status: "FAILURE",
@@ -1180,7 +1209,10 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve series stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, seriesStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, seriesStatsHandler);
 
 // POST /bookseries/link - Link a book to a series
 router.post("/link", requiresAuth, authenticatedLimiter, async (req, res) => {

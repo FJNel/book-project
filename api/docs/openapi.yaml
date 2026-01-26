@@ -155,6 +155,421 @@ paths:
                         properties:
                           stats:
                             type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Admin]
+      summary: Site statistics (JSON body)
+      operationId: postAdminSiteStats
+      description: Retrieve site-wide counts using JSON body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Site statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/usage/users:
+    post:
+      tags: [Admin]
+      summary: User usage analytics
+      operationId: getAdminUserUsage
+      description: Aggregate usage for authenticated user sessions. JSON body preferred; query params also supported.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageRequest'
+            examples:
+              last7Days:
+                value:
+                  startDate: 2026-01-01T00:00:00Z
+                  endDate: 2026-01-07T00:00:00Z
+                  limit: 25
+                  sortBy: usageScore
+                  order: desc
+      responses:
+        '200':
+          description: User usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          usageLevels:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UsageLevelRange'
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserUsageEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: User usage analytics (query)
+      operationId: getAdminUserUsageQuery
+      description: Aggregate usage for authenticated user sessions via query params.
+      responses:
+        '200':
+          description: User usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          usageLevels:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UsageLevelRange'
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserUsageEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/usage/api-keys:
+    post:
+      tags: [Admin]
+      summary: API key usage analytics
+      operationId: getAdminApiKeyUsage
+      description: Aggregate usage for API keys. JSON body preferred; query params also supported.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageRequest'
+            examples:
+              last30Days:
+                value:
+                  startDate: 2026-01-01T00:00:00Z
+                  endDate: 2026-01-30T00:00:00Z
+                  limit: 25
+                  sortBy: usageScore
+                  order: desc
+      responses:
+        '200':
+          description: API key usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          usageLevels:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UsageLevelRange'
+                          apiKeys:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminApiKeyUsageEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: API key usage analytics (query)
+      operationId: getAdminApiKeyUsageQuery
+      description: Aggregate usage for API keys via query params.
+      responses:
+        '200':
+          description: API key usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          usageLevels:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UsageLevelRange'
+                          apiKeys:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminApiKeyUsageEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/api-key-ban:
+    post:
+      tags: [Admin]
+      summary: Block API key creation
+      operationId: adminBanApiKeyCreation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyBanRequest'
+      responses:
+        '200':
+          description: API key ban applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/api-key-ban:
+    post:
+      tags: [Admin]
+      summary: Block API key creation (body)
+      operationId: adminBanApiKeyCreationByBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyBanRequest'
+      responses:
+        '200':
+          description: API key ban applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/api-key-unban:
+    post:
+      tags: [Admin]
+      summary: Allow API key creation
+      operationId: adminUnbanApiKeyCreation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyBanRequest'
+      responses:
+        '200':
+          description: API key ban removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/api-key-unban:
+    post:
+      tags: [Admin]
+      summary: Allow API key creation (body)
+      operationId: adminUnbanApiKeyCreationByBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyBanRequest'
+      responses:
+        '200':
+          description: API key ban removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/api-keys/{id}/revoke:
+    post:
+      tags: [Admin]
+      summary: Revoke API key
+      operationId: adminRevokeApiKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyIdentifier'
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/api-keys/revoke:
+    post:
+      tags: [Admin]
+      summary: Revoke API key (body)
+      operationId: adminRevokeApiKeyByBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminApiKeyIdentifier'
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/usage-lockout:
+    post:
+      tags: [Admin]
+      summary: Apply usage lockout
+      operationId: adminApplyUsageLockout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageLockoutRequest'
+      responses:
+        '200':
+          description: Usage lockout applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/usage-lockout:
+    post:
+      tags: [Admin]
+      summary: Apply usage lockout (body)
+      operationId: adminApplyUsageLockoutByBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageLockoutRequest'
+      responses:
+        '200':
+          description: Usage lockout applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/usage-lockout/clear:
+    post:
+      tags: [Admin]
+      summary: Clear usage lockout
+      operationId: adminClearUsageLockout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Usage lockout cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/usage-lockout/clear:
+    post:
+      tags: [Admin]
+      summary: Clear usage lockout (body)
+      operationId: adminClearUsageLockoutByBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserIdentifier'
+      responses:
+        '200':
+          description: Usage lockout cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/users/{id}/email-preferences:
@@ -1630,6 +2045,8 @@ paths:
                         properties:
                           stats:
                             type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 stats:
                   value:
@@ -2675,6 +3092,35 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+    post:
+      tags: [BookTypes, Stats]
+      summary: Book type statistics (JSON body)
+      operationId: postBookTypeStats
+      description: Aggregate counts and averages for book types using JSON body.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTypeStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookTypeStatsResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /author/restore:
     post:
       tags: [Authors]
@@ -2802,7 +3248,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -2877,6 +3333,39 @@ paths:
                     errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Authors, Stats]
+      summary: Author stats (JSON body)
+      operationId: postAuthorStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookauthor/stats:
     get:
       tags: [Authors, Stats]
@@ -2893,7 +3382,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -2942,6 +3441,40 @@ paths:
                             bookCount: 1
                             percentageOfCoauthoredBooks: 33.3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Authors, Stats]
+      summary: Book-author link stats (JSON body)
+      operationId: postBookAuthorStats
+      description: Stats on book-author relationships using JSON body.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookAuthorStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /publisher:
@@ -3501,7 +4034,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -3537,6 +4080,39 @@ paths:
                           bookCount: 18
                           percentageOfBooks: 45.0
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Publishers, Stats]
+      summary: Publisher stats (JSON body)
+      operationId: postPublisherStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublisherStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /bookseries:
@@ -4122,7 +4698,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -4162,6 +4748,39 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Series, Stats]
+      summary: Series stats (JSON body)
+      operationId: postSeriesStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /bookseriesbooks/stats:
     get:
       tags: [BookSeriesLinks, Stats]
@@ -4177,7 +4796,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -4221,6 +4850,39 @@ paths:
                             duplicateOrderNumbers: 1
                             gapCount: 2
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [BookSeriesLinks, Stats]
+      summary: Series-book stats (JSON body)
+      operationId: postSeriesBookStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesBookStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /languages:
@@ -4280,7 +4942,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -4323,6 +4995,39 @@ paths:
                           count: 3
                           percentage: 6.0
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Languages, Stats]
+      summary: Language stats (JSON body)
+      operationId: postLanguageStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LanguageStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /book:
@@ -4924,7 +5629,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -4970,6 +5685,39 @@ paths:
                             bookCount: 40
                             percentage: 33.3
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Books, Stats]
+      summary: Book stats (JSON body)
+      operationId: postBookStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /storagelocation:
@@ -5359,7 +6107,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -5391,7 +6149,69 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+    post:
+      tags: [StorageLocations, Stats]
+      summary: Storage stats (JSON body)
+      operationId: postStorageLocationStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageLocationStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /timeline/buckets:
+    get:
+      tags: [Timeline, Stats]
+      summary: Timeline buckets (query)
+      operationId: getTimelineBucketsQuery
+      description: Build histogram buckets for books or acquisitions. Query params or JSON body accepted.
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimelineBucketsRequest'
+      responses:
+        '200':
+          description: Buckets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TimelineBucketsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
     post:
       tags: [Timeline, Stats]
       summary: Timeline buckets
@@ -5542,7 +6362,6 @@ paths:
     post:
       tags: [BookCopies]
       summary: Create book copy
-      operationId: createBookCopy
       requestBody:
         required: true
         content:
@@ -5768,6 +6587,39 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+    post:
+      tags: [BookCopies, Stats]
+      summary: Book copy stats (JSON body)
+      operationId: postBookCopyStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCopyStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /tags:
     get:
       tags: [Tags]
@@ -5906,6 +6758,39 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Tags, Stats]
+      summary: Tag stats (JSON body)
+      operationId: postTagStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /booktags/stats:
     get:
       tags: [Tags, Stats]
@@ -5921,7 +6806,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
               examples:
                 success:
                   value:
@@ -5966,6 +6861,39 @@ paths:
                             percentageOfBooks: 21.7
                             percentageOfTagUses: 13.8
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+    post:
+      tags: [Tags, Stats]
+      summary: Book-tag stats (JSON body)
+      operationId: postBookTagStats
+      x-rateLimit:
+        limit: 20
+        window: minute
+        note: statsLimiter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookTagStatsRequest'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: object
+                          cache:
+                            $ref: '#/components/schemas/CacheMetadata'
         '401':
           $ref: '#/components/responses/AuthError'
   /export:
@@ -6053,7 +6981,7 @@ paths:
       tags: [Logs]
       summary: List logs
       operationId: listLogs
-      description: Retrieve logs with filters. Body allowed; body wins.
+      description: Retrieve logs with filters. Query params and JSON body are supported (body wins).
       x-rateLimit:
         limit: 60
         window: minute
@@ -6065,12 +6993,12 @@ paths:
               $ref: '#/components/schemas/LogListRequest'
             examples:
               listLogs:
-                summary: List logs for user
+                summary: List logs for a user
                 value:
-                  filterUserId: 12
+                  userId: 12
                   limit: 20
-                  sortBy: createdAt
-                  order: desc
+                  startDate: 2026-01-01T00:00:00Z
+                  endDate: 2026-01-07T00:00:00Z
       responses:
         '200':
           description: Logs
@@ -6098,10 +7026,15 @@ paths:
                     data:
                       logs:
                         - id: 101
-                          action: LOGIN_ATTEMPT
-                          status: SUCCESS
-                          userId: 12
-                          createdAt: "2025-02-05T10:21:44.000Z"
+                          logged_at: "2026-01-05T10:21:44.000Z"
+                          level: info
+                          category: request
+                          method: GET
+                          path: /book/stats
+                          actor_type: user
+                          user_id: 12
+                          status_code: 200
+                          duration_ms: 42.5
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -6110,7 +7043,7 @@ paths:
       tags: [Logs]
       summary: Search logs
       operationId: searchLogs
-      description: Advanced log search with filters/sorting and JSON body.
+      description: Advanced log search with filters and JSON body.
       x-rateLimit:
         limit: 60
         window: minute
@@ -6122,10 +7055,11 @@ paths:
               $ref: '#/components/schemas/LogListRequest'
             examples:
               search:
-                summary: Search logs by status and action
+                summary: Search logs by status range and path
                 value:
-                  filterAction: USER_REGISTERED
-                  filterStatus: FAILURE
+                  statusCodeMin: 400
+                  statusCodeMax: 499
+                  path: /auth/
                   limit: 10
       responses:
         '200':
@@ -6226,6 +7160,69 @@ paths:
                     data:
                       statuses: ["SUCCESS", "FAILURE", "INFO"]
                     errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /logs/{id}:
+    get:
+      tags: [Logs]
+      summary: Get log entry
+      operationId: getLogById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log entry
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          log:
+                            $ref: '#/components/schemas/LogEntry'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /logs/export:
+    post:
+      tags: [Logs]
+      summary: Export logs
+      operationId: exportLogs
+      description: Export logs as JSON (default) or CSV. JSON body preferred.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/LogListRequest'
+                - type: object
+                  properties:
+                    format:
+                      type: string
+                      enum: [json, csv]
+            examples:
+              exportCsv:
+                value:
+                  format: csv
+                  startDate: 2026-01-01T00:00:00Z
+                  endDate: 2026-01-02T00:00:00Z
+      responses:
+        '200':
+          description: Log export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '401':
           $ref: '#/components/responses/AuthError'
   /admin/users:
@@ -8128,11 +9125,62 @@ components:
           type: array
           items:
             type: string
+    TagStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        leastLimit:
+          type: integer
+        unusedLimit:
+          type: integer
+    BookTagStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        breakdownLimit:
+          type: integer
+        pairLimit:
+          type: integer
+    LanguageStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        topLimit:
+          type: integer
+        comboLimit:
+          type: integer
+    SeriesBookStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+    BookAuthorStatsRequest:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: string
+        pairLimit:
+          type: integer
     BookTypeStatsResponse:
       type: object
       properties:
         stats:
           type: object
+        cache:
+          $ref: '#/components/schemas/CacheMetadata'
     Author:
       type: object
       properties:
@@ -9451,6 +10499,8 @@ components:
           type: integer
         hideEmptyBuckets:
           type: boolean
+        cache:
+          $ref: '#/components/schemas/CacheMetadata'
         buckets:
           type: array
           items:
@@ -9720,29 +10770,89 @@ components:
             type: string
             enum: [books, authors, publishers, series, tags]
     LogEntry:
-      description: Structured user action or HTTP log entry.
+      description: Structured HTTP log entry (sanitized).
       type: object
       properties:
         id:
           type: integer
-        action:
-          description: Log action code (e.g., LOGIN_ATTEMPT).
+        logged_at:
           type: string
-        status:
-          description: Normalized status (SUCCESS, FAILURE, INFO).
+          format: date-time
+        level:
           type: string
-        userId:
-          description: Related user id when applicable.
+        category:
+          type: string
+        correlation_id:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        route_pattern:
+          type: string
+        query:
+          type: object
+        headers:
+          type: object
+        body:
+          type: object
+        body_truncated:
+          type: boolean
+        ip:
+          type: string
+        user_agent:
+          type: string
+        actor_type:
+          type: string
+          enum: [user, api_key, anonymous]
+        user_id:
           type:
             - integer
             - "null"
-        metadata:
-          description: Additional structured metadata.
+        user_email:
+          type:
+            - string
+            - "null"
+        user_role:
+          type:
+            - string
+            - "null"
+        api_key_id:
+          type:
+            - integer
+            - "null"
+        api_key_label:
+          type:
+            - string
+            - "null"
+        api_key_prefix:
+          type:
+            - string
+            - "null"
+        status_code:
+          type: integer
+        response_body:
           type: object
-        createdAt:
-          description: Timestamp of the log entry.
-          type: string
-          format: date-time
+        response_truncated:
+          type: boolean
+        duration_ms:
+          type: number
+        error_summary:
+          type:
+            - string
+            - "null"
+        request_bytes:
+          type:
+            - integer
+            - "null"
+        response_bytes:
+          type:
+            - integer
+            - "null"
+        cost_units:
+          type:
+            - integer
+            - "null"
     LogListRequest:
       type: object
       properties:
@@ -9750,20 +10860,38 @@ components:
           type: integer
         offset:
           type: integer
-        sortBy:
+        actorType:
           type: string
-        order:
-          type: string
-        filterAction:
-          type: string
-        filterStatus:
-          type: string
-        filterUserId:
+        userId:
           type: integer
-        filterCreatedAfter:
+        userEmail:
           type: string
-        filterCreatedBefore:
+        apiKeyId:
+          type: integer
+        apiKeyLabel:
           type: string
+        apiKeyPrefix:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        level:
+          type: string
+        category:
+          type: string
+        statusCodeMin:
+          type: integer
+        statusCodeMax:
+          type: integer
+        search:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
     AdminUserListRequest:
       type: object
       properties:
@@ -9783,6 +10911,165 @@ components:
           type: boolean
         filterDisabled:
           type: boolean
+    AdminUsageRequest:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+        offset:
+          type: integer
+        sortBy:
+          type: string
+          enum: [usageScore, requests, lastSeen]
+        order:
+          type: string
+          enum: [asc, desc]
+        topLimit:
+          type: integer
+        userId:
+          type: integer
+        email:
+          type: string
+        apiKeyId:
+          type: integer
+        apiKeyLabel:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+    AdminUserIdentifier:
+      type: object
+      properties:
+        userId:
+          type: integer
+        email:
+          type: string
+    AdminApiKeyIdentifier:
+      type: object
+      properties:
+        id:
+          type: integer
+        apiKeyId:
+          type: integer
+        apiKeyLabel:
+          type: string
+        apiKeyPrefix:
+          type: string
+        userId:
+          type: integer
+    AdminApiKeyBanRequest:
+      allOf:
+        - $ref: '#/components/schemas/AdminUserIdentifier'
+        - type: object
+          properties:
+            reason:
+              type: string
+    AdminUsageLockoutRequest:
+      allOf:
+        - $ref: '#/components/schemas/AdminUserIdentifier'
+        - type: object
+          properties:
+            reason:
+              type: string
+            expiresAt:
+              type: string
+              format: date-time
+            durationMinutes:
+              type: integer
+    UsageLevelRange:
+      type: object
+      properties:
+        label:
+          type: string
+        min:
+          type: integer
+        max:
+          type: number
+    UsageWindow:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+    AdminUserUsageEntry:
+      type: object
+      properties:
+        userId:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        requestCount:
+          type: integer
+        usageScore:
+          type: integer
+        usageLevel:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        topEndpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              method:
+                type: string
+              path:
+                type: string
+              count:
+                type: integer
+    AdminApiKeyUsageEntry:
+      type: object
+      properties:
+        apiKeyId:
+          type: integer
+        apiKeyLabel:
+          type: string
+        apiKeyPrefix:
+          type: string
+        userId:
+          type: integer
+        email:
+          type: string
+        requestCount:
+          type: integer
+        usageScore:
+          type: integer
+        usageLevel:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        topEndpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              method:
+                type: string
+              path:
+                type: string
+              count:
+                type: integer
+    CacheMetadata:
+      type: object
+      properties:
+        hit:
+          type: boolean
+        ageSeconds:
+          type: number
     AdminUserCreate:
       type: object
       required: [fullName, email]

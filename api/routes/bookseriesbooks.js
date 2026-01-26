@@ -6,6 +6,12 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
+const {
+	DEFAULT_USER_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
 
 router.use((req, res, next) => {
 	logToFile("BOOKSERIESBOOKS_REQUEST", {
@@ -43,8 +49,8 @@ function normalizeText(value) {
 	return value.trim();
 }
 
-// GET /bookseriesbooks/stats - Book series link statistics
-router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
+// GET/POST /bookseriesbooks/stats - Book series link statistics
+const seriesBooksStatsHandler = async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
@@ -67,6 +73,20 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 	}
 
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "user",
+			userId,
+			endpoint: "bookseriesbooks/stats",
+			params: { fields: [...selected].sort() }
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Book series link stats retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const payload = {};
 
 		if (selected.includes("booksInSeries") || selected.includes("standalones")) {
@@ -256,7 +276,12 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 			}));
 		}
 
-		return successResponse(res, 200, "Book series link stats retrieved successfully.", { stats: payload });
+		const responseData = {
+			stats: payload,
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_USER_TTL_SECONDS);
+		return successResponse(res, 200, "Book series link stats retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("BOOK_SERIES_LINK_STATS", {
 			status: "FAILURE",
@@ -267,6 +292,9 @@ router.get("/stats", requiresAuth, statsLimiter, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book series link stats at this time."]);
 	}
-});
+};
+
+router.get("/stats", requiresAuth, statsLimiter, seriesBooksStatsHandler);
+router.post("/stats", requiresAuth, statsLimiter, seriesBooksStatsHandler);
 
 module.exports = router;

@@ -13,6 +13,12 @@ const { validateFullName, validatePreferredName, validateEmail, validatePassword
 const { enqueueEmail } = require("../utils/email-queue");
 const email = require("../utils/email");
 const {
+	DEFAULT_ADMIN_TTL_SECONDS,
+	buildCacheKey,
+	getCacheEntry,
+	setCacheEntry
+} = require("../utils/stats-cache");
+const {
 	canSendEmailForUser,
 	getUserEmailPreferences,
 	preferenceSummary,
@@ -55,9 +61,22 @@ function logAdminRequest(req, res, next) {
 // Middleware to ensure the user is an authenticated admin
 const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"]), logAdminRequest];
 
-// GET /admin/stats/summary - Site-wide statistics
-router.get("/stats/summary", adminAuth, async (req, res) => {
+// GET/POST /admin/stats/summary - Site-wide statistics
+const adminStatsSummaryHandler = async (req, res) => {
 	try {
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/stats/summary",
+			params: {}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Site statistics retrieved successfully.", {
+				...cached.data,
+				cache: { hit: true, ageSeconds: cached.ageSeconds }
+			});
+		}
+
 		const [
 			usersTotal,
 			usersVerified,
@@ -86,7 +105,7 @@ router.get("/stats/summary", adminAuth, async (req, res) => {
 			pool.query("SELECT COUNT(*)::int AS count FROM storage_locations WHERE deleted_at IS NULL")
 		]);
 
-		return successResponse(res, 200, "Site statistics retrieved successfully.", {
+		const responseData = {
 			stats: {
 				users: {
 					total: usersTotal.rows[0]?.count ?? 0,
@@ -106,8 +125,11 @@ router.get("/stats/summary", adminAuth, async (req, res) => {
 					tags: tagsActive.rows[0]?.count ?? 0,
 					storageLocations: storageLocationsActive.rows[0]?.count ?? 0
 				}
-			}
-		});
+			},
+			cache: { hit: false, ageSeconds: 0 }
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
+		return successResponse(res, 200, "Site statistics retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("ADMIN_STATS", {
 			status: "FAILURE",
@@ -118,7 +140,276 @@ router.get("/stats/summary", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve site statistics at this time."]);
 	}
-});
+};
+
+router.get("/stats/summary", adminAuth, adminStatsSummaryHandler);
+router.post("/stats/summary", adminAuth, adminStatsSummaryHandler);
+
+// GET/POST /admin/usage/users - Usage dashboard (user sessions only)
+const adminUsageUsersHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 1, max: 500 });
+	const { value: offset, error: offsetError } = parseOptionalInt(params.offset, "offset", { min: 0, max: null });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (offsetError) errors.push(offsetError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const windowStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+	const windowEnd = endDate || new Date().toISOString();
+	const sortBy = normalizeText(params.sortBy) || "usageScore";
+	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
+	const topLimit = Math.min(Number.parseInt(params.topLimit || "5", 10) || 5, 15);
+
+	const clauses = ["l.actor_type = 'user'", "l.logged_at BETWEEN $1 AND $2"];
+	const values = [windowStart, windowEnd];
+	let idx = 3;
+
+	if (Number.isInteger(parseId(params.userId))) {
+		clauses.push(`l.user_id = $${idx++}`);
+		values.push(parseId(params.userId));
+	}
+	if (normalizeText(params.email)) {
+		clauses.push(`l.user_email ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.email)}%`);
+	}
+	if (normalizeText(params.method)) {
+		clauses.push(`UPPER(l.method) = $${idx++}`);
+		values.push(normalizeText(params.method).toUpperCase());
+	}
+	if (normalizeText(params.path)) {
+		clauses.push(`l.path ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.path)}%`);
+	}
+
+	const sortColumnMap = {
+		usageScore: "usage_score",
+		requests: "request_count",
+		lastSeen: "last_seen"
+	};
+	const sortColumn = sortColumnMap[sortBy] || "usage_score";
+
+	try {
+		const usageResult = await pool.query(
+			`SELECT l.user_id,
+			        l.user_email,
+			        l.user_role,
+			        COUNT(*)::int AS request_count,
+			        COALESCE(SUM(l.cost_units), 0)::int AS usage_score,
+			        MAX(l.logged_at) AS last_seen
+			 FROM request_logs l
+			 WHERE ${clauses.join(" AND ")}
+			 GROUP BY l.user_id, l.user_email, l.user_role
+			 ORDER BY ${sortColumn} ${sortOrder}
+			 LIMIT $${idx} OFFSET $${idx + 1}`,
+			[...values, limit ?? 25, offset ?? 0]
+		);
+
+		const users = usageResult.rows.map((row) => ({
+			userId: row.user_id,
+			email: row.user_email,
+			role: row.user_role,
+			requestCount: row.request_count,
+			usageScore: row.usage_score,
+			usageLevel: getUsageLevel(row.usage_score),
+			lastSeen: row.last_seen,
+			topEndpoints: []
+		}));
+
+		if (users.length > 0) {
+			const userIds = users.map((u) => u.userId);
+			const topResult = await pool.query(
+				`SELECT l.user_id, l.method, l.path, COUNT(*)::int AS count
+				 FROM request_logs l
+				 WHERE l.actor_type = 'user'
+				   AND l.user_id = ANY($1)
+				   AND l.logged_at BETWEEN $2 AND $3
+				 GROUP BY l.user_id, l.method, l.path
+				 ORDER BY count DESC`,
+				[userIds, windowStart, windowEnd]
+			);
+			const grouped = new Map();
+			topResult.rows.forEach((row) => {
+				if (!grouped.has(row.user_id)) grouped.set(row.user_id, []);
+				grouped.get(row.user_id).push({
+					method: row.method,
+					path: row.path,
+					count: row.count
+				});
+			});
+			users.forEach((user) => {
+				const list = grouped.get(user.userId) || [];
+				user.topEndpoints = list.slice(0, topLimit);
+			});
+		}
+
+		return successResponse(res, 200, "User usage retrieved successfully.", {
+			window: { startDate: windowStart, endDate: windowEnd },
+			limit: limit ?? 25,
+			offset: offset ?? 0,
+			usageLevels: USAGE_LEVEL_THRESHOLDS,
+			users
+		});
+	} catch (error) {
+		logToFile("ADMIN_USAGE_USERS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve usage analytics at this time."]);
+	}
+};
+
+router.get("/usage/users", adminAuth, adminUsageUsersHandler);
+router.post("/usage/users", adminAuth, adminUsageUsersHandler);
+
+// GET/POST /admin/usage/api-keys - Usage dashboard for API keys
+const adminUsageApiKeysHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 1, max: 500 });
+	const { value: offset, error: offsetError } = parseOptionalInt(params.offset, "offset", { min: 0, max: null });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (offsetError) errors.push(offsetError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const windowStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+	const windowEnd = endDate || new Date().toISOString();
+	const sortBy = normalizeText(params.sortBy) || "usageScore";
+	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
+	const topLimit = Math.min(Number.parseInt(params.topLimit || "5", 10) || 5, 15);
+
+	const clauses = ["l.actor_type = 'api_key'", "l.logged_at BETWEEN $1 AND $2"];
+	const values = [windowStart, windowEnd];
+	let idx = 3;
+
+	if (Number.isInteger(parseId(params.userId))) {
+		clauses.push(`l.user_id = $${idx++}`);
+		values.push(parseId(params.userId));
+	}
+	if (normalizeText(params.email)) {
+		clauses.push(`l.user_email ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.email)}%`);
+	}
+	if (Number.isInteger(parseId(params.apiKeyId))) {
+		clauses.push(`l.api_key_id = $${idx++}`);
+		values.push(parseId(params.apiKeyId));
+	}
+	if (normalizeText(params.apiKeyLabel)) {
+		clauses.push(`l.api_key_label ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.apiKeyLabel)}%`);
+	}
+	if (normalizeText(params.method)) {
+		clauses.push(`UPPER(l.method) = $${idx++}`);
+		values.push(normalizeText(params.method).toUpperCase());
+	}
+	if (normalizeText(params.path)) {
+		clauses.push(`l.path ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.path)}%`);
+	}
+
+	const sortColumnMap = {
+		usageScore: "usage_score",
+		requests: "request_count",
+		lastSeen: "last_seen"
+	};
+	const sortColumn = sortColumnMap[sortBy] || "usage_score";
+
+	try {
+		const usageResult = await pool.query(
+			`SELECT l.api_key_id,
+			        l.api_key_label,
+			        l.api_key_prefix,
+			        l.user_id,
+			        l.user_email,
+			        COUNT(*)::int AS request_count,
+			        COALESCE(SUM(l.cost_units), 0)::int AS usage_score,
+			        MAX(l.logged_at) AS last_seen
+			 FROM request_logs l
+			 WHERE ${clauses.join(" AND ")}
+			 GROUP BY l.api_key_id, l.api_key_label, l.api_key_prefix, l.user_id, l.user_email
+			 ORDER BY ${sortColumn} ${sortOrder}
+			 LIMIT $${idx} OFFSET $${idx + 1}`,
+			[...values, limit ?? 25, offset ?? 0]
+		);
+
+		const apiKeys = usageResult.rows.map((row) => ({
+			apiKeyId: row.api_key_id,
+			apiKeyLabel: row.api_key_label,
+			apiKeyPrefix: row.api_key_prefix,
+			userId: row.user_id,
+			email: row.user_email,
+			requestCount: row.request_count,
+			usageScore: row.usage_score,
+			usageLevel: getUsageLevel(row.usage_score),
+			lastSeen: row.last_seen,
+			topEndpoints: []
+		}));
+
+		if (apiKeys.length > 0) {
+			const keyIds = apiKeys.map((k) => k.apiKeyId);
+			const topResult = await pool.query(
+				`SELECT l.api_key_id, l.method, l.path, COUNT(*)::int AS count
+				 FROM request_logs l
+				 WHERE l.actor_type = 'api_key'
+				   AND l.api_key_id = ANY($1)
+				   AND l.logged_at BETWEEN $2 AND $3
+				 GROUP BY l.api_key_id, l.method, l.path
+				 ORDER BY count DESC`,
+				[keyIds, windowStart, windowEnd]
+			);
+			const grouped = new Map();
+			topResult.rows.forEach((row) => {
+				if (!grouped.has(row.api_key_id)) grouped.set(row.api_key_id, []);
+				grouped.get(row.api_key_id).push({
+					method: row.method,
+					path: row.path,
+					count: row.count
+				});
+			});
+			apiKeys.forEach((key) => {
+				const list = grouped.get(key.apiKeyId) || [];
+				key.topEndpoints = list.slice(0, topLimit);
+			});
+		}
+
+		return successResponse(res, 200, "API key usage retrieved successfully.", {
+			window: { startDate: windowStart, endDate: windowEnd },
+			limit: limit ?? 25,
+			offset: offset ?? 0,
+			usageLevels: USAGE_LEVEL_THRESHOLDS,
+			apiKeys
+		});
+	} catch (error) {
+		logToFile("ADMIN_USAGE_API_KEYS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve usage analytics at this time."]);
+	}
+};
+
+router.get("/usage/api-keys", adminAuth, adminUsageApiKeysHandler);
+router.post("/usage/api-keys", adminAuth, adminUsageApiKeysHandler);
 
 const MAX_LANGUAGE_NAME_LENGTH = 100;
 const MAX_LIST_LIMIT = 200;
@@ -127,6 +418,12 @@ const MAX_EMAIL_LENGTH = 255;
 const MAX_EMAIL_SUBJECT_LENGTH = 160;
 const MAX_EMAIL_BODY_LENGTH = 8000;
 const VALID_ROLES = new Set(["user", "admin"]);
+const USAGE_LEVEL_THRESHOLDS = [
+	{ label: "Low", min: 0, max: 199 },
+	{ label: "Medium", min: 200, max: 499 },
+	{ label: "High", min: 500, max: 999 },
+	{ label: "Very High", min: 1000, max: Number.POSITIVE_INFINITY }
+];
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 const TOKEN_EMAIL_TYPES = new Set([
 	"verification",
@@ -192,6 +489,26 @@ function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	return { value: parsed };
 }
 
+function parseLockoutExpiry(params = {}) {
+	const expiresAtInput = params.expiresAt || params.lockoutUntil;
+	const durationMinutes = params.durationMinutes !== undefined ? Number.parseInt(params.durationMinutes, 10) : null;
+	if (expiresAtInput) {
+		const parsed = Date.parse(expiresAtInput);
+		if (Number.isNaN(parsed)) {
+			return { error: "expiresAt must be a valid ISO 8601 date." };
+		}
+		return { value: new Date(parsed).toISOString() };
+	}
+	if (Number.isInteger(durationMinutes)) {
+		if (durationMinutes < 5 || durationMinutes > 43200) {
+			return { error: "durationMinutes must be between 5 and 43200." };
+		}
+		const until = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+		return { value: until };
+	}
+	return { error: "Provide expiresAt or durationMinutes." };
+}
+
 function parseDateFilter(value, fieldLabel) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Date.parse(value);
@@ -199,6 +516,12 @@ function parseDateFilter(value, fieldLabel) {
 		return { error: `${fieldLabel} must be a valid ISO 8601 date.` };
 	}
 	return { value: new Date(parsed).toISOString() };
+}
+
+function getUsageLevel(score) {
+	const value = Number.isFinite(score) ? score : 0;
+	const match = USAGE_LEVEL_THRESHOLDS.find((range) => value >= range.min && value <= range.max);
+	return match ? match.label : "Low";
 }
 
 function resolveDefaultExpiry(emailType) {
@@ -1427,6 +1750,235 @@ async function handleEnableUser(req, res, targetId) {
 	}
 }
 
+async function handleApiKeyBan(req, res, targetId, banEnabled) {
+	const adminId = req.user.id;
+	const reason = banEnabled ? req.body?.reason || req.query?.reason : null;
+	if (banEnabled) {
+		const reasonErrors = validateReason(reason);
+		if (reasonErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", reasonErrors);
+		}
+	}
+	try {
+		const result = await pool.query(
+			`UPDATE users
+			 SET api_key_ban_enabled = $1,
+			     api_key_ban_reason = $2,
+			     api_key_ban_applied_at = $3,
+			     api_key_ban_applied_by = $4
+			 WHERE id = $5
+			 RETURNING id, email, preferred_name, api_key_ban_enabled, api_key_ban_reason`,
+			[
+				banEnabled,
+				banEnabled ? reason.trim() : null,
+				banEnabled ? new Date().toISOString() : null,
+				banEnabled ? adminId : null,
+				targetId
+			]
+		);
+
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+
+		const user = result.rows[0];
+		enqueueEmail({
+			type: banEnabled ? "api_key_ban_applied" : "api_key_ban_removed",
+			params: {
+				toEmail: user.email,
+				preferredName: user.preferred_name,
+				reason: banEnabled ? reason.trim() : null
+			},
+			context: banEnabled ? "ADMIN_API_KEY_BAN" : "ADMIN_API_KEY_UNBAN",
+			userId: user.id
+		});
+
+		logToFile(banEnabled ? "ADMIN_API_KEY_BAN" : "ADMIN_API_KEY_UNBAN", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			user_id: user.id,
+			reason: banEnabled ? reason.trim() : null,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, banEnabled ? "API key creation blocked for user." : "API key ban removed.", {
+			id: user.id,
+			apiKeyBanEnabled: user.api_key_ban_enabled,
+			apiKeyBanReason: user.api_key_ban_reason || null
+		});
+	} catch (error) {
+		logToFile(banEnabled ? "ADMIN_API_KEY_BAN" : "ADMIN_API_KEY_UNBAN", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while updating the API key ban."]);
+	}
+}
+
+async function handleUsageLockout(req, res, targetId, enableLockout) {
+	const adminId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const reason = enableLockout ? params.reason : null;
+	if (enableLockout) {
+		const reasonErrors = validateReason(reason);
+		if (reasonErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", reasonErrors);
+		}
+	}
+	const { value: lockoutUntil, error: lockoutError } = enableLockout ? parseLockoutExpiry(params) : { value: null };
+	if (enableLockout && lockoutError) {
+		return errorResponse(res, 400, "Validation Error", [lockoutError]);
+	}
+
+	try {
+		const result = await pool.query(
+			`UPDATE users
+			 SET usage_lockout_until = $1,
+			     usage_lockout_reason = $2,
+			     usage_lockout_applied_by = $3
+			 WHERE id = $4
+			 RETURNING id, email, preferred_name, usage_lockout_until, usage_lockout_reason`,
+			[
+				enableLockout ? lockoutUntil : null,
+				enableLockout ? reason.trim() : null,
+				enableLockout ? adminId : null,
+				targetId
+			]
+		);
+
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+
+		const user = result.rows[0];
+		enqueueEmail({
+			type: enableLockout ? "usage_restriction_applied" : "usage_restriction_removed",
+			params: {
+				toEmail: user.email,
+				preferredName: user.preferred_name,
+				reason: enableLockout ? reason.trim() : null,
+				lockoutUntil: enableLockout ? user.usage_lockout_until : null
+			},
+			context: enableLockout ? "ADMIN_USAGE_LOCKOUT" : "ADMIN_USAGE_LOCKOUT_CLEAR",
+			userId: user.id
+		});
+
+		logToFile(enableLockout ? "ADMIN_USAGE_LOCKOUT" : "ADMIN_USAGE_LOCKOUT_CLEAR", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			user_id: user.id,
+			reason: enableLockout ? reason.trim() : null,
+			lockout_until: enableLockout ? user.usage_lockout_until : null,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, enableLockout ? "Usage restriction applied." : "Usage restriction removed.", {
+			id: user.id,
+			usageLockoutUntil: user.usage_lockout_until,
+			usageLockoutReason: user.usage_lockout_reason || null
+		});
+	} catch (error) {
+		logToFile(enableLockout ? "ADMIN_USAGE_LOCKOUT" : "ADMIN_USAGE_LOCKOUT_CLEAR", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while updating usage restrictions."]);
+	}
+}
+
+async function handleAdminApiKeyRevoke(req, res, identifier) {
+	const adminId = req.user.id;
+	try {
+		const clauses = [];
+		const values = [];
+		let idx = 1;
+		if (Number.isInteger(identifier.id)) {
+			clauses.push(`k.id = $${idx++}`);
+			values.push(identifier.id);
+		}
+		if (Number.isInteger(identifier.userId)) {
+			clauses.push(`k.user_id = $${idx++}`);
+			values.push(identifier.userId);
+		}
+		if (identifier.name) {
+			clauses.push(`k.name = $${idx++}`);
+			values.push(identifier.name);
+		}
+		if (identifier.prefix) {
+			clauses.push(`k.key_prefix = $${idx++}`);
+			values.push(identifier.prefix);
+		}
+		if (clauses.length === 0) {
+			return errorResponse(res, 400, "Validation Error", ["Provide an API key id, userId, name, or prefix."]);
+		}
+
+		const match = await pool.query(
+			`SELECT k.id, k.name, k.key_prefix, k.user_id, u.email, u.preferred_name
+			 FROM user_api_keys k
+			 JOIN users u ON u.id = k.user_id
+			 WHERE ${clauses.join(" AND ")}`,
+			values
+		);
+
+		if (match.rows.length === 0) {
+			return errorResponse(res, 404, "API key not found.", ["The requested API key could not be located."]);
+		}
+		if (match.rows.length > 1) {
+			return errorResponse(res, 400, "Validation Error", ["Please provide a more specific API key identifier."]);
+		}
+
+		const key = match.rows[0];
+		await pool.query("UPDATE user_api_keys SET revoked_at = NOW() WHERE id = $1", [key.id]);
+
+		enqueueEmail({
+			type: "api_key_revoked",
+			params: {
+				toEmail: key.email,
+				preferredName: key.preferred_name,
+				keyId: key.id,
+				keyName: key.name,
+				keyPrefix: key.key_prefix,
+				initiator: "admin"
+			},
+			context: "ADMIN_API_KEY_REVOKE",
+			userId: key.user_id
+		});
+
+		logToFile("ADMIN_API_KEY_REVOKE", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			user_id: key.user_id,
+			key_id: key.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "API key revoked successfully.", {
+			id: key.id,
+			userId: key.user_id
+		});
+	} catch (error) {
+		logToFile("ADMIN_API_KEY_REVOKE", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while revoking the API key."]);
+	}
+}
+
 // `POST /admin/users/:id/enable` - Re-enable a disabled user profile by ID (admin only)
 router.post("/users/:id/enable", adminAuth, async (req, res) => {
 	const targetId = parseId(req.params.id);
@@ -1451,6 +2003,92 @@ router.post("/users/enable", adminAuth, async (req, res) => {
 		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
 	return handleEnableUser(req, res, resolved.id);
+});
+
+router.post("/users/:id/api-key-ban", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleApiKeyBan(req, res, targetId, true);
+});
+
+router.post("/users/api-key-ban", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleApiKeyBan(req, res, resolved.id, true);
+});
+
+router.post("/users/:id/api-key-unban", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleApiKeyBan(req, res, targetId, false);
+});
+
+router.post("/users/api-key-unban", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleApiKeyBan(req, res, resolved.id, false);
+});
+
+router.post("/users/:id/usage-lockout", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleUsageLockout(req, res, targetId, true);
+});
+
+router.post("/users/usage-lockout", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleUsageLockout(req, res, resolved.id, true);
+});
+
+router.post("/users/:id/usage-lockout/clear", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleUsageLockout(req, res, targetId, false);
+});
+
+router.post("/users/usage-lockout/clear", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleUsageLockout(req, res, resolved.id, false);
+});
+
+router.post("/api-keys/:id/revoke", adminAuth, async (req, res) => {
+	const keyId = parseId(req.params.id);
+	if (!Number.isInteger(keyId)) {
+		return errorResponse(res, 400, "Validation Error", ["API key id must be a valid integer."]);
+	}
+	return handleAdminApiKeyRevoke(req, res, { id: keyId });
+});
+
+router.post("/api-keys/revoke", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	return handleAdminApiKeyRevoke(req, res, {
+		id: parseId(params.id),
+		userId: parseId(params.userId),
+		name: normalizeText(params.name),
+		prefix: normalizeText(params.prefix)
+	});
 });
 
 async function handleUnverifyUser(req, res, targetId) {

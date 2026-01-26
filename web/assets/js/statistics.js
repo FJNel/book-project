@@ -359,14 +359,17 @@
 
   const fetchStats = async (path, params, label) => {
     const payload = params && Object.keys(params).length ? params : undefined;
-    const resolvedPath = buildQueryPath(path, payload || {});
-    const cacheKey = resolvedPath;
+    const resolvedPath = path;
+    const cacheKey = `${path}:${payload ? JSON.stringify(payload) : ''}`;
     if (state.statsCache.has(cacheKey)) {
       log('Stats cache hit.', { label, path: resolvedPath });
       return state.statsCache.get(cacheKey);
     }
     log('Stats request starting.', { label, path: resolvedPath, params: payload || null });
-    const response = await apiFetch(resolvedPath, { method: 'GET' });
+    const response = await apiFetch(resolvedPath, {
+      method: 'POST',
+      body: payload ? JSON.stringify(payload) : undefined
+    });
     if (await handleRateLimit(response)) {
       throw new Error('rate-limited');
     }
@@ -580,7 +583,9 @@
           'oldestPublicationYear',
           'newestPublicationYear',
           'longestBook',
-          'shortestBook'
+          'shortestBook',
+          'publisherPageCountAssociation',
+          'taggedPageCountAssociation'
         ]
       }, 'book-stats'),
       fetchStatsSafe('/booktype/stats', { fields: ['bookTypeBreakdown'] }, 'booktype-stats'),
@@ -774,6 +779,22 @@
       const mostTaggedLink = `<a href="book-details?id=${encodeURIComponent(bookTagStats.mostTaggedBook.id)}">${escapeHtml(bookTagStats.mostTaggedBook.title)}</a>`;
       highlights.push({
         html: `<span class="fw-semibold">${renderTooltipLabel('Most tagged book')}</span> <span class="text-muted">${mostTaggedLink} (${escapeHtml(formatNumber(bookTagStats.mostTaggedBook.tagCount))} tags)</span>`
+      });
+    }
+    const publisherAssociation = bookStats?.publisherPageCountAssociation;
+    if (publisherAssociation?.insight) {
+      const detail = `${publisherAssociation.insight} (N=${formatNumber(publisherAssociation.sampleSize || 0)}; ${formatNumber(publisherAssociation.withGroup?.count || 0)} with publishers, ${formatNumber(publisherAssociation.withoutGroup?.count || 0)} without)`;
+      highlights.push({
+        label: 'Publisher and pages',
+        detail
+      });
+    }
+    const tagAssociation = bookStats?.taggedPageCountAssociation;
+    if (tagAssociation?.insight) {
+      const detail = `${tagAssociation.insight} (N=${formatNumber(tagAssociation.sampleSize || 0)}; ${formatNumber(tagAssociation.withGroup?.count || 0)} tagged, ${formatNumber(tagAssociation.withoutGroup?.count || 0)} untagged)`;
+      highlights.push({
+        label: 'Tags and pages',
+        detail
       });
     }
     renderListItems(dom.books.highlights, highlights);

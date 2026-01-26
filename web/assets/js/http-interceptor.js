@@ -343,6 +343,9 @@ async function apiFetch(path, options = {}) {
 		localStorage.removeItem('refreshToken');
 		if (!sessionExpiredNotified) {
 			sessionExpiredNotified = true;
+			if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
+				window.authRedirect.capture();
+			}
 			showSessionExpiredModal();
 		} else {
 			console.warn('[HTTP Interceptor] Session expired modal already shown.');
@@ -398,8 +401,14 @@ async function refreshAccessToken() {
 			console.error('[Session Expired Modal] Modal element not found in DOM.');
 			//Fallback
 			alert('Your session has expired. Please log in again.');
-			window.location.href = 'https://bookproject.fjnel.co.za?action=login';
+			window.location.href = typeof window.getLoginRedirectUrl === 'function'
+				? window.getLoginRedirectUrl()
+				: 'index?action=login';
 			return;
+		}
+
+		if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
+			window.authRedirect.capture();
 		}
 
 		if (window.authGuard && typeof window.authGuard.waitForMaintenance === 'function') {
@@ -415,6 +424,8 @@ async function refreshAccessToken() {
 
 	//Redirect to homepage on modal close
 	modal.addEventListener('hidden.bs.modal', () => {
-		window.location.href = 'https://bookproject.fjnel.co.za?action=login';
+		window.location.href = typeof window.getLoginRedirectUrl === 'function'
+			? window.getLoginRedirectUrl()
+			: 'index?action=login';
 	}, { once: true });
 }
