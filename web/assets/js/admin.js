@@ -15,6 +15,9 @@
     statusAlert: document.getElementById('statusAlert'),
     apiStatusText: document.getElementById('apiStatusText'),
     dbLatencyText: document.getElementById('dbLatencyText'),
+    schemaStatusText: document.getElementById('schemaStatusText'),
+    schemaDetails: document.getElementById('schemaDetails'),
+    dbSslModeText: document.getElementById('dbSslModeText'),
     queueText: document.getElementById('queueText'),
     statusUpdatedAt: document.getElementById('statusUpdatedAt'),
     refreshStatusBtn: document.getElementById('refreshStatusBtn'),
@@ -444,6 +447,98 @@
     dom.adminStatusPill.className = className;
   }
 
+  function resetHealthStatus() {
+    if (dom.schemaStatusText) dom.schemaStatusText.textContent = '—';
+    if (dom.dbSslModeText) dom.dbSslModeText.textContent = '—';
+    if (dom.schemaDetails) {
+      dom.schemaDetails.textContent = '';
+      dom.schemaDetails.classList.add('d-none');
+    }
+  }
+
+  function formatMissingColumns(missingColumns) {
+    if (!Array.isArray(missingColumns)) return '';
+    const list = missingColumns
+      .filter((entry) => entry && entry.table && entry.column)
+      .map((entry) => `${entry.table}.${entry.column}`);
+    return list.length ? list.join(', ') : '';
+  }
+
+  function renderHealthStatus(payload = {}, { message, errors, ok } = {}) {
+    const db = payload?.db || {};
+    const schemaOk = db?.schemaOk;
+    const missingColumns = Array.isArray(db?.missingColumns) ? db.missingColumns : [];
+    const missingList = formatMissingColumns(missingColumns);
+
+    if (dom.schemaStatusText) {
+      if (schemaOk === true) {
+        dom.schemaStatusText.textContent = 'Ready';
+      } else if (schemaOk === false) {
+        dom.schemaStatusText.textContent = 'Needs update';
+      } else {
+        dom.schemaStatusText.textContent = ok === false ? 'Unavailable' : 'Unknown';
+      }
+    }
+
+    if (dom.schemaDetails) {
+      if (schemaOk === false && missingList) {
+        dom.schemaDetails.textContent = `Missing: ${missingList}`;
+        dom.schemaDetails.classList.remove('d-none');
+      } else {
+        dom.schemaDetails.textContent = '';
+        dom.schemaDetails.classList.add('d-none');
+      }
+    }
+
+    if (dom.dbSslModeText) {
+      dom.dbSslModeText.textContent = db?.sslMode || '—';
+    }
+
+    if (schemaOk === false) {
+      setBadge('degraded');
+      updateStatusPill('Needs attention');
+      if (missingList) {
+        showAlert(dom.statusAlert, `Database schema needs updates. Missing: ${missingList}`);
+      } else if (message || (errors && errors.length)) {
+        const detail = message || errors.join(' ');
+        showAlert(dom.statusAlert, detail);
+      }
+      return;
+    }
+
+    if (ok === false && (message || (errors && errors.length))) {
+      setBadge('degraded');
+      updateStatusPill('Degraded');
+      const detail = message || errors.join(' ');
+      showAlert(dom.statusAlert, detail);
+    }
+  }
+
+  async function fetchHealthStatus() {
+    try {
+      const response = await apiFetch('/health', { method: 'GET' });
+      let body = {};
+      try {
+        body = await response.json();
+      } catch (err) {
+        warn('Failed to parse health response JSON', err);
+      }
+      const data = body?.data ?? body;
+      if (!response.ok) {
+        renderHealthStatus(data, {
+          message: body?.message || 'Health check failed.',
+          errors: Array.isArray(body?.errors) ? body.errors.filter(Boolean) : [],
+          ok: false
+        });
+        return;
+      }
+      renderHealthStatus(data, { ok: true });
+    } catch (err) {
+      warn('Failed to fetch health status', err);
+      renderHealthStatus({}, { message: err?.message || 'Health check unavailable.', ok: false });
+    }
+  }
+
   function renderStatus(payload) {
     const dbLatency = payload?.db?.latencyMs;
     const queueStats = payload?.emailQueue;
@@ -461,6 +556,7 @@
     if (dom.apiStatusText) dom.apiStatusText.textContent = 'Unavailable';
     if (dom.dbLatencyText) dom.dbLatencyText.textContent = '—';
     if (dom.queueText) dom.queueText.textContent = '—';
+    resetHealthStatus();
     updateStatusPill('Error');
     showAlert(dom.statusAlert, message);
   }
@@ -469,14 +565,21 @@
     hideAlert(dom.statusAlert);
     setBadge('checking');
     updateStatusPill('Checking…');
+    resetHealthStatus();
+    let lastError = null;
     try {
       const response = await apiFetch('/status', { method: 'GET' });
       const data = await parseResponse(response);
       renderStatus(data);
+      await fetchHealthStatus();
     } catch (err) {
+      lastError = err;
       errorLog('Failed to fetch status', err);
       renderStatusError(err.message || 'Unable to fetch status.');
-      throw err;
+      await fetchHealthStatus();
+    }
+    if (lastError) {
+      throw lastError;
     }
   }
 

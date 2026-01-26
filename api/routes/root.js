@@ -74,6 +74,43 @@ router.get("/health", async (req, res) => {
 		const dbStart = Date.now();
 		await pool.query("SELECT 1");
 		const dbLatencyMs = Date.now() - dbStart;
+		const requiredColumns = [
+			{ table: "users", column: "usage_lockout_until" },
+			{ table: "authors", column: "deleted_at" },
+			{ table: "publishers", column: "deleted_at" },
+			{ table: "book_series", column: "deleted_at" },
+			{ table: "books", column: "deleted_at" },
+			{ table: "refresh_tokens", column: "ip_address" },
+			{ table: "refresh_tokens", column: "user_agent" }
+		];
+		const schemaCheck = await pool.query(
+			`SELECT table_name, column_name
+			 FROM information_schema.columns
+			 WHERE table_schema = 'public'
+			   AND (table_name, column_name) IN (${requiredColumns.map((_, idx) => `($${idx * 2 + 1}, $${idx * 2 + 2})`).join(", ")})`,
+			requiredColumns.flatMap((entry) => [entry.table, entry.column])
+		);
+		const existing = new Set(schemaCheck.rows.map((row) => `${row.table_name}.${row.column_name}`));
+		const missingColumns = requiredColumns
+			.filter((entry) => !existing.has(`${entry.table}.${entry.column}`))
+			.map((entry) => ({ table: entry.table, column: entry.column }));
+
+		if (missingColumns.length > 0) {
+			logToFile("HEALTH_CHECK", {
+				status: "FAILURE",
+				reason: "SCHEMA_MISMATCH",
+				missing_columns: missingColumns,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "Database Error", ["Database schema is not ready."], {
+				db: {
+					healthy: false,
+					schemaOk: false,
+					missingColumns
+				}
+			});
+		}
 		logToFile("HEALTH_CHECK", {
 			status: "SUCCESS",
 			db_latency_ms: dbLatencyMs,
@@ -85,6 +122,7 @@ router.get("/health", async (req, res) => {
 			timestamp: new Date().toISOString(),
 			db: {
 				healthy: true,
+				schemaOk: true,
 				latencyMs: dbLatencyMs
 			}
 		});

@@ -12,6 +12,7 @@ const ACCESS_TOKEN_EXPIRES_IN = config.jwt.accessExpiresIn; // Short-lived
 const REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn; // Long-lived
 
 const STAT_MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+let hasLoggedAuthSchemaMismatch = false;
 
 function attachStatsInvalidation(req, res) {
 	if (res._statsInvalidationBound) return;

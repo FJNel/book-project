@@ -126,6 +126,17 @@ paths:
                             properties:
                               healthy:
                                 type: boolean
+                              schemaOk:
+                                type: boolean
+                              missingColumns:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    table:
+                                      type: string
+                                    column:
+                                      type: string
                               sslMode:
                                 type: string
                               latencyMs:
@@ -142,6 +153,7 @@ paths:
                       timestamp: 2026-01-02T15:59:12.921Z
                       db:
                         healthy: true
+                        schemaOk: true
                         sslMode: require
                         latencyMs: 12
                     errors: []
