@@ -7,7 +7,7 @@ const bcrypt = require("bcrypt");
 
 const { requiresAuth, requireRole } = require("../utils/jwt");
 const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, adminDeletionLimiter } = require("../utils/rate-limiters");
-const { logToFile } = require("../utils/logging");
+const { logToFile, sanitizeInput } = require("../utils/logging");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { enqueueEmail } = require("../utils/email-queue");
@@ -62,6 +62,11 @@ function logAdminRequest(req, res, next) {
 const adminAuth = [requiresAuth, authenticatedLimiter, requireRole(["admin"]), logAdminRequest];
 
 // GET/POST /admin/stats/summary - Site-wide statistics
+// Manual verification (regression signal):
+// - Expected inputs: authenticated admin user; optional JSON body or query params are ignored.
+// - Expected failures: database query error or permission failure should return a standard error envelope.
+// - Expected error shape: { status, httpCode, responseTime, message, data: {}, errors: [] }.
+// - UI check: Admin > Statistics should render counts or show the error alert without breaking the page.
 const adminStatsSummaryHandler = async (req, res) => {
 	try {
 		const cacheKey = buildCacheKey({
@@ -424,6 +429,107 @@ const USAGE_LEVEL_THRESHOLDS = [
 	{ label: "High", min: 500, max: 999 },
 	{ label: "Very High", min: 1000, max: Number.POSITIVE_INFINITY }
 ];
+const DATA_VIEWER_TABLES = [
+	{
+		name: "users",
+		label: "Users",
+		description: "Basic user profile data without credentials.",
+		from: "users u",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "u.id" },
+			{ name: "full_name", label: "Full name", type: "text", select: "u.full_name" },
+			{ name: "preferred_name", label: "Preferred name", type: "text", select: "u.preferred_name" },
+			{ name: "email", label: "Email", type: "text", select: "u.email" },
+			{ name: "role", label: "Role", type: "text", select: "u.role" },
+			{ name: "is_verified", label: "Verified", type: "boolean", select: "u.is_verified" },
+			{ name: "is_disabled", label: "Disabled", type: "boolean", select: "u.is_disabled" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "u.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "u.updated_at" },
+			{ name: "last_login", label: "Last login", type: "datetime", select: "u.last_login" }
+		],
+		searchColumns: ["u.full_name", "u.preferred_name", "u.email"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "u.created_at" },
+			{ value: "updated_at", label: "Updated", column: "u.updated_at" },
+			{ value: "last_login", label: "Last login", column: "u.last_login" },
+			{ value: "full_name", label: "Full name", column: "u.full_name" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "u.id", emailColumn: "u.email" }
+	},
+	{
+		name: "user_api_keys",
+		label: "API keys",
+		description: "API key labels with prefixes (no hashes).",
+		from: "user_api_keys k LEFT JOIN users u ON u.id = k.user_id",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "k.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "k.user_id" },
+			{ name: "user_email", label: "User email", type: "text", select: "u.email" },
+			{ name: "name", label: "Label", type: "text", select: "k.name" },
+			{ name: "key_prefix", label: "Key prefix", type: "text", select: "k.key_prefix" },
+			{ name: "last_used_at", label: "Last used", type: "datetime", select: "k.last_used_at" },
+			{ name: "expires_at", label: "Expires", type: "datetime", select: "k.expires_at" },
+			{ name: "revoked_at", label: "Revoked", type: "datetime", select: "k.revoked_at" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "k.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "k.updated_at" }
+		],
+		searchColumns: ["k.name", "k.key_prefix", "u.email"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "k.created_at" },
+			{ value: "last_used_at", label: "Last used", column: "k.last_used_at" },
+			{ value: "expires_at", label: "Expires", column: "k.expires_at" },
+			{ value: "name", label: "Label", column: "k.name" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "k.user_id", emailColumn: "u.email" }
+	},
+	{
+		name: "request_logs",
+		label: "Request logs",
+		description: "Recent API activity without full payloads.",
+		from: "request_logs l",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "l.id" },
+			{ name: "logged_at", label: "Logged", type: "datetime", select: "l.logged_at" },
+			{ name: "level", label: "Level", type: "text", select: "l.level" },
+			{ name: "category", label: "Category", type: "text", select: "l.category" },
+			{ name: "correlation_id", label: "Correlation", type: "text", select: "l.correlation_id" },
+			{ name: "method", label: "Method", type: "text", select: "l.method" },
+			{ name: "path", label: "Path", type: "text", select: "l.path" },
+			{ name: "actor_type", label: "Actor", type: "text", select: "l.actor_type" },
+			{ name: "user_id", label: "User ID", type: "number", select: "l.user_id" },
+			{ name: "user_email", label: "User email", type: "text", select: "l.user_email" },
+			{ name: "api_key_label", label: "API key label", type: "text", select: "l.api_key_label" },
+			{ name: "api_key_prefix", label: "API key prefix", type: "text", select: "l.api_key_prefix" },
+			{ name: "status_code", label: "Status", type: "number", select: "l.status_code" },
+			{ name: "duration_ms", label: "Duration (ms)", type: "number", select: "l.duration_ms" },
+			{ name: "cost_units", label: "Cost", type: "number", select: "l.cost_units" },
+			{ name: "error_summary", label: "Error summary", type: "text", select: "l.error_summary" }
+		],
+		searchColumns: ["l.path", "l.user_email", "l.api_key_label", "l.api_key_prefix", "l.correlation_id"],
+		sortFields: [
+			{ value: "logged_at", label: "Logged", column: "l.logged_at" },
+			{ value: "status_code", label: "Status", column: "l.status_code" },
+			{ value: "duration_ms", label: "Duration", column: "l.duration_ms" },
+			{ value: "cost_units", label: "Cost", column: "l.cost_units" }
+		],
+		defaultSort: "logged_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "l.user_id", emailColumn: "l.user_email" }
+	}
+];
+const DATA_VIEWER_REDACT_COLUMN_PATTERN = /(password|token|secret|hash|api[_-]?key|authorization|cookie|refresh|access)/i;
+const DATA_VIEWER_REDACT_VALUE_PATTERNS = [
+	/^bearer\s+/i,
+	/^apikey\s+/i,
+	/^api-key\s+/i,
+	/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/,
+	/^[A-Fa-f0-9]{32,}$/,
+	/^[A-Za-z0-9-_]{32,}$/
+];
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 const TOKEN_EMAIL_TYPES = new Set([
 	"verification",
@@ -517,6 +623,165 @@ function parseDateFilter(value, fieldLabel) {
 	}
 	return { value: new Date(parsed).toISOString() };
 }
+
+function getDataViewerTableConfig(name) {
+	if (!name) return null;
+	return DATA_VIEWER_TABLES.find((table) => table.name === name) || null;
+}
+
+function shouldRedactDataViewerColumn(name) {
+	if (!name) return false;
+	return DATA_VIEWER_REDACT_COLUMN_PATTERN.test(String(name));
+}
+
+function shouldRedactDataViewerValue(value) {
+	if (typeof value !== "string") return false;
+	const trimmed = value.trim();
+	if (!trimmed) return false;
+	return DATA_VIEWER_REDACT_VALUE_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+
+function redactDataViewerValue(value, columnName) {
+	const sanitized = sanitizeInput(value, columnName);
+	if (sanitized === null || sanitized === undefined) return sanitized;
+	if (shouldRedactDataViewerColumn(columnName)) return "[REDACTED]";
+	if (shouldRedactDataViewerValue(sanitized)) return "[REDACTED]";
+	return sanitized;
+}
+
+const adminDataViewerTablesHandler = async (req, res) => {
+	try {
+		const tables = DATA_VIEWER_TABLES.map((table) => ({
+			name: table.name,
+			label: table.label,
+			description: table.description,
+			defaultSort: table.defaultSort,
+			defaultOrder: table.defaultOrder,
+			sortFields: table.sortFields.map((field) => ({
+				value: field.value,
+				label: field.label
+			}))
+		}));
+		return successResponse(res, 200, "Data viewer tables retrieved successfully.", { tables });
+	} catch (error) {
+		logToFile("ADMIN_DATA_VIEWER_TABLES", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load data viewer tables."]);
+	}
+};
+
+const adminDataViewerQueryHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const tableName = normalizeText(params.table);
+	const tableConfig = getDataViewerTableConfig(tableName);
+	if (!tableConfig) {
+		return errorResponse(res, 400, "Validation Error", ["Table is not available."]);
+	}
+
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 5, max: 200 });
+	const { value: page, error: pageError } = parseOptionalInt(params.page, "page", { min: 1, max: 10000 });
+	const { value: userId, error: userIdError } = parseOptionalInt(params.userId, "userId", { min: 1, max: null });
+
+	const errors = [];
+	if (limitError) errors.push(limitError);
+	if (pageError) errors.push(pageError);
+	if (userIdError) errors.push(userIdError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const search = normalizeText(params.search);
+	const email = normalizeText(params.email);
+	const sortKey = normalizeText(params.sortBy);
+	const order = (parseSortOrder(params.order) || tableConfig.defaultOrder || "desc").toUpperCase();
+	const sortField = tableConfig.sortFields.find((field) => field.value === sortKey)
+		|| tableConfig.sortFields.find((field) => field.value === tableConfig.defaultSort)
+		|| tableConfig.sortFields[0];
+
+	const clauses = [];
+	const values = [];
+	let idx = 1;
+
+	if (search && tableConfig.searchColumns?.length) {
+		clauses.push(`(${tableConfig.searchColumns.map((col) => `${col} ILIKE $${idx}`).join(" OR ")})`);
+		values.push(`%${search}%`);
+		idx += 1;
+	}
+
+	if (Number.isInteger(userId) && tableConfig.filters?.userIdColumn) {
+		clauses.push(`${tableConfig.filters.userIdColumn} = $${idx++}`);
+		values.push(userId);
+	}
+
+	if (email && tableConfig.filters?.emailColumn) {
+		clauses.push(`${tableConfig.filters.emailColumn} ILIKE $${idx++}`);
+		values.push(`%${email}%`);
+	}
+
+	const whereClause = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+	const limitValue = limit ?? 25;
+	const pageValue = page ?? 1;
+	const offsetValue = (pageValue - 1) * limitValue;
+
+	try {
+		const countResult = await pool.query(
+			`SELECT COUNT(*)::int AS count FROM ${tableConfig.from} ${whereClause}`,
+			values
+		);
+		const total = countResult.rows[0]?.count ?? 0;
+		const selectList = tableConfig.columns.map((col) => `${col.select} AS ${col.name}`).join(", ");
+		const rowsResult = await pool.query(
+			`SELECT ${selectList}
+			 FROM ${tableConfig.from}
+			 ${whereClause}
+			 ORDER BY ${sortField.column} ${order}
+			 LIMIT $${idx} OFFSET $${idx + 1}`,
+			[...values, limitValue, offsetValue]
+		);
+		const rows = rowsResult.rows || [];
+		const sanitizedRows = rows.map((row) => {
+			const safeRow = {};
+			tableConfig.columns.forEach((col) => {
+				safeRow[col.name] = redactDataViewerValue(row[col.name], col.name);
+			});
+			return safeRow;
+		});
+		const hasNext = offsetValue + rows.length < total;
+		return successResponse(res, 200, "Data viewer results retrieved successfully.", {
+			table: tableConfig.name,
+			columns: tableConfig.columns.map((col) => ({
+				name: col.name,
+				label: col.label,
+				type: col.type
+			})),
+			rows: sanitizedRows,
+			count: rows.length,
+			total,
+			page: pageValue,
+			limit: limitValue,
+			hasNext
+		});
+	} catch (error) {
+		logToFile("ADMIN_DATA_VIEWER_QUERY", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load data viewer results."]);
+	}
+};
+
+router.get("/data-viewer/tables", adminAuth, adminDataViewerTablesHandler);
+router.post("/data-viewer/tables", adminAuth, adminDataViewerTablesHandler);
+router.get("/data-viewer/query", adminAuth, adminDataViewerQueryHandler);
+router.post("/data-viewer/query", adminAuth, adminDataViewerQueryHandler);
 
 function getUsageLevel(score) {
 	const value = Number.isFinite(score) ? score : 0;
@@ -936,6 +1201,12 @@ function formatUserRow(row, { nameOnly = false, includeOauthProviders = false } 
 		};
 	}
 
+	const usageScore = Number(row.usage_score) || 0;
+	const lastActive = row.last_active || row.last_login || row.usage_last_seen || null;
+	const apiKeyActiveCount = Number(row.api_key_active_count) || 0;
+	const apiKeyRevokedCount = Number(row.api_key_revoked_count) || 0;
+	const apiKeyStatus = apiKeyActiveCount > 0 ? "Active" : (apiKeyRevokedCount > 0 ? "Revoked" : "None");
+
 	const payload = {
 		id: row.id,
 		email: row.email,
@@ -946,8 +1217,22 @@ function formatUserRow(row, { nameOnly = false, includeOauthProviders = false } 
 		isDisabled: row.is_disabled,
 		passwordUpdated: row.password_updated,
 		lastLogin: row.last_login,
+		lastActive,
 		createdAt: row.created_at,
-		updatedAt: row.updated_at
+		updatedAt: row.updated_at,
+		languageCount: Number(row.language_count) || 0,
+		librarySize: Number(row.library_size) || 0,
+		usageScore,
+		usageRank: getUsageLevel(usageScore),
+		apiKeyActiveCount,
+		apiKeyRevokedCount,
+		apiKeyStatus,
+		apiKeyBanEnabled: Boolean(row.api_key_ban_enabled),
+		usageLockoutUntil: row.usage_lockout_until,
+		emailPreferences: {
+			accountUpdates: row.email_pref_account_updates,
+			devFeatures: row.email_pref_dev_features
+		}
 	};
 
 	if (includeOauthProviders) {
@@ -1007,6 +1292,14 @@ router.get("/users", adminAuth, async (req, res) => {
 			const result = await pool.query(
 				`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
 				        u.password_updated, u.last_login, u.created_at, u.updated_at,
+				        u.api_key_ban_enabled, u.usage_lockout_until,
+				        u.email_pref_account_updates, u.email_pref_dev_features,
+				        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
+				        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
+				        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
+				        (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
+				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
 				        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
 				 FROM users u
 				 WHERE u.id = $1`,
@@ -1173,7 +1466,16 @@ router.get("/users", adminAuth, async (req, res) => {
 
 	const fields = nameOnly
 		? "u.id, u.email, u.full_name"
-		: "u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled, u.password_updated, u.last_login, u.created_at, u.updated_at";
+		: `u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
+		   u.password_updated, u.last_login, u.created_at, u.updated_at,
+		   u.api_key_ban_enabled, u.usage_lockout_until,
+		   u.email_pref_account_updates, u.email_pref_dev_features,
+		   (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
+		   (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
+		   (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
+		   (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
+		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count`;
 
 	try {
 		let query = `SELECT ${fields} FROM users u`;
@@ -1366,6 +1668,14 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 		const result = await pool.query(
 			`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
 			        u.password_updated, u.last_login, u.created_at, u.updated_at,
+			        u.api_key_ban_enabled, u.usage_lockout_until,
+			        u.email_pref_account_updates, u.email_pref_dev_features,
+			        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
+			        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
+			        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
+			        (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
+			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
 			        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
 			 FROM users u
 			 WHERE u.id = $1`,
@@ -2444,6 +2754,39 @@ router.get("/users/:id/email-preferences", adminAuth, async (req, res) => {
 	}
 });
 
+// GET/POST /admin/users/email-preferences - JSON-body/query variant for email preferences
+const adminEmailPreferencesHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.userId ?? params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+
+	try {
+		const preferences = await getUserEmailPreferences(resolved.id);
+		if (!preferences) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		return successResponse(res, 200, "Email preferences retrieved successfully.", {
+			userId: resolved.id,
+			preferences: preferenceSummary(preferences)
+		});
+	} catch (error) {
+		logToFile("ADMIN_EMAIL_PREFERENCES_GET", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: resolved.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve email preferences at this time."]);
+	}
+};
+
+router.get("/users/email-preferences", adminAuth, adminEmailPreferencesHandler);
+router.post("/users/email-preferences", adminAuth, adminEmailPreferencesHandler);
+
 // POST /admin/users/:id/email-preferences/check - Check if an email will send
 router.post("/users/:id/email-preferences/check", adminAuth, async (req, res) => {
 	const targetId = parseId(req.params.id);
@@ -2475,6 +2818,45 @@ router.post("/users/:id/email-preferences/check", adminAuth, async (req, res) =>
 			error_message: error.message,
 			admin_id: req.user.id,
 			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to validate email preferences at this time."]);
+	}
+});
+
+// POST /admin/users/email-preferences/check - JSON-body/query variant for email preference checks
+router.post("/users/email-preferences/check", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.userId ?? params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	const emailType = typeof params.emailType === "string" ? params.emailType.trim() : "";
+	if (!emailType) {
+		return errorResponse(res, 400, "Validation Error", ["emailType is required."]);
+	}
+
+	try {
+		const preferences = await getUserEmailPreferences(resolved.id);
+		if (!preferences) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		const result = await canSendEmailForUser({ userId: resolved.id, emailType });
+		return successResponse(res, 200, "Email preference check complete.", {
+			userId: resolved.id,
+			emailType,
+			category: getEmailCategoryForType(emailType),
+			canSend: result.canSend,
+			reason: result.reason,
+			preferences: preferenceSummary(preferences)
+		});
+	} catch (error) {
+		logToFile("ADMIN_EMAIL_PREFERENCES_CHECK", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: resolved.id,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
@@ -2693,13 +3075,7 @@ router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async
 	}
 });
 
-// POST /admin/users/:id/library/books/list - Read-only list of a user's books
-router.post("/users/:id/library/books/list", adminAuth, async (req, res) => {
-	const targetId = parseId(req.params.id);
-	if (!Number.isInteger(targetId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
-	}
-
+const handleAdminLibraryBooksList = async (req, res, targetId) => {
 	const listParams = { ...(req.body || {}) };
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) || false;
 
@@ -2796,14 +3172,31 @@ router.post("/users/:id/library/books/list", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["Unable to retrieve books at this time."]);
 	}
+};
+
+// POST /admin/users/:id/library/books/list - Read-only list of a user's books
+router.post("/users/:id/library/books/list", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleAdminLibraryBooksList(req, res, targetId);
 });
 
-// POST /admin/users/:id/library/books/get - Read-only book details
-router.post("/users/:id/library/books/get", adminAuth, async (req, res) => {
-	const targetId = parseId(req.params.id);
+// POST /admin/users/library/books/list - JSON-body/query variant for read-only list
+router.post("/users/library/books/list", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.userId ?? params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleAdminLibraryBooksList(req, res, resolved.id);
+});
+
+const handleAdminLibraryBookDetail = async (req, res, targetId) => {
 	const bookId = parseId(req.body?.id ?? req.query?.id);
-	if (!Number.isInteger(targetId) || !Number.isInteger(bookId)) {
-		return errorResponse(res, 400, "Validation Error", ["User id and book id must be valid integers."]);
+	if (!Number.isInteger(bookId)) {
+		return errorResponse(res, 400, "Validation Error", ["Book id must be a valid integer."]);
 	}
 
 	try {
@@ -2885,8 +3278,27 @@ router.post("/users/:id/library/books/get", adminAuth, async (req, res) => {
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
-		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book details at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve book at this time."]);
 	}
+};
+
+// POST /admin/users/:id/library/books/get - Read-only book details
+router.post("/users/:id/library/books/get", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleAdminLibraryBookDetail(req, res, targetId);
+});
+
+// POST /admin/users/library/books/get - JSON-body/query variant for read-only book details
+router.post("/users/library/books/get", adminAuth, async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const resolved = await resolveTargetUserId({ idValue: params.userId ?? params.id, emailValue: params.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleAdminLibraryBookDetail(req, res, resolved.id);
 });
 
 async function handleResetPassword(req, res, targetId) {

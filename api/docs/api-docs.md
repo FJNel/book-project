@@ -9325,7 +9325,7 @@ You can provide these list controls via query string or JSON body. If both are p
 
 ### POST /book
 
-- **Purpose:** Create a new book and link it to related entities.
+- **Purpose:** Create a new book and link it to related records.
 - **Authentication:** Access token or API key required.
 
 #### Request Overview
@@ -11544,7 +11544,7 @@ Available fields:
 
 ### POST /timeline/buckets
 
-- **Purpose:** Return counts in timeline buckets for a chosen entity/date field.
+- **Purpose:** Return counts in timeline buckets for a chosen record type/date field.
 - **Authentication:** Access token or API key required.
 
 #### Request Overview
@@ -11570,8 +11570,8 @@ Available fields:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `entity` | string | Yes | `books`, `authors`, `bookCopies`, or `publishers`. |
-| `field` | string | Yes | `datePublished`, `birthDate`, `deathDate`, `acquisitionDate`, or `foundedDate` (valid values depend on entity). |
+| `recordType` | string | Yes | `books`, `authors`, `bookCopies`, or `publishers`. |
+| `field` | string | Yes | `datePublished`, `birthDate`, `deathDate`, `acquisitionDate`, or `foundedDate` (valid values depend on record type). |
 | `start` | string | Conditional | Start date (inclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. Required unless `auto` is true. |
 | `end` | string | Conditional | End date (exclusive). Supports `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. Required unless `auto` is true. |
 | `step` | integer | No | Bucket size (default: `1`). |
@@ -11595,8 +11595,8 @@ Supported combinations:
 - Buckets are half-open intervals: `[bucket_start, bucket_end)`.
 - `beforeStart` includes any anchored date before the start bucket.
 - `afterEnd` includes anchored dates on or after the exclusive end date.
-- `unknown` includes entities with no date id or without a year in the partial date.
-- Soft-deleted entities are excluded.
+- `unknown` includes records with no date id or without a year in the partial date.
+- Soft-deleted records are excluded.
 - `end` must be at least one step after `start`.
 - The API rejects requests that would generate more than 200 buckets.
 - When `auto` is true, the API chooses start/end based on the earliest/latest dates in the dataset and selects an appropriate step unit.
@@ -11607,7 +11607,7 @@ Supported combinations:
 
 ```json
 {
-  "entity": "books",
+  "recordType": "books",
   "field": "datePublished",
   "start": "1950",
   "end": "1958",
@@ -11628,7 +11628,7 @@ Supported combinations:
   "responseTime": "2.66",
   "message": "Timeline buckets retrieved successfully.",
   "data": {
-    "entity": "books",
+    "recordType": "books",
     "field": "datePublished",
     "start": "1950-01-01",
     "end": "1960-01-01",
@@ -11662,7 +11662,7 @@ Supported combinations:
 
 ```json
 {
-  "entity": "books",
+  "recordType": "books",
   "field": "datePublished",
   "auto": true,
   "numberOfBuckets": 12,
@@ -11681,7 +11681,7 @@ Supported combinations:
   "responseTime": "2.48",
   "message": "Timeline buckets retrieved successfully.",
   "data": {
-    "entity": "books",
+    "recordType": "books",
     "field": "datePublished",
     "start": "1937-09-21",
     "end": "1961-09-21",
@@ -11724,7 +11724,7 @@ Supported combinations:
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "Entity and field combination is not supported."
+    "Record type and field combination is not supported."
   ]
 }
 ```
@@ -12625,7 +12625,7 @@ Available fields:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `q` | string | Yes | Search query string. |
-| `types` | array or string | No | Filter by entity types (`books`, `authors`, `publishers`, `series`, `tags`). |
+| `types` | array or string | No | Filter by record types (`books`, `authors`, `publishers`, `series`, `tags`). |
 | `limit` | integer | No | Results per type (1–50, default 10). |
 | `offset` | integer | No | Offset for pagination (0–10000). |
 
@@ -12964,14 +12964,14 @@ Available fields:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `format` | string | No | `json` or `csv` (default: `json`). |
-| `entity` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
+| `recordType` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
 | `includeDeleted` | boolean | No | Include soft-deleted records (default: `false`). |
 
 #### Validation & Edge Cases
 
 - `format` must be `json` or `csv`.
-- `entity` must match a supported export entity.
-- CSV exports require a specific `entity` (not `all`).
+- `recordType` must match a supported export record type.
+- CSV exports require a specific `recordType` (not `all`).
 - If the same field is provided in both query string and JSON body, the JSON body value takes precedence.
 
 #### Example Request Body
@@ -12979,7 +12979,7 @@ Available fields:
 ```json
 {
   "format": "json",
-  "entity": "all",
+  "recordType": "all",
   "includeDeleted": false
 }
 ```
@@ -12996,7 +12996,7 @@ Available fields:
   "message": "Export generated successfully.",
   "data": {
     "format": "json",
-    "entity": "all",
+    "recordType": "all",
     "exportedAt": "2026-01-02T16:03:10.000Z",
     "data": {
       "bookTypes": [
@@ -13033,7 +13033,7 @@ Available fields:
   "message": "Validation Error",
   "data": {},
   "errors": [
-    "CSV export requires a specific entity."
+    "CSV export requires a specific record type."
   ]
 }
 ```
@@ -13069,7 +13069,7 @@ Available fields:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `format` | string | No | `json` or `csv` (default: `json`). |
-| `entity` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
+| `recordType` | string | No | `all`, `books`, `authors`, `publishers`, `bookseries`, `booktypes`, `tags`, `languages`, `storagelocations`. |
 | `dryRun` | boolean | No | When `true`, validates without inserting data. |
 | `data` | object or array | Conditional | JSON payload (required when `format` is `json`). |
 | `csv` | string | Conditional | CSV payload (required when `format` is `csv`). |
@@ -13077,8 +13077,8 @@ Available fields:
 #### Validation & Edge Cases
 
 - `format` must be `json` or `csv`.
-- `entity` must match a supported import entity.
-- For CSV imports, provide a single entity and include a header row.
+- `recordType` must match a supported import record type.
+- For CSV imports, provide a single record type and include a header row.
 - For JSON imports, `data` may be an object with keys such as `authors`, `publishers`, `bookSeries`, `tags`, `bookTypes`, `languages`, `storageLocations`, and `books`.
 - For partial dates, use the shared [Partial Date Object](#partial-date-object) shape.
 
@@ -13087,7 +13087,7 @@ Available fields:
 ```json
 {
   "format": "json",
-  "entity": "authors",
+  "recordType": "authors",
   "dryRun": true,
   "data": [
     {
@@ -13125,7 +13125,7 @@ Available fields:
   "message": "Import completed.",
   "data": {
     "summary": {
-      "entity": "authors",
+      "recordType": "authors",
       "format": "json",
       "dryRun": true,
       "processed": 1,

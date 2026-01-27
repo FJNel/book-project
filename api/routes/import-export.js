@@ -398,44 +398,44 @@ router.get("/export", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const format = normalizeText(params.format || "json").toLowerCase();
-	const entity = normalizeText(params.entity || "all").toLowerCase();
+	const recordType = normalizeText(params.recordType || params.entity || "all").toLowerCase();
 	const includeDeleted = parseBooleanFlag(params.includeDeleted) ?? false;
-	const entityKey = ENTITY_MAP[entity];
+	const recordKey = ENTITY_MAP[recordType];
 
 	if (!["json", "csv"].includes(format)) {
 		return errorResponse(res, 400, "Validation Error", ["format must be json or csv."]);
 	}
-	if (!entityKey) {
-		return errorResponse(res, 400, "Validation Error", ["Unknown entity for export."]);
+	if (!recordKey) {
+		return errorResponse(res, 400, "Validation Error", ["Unknown record type for export."]);
 	}
 
 	try {
 		if (format === "json") {
 			const data = await exportJsonLibrary(userId, includeDeleted);
-			if (entityKey !== "all") {
+			if (recordKey !== "all") {
 				return successResponse(res, 200, "Export generated successfully.", {
 					format,
-					entity,
+					recordType,
 					exportedAt: new Date().toISOString(),
-					data: { [entityKey]: data[entityKey] }
+					data: { [recordKey]: data[recordKey] }
 				});
 			}
 			return successResponse(res, 200, "Export generated successfully.", {
 				format,
-				entity,
+				recordType,
 				exportedAt: new Date().toISOString(),
 				data
 			});
 		}
 
-		if (entityKey === "all") {
-			return errorResponse(res, 400, "Validation Error", ["CSV export requires a specific entity."]);
+		if (recordKey === "all") {
+			return errorResponse(res, 400, "Validation Error", ["CSV export requires a specific record type."]);
 		}
 
 		const data = await exportJsonLibrary(userId, includeDeleted);
-		const rows = data[entityKey];
+		const rows = data[recordKey];
 		if (!Array.isArray(rows)) {
-			return errorResponse(res, 400, "Validation Error", ["CSV export is only available for list entities."]);
+			return errorResponse(res, 400, "Validation Error", ["CSV export is only available for list record types."]);
 		}
 
 		const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -444,7 +444,7 @@ router.get("/export", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 		return successResponse(res, 200, "Export generated successfully.", {
 			format,
-			entity,
+			recordType,
 			exportedAt: new Date().toISOString(),
 			csv
 		});
@@ -468,21 +468,21 @@ function validateDateField(value, label) {
 router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
 	const format = normalizeText(req.body?.format || "json").toLowerCase();
-	const entity = normalizeText(req.body?.entity || "all").toLowerCase();
+	const recordType = normalizeText(req.body?.recordType || req.body?.entity || "all").toLowerCase();
 	const dryRun = parseBooleanFlag(req.body?.dryRun) ?? false;
 	const data = req.body?.data;
 	const csv = normalizeText(req.body?.csv);
-	const entityKey = ENTITY_MAP[entity];
+	const recordKey = ENTITY_MAP[recordType];
 
 	if (!["json", "csv"].includes(format)) {
 		return errorResponse(res, 400, "Validation Error", ["format must be json or csv."]);
 	}
-	if (!entityKey) {
-		return errorResponse(res, 400, "Validation Error", ["Unknown entity for import."]);
+	if (!recordKey) {
+		return errorResponse(res, 400, "Validation Error", ["Unknown record type for import."]);
 	}
 
-	if (format === "csv" && !entity) {
-		return errorResponse(res, 400, "Validation Error", ["CSV import requires an entity."]);
+	if (format === "csv" && !recordType) {
+		return errorResponse(res, 400, "Validation Error", ["CSV import requires a record type."]);
 	}
 
 	let payload = data;
@@ -509,7 +509,7 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	const summary = {
-		entity,
+		recordType,
 		format,
 		dryRun,
 		processed: 0,
@@ -609,8 +609,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			return locationPathMap.get(path);
 		};
 
-		if (entityKey === "all" || entityKey === "authors") {
-			const authors = entityKey === "authors" ? payload : payload.authors || [];
+		if (recordKey === "all" || recordKey === "authors") {
+			const authors = recordKey === "authors" ? payload : payload.authors || [];
 			for (const author of authors) {
 				const displayName = normalizeText(author.displayName || author.display_name);
 				if (!displayName) {
@@ -665,8 +665,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "publishers") {
-			const publishers = entityKey === "publishers" ? payload : payload.publishers || [];
+		if (recordKey === "all" || recordKey === "publishers") {
+			const publishers = recordKey === "publishers" ? payload : payload.publishers || [];
 			for (const publisher of publishers) {
 				const name = normalizeText(publisher.name);
 				if (!name) {
@@ -702,8 +702,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "bookSeries") {
-			const series = entityKey === "bookSeries" ? payload : payload.bookSeries || [];
+		if (recordKey === "all" || recordKey === "bookSeries") {
+			const series = recordKey === "bookSeries" ? payload : payload.bookSeries || [];
 			for (const entry of series) {
 				const name = normalizeText(entry.name);
 				if (!name) {
@@ -723,13 +723,13 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "tags") {
-			const tags = entityKey === "tags" ? payload : payload.tags || [];
+		if (recordKey === "all" || recordKey === "tags") {
+			const tags = recordKey === "tags" ? payload : payload.tags || [];
 			await upsertTags(tags);
 		}
 
-		if (entityKey === "all" || entityKey === "bookTypes") {
-			const types = entityKey === "bookTypes" ? payload : payload.bookTypes || [];
+		if (recordKey === "all" || recordKey === "bookTypes") {
+			const types = recordKey === "bookTypes" ? payload : payload.bookTypes || [];
 			for (const entry of types) {
 				const name = normalizeText(entry.name);
 				if (!name) {
@@ -749,8 +749,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "languages") {
-			const languages = entityKey === "languages" ? payload : payload.languages || [];
+		if (recordKey === "all" || recordKey === "languages") {
+			const languages = recordKey === "languages" ? payload : payload.languages || [];
 			for (const entry of languages) {
 				const name = normalizeText(entry.name);
 				if (!name) {
@@ -771,8 +771,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "storageLocations") {
-			const locations = entityKey === "storageLocations" ? payload : payload.storageLocations || [];
+		if (recordKey === "all" || recordKey === "storageLocations") {
+			const locations = recordKey === "storageLocations" ? payload : payload.storageLocations || [];
 			await loadExistingLocations();
 			for (const location of locations) {
 				const path = normalizeText(location.path);
@@ -789,8 +789,8 @@ router.post("/import", requiresAuth, authenticatedLimiter, async (req, res) => {
 			}
 		}
 
-		if (entityKey === "all" || entityKey === "books") {
-			const books = entityKey === "books" ? payload : payload.books || [];
+		if (recordKey === "all" || recordKey === "books") {
+			const books = recordKey === "books" ? payload : payload.books || [];
 			if (books.length > 0) {
 				await loadExistingLocations();
 			}

@@ -47,7 +47,7 @@ tags:
   - name: Tags
     description: Tag catalogue and book-tag links.
   - name: Search
-    description: Cross-entity search endpoints.
+    description: Cross-record search endpoints.
   - name: ImportExport
     description: Import/export flows for backup and restore.
   - name: Logs
@@ -57,7 +57,7 @@ tags:
   - name: Admin
     description: Admin-only endpoints and elevated user management.
   - name: Stats
-    description: Statistics and aggregates across entities.
+    description: Statistics and aggregates across records.
 paths:
   /:
     get:
@@ -375,10 +375,124 @@ paths:
                               $ref: '#/components/schemas/AdminApiKeyUsageEntry'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/data-viewer/tables:
+    get:
+      tags: [Admin]
+      summary: Data viewer tables
+      operationId: getAdminDataViewerTables
+      description: List the allowed, sanitized tables for the admin data viewer.
+      responses:
+        '200':
+          description: Data viewer tables
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          tables:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminDataViewerTable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Admin]
+      summary: Data viewer tables (JSON body)
+      operationId: postAdminDataViewerTables
+      description: List the allowed, sanitized tables for the admin data viewer.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Data viewer tables
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          tables:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminDataViewerTable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/data-viewer/query:
+    post:
+      tags: [Admin]
+      summary: Data viewer query
+      operationId: postAdminDataViewerQuery
+      description: Query a sanitized table. JSON body preferred; query params also supported.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataViewerQueryRequest'
+            examples:
+              requestLogs:
+                value:
+                  table: request_logs
+                  search: /books
+                  sortBy: logged_at
+                  order: desc
+                  limit: 25
+                  page: 1
+      responses:
+        '200':
+          description: Data viewer results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminDataViewerQueryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: Data viewer query (query)
+      operationId: getAdminDataViewerQuery
+      description: Query a sanitized table via query params.
+      responses:
+        '200':
+          description: Data viewer results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminDataViewerQueryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/users/{id}/api-key-ban:
     post:
       tags: [Admin]
       summary: Block API key creation
+      description: Legacy path-based endpoint. Prefer /admin/users/api-key-ban with a JSON body.
       operationId: adminBanApiKeyCreation
       parameters:
         - name: id
@@ -425,6 +539,7 @@ paths:
     post:
       tags: [Admin]
       summary: Allow API key creation
+      description: Legacy path-based endpoint. Prefer /admin/users/api-key-unban with a JSON body.
       operationId: adminUnbanApiKeyCreation
       parameters:
         - name: id
@@ -517,6 +632,7 @@ paths:
     post:
       tags: [Admin]
       summary: Apply usage lockout
+      description: Legacy path-based endpoint. Prefer /admin/users/usage-lockout with a JSON body.
       operationId: adminApplyUsageLockout
       parameters:
         - name: id
@@ -563,6 +679,7 @@ paths:
     post:
       tags: [Admin]
       summary: Clear usage lockout
+      description: Legacy path-based endpoint. Prefer /admin/users/usage-lockout/clear with a JSON body.
       operationId: adminClearUsageLockout
       parameters:
         - name: id
@@ -603,6 +720,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get user email preferences
+      description: Legacy path-based endpoint. Prefer /admin/users/email-preferences with a JSON body.
       operationId: getAdminUserEmailPreferences
       parameters:
         - name: id
@@ -642,6 +760,7 @@ paths:
     post:
       tags: [Admin]
       summary: Check if an email will send
+      description: Legacy path-based endpoint. Prefer /admin/users/email-preferences/check with a JSON body.
       operationId: checkAdminUserEmailPreference
       parameters:
         - name: id
@@ -656,6 +775,132 @@ paths:
             schema:
               type: object
               properties:
+                emailType:
+                  type: string
+      responses:
+        '200':
+          description: Preference check
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          canSend:
+                            type: boolean
+                          reason:
+                            type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/email-preferences:
+    get:
+      tags: [Admin]
+      summary: Get user email preferences (query)
+      description: Preferred JSON-body endpoint is POST. Provide id or email.
+      operationId: getAdminUserEmailPreferencesQuery
+      parameters:
+        - name: id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          userId:
+                            type: integer
+                          preferences:
+                            type: object
+                            properties:
+                              accountUpdates:
+                                type: boolean
+                              devFeatures:
+                                type: boolean
+                              essential:
+                                type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Get user email preferences
+      description: Provide id or email in the JSON body.
+      operationId: getAdminUserEmailPreferencesBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserIdentifier'
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          userId:
+                            type: integer
+                          preferences:
+                            type: object
+                            properties:
+                              accountUpdates:
+                                type: boolean
+                              devFeatures:
+                                type: boolean
+                              essential:
+                                type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/email-preferences/check:
+    post:
+      tags: [Admin]
+      summary: Check if an email will send (body)
+      description: Provide id or email with emailType in the JSON body.
+      operationId: checkAdminUserEmailPreferenceBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                email:
+                  type: string
+                  format: email
                 emailType:
                   type: string
       responses:
@@ -739,6 +984,7 @@ paths:
     post:
       tags: [Admin]
       summary: List books for a user (read-only)
+      description: Legacy path-based endpoint. Prefer /admin/users/library/books/list with a JSON body.
       operationId: listAdminUserBooks
       parameters:
         - name: id
@@ -778,6 +1024,7 @@ paths:
     post:
       tags: [Admin]
       summary: Get a book for a user (read-only)
+      description: Legacy path-based endpoint. Prefer /admin/users/library/books/get with a JSON body.
       operationId: getAdminUserBook
       parameters:
         - name: id
@@ -792,6 +1039,76 @@ paths:
             schema:
               type: object
               properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/library/books/list:
+    post:
+      tags: [Admin]
+      summary: List books for a user (read-only)
+      description: Provide userId or email in the JSON body.
+      operationId: listAdminUserBooksBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                email:
+                  type: string
+                  format: email
+                search:
+                  type: string
+                sort:
+                  type: string
+                order:
+                  type: string
+                limit:
+                  type: integer
+                page:
+                  type: integer
+                includeDeleted:
+                  type: boolean
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/library/books/get:
+    post:
+      tags: [Admin]
+      summary: Get a book for a user (read-only)
+      description: Provide userId or email plus the book id in the JSON body.
+      operationId: getAdminUserBookBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                email:
+                  type: string
+                  format: email
                 id:
                   type: integer
       responses:
@@ -6274,7 +6591,7 @@ paths:
               manual:
                 summary: Manual bucket definition
                 value:
-                  entity: books
+                  recordType: books
                   field: datePublished
                   start: 1950-01-01
                   end: 1960-01-01
@@ -6284,7 +6601,7 @@ paths:
               auto:
                 summary: Auto mode
                 value:
-                  entity: books
+                  recordType: books
                   field: datePublished
                   auto: true
                   numberOfBuckets: 12
@@ -6309,7 +6626,7 @@ paths:
                     responseTime: "2.48"
                     message: Timeline buckets retrieved successfully.
                     data:
-                      entity: books
+                      recordType: books
                       field: datePublished
                       start: "1937-09-21"
                       end: "1961-09-21"
@@ -6714,9 +7031,9 @@ paths:
   /search:
     get:
       tags: [Search]
-      summary: Search entities
-      operationId: searchEntities
-      description: Multi-entity search across books, authors, publishers, series, tags. Accepts query or JSON body; body wins.
+      summary: Search records
+      operationId: searchRecords
+      description: Multi-record search across books, authors, publishers, series, tags. Accepts query or JSON body; body wins.
       requestBody:
         required: false
         content:
@@ -6724,7 +7041,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SearchRequest'
             examples:
-              multiEntity:
+              multiRecord:
                 value:
                   query: ring
                   include: [books, authors, series]
@@ -7296,7 +7613,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserSummary'
               examples:
                 success:
                   value:
@@ -7314,6 +7641,19 @@ paths:
                           isVerified: true
                           isDisabled: false
                           lastLogin: "2025-02-03T18:10:05.000Z"
+                          lastActive: "2025-02-03T18:10:05.000Z"
+                          languageCount: 3
+                          librarySize: 42
+                          usageScore: 118
+                          usageRank: Low
+                          apiKeyActiveCount: 1
+                          apiKeyRevokedCount: 0
+                          apiKeyStatus: Active
+                          apiKeyBanEnabled: false
+                          usageLockoutUntil: null
+                          emailPreferences:
+                            accountUpdates: true
+                            devFeatures: false
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -7495,6 +7835,7 @@ paths:
       tags: [Admin]
       summary: Admin get user by id
       operationId: adminGetUserById
+      description: Legacy path-based endpoint. Prefer /admin/users with a JSON body.
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -7516,7 +7857,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserSummary'
               examples:
                 success:
                   value:
@@ -7534,8 +7880,21 @@ paths:
                       isDisabled: false
                       passwordUpdated: "2025-01-12T09:45:00.000Z"
                       lastLogin: "2025-02-03T18:10:05.000Z"
+                      lastActive: "2025-02-03T18:10:05.000Z"
                       createdAt: "2025-01-12T09:30:00.000Z"
                       updatedAt: "2025-02-03T18:10:05.000Z"
+                      languageCount: 3
+                      librarySize: 42
+                      usageScore: 118
+                      usageRank: Low
+                      apiKeyActiveCount: 1
+                      apiKeyRevokedCount: 0
+                      apiKeyStatus: Active
+                      apiKeyBanEnabled: false
+                      usageLockoutUntil: null
+                      emailPreferences:
+                        accountUpdates: true
+                        devFeatures: false
                       oauthProviders:
                         - google
                     errors: []
@@ -7550,6 +7909,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/id'
       description: |
+        Legacy path-based endpoint. Prefer /admin/users with a JSON body.
         Update a specific user's profile by id. Changing email sets `isVerified=false`, issues a new verification token, and sends the admin profile update notice to both the old and new email addresses. Admins cannot change their own role; that attempt returns 403.
       requestBody:
         required: true
@@ -7589,7 +7949,7 @@ paths:
       operationId: adminDeleteUserById
       parameters:
         - $ref: '#/components/parameters/id'
-      description: Soft-disable a user account by id. Admins cannot disable their own account; that attempt returns 403.
+      description: Legacy path-based endpoint. Prefer /admin/users with a JSON body. Soft-disable a user account by id. Admins cannot disable their own account; that attempt returns 403.
       responses:
         '200':
           description: Disabled
@@ -7656,6 +8016,7 @@ paths:
     post:
       tags: [Admin]
       summary: Enable user by id
+      description: Legacy path-based endpoint. Prefer /admin/users/enable with a JSON body.
       operationId: adminEnableUserById
       parameters:
         - $ref: '#/components/parameters/id'
@@ -7731,6 +8092,7 @@ paths:
     post:
       tags: [Admin]
       summary: Unverify user by id
+      description: Legacy path-based endpoint. Prefer /admin/users/unverify with a JSON body.
       operationId: adminUnverifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
@@ -7781,7 +8143,7 @@ paths:
               verify:
                 value:
                   email: user@example.com
-                  reason: Identity confirmed by support.
+                  reason: Verification confirmed by support.
       responses:
         '200':
           description: Verified
@@ -7807,6 +8169,7 @@ paths:
     post:
       tags: [Admin]
       summary: Verify user by id
+      description: Legacy path-based endpoint. Prefer /admin/users/verify with a JSON body.
       operationId: adminVerifyUserById
       parameters:
         - $ref: '#/components/parameters/id'
@@ -7888,6 +8251,7 @@ paths:
     post:
       tags: [Admin]
       summary: Send verification email by id
+      description: Legacy path-based endpoint. Prefer /admin/users/send-verification with a JSON body.
       operationId: adminSendVerificationById
       x-rateLimit:
         limit: 1
@@ -7974,6 +8338,7 @@ paths:
     post:
       tags: [Admin]
       summary: Send password reset email by id
+      description: Legacy path-based endpoint. Prefer /admin/users/reset-password with a JSON body.
       operationId: adminResetPasswordById
       x-rateLimit:
         limit: 1
@@ -8219,6 +8584,7 @@ paths:
     post:
       tags: [Admin]
       summary: List sessions for user by id
+      description: Legacy path-based endpoint. Prefer /admin/users/sessions with a JSON body.
       operationId: adminListUserSessionsById
       parameters:
         - $ref: '#/components/parameters/id'
@@ -8277,6 +8643,7 @@ paths:
     post:
       tags: [Admin]
       summary: Force logout by id
+      description: Legacy path-based endpoint. Prefer /admin/users/force-logout with a JSON body.
       operationId: adminForceLogoutById
       parameters:
         - $ref: '#/components/parameters/id'
@@ -8355,6 +8722,7 @@ paths:
     post:
       tags: [Admin]
       summary: Delete account permanently by id
+      description: Legacy path-based endpoint. Prefer /admin/users/handle-account-deletion with a JSON body.
       operationId: adminHandleAccountDeletionById
       x-rateLimit:
         limit: 60
@@ -10509,9 +10877,9 @@ components:
     TimelineBucketsRequest:
       type: object
       properties:
-        entity:
+        recordType:
           type: string
-          enum: [books, acquisitions]
+          enum: [books, authors, bookCopies, publishers]
         field:
           type: string
         start:
@@ -10534,7 +10902,7 @@ components:
     TimelineBucketsResponse:
       type: object
       properties:
-        entity:
+        recordType:
           type: string
         field:
           type: string
@@ -10805,17 +11173,17 @@ components:
           items:
             $ref: '#/components/schemas/BookCopy'
     SearchRequest:
-      description: Multi-entity search request body.
+      description: Multi-record search request body.
       type: object
       properties:
         query:
           description: Search string.
           type: string
         limit:
-          description: Max results per entity.
+          description: Max results per record type.
           type: integer
         include:
-          description: Entities to include in search.
+          description: Record types to include in search.
           type: array
           items:
             type: string
@@ -10995,6 +11363,87 @@ components:
           type: string
         path:
           type: string
+    AdminDataViewerSortField:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+    AdminDataViewerTable:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        defaultSort:
+          type: string
+        defaultOrder:
+          type: string
+          enum: [asc, desc]
+        sortFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDataViewerSortField'
+    AdminDataViewerQueryRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        search:
+          type: string
+        userId:
+          type: integer
+        email:
+          type: string
+        sortBy:
+          type: string
+        order:
+          type: string
+          enum: [asc, desc]
+        limit:
+          type: integer
+        page:
+          type: integer
+      required: [table]
+    AdminDataViewerColumn:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+    AdminDataViewerRow:
+      type: object
+      additionalProperties: true
+    AdminDataViewerQueryResponse:
+      type: object
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDataViewerColumn'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDataViewerRow'
+        count:
+          type: integer
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasNext:
+          type: boolean
     AdminUserIdentifier:
       type: object
       properties:
@@ -11121,6 +11570,76 @@ components:
           type: boolean
         ageSeconds:
           type: number
+    AdminUserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        preferredName:
+          type:
+            - string
+            - "null"
+        role:
+          type: string
+          enum: [user, admin]
+        isVerified:
+          type: boolean
+        isDisabled:
+          type: boolean
+        passwordUpdated:
+          type:
+            - string
+            - "null"
+          format: date-time
+        lastLogin:
+          type:
+            - string
+            - "null"
+          format: date-time
+        lastActive:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        languageCount:
+          type: integer
+        librarySize:
+          type: integer
+        usageScore:
+          type: integer
+        usageRank:
+          type: string
+        apiKeyActiveCount:
+          type: integer
+        apiKeyRevokedCount:
+          type: integer
+        apiKeyStatus:
+          type: string
+        apiKeyBanEnabled:
+          type: boolean
+        usageLockoutUntil:
+          type:
+            - string
+            - "null"
+          format: date-time
+        emailPreferences:
+          type: object
+          properties:
+            accountUpdates:
+              type: boolean
+            devFeatures:
+              type: boolean
     AdminUserCreate:
       type: object
       required: [fullName, email]

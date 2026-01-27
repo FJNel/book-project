@@ -14320,7 +14320,7 @@ You can provide these list controls via query string or JSON body. If both are p
 </details>
 <h3 id="post-book">POST /book</h3>
 <ul>
-<li><strong>Purpose:</strong> Create a new book and link it to related entities.</li>
+<li><strong>Purpose:</strong> Create a new book and link it to related records.</li>
 <li><strong>Authentication:</strong> Access token or API key required.</li>
 </ul>
 <h4 id="request-overview-78">Request Overview</h4>
@@ -17669,7 +17669,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <h2 id="timeline-buckets">Timeline Buckets</h2>
 <h3 id="post-timelinebuckets">POST /timeline/buckets</h3>
 <ul>
-<li><strong>Purpose:</strong> Return counts in timeline buckets for a chosen entity/date field.</li>
+<li><strong>Purpose:</strong> Return counts in timeline buckets for a chosen record type/date field.</li>
 <li><strong>Authentication:</strong> Access token or API key required.</li>
 </ul>
 <h4 id="request-overview-95">Request Overview</h4>
@@ -17752,7 +17752,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </thead>
 <tbody>
 <tr>
-<td><code>entity</code></td>
+<td><code>recordType</code></td>
 <td>string</td>
 <td>Yes</td>
 <td><code>books</code>, <code>authors</code>, <code>bookCopies</code>, or <code>publishers</code>.</td>
@@ -17761,7 +17761,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <td><code>field</code></td>
 <td>string</td>
 <td>Yes</td>
-<td><code>datePublished</code>, <code>birthDate</code>, <code>deathDate</code>, <code>acquisitionDate</code>, or <code>foundedDate</code> (valid values depend on entity).</td>
+<td><code>datePublished</code>, <code>birthDate</code>, <code>deathDate</code>, <code>acquisitionDate</code>, or <code>foundedDate</code> (valid values depend on record type).</td>
 </tr>
 <tr>
 <td><code>start</code></td>
@@ -17828,8 +17828,8 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <li>Buckets are half-open intervals: <code>[bucket_start, bucket_end)</code>.</li>
 <li><code>beforeStart</code> includes any anchored date before the start bucket.</li>
 <li><code>afterEnd</code> includes anchored dates on or after the exclusive end date.</li>
-<li><code>unknown</code> includes entities with no date id or without a year in the partial date.</li>
-<li>Soft-deleted entities are excluded.</li>
+<li><code>unknown</code> includes records with no date id or without a year in the partial date.</li>
+<li>Soft-deleted records are excluded.</li>
 <li><code>end</code> must be at least one step after <code>start</code>.</li>
 <li>The API rejects requests that would generate more than 200 buckets.</li>
 <li>When <code>auto</code> is true, the API chooses start/end based on the earliest/latest dates in the dataset and selects an appropriate step unit.</li>
@@ -17838,7 +17838,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </ul>
 <h4 id="example-request-body-76">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1958&quot;</span><span class="hljs-punctuation">,</span>
@@ -17857,7 +17857,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.66&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Timeline buckets retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1950-01-01&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1960-01-01&quot;</span><span class="hljs-punctuation">,</span>
@@ -17888,7 +17888,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 </code></pre>
 <h4 id="example-request-body-auto-mode">Example Request Body (Auto Mode)</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;auto&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;numberOfBuckets&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">12</span><span class="hljs-punctuation">,</span>
@@ -17905,7 +17905,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;responseTime&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2.48&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Timeline buckets retrieved successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;books&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;field&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;datePublished&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;start&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1937-09-21&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;end&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;1961-09-21&quot;</span><span class="hljs-punctuation">,</span>
@@ -17946,7 +17946,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;Entity and field combination is not supported.&quot;</span>
+    <span class="hljs-string">&quot;Record type and field combination is not supported.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -19593,7 +19593,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <td><code>types</code></td>
 <td>array or string</td>
 <td>No</td>
-<td>Filter by entity types (<code>books</code>, <code>authors</code>, <code>publishers</code>, <code>series</code>, <code>tags</code>).</td>
+<td>Filter by record types (<code>books</code>, <code>authors</code>, <code>publishers</code>, <code>series</code>, <code>tags</code>).</td>
 </tr>
 <tr>
 <td><code>limit</code></td>
@@ -20111,7 +20111,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <td><code>json</code> or <code>csv</code> (default: <code>json</code>).</td>
 </tr>
 <tr>
-<td><code>entity</code></td>
+<td><code>recordType</code></td>
 <td>string</td>
 <td>No</td>
 <td><code>all</code>, <code>books</code>, <code>authors</code>, <code>publishers</code>, <code>bookseries</code>, <code>booktypes</code>, <code>tags</code>, <code>languages</code>, <code>storagelocations</code>.</td>
@@ -20127,14 +20127,14 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <h4 id="validation--edge-cases-100">Validation &amp; Edge Cases</h4>
 <ul>
 <li><code>format</code> must be <code>json</code> or <code>csv</code>.</li>
-<li><code>entity</code> must match a supported export entity.</li>
-<li>CSV exports require a specific <code>entity</code> (not <code>all</code>).</li>
+<li><code>recordType</code> must match a supported export record type.</li>
+<li>CSV exports require a specific <code>recordType</code> (not <code>all</code>).</li>
 <li>If the same field is provided in both query string and JSON body, the JSON body value takes precedence.</li>
 </ul>
 <h4 id="example-request-body-86">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;format&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;json&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;all&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;all&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;includeDeleted&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">false</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -20149,7 +20149,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Export generated successfully.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;format&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;json&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;all&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;all&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;exportedAt&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2026-01-02T16:03:10.000Z&quot;</span><span class="hljs-punctuation">,</span>
     <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
       <span class="hljs-attr">&quot;bookTypes&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
@@ -20184,7 +20184,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Validation Error&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span><span class="hljs-punctuation">}</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;errors&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
-    <span class="hljs-string">&quot;CSV export requires a specific entity.&quot;</span>
+    <span class="hljs-string">&quot;CSV export requires a specific record type.&quot;</span>
   <span class="hljs-punctuation">]</span>
 <span class="hljs-punctuation">}</span>
 </code></pre>
@@ -20280,7 +20280,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <td><code>json</code> or <code>csv</code> (default: <code>json</code>).</td>
 </tr>
 <tr>
-<td><code>entity</code></td>
+<td><code>recordType</code></td>
 <td>string</td>
 <td>No</td>
 <td><code>all</code>, <code>books</code>, <code>authors</code>, <code>publishers</code>, <code>bookseries</code>, <code>booktypes</code>, <code>tags</code>, <code>languages</code>, <code>storagelocations</code>.</td>
@@ -20308,15 +20308,15 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
 <h4 id="validation--edge-cases-101">Validation &amp; Edge Cases</h4>
 <ul>
 <li><code>format</code> must be <code>json</code> or <code>csv</code>.</li>
-<li><code>entity</code> must match a supported import entity.</li>
-<li>For CSV imports, provide a single entity and include a header row.</li>
+<li><code>recordType</code> must match a supported import record type.</li>
+<li>For CSV imports, provide a single record type and include a header row.</li>
 <li>For JSON imports, <code>data</code> may be an object with keys such as <code>authors</code>, <code>publishers</code>, <code>bookSeries</code>, <code>tags</code>, <code>bookTypes</code>, <code>languages</code>, <code>storageLocations</code>, and <code>books</code>.</li>
 <li>For partial dates, use the shared <a href="#partial-date-object">Partial Date Object</a> shape.</li>
 </ul>
 <h4 id="example-request-body-87">Example Request Body</h4>
 <pre><code class="language-json"><span class="hljs-punctuation">{</span>
   <span class="hljs-attr">&quot;format&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;json&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;authors&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;authors&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;dryRun&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
     <span class="hljs-punctuation">{</span>
@@ -20352,7 +20352,7 @@ When <code>returnStats</code> is true, the response includes <code>stats</code> 
   <span class="hljs-attr">&quot;message&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Import completed.&quot;</span><span class="hljs-punctuation">,</span>
   <span class="hljs-attr">&quot;data&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
     <span class="hljs-attr">&quot;summary&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-      <span class="hljs-attr">&quot;entity&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;authors&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;recordType&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;authors&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;format&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;json&quot;</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;dryRun&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-keyword">true</span><span class="hljs-punctuation">,</span>
       <span class="hljs-attr">&quot;processed&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>

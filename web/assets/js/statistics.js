@@ -38,7 +38,8 @@
       tagEmpty: document.getElementById('booksTagEmpty'),
       tagHint: document.getElementById('booksTagEmptyHint'),
       qualityGrid: document.getElementById('booksQualityGrid'),
-      highlights: document.getElementById('booksHighlightsList')
+      highlights: document.getElementById('booksHighlightsList'),
+      correlationList: document.getElementById('booksCorrelationList')
     },
     authors: {
       loading: document.getElementById('authorsLoading'),
@@ -89,7 +90,7 @@
       loading: document.getElementById('timelineLoading'),
       content: document.getElementById('timelineContent'),
       empty: document.getElementById('timelineEmpty'),
-      entity: document.getElementById('timelineEntity'),
+      recordType: document.getElementById('timelineRecordType'),
       field: document.getElementById('timelineField'),
       mode: document.getElementById('timelineMode'),
       bucketsWrap: document.getElementById('timelineBucketsWrap'),
@@ -109,7 +110,7 @@
       chartEmptyText: document.getElementById('timelineChartEmptyText'),
       summary: document.getElementById('timelineSummary'),
       retryBtn: document.getElementById('timelineRetryBtn'),
-      entityError: document.getElementById('timelineEntityError'),
+      recordTypeError: document.getElementById('timelineRecordTypeError'),
       fieldError: document.getElementById('timelineFieldError'),
       bucketsError: document.getElementById('timelineBucketsError'),
       startError: document.getElementById('timelineStartError'),
@@ -187,6 +188,8 @@
     ['Untagged books', 'Books that do not have any tags assigned.'],
     ['Most used tag', 'The tag applied to the most books in your library.'],
     ['Most tagged book', 'The single book with the most tags assigned.'],
+    ['Publisher and pages', 'Compares page counts between books with and without publishers. This is an association only and does not imply causation.'],
+    ['Tags and pages', 'Compares page counts between tagged and untagged books. This is an association only and does not imply causation.'],
     ['With death date', 'Authors with a recorded death date.'],
     ['Authors by birth decade', 'Count of authors grouped by birth decade.'],
     ['Top authors', 'Authors with the most books linked to them.'],
@@ -470,7 +473,7 @@
   };
 
   const clearFieldErrors = () => {
-    setFieldError(dom.timeline.entity, dom.timeline.entityError, '');
+    setFieldError(dom.timeline.recordType, dom.timeline.recordTypeError, '');
     setFieldError(dom.timeline.field, dom.timeline.fieldError, '');
     setFieldError(dom.timeline.buckets, dom.timeline.bucketsError, '');
     setFieldError(dom.timeline.start, dom.timeline.startError, '');
@@ -781,23 +784,23 @@
         html: `<span class="fw-semibold">${renderTooltipLabel('Most tagged book')}</span> <span class="text-muted">${mostTaggedLink} (${escapeHtml(formatNumber(bookTagStats.mostTaggedBook.tagCount))} tags)</span>`
       });
     }
-    const publisherAssociation = bookStats?.publisherPageCountAssociation;
-    if (publisherAssociation?.insight) {
-      const detail = `${publisherAssociation.insight} (N=${formatNumber(publisherAssociation.sampleSize || 0)}; ${formatNumber(publisherAssociation.withGroup?.count || 0)} with publishers, ${formatNumber(publisherAssociation.withoutGroup?.count || 0)} without)`;
-      highlights.push({
-        label: 'Publisher and pages',
-        detail
-      });
-    }
-    const tagAssociation = bookStats?.taggedPageCountAssociation;
-    if (tagAssociation?.insight) {
-      const detail = `${tagAssociation.insight} (N=${formatNumber(tagAssociation.sampleSize || 0)}; ${formatNumber(tagAssociation.withGroup?.count || 0)} tagged, ${formatNumber(tagAssociation.withoutGroup?.count || 0)} untagged)`;
-      highlights.push({
-        label: 'Tags and pages',
-        detail
-      });
-    }
     renderListItems(dom.books.highlights, highlights);
+
+    const correlationItems = [];
+    const pushAssociation = (association, label, withLabel, withoutLabel) => {
+      if (!association) return;
+      const sampleSize = Number(association.sampleSize || 0);
+      const minGroup = Number(association.minimumGroupSize || 0);
+      const withCount = Number(association.withGroup?.count || 0);
+      const withoutCount = Number(association.withoutGroup?.count || 0);
+      const insight = association.insight || 'Not enough data yet.';
+      const detail = `${insight} (N=${formatNumber(sampleSize)}; min per group ${formatNumber(minGroup)}; ${formatNumber(withCount)} ${withLabel}, ${formatNumber(withoutCount)} ${withoutLabel}). Association only; not causation.`;
+      correlationItems.push({ label, detail });
+    };
+
+    pushAssociation(bookStats?.publisherPageCountAssociation, 'Publisher and pages', 'with publishers', 'without publishers');
+    pushAssociation(bookStats?.taggedPageCountAssociation, 'Tags and pages', 'tagged', 'untagged');
+    renderListItems(dom.books.correlationList, correlationItems);
 
     return Boolean(bookStats || bookTypeStats || languageStats || bookTagStats);
   };
@@ -859,7 +862,16 @@
     } : null, dom.authors.decadeEmpty);
 
     const topAuthors = Array.isArray(authorStats?.breakdownPerAuthor)
-      ? authorStats.breakdownPerAuthor.slice(0, 6)
+      ? [...authorStats.breakdownPerAuthor]
+        .sort((a, b) => {
+          const countDelta = (Number(b.bookCount) || 0) - (Number(a.bookCount) || 0);
+          if (countDelta !== 0) return countDelta;
+          const nameA = String(a.displayName || '').toLowerCase();
+          const nameB = String(b.displayName || '').toLowerCase();
+          if (nameA && nameB) return nameA.localeCompare(nameB);
+          return (Number(a.id) || 0) - (Number(b.id) || 0);
+        })
+        .slice(0, 6)
       : [];
     const topRows = topAuthors.map((entry) => `
       <tr class="clickable-row" data-row-href="author-details?id=${encodeURIComponent(entry.id)}">
@@ -1130,7 +1142,7 @@
     return Boolean(storageStats);
   };
 
-  const timelineEntities = [
+  const timelineRecordTypes = [
     { value: 'books', label: 'Books', fields: [
       { value: 'datePublished', label: 'Published date' }
     ] },
@@ -1174,7 +1186,7 @@
     const onClick = (index) => {
       const bucket = buckets[index];
       if (!bucket) return;
-      if (payload?.entity === 'books' && payload?.field === 'datePublished') {
+      if (payload?.recordType === 'books' && payload?.field === 'datePublished') {
         const params = new URLSearchParams();
         if (bucket.start) params.set('filterPublishedAfter', bucket.start);
         if (bucket.end) params.set('filterPublishedBefore', bucket.end);
@@ -1203,10 +1215,10 @@
   };
 
   const updateTimelineFields = () => {
-    const selectedEntity = dom.timeline.entity?.value || 'books';
-    const entityConfig = timelineEntities.find((entry) => entry.value === selectedEntity) || timelineEntities[0];
+    const selectedRecordType = dom.timeline.recordType?.value || 'books';
+    const recordTypeConfig = timelineRecordTypes.find((entry) => entry.value === selectedRecordType) || timelineRecordTypes[0];
     if (!dom.timeline.field) return;
-    dom.timeline.field.innerHTML = entityConfig.fields
+    dom.timeline.field.innerHTML = recordTypeConfig.fields
       .map((field) => `<option value="${escapeHtml(field.value)}">${escapeHtml(field.label)}</option>`)
       .join('');
   };
@@ -1255,11 +1267,11 @@
     clearFieldErrors();
     let isValid = true;
     const mode = dom.timeline.mode?.value || 'auto';
-    const entity = dom.timeline.entity?.value || '';
+    const recordType = dom.timeline.recordType?.value || '';
     const field = dom.timeline.field?.value || '';
 
-    if (!entity) {
-      setFieldError(dom.timeline.entity, dom.timeline.entityError, 'Select a record type.');
+    if (!recordType) {
+      setFieldError(dom.timeline.recordType, dom.timeline.recordTypeError, 'Select a record type.');
       isValid = false;
     }
     if (!field) {
@@ -1268,7 +1280,7 @@
     }
 
     const payload = {
-      entity,
+      recordType,
       field,
       auto: mode === 'auto',
       hideEmptyBuckets: Boolean(dom.timeline.hideEmpty?.checked)
@@ -1399,8 +1411,8 @@
   };
 
   const renderTimelineSection = async () => {
-    if (dom.timeline.entity) {
-      dom.timeline.entity.innerHTML = timelineEntities
+    if (dom.timeline.recordType) {
+      dom.timeline.recordType.innerHTML = timelineRecordTypes
         .map((entry) => `<option value="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</option>`)
         .join('');
       updateTimelineFields();
@@ -1503,8 +1515,8 @@
       showSection(section, { updateHash: false });
     });
 
-    if (dom.timeline.entity) {
-      dom.timeline.entity.addEventListener('change', () => {
+    if (dom.timeline.recordType) {
+      dom.timeline.recordType.addEventListener('change', () => {
         updateTimelineFields();
         clearFieldErrors();
       });

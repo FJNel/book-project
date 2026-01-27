@@ -41,10 +41,10 @@
     filterUpdatedBefore: document.getElementById('filterUpdatedBefore'),
     applyFiltersBtn: document.getElementById('applyFiltersBtn'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
-    refreshButton: document.getElementById('refreshButton'),
     clearAllFiltersBtn: document.getElementById('clearAllFiltersBtn'),
     feedbackContainer: document.getElementById('feedbackContainer'),
     activeFilters: document.getElementById('activeFilters'),
+    activeFiltersBar: document.getElementById('activeFiltersBar'),
     resultsSummary: document.getElementById('resultsSummary'),
     resultsMeta: document.getElementById('resultsMeta'),
     listTableBody: document.getElementById('listTableBody'),
@@ -195,13 +195,26 @@
     if (f.updatedBefore) chips.push({ key: 'Updated before', value: f.updatedBefore });
 
     dom.activeFilters.innerHTML = '';
-    if (!chips.length) return;
-    chips.forEach((chip) => {
-      const span = document.createElement('span');
-      span.className = 'filter-chip';
-      span.innerHTML = `<strong>${escapeHtml(chip.key)}:</strong> <span>${escapeHtml(chip.value)}</span>`;
-      dom.activeFilters.appendChild(span);
-    });
+    if (!chips.length) {
+      const empty = document.createElement('span');
+      empty.className = 'text-muted small';
+      empty.textContent = 'None';
+      dom.activeFilters.appendChild(empty);
+    } else {
+      chips.forEach((chip) => {
+        const span = document.createElement('span');
+        span.className = 'filter-chip';
+        span.innerHTML = `<strong>${escapeHtml(chip.key)}:</strong> <span>${escapeHtml(chip.value)}</span>`;
+        dom.activeFilters.appendChild(span);
+      });
+    }
+
+    if (dom.clearAllFiltersBtn) {
+      dom.clearAllFiltersBtn.classList.toggle('d-none', chips.length === 0);
+    }
+    if (dom.activeFiltersBar) {
+      dom.activeFiltersBar.classList.toggle('d-none', chips.length === 0);
+    }
   };
 
   const buildRequestPayload = () => {
@@ -292,10 +305,26 @@
         <td class="list-col-created">${formatTimestamp(item.createdAt)}</td>
         <td class="list-col-updated">${formatTimestamp(item.updatedAt)}</td>
         <td class="list-col-actions text-end">
-          <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-secondary" data-action="view">View</button>
-            <button type="button" class="btn btn-outline-secondary" data-action="edit">Edit</button>
-            <button type="button" class="btn btn-outline-danger" data-action="delete">Delete</button>
+          <div class="btn-group btn-group-sm row-actions" role="group" aria-label="Row actions">
+            <button type="button" class="btn btn-outline-secondary" data-action="view" aria-label="View book type" title="View">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8"/>
+                <path d="M8 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6"/>
+              </svg>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-action="edit" aria-label="Edit book type" title="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0z"/>
+                <path d="M1 13.5V16h2.5l7.379-7.379-2-2z"/>
+                <path fill-rule="evenodd" d="M1 1h10a1 1 0 0 1 1 1v4a.5.5 0 0 1-1 0V2H1v12h4a.5.5 0 0 1 0 1H1a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1"/>
+              </svg>
+            </button>
+            <button type="button" class="btn btn-outline-danger" data-action="delete" aria-label="Delete book type" title="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                <path d="M5.5 5.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+              </svg>
+            </button>
           </div>
         </td>
       `;
@@ -307,6 +336,8 @@
   };
 
   const loadBookTypes = async () => {
+    let resolvedOk = false;
+    let resolvedError = null;
     clearAlerts();
     dom.listTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr>';
     dom.resultsSummary.textContent = 'Loading book types…';
@@ -325,16 +356,23 @@
         const details = Array.isArray(data.errors) ? data.errors : [];
         showAlert({ message: data.message || 'Unable to load book types.', details });
         renderList([], false);
+        resolvedError = data.message || 'Unable to load book types.';
         return;
       }
       const list = data?.data?.bookTypes || [];
       state.data = list;
       const hasNextPage = list.length === state.limit;
       renderList(list, hasNextPage);
+      resolvedOk = true;
     } catch (err) {
       errorLog('Failed to load list', err);
       renderList([], false);
       showAlert({ message: 'Unable to load book types right now. Please try again.' });
+      resolvedError = err.message || 'Unable to load book types.';
+    } finally {
+      if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+        window.pageContentReady.resolve({ success: resolvedOk, error: resolvedError });
+      }
     }
   };
 
@@ -619,7 +657,6 @@
 
   const bindEvents = () => {
     dom.addBookTypeBtn.addEventListener('click', () => openModal({ mode: 'create' }));
-    dom.refreshButton.addEventListener('click', loadBookTypes);
     dom.clearSearchBtn.addEventListener('click', () => {
       dom.searchInput.value = '';
       searchChanged();
@@ -679,6 +716,9 @@
     buildFilterChips();
     bindEvents();
     loadBookTypes();
+    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+      window.pageContentReady.resolve({ success: true });
+    }
   };
 
   init();

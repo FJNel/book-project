@@ -90,6 +90,7 @@
     usageApiKeyEmail: document.getElementById('usageApiKeyEmail'),
     usageApiKeysSummary: document.getElementById('usageApiKeysSummary'),
     usageApiKeysTbody: document.getElementById('usageApiKeysTbody'),
+    usageLogsNav: document.getElementById('usageLogsNav'),
     emailsAlert: document.getElementById('emailsAlert'),
     emailsSuccess: document.getElementById('emailsSuccess'),
     emailTypeSelect: document.getElementById('emailTypeSelect'),
@@ -128,6 +129,20 @@
     siteBookTypesTotal: document.getElementById('siteBookTypesTotal'),
     siteTagsTotal: document.getElementById('siteTagsTotal'),
     siteStorageTotal: document.getElementById('siteStorageTotal'),
+    dataViewerAlert: document.getElementById('dataViewerAlert'),
+    dataViewerTable: document.getElementById('dataViewerTable'),
+    dataViewerSearch: document.getElementById('dataViewerSearch'),
+    dataViewerUserId: document.getElementById('dataViewerUserId'),
+    dataViewerEmail: document.getElementById('dataViewerEmail'),
+    dataViewerSort: document.getElementById('dataViewerSort'),
+    dataViewerOrder: document.getElementById('dataViewerOrder'),
+    dataViewerLimit: document.getElementById('dataViewerLimit'),
+    dataViewerPage: document.getElementById('dataViewerPage'),
+    dataViewerLoadBtn: document.getElementById('dataViewerLoadBtn'),
+    dataViewerClearBtn: document.getElementById('dataViewerClearBtn'),
+    dataViewerSummary: document.getElementById('dataViewerSummary'),
+    dataViewerThead: document.getElementById('dataViewerThead'),
+    dataViewerTbody: document.getElementById('dataViewerTbody'),
     createUserModal: document.getElementById('createUserModal'),
     createUserAlert: document.getElementById('createUserAlert'),
     createUserSubmit: document.getElementById('createUserSubmit'),
@@ -222,6 +237,7 @@
     logsLiveTimer: null,
     logsLiveEnabled: false,
     currentLogDetail: null,
+    usagePanel: 'logs',
     usageUsers: [],
     usageApiKeys: [],
     usageInitialized: false,
@@ -234,6 +250,8 @@
     emailDefaultExpiryMinutes: null,
     emailDefaultExpiryLabel: 'Default',
     siteStatsLoaded: false,
+    dataViewerTables: [],
+    dataViewerLoaded: false,
     successTimers: new Map()
   };
 
@@ -622,13 +640,18 @@
     state.users = Array.isArray(users) ? users : [];
     if (!dom.usersTbody) return;
     if (!state.users.length) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No users found.</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">No users found.</td></tr>';
       return;
     }
 
     const rows = state.users.map((user) => {
       const isSelf = state.currentUserId && user.id === state.currentUserId;
       const name = user.preferredName || user.fullName || '—';
+      const languageCount = Number(user.languageCount) || 0;
+      const librarySize = Number(user.librarySize) || 0;
+      const usageScore = Number(user.usageScore) || 0;
+      const usageRank = user.usageRank || '—';
+      const lastActive = user.lastActive || user.lastLogin;
       const verified = user.isVerified ? '<span class="badge text-bg-success">Yes</span>' : '<span class="badge text-bg-secondary">No</span>';
       const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Yes</span>' : '<span class="badge text-bg-success">No</span>';
       const disableLabel = user.isDisabled ? 'Enable account' : 'Disable account';
@@ -637,6 +660,23 @@
       const roleBadge = user.role === 'admin'
         ? '<span class="badge text-bg-danger">Admin</span>'
         : '<span class="badge text-bg-secondary">User</span>';
+      const apiKeyStatus = user.apiKeyStatus || 'None';
+      const apiKeyStatusBadge = apiKeyStatus === 'Active'
+        ? '<span class="badge text-bg-success">Active</span>'
+        : apiKeyStatus === 'Revoked'
+          ? '<span class="badge text-bg-warning">Revoked</span>'
+          : '<span class="badge text-bg-secondary">None</span>';
+      const apiKeySummary = `${apiKeyStatus} (${Number(user.apiKeyActiveCount) || 0} active)`;
+      const banBadges = [
+        user.apiKeyBanEnabled ? '<span class="badge text-bg-danger">API key blocked</span>' : '<span class="badge text-bg-secondary">API key clear</span>'
+      ];
+      if (user.usageLockoutUntil) {
+        banBadges.push(`<span class="badge text-bg-warning">Usage lockout until ${escapeHtml(formatDateTime(user.usageLockoutUntil))}</span>`);
+      } else {
+        banBadges.push('<span class="badge text-bg-secondary">Usage clear</span>');
+      }
+      const emailPrefs = user.emailPreferences || {};
+      const emailPrefsSummary = `${emailPrefs.accountUpdates ? 'Updates on' : 'Updates off'} · ${emailPrefs.devFeatures ? 'Dev on' : 'Dev off'}`;
       const disableTextClass = user.isDisabled ? 'text-success' : 'text-warning';
       const disableAttrs = isSelf ? 'disabled aria-disabled="true" title="You cannot disable your own account."' : '';
       const disableClasses = `${disableTextClass} js-toggle-disable${isSelf ? ' disabled' : ''}`;
@@ -645,6 +685,20 @@
           <td>${user.id ?? '—'}</td>
           <td>${escapeHtml(name)}</td>
           <td>${escapeHtml(user.email || '—')}</td>
+          <td>
+            <div class="fw-semibold">Languages: ${escapeHtml(languageCount.toLocaleString())}</div>
+            <div class="text-muted small">Library size: ${escapeHtml(librarySize.toLocaleString())} books</div>
+          </td>
+          <td>
+            <div class="fw-semibold">Last active: ${escapeHtml(formatDateTime(lastActive))}</div>
+            <div class="text-muted small">Usage rank: ${escapeHtml(usageRank)} · Score ${escapeHtml(usageScore.toLocaleString())}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">API keys: ${apiKeyStatusBadge}</div>
+            <div class="text-muted small">${escapeHtml(apiKeySummary)}</div>
+            <div class="mt-1 d-flex flex-wrap gap-1">${banBadges.join(' ')}</div>
+            <div class="text-muted small mt-1">Email prefs: ${escapeHtml(emailPrefsSummary)}</div>
+          </td>
           <td>${roleBadge}</td>
           <td>${verified}</td>
           <td>${disabled}</td>
@@ -679,7 +733,7 @@
   async function fetchUsers({ search = '', role = '' } = {}) {
     hideAlert(dom.usersAlert);
     if (dom.usersTbody) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Loading users…</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Loading users…</td></tr>';
     }
 
     const params = new URLSearchParams();
@@ -769,6 +823,29 @@
     window.history.replaceState({}, '', url);
   }
 
+  function setUsagePanel(panel) {
+    const target = panel === 'usage' ? 'usage' : 'logs';
+    state.usagePanel = target;
+    document.querySelectorAll('[data-usage-panel]').forEach((node) => {
+      const isActive = node.dataset.usagePanel === target;
+      node.classList.toggle('d-none', !isActive);
+    });
+    dom.usageLogsNav?.querySelectorAll('button[data-usage-panel]')?.forEach((btn) => {
+      const isActive = btn.dataset.usagePanel === target;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-current', isActive ? 'page' : 'false');
+    });
+    if (target === 'logs') {
+      ensureLogsInitialized().catch(() => {});
+    } else {
+      if (state.logsLiveEnabled) {
+        stopLogsLive();
+        if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
+      }
+      ensureUsageInitialized();
+    }
+  }
+
   function setSection(section) {
     state.currentSection = section;
     dom.sections.forEach((node) => {
@@ -783,14 +860,14 @@
     window.localStorage.setItem('adminSection', section);
     updateUrlSection(section);
 
-    if (section === 'logs' && state.authorized) {
-      ensureLogsInitialized().catch(() => {});
+    if (section === 'usage-logs' && state.authorized) {
+      setUsagePanel(state.usagePanel || 'logs');
     } else if (section === 'emails' && state.authorized) {
       ensureEmailTypesLoaded().catch(() => {});
-    } else if (section === 'site-stats' && state.authorized) {
+    } else if (section === 'data-tools' && state.authorized) {
+      fetchDataViewerTables().catch(() => {});
+    } else if (section === 'statistics' && state.authorized) {
       fetchSiteStats();
-    } else if (section === 'usage' && state.authorized) {
-      ensureUsageInitialized();
     } else if (state.logsLiveEnabled) {
       stopLogsLive();
       if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
@@ -800,18 +877,18 @@
   function resolveSectionFromHash() {
     const hash = window.location.hash.toLowerCase();
     if (hash.includes('users')) return 'users';
-    if (hash.includes('language')) return 'languages';
+    if (hash.includes('library') || hash.includes('language')) return 'libraries';
     if (hash.includes('email')) return 'emails';
-    if (hash.includes('log')) return 'logs';
-    if (hash.includes('site-stats')) return 'site-stats';
-    if (hash.includes('usage')) return 'usage';
+    if (hash.includes('log') || hash.includes('usage')) return 'usage-logs';
+    if (hash.includes('stats')) return 'statistics';
+    if (hash.includes('data')) return 'data-tools';
     return null;
   }
 
   function resolveSectionFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const section = (params.get('section') || '').toLowerCase();
-    if (['overview', 'site-stats', 'users', 'languages', 'emails', 'logs', 'usage'].includes(section)) return section;
+    if (['overview', 'statistics', 'users', 'libraries', 'emails', 'usage-logs', 'data-tools'].includes(section)) return section;
     return null;
   }
 
@@ -827,7 +904,7 @@
       return;
     }
     const stored = window.localStorage.getItem('adminSection');
-    const target = ['overview', 'site-stats', 'users', 'languages', 'emails', 'logs', 'usage'].includes(stored) ? stored : 'overview';
+    const target = ['overview', 'statistics', 'users', 'libraries', 'emails', 'usage-logs', 'data-tools'].includes(stored) ? stored : 'overview';
     setSection(target);
   }
 
@@ -1054,7 +1131,7 @@
       willNotify: true,
       user: before,
       userId: before.id,
-      url: `/admin/users/${before.id}`,
+      url: '/admin/users',
       method: 'PUT',
       baseBody: body,
       summaryItems: mergedSummaryItems,
@@ -1209,10 +1286,10 @@
     if (!cfg?.emailType || !cfg?.userId) return;
 
     try {
-      const response = await apiFetch(`/admin/users/${cfg.userId}/email-preferences/check`, {
+      const response = await apiFetch('/admin/users/email-preferences/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailType: cfg.emailType })
+        body: JSON.stringify({ userId: cfg.userId, emailType: cfg.emailType })
       });
       const data = await parseResponse(response);
       const willSend = data?.canSend;
@@ -1274,6 +1351,9 @@
     hideAlert(dom.confirmActionAlert);
 
     const body = cfg.baseBody ? { ...cfg.baseBody } : { id: cfg.userId };
+    if (cfg.userId && body.id == null) {
+      body.id = cfg.userId;
+    }
     if (cfg.reasonRequired) body.reason = dom.confirmActionReason.value.trim();
     if (cfg.emailRequired) {
       const emailValue = dom.confirmActionEmail.value.trim();
@@ -1325,7 +1405,7 @@
   async function loadSessions(userId) {
     try {
       log('Loading sessions', { userId });
-      const response = await apiFetch(`/admin/users/${userId}/sessions`, { method: 'POST', body: { id: userId } });
+      const response = await apiFetch('/admin/users/sessions', { method: 'POST', body: { id: userId } });
       const data = await parseResponse(response);
       const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
       if (!sessions.length) {
@@ -1402,7 +1482,7 @@
         confirmText: isDisabled ? '' : 'DISABLE',
         user,
         userId,
-        url: isDisabled ? `/admin/users/${userId}/enable` : `/admin/users/${userId}`,
+        url: isDisabled ? '/admin/users/enable' : '/admin/users',
         method: isDisabled ? 'POST' : 'DELETE',
         reasonRequired: false,
         emailRequired: false,
@@ -1422,7 +1502,7 @@
         emailType: 'admin_email_verified',
         user,
         userId,
-        url: `/admin/users/${userId}/verify`,
+        url: '/admin/users/verify',
         method: 'POST',
         reasonRequired: true,
         emailRequired: true,
@@ -1444,7 +1524,7 @@
         emailType: 'admin_email_unverified',
         user,
         userId,
-        url: `/admin/users/${userId}/unverify`,
+        url: '/admin/users/unverify',
         method: 'POST',
         reasonRequired: true,
         emailRequired: true,
@@ -1471,7 +1551,7 @@
         emailType: 'verification',
         user,
         userId,
-        url: `/admin/users/${userId}/send-verification`,
+        url: '/admin/users/send-verification',
         method: 'POST',
         onSuccess: 'users',
         cooldownKey,
@@ -1500,7 +1580,7 @@
         emailType: 'password_reset',
         user,
         userId,
-        url: `/admin/users/${userId}/reset-password`,
+        url: '/admin/users/reset-password',
         method: 'POST',
         onSuccess: 'users',
         cooldownKey,
@@ -1524,7 +1604,7 @@
         confirmText: 'LOGOUT',
         user,
         userId,
-        url: `/admin/users/${userId}/force-logout`,
+        url: '/admin/users/force-logout',
         method: 'POST',
         onSuccess: 'users',
         successMessage: 'All sessions revoked successfully.'
@@ -1541,7 +1621,7 @@
         destructive: true,
         user,
         userId,
-        url: `/admin/users/${userId}/handle-account-deletion`,
+        url: '/admin/users/handle-account-deletion',
         method: 'POST',
         reasonRequired: true,
         emailRequired: true,
@@ -1588,7 +1668,7 @@
       confirmText: 'LOGOUT',
       user: state.sessionsUser,
       userId: state.sessionsUser.id,
-      url: `/admin/users/${state.sessionsUser.id}/force-logout`,
+      url: '/admin/users/force-logout',
       method: 'POST',
       onSuccess: 'sessions',
       successMessage: 'All sessions revoked successfully.'
@@ -1825,7 +1905,6 @@
         </tr>
       `;
     }).join('');
-  if (dom.logsAlert) dom.logsAlert.innerHTML = '<strong>Admin access required.</strong> You do not have permission to view logs.';
 
     dom.logsTbody.innerHTML = rows;
   }
@@ -1886,8 +1965,7 @@
       } else {
         showApiError(dom.logsAlert, err);
       }
-      dom.logsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
-        dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
+      dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
       throw err;
     }
   }
@@ -2364,7 +2442,7 @@
         reasonRequired: true,
         user: resolvedUser,
         userId,
-        url: `/admin/users/${userId}/api-key-ban`,
+        url: '/admin/users/api-key-ban',
         method: 'POST',
         afterSuccess: () => refreshUsage().catch(() => {})
       });
@@ -2381,7 +2459,7 @@
         emailType: 'api_key_ban_removed',
         user: resolvedUser,
         userId,
-        url: `/admin/users/${userId}/api-key-unban`,
+        url: '/admin/users/api-key-unban',
         method: 'POST',
         afterSuccess: () => refreshUsage().catch(() => {})
       });
@@ -2404,7 +2482,7 @@
         user: resolvedUser,
         userId,
         baseBody: { durationMinutes: 60 },
-        url: `/admin/users/${userId}/usage-lockout`,
+        url: '/admin/users/usage-lockout',
         method: 'POST',
         afterSuccess: () => refreshUsage().catch(() => {})
       });
@@ -2421,7 +2499,7 @@
         emailType: 'usage_restriction_removed',
         user: resolvedUser,
         userId,
-        url: `/admin/users/${userId}/usage-lockout/clear`,
+        url: '/admin/users/usage-lockout/clear',
         method: 'POST',
         afterSuccess: () => refreshUsage().catch(() => {})
       });
@@ -2694,6 +2772,205 @@
     });
   }
 
+  function setDataViewerSummary(message) {
+    if (dom.dataViewerSummary) dom.dataViewerSummary.textContent = message;
+  }
+
+  function resetDataViewerTable(message = 'No data loaded.') {
+    if (dom.dataViewerThead) dom.dataViewerThead.innerHTML = '';
+    if (dom.dataViewerTbody) {
+      dom.dataViewerTbody.innerHTML = `<tr><td class="text-center text-muted py-3">${message}</td></tr>`;
+    }
+  }
+
+  function setDataViewerLoading(isLoading) {
+    if (dom.dataViewerLoadBtn) dom.dataViewerLoadBtn.disabled = isLoading;
+    if (dom.dataViewerClearBtn) dom.dataViewerClearBtn.disabled = isLoading;
+  }
+
+  function getSelectedDataViewerTable() {
+    return dom.dataViewerTable?.value || '';
+  }
+
+  function getDataViewerTableConfig(tableName) {
+    return state.dataViewerTables.find((table) => table.name === tableName) || null;
+  }
+
+  function updateDataViewerSortOptions(tableConfig) {
+    if (!dom.dataViewerSort) return;
+    const sortFields = Array.isArray(tableConfig?.sortFields) ? tableConfig.sortFields : [];
+    const options = sortFields.length
+      ? sortFields
+        .map((field) => `<option value="${escapeHtml(field.value)}">${escapeHtml(field.label || field.value)}</option>`)
+        .join('')
+      : '<option value="">No sort options</option>';
+    dom.dataViewerSort.innerHTML = options;
+    if (sortFields.length) {
+      const defaultSort = tableConfig?.defaultSort;
+      dom.dataViewerSort.value = defaultSort && sortFields.some((field) => field.value === defaultSort)
+        ? defaultSort
+        : sortFields[0].value;
+    }
+  }
+
+  function populateDataViewerTables(tables) {
+    if (!dom.dataViewerTable) return;
+    if (!tables.length) {
+      dom.dataViewerTable.innerHTML = '<option value="">No tables available</option>';
+      updateDataViewerSortOptions(null);
+      resetDataViewerTable('No data available.');
+      setDataViewerSummary('No data tables are configured.');
+      return;
+    }
+
+    dom.dataViewerTable.innerHTML = tables
+      .map((table) => `<option value="${escapeHtml(table.name)}">${escapeHtml(table.label || table.name)}</option>`)
+      .join('');
+
+    const selected = getSelectedDataViewerTable() || tables[0].name;
+    dom.dataViewerTable.value = selected;
+    updateDataViewerSortOptions(getDataViewerTableConfig(selected));
+  }
+
+  function formatDataViewerValue(value, column) {
+    if (value === null || value === undefined || value === '') return '—';
+    if (column?.type === 'datetime') {
+      const formatted = formatDateTime(value);
+      return formatted || '—';
+    }
+    if (typeof value === 'object') {
+      return escapeHtml(JSON.stringify(value));
+    }
+    return escapeHtml(String(value));
+  }
+
+  function renderDataViewerTable(payload = {}) {
+    const columns = Array.isArray(payload.columns) ? payload.columns : [];
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    if (!dom.dataViewerThead || !dom.dataViewerTbody) return;
+
+    if (!columns.length) {
+      dom.dataViewerThead.innerHTML = '';
+      resetDataViewerTable('No columns available.');
+      return;
+    }
+
+    dom.dataViewerThead.innerHTML = `<tr>${columns.map((col) => `<th>${escapeHtml(col.label || col.name)}</th>`).join('')}</tr>`;
+
+    if (!rows.length) {
+      dom.dataViewerTbody.innerHTML = '<tr><td class="text-center text-muted py-3" colspan="100%">No results.</td></tr>';
+      return;
+    }
+
+    dom.dataViewerTbody.innerHTML = rows.map((row) => {
+      const cells = columns.map((col) => `<td>${formatDataViewerValue(row[col.name], col)}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+  }
+
+  function setDataViewerSummaryFromPayload(payload, { page, limit } = {}) {
+    const count = Number.isFinite(payload?.count) ? payload.count : 0;
+    const total = Number.isFinite(payload?.total) ? payload.total : count;
+    const currentPage = Number.isFinite(payload?.page) ? payload.page : page;
+    const currentLimit = Number.isFinite(payload?.limit) ? payload.limit : limit;
+    const hasNext = payload?.hasNext === true;
+    const pageLabel = Number.isFinite(currentPage) ? `Page ${currentPage}` : 'Page 1';
+    const limitLabel = Number.isFinite(currentLimit) ? `Limit ${currentLimit}` : 'Limit —';
+    const totalLabel = Number.isFinite(total) ? `Total ${total}` : 'Total —';
+    const nextLabel = hasNext ? 'More available' : 'End of results';
+    setDataViewerSummary(`Rows: ${count}. ${pageLabel}. ${limitLabel}. ${totalLabel}. ${nextLabel}.`);
+  }
+
+  async function fetchDataViewerTables({ force = false } = {}) {
+    if (state.dataViewerLoaded && !force) return state.dataViewerTables;
+    hideAlert(dom.dataViewerAlert);
+    setDataViewerSummary('Loading data tables…');
+    try {
+      const response = await apiFetch('/admin/data-viewer/tables', { method: 'GET' });
+      const data = await parseResponse(response);
+      state.dataViewerTables = Array.isArray(data?.tables) ? data.tables : [];
+      state.dataViewerLoaded = true;
+      populateDataViewerTables(state.dataViewerTables);
+      const selected = getSelectedDataViewerTable();
+      if (selected) {
+        const config = getDataViewerTableConfig(selected);
+        const hint = config?.description ? ` ${config.description}` : '';
+        setDataViewerSummary(`Ready to load ${config?.label || selected}.${hint}`.trim());
+      } else {
+        setDataViewerSummary('Select a table to load data.');
+      }
+      return state.dataViewerTables;
+    } catch (err) {
+      errorLog('Failed to load data viewer tables', err);
+      showAlert(dom.dataViewerAlert, err.message || 'Unable to load data tables.');
+      setDataViewerSummary('Unable to load data tables.');
+      resetDataViewerTable('No data loaded.');
+      throw err;
+    }
+  }
+
+  function getDataViewerQuery() {
+    const table = getSelectedDataViewerTable();
+    const search = dom.dataViewerSearch?.value.trim() || '';
+    const email = dom.dataViewerEmail?.value.trim() || '';
+    const userIdRaw = dom.dataViewerUserId?.value || '';
+    const userId = Number.parseInt(userIdRaw, 10);
+    const sortBy = dom.dataViewerSort?.value || '';
+    const order = dom.dataViewerOrder?.value === 'asc' ? 'asc' : 'desc';
+    const limitRaw = Number.parseInt(dom.dataViewerLimit?.value || '25', 10);
+    const pageRaw = Number.parseInt(dom.dataViewerPage?.value || '1', 10);
+    const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 5), 200) : 25;
+    const page = Number.isInteger(pageRaw) ? Math.max(pageRaw, 1) : 1;
+    return {
+      table,
+      search: search || undefined,
+      email: email || undefined,
+      userId: Number.isInteger(userId) ? userId : undefined,
+      sortBy: sortBy || undefined,
+      order,
+      limit,
+      page
+    };
+  }
+
+  async function fetchDataViewerRows() {
+    hideAlert(dom.dataViewerAlert);
+    const query = getDataViewerQuery();
+    if (!query.table) {
+      showAlert(dom.dataViewerAlert, 'Select a table to load data.');
+      return;
+    }
+    if (dom.dataViewerLimit) dom.dataViewerLimit.value = query.limit;
+    if (dom.dataViewerPage) dom.dataViewerPage.value = query.page;
+    setDataViewerLoading(true);
+    setDataViewerSummary('Loading data…');
+    resetDataViewerTable('Loading data…');
+    try {
+      const response = await apiFetch('/admin/data-viewer/query', {
+        method: 'POST',
+        body: query
+      });
+      const data = await parseResponse(response);
+      renderDataViewerTable(data);
+      setDataViewerSummaryFromPayload(data, query);
+    } catch (err) {
+      errorLog('Failed to load data viewer rows', err);
+      showAlert(dom.dataViewerAlert, err.message || 'Unable to load data.');
+      setDataViewerSummary('Unable to load data.');
+      resetDataViewerTable('No data loaded.');
+      throw err;
+    } finally {
+      setDataViewerLoading(false);
+    }
+  }
+
+  function clearDataViewerFilters() {
+    if (dom.dataViewerSearch) dom.dataViewerSearch.value = '';
+    if (dom.dataViewerUserId) dom.dataViewerUserId.value = '';
+    if (dom.dataViewerEmail) dom.dataViewerEmail.value = '';
+    if (dom.dataViewerPage) dom.dataViewerPage.value = '1';
+  }
+
   function bindEvents() {
     dom.refreshStatusBtn?.addEventListener('click', () => fetchStatus().catch(() => {}));
     dom.refreshSiteStatsBtn?.addEventListener('click', () => fetchSiteStats());
@@ -2702,6 +2979,12 @@
       const btn = event.target.closest('button[data-section]');
       if (!btn) return;
       setSection(btn.dataset.section);
+    });
+
+    dom.usageLogsNav?.addEventListener('click', (event) => {
+      const btn = event.target.closest('button[data-usage-panel]');
+      if (!btn) return;
+      setUsagePanel(btn.dataset.usagePanel);
     });
 
     window.addEventListener('hashchange', () => {
@@ -2879,6 +3162,46 @@
     dom.usageUsersTbody?.addEventListener('click', handleUsageActionClick);
     dom.usageApiKeysTbody?.addEventListener('click', handleUsageActionClick);
 
+    dom.dataViewerTable?.addEventListener('change', () => {
+      const table = getSelectedDataViewerTable();
+      const config = getDataViewerTableConfig(table);
+      updateDataViewerSortOptions(config);
+      clearDataViewerFilters();
+      resetDataViewerTable('No data loaded.');
+      const hint = config?.description ? ` ${config.description}` : '';
+      setDataViewerSummary(table ? `Ready to load ${config?.label || table}.${hint}`.trim() : 'Select a table to load data.');
+    });
+
+    dom.dataViewerLoadBtn?.addEventListener('click', () => {
+      fetchDataViewerRows().catch(() => {});
+    });
+
+    dom.dataViewerClearBtn?.addEventListener('click', () => {
+      clearDataViewerFilters();
+      resetDataViewerTable('No data loaded.');
+      setDataViewerSummary('Filters cleared. Select Load to refresh.');
+    });
+
+    dom.dataViewerLimit?.addEventListener('change', () => {
+      const limit = Number.parseInt(dom.dataViewerLimit.value, 10);
+      if (!Number.isInteger(limit) || limit < 5 || limit > 200) {
+        dom.dataViewerLimit.value = '25';
+      }
+      if (getSelectedDataViewerTable()) {
+        fetchDataViewerRows().catch(() => {});
+      }
+    });
+
+    dom.dataViewerPage?.addEventListener('change', () => {
+      const page = Number.parseInt(dom.dataViewerPage.value, 10);
+      if (!Number.isInteger(page) || page < 1) {
+        dom.dataViewerPage.value = '1';
+      }
+      if (getSelectedDataViewerTable()) {
+        fetchDataViewerRows().catch(() => {});
+      }
+    });
+
     dom.emailTypesRefreshBtn?.addEventListener('click', () => fetchEmailTypes(true).catch(() => {}));
     dom.emailTypeSelect?.addEventListener('change', handleEmailFormChange);
     dom.emailRecipientInput?.addEventListener('input', handleEmailFormChange);
@@ -2925,17 +3248,17 @@
       return false;
     }
     state.authorized = true;
-    if (state.currentSection === 'logs') {
-      ensureLogsInitialized().catch(() => {});
+    if (state.currentSection === 'usage-logs') {
+      setUsagePanel(state.usagePanel || 'logs');
     }
     if (state.currentSection === 'emails') {
       ensureEmailTypesLoaded().catch(() => {});
     }
-    if (state.currentSection === 'site-stats') {
-      fetchSiteStats();
+    if (state.currentSection === 'data-tools') {
+      fetchDataViewerTables().catch(() => {});
     }
-    if (state.currentSection === 'usage') {
-      ensureUsageInitialized();
+    if (state.currentSection === 'statistics') {
+      fetchSiteStats();
     }
     return true;
   }

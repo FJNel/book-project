@@ -381,6 +381,13 @@
 
   function renderProfileChecklist(completeness) {
     if (!elements.profileChecklist || !completeness) return;
+    if (completeness.missing.length === 0) {
+      elements.profileChecklist.remove();
+      elements.profileChecklist = null;
+      elements.profileChecklistItems = null;
+      elements.profileChecklistText = null;
+      return;
+    }
     elements.profileChecklist.classList.remove('d-none');
 
     const listItems = completeness.items.map((item) => {

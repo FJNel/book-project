@@ -1,4 +1,4 @@
-// Shared Add-Entity modals (Book Type, Author, Publisher, Series, Storage Location).
+// Shared add-record modals (Book Type, Author, Publisher, Series, Storage Location).
 (function () {
     if (window.sharedAddModals) return;
 
@@ -374,7 +374,7 @@
 `;
 
     function ensureMarkup() {
-        const host = document.getElementById('sharedAddEntityModals');
+        const host = document.getElementById('sharedAddRecordModals');
         if (!host) return;
         if (host.dataset.loaded === 'true') return;
         host.innerHTML = modalMarkup;

@@ -23,7 +23,7 @@
 
 	"session_expired_heading": "Session Expired!",
 	"session_expired_text": "Your session has ended for security reasons. This might happen due to:",
-	"session_expired_li1": "<strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.",
+	"session_expired_li1": "<strong>Inactivity:</strong> You've been away for a while, and we need to confirm your access.",
 	"session_expired_li2": "<strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.",
 	"session_expired_li3": "<strong>Manual Logout:</strong> You manually logged out on all devices.",
 	"session_expired_footer": "Close this window to go back to the page where you can log in.",

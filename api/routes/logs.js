@@ -125,6 +125,12 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 	if (startError) errors.push(startError);
 	if (endError) errors.push(endError);
 	if (errors.length > 0) {
+		logToFile("LOGS_QUERY", {
+			status: "VALIDATION_FAILED",
+			admin_id: req.user ? req.user.id : null,
+			errors,
+			filters: params
+		}, "warn");
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
@@ -171,7 +177,7 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve logs at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve logs at this time."]);
 	}
 });
 
@@ -188,6 +194,12 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 	if (startError) errors.push(startError);
 	if (endError) errors.push(endError);
 	if (errors.length > 0) {
+		logToFile("LOGS_QUERY", {
+			status: "VALIDATION_FAILED",
+			admin_id: req.user ? req.user.id : null,
+			errors,
+			filters: params
+		}, "warn");
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
@@ -234,7 +246,7 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve logs at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve logs at this time."]);
 	}
 });
 
@@ -255,7 +267,7 @@ router.get("/:id", requiresAuth, authenticatedLimiter, requireRole(["admin"]), a
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve log entry at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log entry at this time."]);
 	}
 });
 
@@ -280,7 +292,7 @@ router.get("/log_types", requiresAuth, authenticatedLimiter, requireRole(["admin
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve log types at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log types at this time."]);
 	}
 });
 
@@ -305,7 +317,7 @@ router.get("/levels", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve log levels at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log levels at this time."]);
 	}
 });
 
@@ -330,7 +342,7 @@ router.get("/statuses", requiresAuth, authenticatedLimiter, requireRole(["admin"
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to retrieve log statuses at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log statuses at this time."]);
 	}
 });
 
@@ -380,7 +392,7 @@ router.post("/export", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 			admin_id: req.user ? req.user.id : null,
 			error_message: error.message
 		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to export logs at this time."]);
+		return errorResponse(res, 500, "Database Error", ["Unable to export logs at this time."]);
 	}
 });
 

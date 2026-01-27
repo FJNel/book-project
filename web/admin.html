@@ -162,12 +162,12 @@
 
     <ul class="nav nav-pills flex-row gap-2 mb-4 stats-nav" id="adminSectionNav">
       <li class="nav-item"><button class="nav-link active" type="button" data-section="overview">Overview</button></li>
-      <li class="nav-item"><button class="nav-link" type="button" data-section="site-stats">Site statistics</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="statistics">Statistics</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="users">Users</button></li>
-      <li class="nav-item"><button class="nav-link" type="button" data-section="languages">Languages</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="libraries">Libraries</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="emails">Emails</button></li>
-      <li class="nav-item"><button class="nav-link" type="button" data-section="logs">Logs</button></li>
-      <li class="nav-item"><button class="nav-link" type="button" data-section="usage">Usage</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="usage-logs">Usage / Logs</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="data-tools">Data tools</button></li>
     </ul>
 
     <div class="alert alert-danger d-none" role="alert" id="adminAccessAlert">
@@ -238,7 +238,7 @@
                 <div>
                   <p class="mb-1 fw-semibold">Languages</p>
                   <p class="text-muted mb-2 small">Maintain the shared language list for the library.</p>
-                  <a class="btn btn-outline-primary btn-sm" href="#languagesSection">Manage Languages</a>
+                  <a class="btn btn-outline-primary btn-sm" href="#librariesSection">Manage Libraries</a>
                 </div>
               </div>
             </div>
@@ -247,7 +247,7 @@
       </div>
     </section>
 
-    <section class="mb-4 admin-section d-none" id="siteStatsSection" data-section-content="site-stats">
+    <section class="mb-4 admin-section d-none" id="statisticsSection" data-section-content="statistics">
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
           <h2 class="h4 mb-1">Site statistics</h2>
@@ -335,15 +335,18 @@
               <th scope="col">ID</th>
               <th scope="col">Name</th>
               <th scope="col">Email</th>
+              <th scope="col">Library</th>
+              <th scope="col">Activity</th>
+              <th scope="col">Access</th>
               <th scope="col">Role</th>
               <th scope="col">Verified</th>
               <th scope="col">Disabled</th>
               <th scope="col">Last Login</th>
-                <th scope="col">Actions</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody id="usersTbody">
-            <tr><td colspan="8" class="text-center text-muted py-3">Loading users…</td></tr>
+            <tr><td colspan="10" class="text-center text-muted py-3">Loading users…</td></tr>
           </tbody>
         </table>
       </div>
@@ -356,14 +359,34 @@
         </div>
     </section>
 
-    <section class="mb-4 admin-section d-none" id="languagesSection" data-section-content="languages">
+    <section class="mb-4 admin-section d-none" id="librariesSection" data-section-content="libraries">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-          <p class="mb-1 text-uppercase text-muted small fw-semibold">Languages</p>
-          <h2 class="h5 mb-0">Manage Languages</h2>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Libraries</p>
+          <h2 class="h5 mb-0">Library Maintenance</h2>
         </div>
         <div class="d-flex gap-2 align-items-center">
           <button class="btn btn-primary btn-sm" type="button" id="openCreateLanguageBtnSecondary">Create language</button>
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <div class="fw-semibold mb-1">User libraries</div>
+              <div class="text-muted small mb-3">Open a read-only view of a user's library and book list.</div>
+              <a class="btn btn-outline-primary btn-sm" href="admin-library">Open library viewer</a>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <div class="fw-semibold mb-1">Language list</div>
+              <div class="text-muted small mb-3">Maintain the shared languages list used across libraries.</div>
+              <a class="btn btn-outline-primary btn-sm" href="#languagesTable">Jump to languages</a>
+            </div>
+          </div>
         </div>
       </div>
       <div class="alert alert-success d-none" id="languagesSuccess"></div>
@@ -371,7 +394,7 @@
       <div class="card admin-card">
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover table-striped">
+            <table class="table table-sm align-middle table-hover table-striped" id="languagesTable">
               <thead class="table-light">
                 <tr>
                   <th scope="col">ID</th>
@@ -491,7 +514,20 @@
       </div>
     </section>
 
-    <section class="mb-4 admin-section d-none" id="logsSection" data-section-content="logs">
+    <section class="mb-2 admin-section d-none" id="usageLogsNavSection" data-section-content="usage-logs">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Usage / Logs</p>
+          <h2 class="h5 mb-0">Operational insight</h2>
+        </div>
+        <ul class="nav nav-pills gap-2" id="usageLogsNav" role="tablist">
+          <li class="nav-item"><button class="nav-link active" type="button" data-usage-panel="logs">Logs</button></li>
+          <li class="nav-item"><button class="nav-link" type="button" data-usage-panel="usage">Usage</button></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mb-4 admin-section d-none usage-panel" id="logsSection" data-section-content="usage-logs" data-usage-panel="logs">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
           <p class="mb-1 text-uppercase text-muted small fw-semibold">Logs</p>
@@ -590,7 +626,7 @@
       </div>
     </section>
 
-    <section class="mb-4 admin-section d-none" id="usageSection" data-section-content="usage">
+    <section class="mb-4 admin-section d-none usage-panel" id="usageSection" data-section-content="usage-logs" data-usage-panel="usage">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
           <p class="mb-1 text-uppercase text-muted small fw-semibold">Usage</p>
@@ -683,6 +719,71 @@
         </div>
       </div>
     </section>
+
+    <section class="mb-4 admin-section d-none" id="dataToolsSection" data-section-content="data-tools">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Data tools</p>
+          <h2 class="h5 mb-0">Admin data viewer</h2>
+        </div>
+        <div class="text-muted small">Sanitized, read-only tables only.</div>
+      </div>
+      <div class="alert alert-warning d-none" id="dataViewerAlert" role="alert"></div>
+      <div class="card admin-card">
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="dataViewerTable">Table</label>
+              <select class="form-select" id="dataViewerTable"></select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="dataViewerSearch">Search</label>
+              <input class="form-control" type="text" id="dataViewerSearch" placeholder="Search text" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label" for="dataViewerUserId">User ID</label>
+              <input class="form-control" type="number" id="dataViewerUserId" min="1" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label" for="dataViewerEmail">Email</label>
+              <input class="form-control" type="email" id="dataViewerEmail" placeholder="user@example.com" />
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label" for="dataViewerSort">Sort by</label>
+              <select class="form-select" id="dataViewerSort"></select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label" for="dataViewerOrder">Order</label>
+              <select class="form-select" id="dataViewerOrder">
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label" for="dataViewerLimit">Page size</label>
+              <input class="form-control" type="number" id="dataViewerLimit" min="5" max="200" step="5" value="25" />
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label" for="dataViewerPage">Page</label>
+              <input class="form-control" type="number" id="dataViewerPage" min="1" value="1" />
+            </div>
+            <div class="col-12 col-md-3 d-flex align-items-end gap-2">
+              <button class="btn btn-primary" type="button" id="dataViewerLoadBtn">Load</button>
+              <button class="btn btn-outline-secondary" type="button" id="dataViewerClearBtn">Clear</button>
+            </div>
+          </div>
+          <div class="text-muted small mb-2" id="dataViewerSummary">Select a table to load data.</div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-hover table-striped">
+              <thead class="table-light" id="dataViewerThead"></thead>
+              <tbody id="dataViewerTbody">
+                <tr><td class="text-center text-muted py-3">No data loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="sessionExpiredModal">
@@ -695,7 +796,7 @@
         <div class="modal-body">
           <p class="mb-0">Your session has ended for security reasons. This might happen due to:</p>
           <ul>
-            <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your identity.</li>
+            <li><strong>Inactivity:</strong> You've been away for a while, and we need to confirm your access.</li>
             <li><strong>Password Reset:</strong> You changed your password recently, so you need to log in again on all devices.</li>
             <li><strong>Manual Logout:</strong> You manually logged out on all devices.</li>
           </ul>

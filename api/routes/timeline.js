@@ -203,7 +203,9 @@ function resolveEntityConfig(entity, field) {
 // GET/POST /timeline/buckets - Timeline bucket statistics
 const timelineBucketsHandler = async (req, res) => {
 	const userId = req.user.id;
-	const entity = typeof req.body?.entity === "string" ? req.body.entity.trim() : "";
+	const recordType = typeof req.body?.recordType === "string"
+		? req.body.recordType.trim()
+		: (typeof req.body?.entity === "string" ? req.body.entity.trim() : "");
 	const field = typeof req.body?.field === "string" ? req.body.field.trim() : "";
 	let step = Number.parseInt(req.body?.step ?? 1, 10);
 	let stepUnit = typeof req.body?.stepUnit === "string" ? req.body.stepUnit.trim().toLowerCase() : "year";
@@ -222,8 +224,8 @@ const timelineBucketsHandler = async (req, res) => {
 	const startInput = req.body?.start;
 	const endInput = req.body?.end;
 
-	if (!entity || !field) {
-		return errorResponse(res, 400, "Validation Error", ["Entity and field must be provided."]);
+	if (!recordType || !field) {
+		return errorResponse(res, 400, "Validation Error", ["Record type and field must be provided."]);
 	}
 	if (bucketsError) {
 		return errorResponse(res, 400, "Validation Error", [bucketsError]);
@@ -235,9 +237,9 @@ const timelineBucketsHandler = async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", ["stepUnit must be one of: day, month, year."]);
 	}
 
-	const config = resolveEntityConfig(entity, field);
+	const config = resolveEntityConfig(recordType, field);
 	if (!config) {
-		return errorResponse(res, 400, "Validation Error", ["Entity and field combination is not supported."]);
+		return errorResponse(res, 400, "Validation Error", ["Record type and field combination is not supported."]);
 	}
 
 	const cacheKey = buildCacheKey({
@@ -245,7 +247,7 @@ const timelineBucketsHandler = async (req, res) => {
 		userId,
 		endpoint: "timeline/buckets",
 		params: {
-			entity,
+			recordType,
 			field,
 			auto: autoMode,
 			step: autoMode ? null : step,
@@ -287,7 +289,7 @@ const timelineBucketsHandler = async (req, res) => {
 			const maxDate = rangeResult.rows[0]?.max_date;
 			if (!minDate || !maxDate) {
 				const responseData = {
-					entity,
+					recordType,
 					field,
 					start: null,
 					end: null,
@@ -427,7 +429,7 @@ const timelineBucketsHandler = async (req, res) => {
 		}
 
 		const payload = {
-			entity,
+			recordType,
 			field,
 			start: startDate.toISOString().slice(0, 10),
 			end: endDateExclusive.toISOString().slice(0, 10),
