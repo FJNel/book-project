@@ -63,25 +63,31 @@
     </div>
   </div>
 
-  <main class="container py-4">
+  <main class="container py-3">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-3">
         <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="book-types" class="text-decoration-none">Book Types</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Details</li>
+        <li class="breadcrumb-item active" aria-current="page">Book Type Details</li>
       </ol>
     </nav>
 
     <div id="feedbackContainer" class="mb-3"></div>
 
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
       <div>
         <h1 class="mb-1" id="bookTypeName">Book type</h1>
         <p class="text-muted mb-0" id="bookTypeDescription">Loading description…</p>
       </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" id="editBookTypeBtn" type="button">Edit</button>
-        <button class="btn btn-outline-danger" id="deleteBookTypeBtn" type="button">Delete</button>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-primary btn-sm d-flex align-items-center" id="editBookTypeBtn" type="button">
+          <i class="bi bi-pencil-fill me-1" aria-hidden="true"></i>
+          Edit
+        </button>
+        <button class="btn btn-outline-danger btn-sm d-flex align-items-center" id="deleteBookTypeBtn" type="button">
+          <i class="bi bi-trash-fill me-1" aria-hidden="true"></i>
+          Delete
+        </button>
       </div>
     </div>
 
@@ -128,35 +134,7 @@
     </div>
   </main>
 
-  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="bookTypeModal" aria-labelledby="bookTypeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="bookTypeModalLabel">Edit book type</h4>
-          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-danger d-none" id="bookTypeError"></div>
-          <div class="mb-3">
-            <label class="form-label" for="bookTypeNameInput"><strong>Book type name</strong></label>
-            <input class="form-control" type="text" id="bookTypeNameInput" autocomplete="off" maxlength="100" />
-            <small class="form-text text-muted" id="bookTypeNameHelp">Examples: Hardcover, Paperback, Audiobook.</small>
-          </div>
-          <div class="mb-0">
-            <label class="form-label" for="bookTypeDescriptionInput"><strong>Description</strong></label>
-            <textarea class="form-control" id="bookTypeDescriptionInput" rows="4" maxlength="1000"></textarea>
-            <small class="form-text text-muted" id="bookTypeDescriptionHelp">Optional. Describe the format and any special notes.</small>
-          </div>
-          <div class="small text-muted mt-3" id="bookTypeChanges">No changes yet.</div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" type="button" id="bookTypeResetBtn">Reset</button>
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
-          <button class="btn btn-primary" id="bookTypeSaveBtn" type="button" disabled>Save changes</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div id="sharedAddRecordModals"></div>
 
   <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="bookTypeDeleteModal" aria-labelledby="bookTypeDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
@@ -184,6 +162,7 @@
   <script src="assets/js/http-interceptor.js"></script>
   <script src="assets/js/common.js"></script>
   <script src="assets/js/navbar.js"></script>
+  <script src="assets/js/shared-add-modals.js"></script>
   <script src="assets/js/book-type-details.js"></script>
 </body>
 </html>

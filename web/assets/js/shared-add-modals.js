@@ -536,11 +536,12 @@
                     return;
                 }
                 const created = data.data || {};
-                dispatchEvent('booktype:created', {
-                    id: created.id,
+                const detail = {
+                    id: created.id || bookTypeMode.original?.id,
                     name: created.name || payload.name,
                     description: created.description || payload.description
-                });
+                };
+                dispatchEvent(bookTypeMode.mode === 'edit' ? 'booktype:updated' : 'booktype:created', detail);
                 utils.clearModalValues('addBookTypeModal', [nameInput, descInput]);
                 utils.hideAlert(errorAlert);
                 hideModal(modalEl);

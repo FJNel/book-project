@@ -92,6 +92,24 @@
     .danger-soft { color: #b42318; }
 
     .focus-ring:focus-visible { outline: none; box-shadow: var(--bp-focus); }
+
+    .recycle-row-actions {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+
+    .recycle-row:hover .recycle-row-actions,
+    .recycle-row:focus-within .recycle-row-actions {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    @media (max-width: 767.98px) {
+      .recycle-row-actions { display: none !important; }
+    }
   </style>
 </head>
 <body>

@@ -971,6 +971,7 @@
     filteredItems.forEach((item) => {
       const config = recycleTypeConfig[item.type];
       const row = document.createElement('tr');
+      row.className = 'recycle-row';
       row.dataset.recycleType = item.type;
       row.dataset.recycleId = String(item.id);
 
@@ -1002,10 +1003,15 @@
 
       const actionsCell = document.createElement('td');
       actionsCell.className = 'text-end';
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'btn-group btn-group-sm recycle-row-actions';
+
       const restoreBtn = document.createElement('button');
       restoreBtn.type = 'button';
-      restoreBtn.className = 'btn btn-outline-success btn-sm me-2';
-      restoreBtn.textContent = 'Restore';
+      restoreBtn.className = 'btn btn-outline-success';
+      restoreBtn.setAttribute('aria-label', 'Restore');
+      restoreBtn.setAttribute('title', 'Restore');
+      restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>';
       restoreBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         openRecycleRestoreModal([item]);
@@ -1013,15 +1019,18 @@
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
-      deleteBtn.className = 'btn btn-outline-danger btn-sm';
-      deleteBtn.textContent = 'Delete permanently';
+      deleteBtn.className = 'btn btn-outline-danger';
+      deleteBtn.setAttribute('aria-label', 'Delete permanently');
+      deleteBtn.setAttribute('title', 'Delete permanently');
+      deleteBtn.innerHTML = '<i class="bi bi-trash-fill" aria-hidden="true"></i>';
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         openRecycleDeleteModal([item]);
       });
 
-      actionsCell.appendChild(restoreBtn);
-      actionsCell.appendChild(deleteBtn);
+      actionsWrap.appendChild(restoreBtn);
+      actionsWrap.appendChild(deleteBtn);
+      actionsCell.appendChild(actionsWrap);
 
       row.appendChild(selectCell);
       row.appendChild(typeCell);

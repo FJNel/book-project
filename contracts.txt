@@ -129,6 +129,29 @@ This is the standard "Changes" summary area for edit/change modals.
 
 These contracts are the single source of truth for modal behavior and edit/change summaries in the Book Project.
 
+A1) Shared add modals (shared-add-modals.js)
+--------------------------------------------
+Purpose: keep shared add/edit modals consistent across pages and prevent one-off modal drift.
+
+1) Canonical implementation
+- Source of truth: `web/assets/js/shared-add-modals.js`.
+- The shared modal host must be present in the page: `<div id="sharedAddRecordModals"></div>`.
+- Modal markup is injected into the host; pages must not duplicate that markup.
+
+2) Usage rules
+- If a shared modal exists for a concept, all pages must use it via:
+  `window.sharedAddModals.open('<type>', { mode: 'add'|'edit', initial: { ... } })`.
+- Pages must not implement alternate add/edit modals for the same concept.
+- Any shared modal behavior change is a contract-level change and must be tested across all consumers.
+
+3) Covered concepts (current)
+- Book Type, Author, Publisher, Series, Storage Location.
+
+4) Reference consumers
+- `web/book-details.html` + `web/assets/js/book-details.js` (baseline consumer).
+- `web/book-types.html` + `web/assets/js/book-types.js` (Book Type add).
+- `web/book-type-details.html` + `web/assets/js/book-type-details.js` (Book Type edit).
+
 C) Icon Contract (Bootstrap Icons font)
 --------------------------------------
 Purpose: standardize icon usage across user + admin UI to prevent drift and keep interactions consistent.
