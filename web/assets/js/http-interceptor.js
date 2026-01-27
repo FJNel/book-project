@@ -279,10 +279,17 @@ async function apiFetch(path, options = {}) {
 	}
 
 	console.log('[HTTP Interceptor] Now sending API request to:', url.href);
-	let response = await fetch(url.href, {
-		...prepared,
-		headers,
-	});
+	let response;
+	try {
+		response = await fetch(url.href, {
+			...prepared,
+			headers,
+		});
+	} catch (error) {
+		error.isNetworkError = true;
+		error.message = error.message || 'Network/CORS error.';
+		throw error;
+	}
 
 	//Now, intercept the response
 	if (response.ok) {
@@ -349,10 +356,16 @@ async function apiFetch(path, options = {}) {
 		headers.set('Authorization', `Bearer ${newAccessToken}`);
 
 		//Retry the original request with the new access token
-		response = await fetch(url.href, {
-			...options,
-			headers,
-		});
+		try {
+			response = await fetch(url.href, {
+				...options,
+				headers,
+			});
+		} catch (error) {
+			error.isNetworkError = true;
+			error.message = error.message || 'Network/CORS error.';
+			throw error;
+		}
 
 		console.log('[HTTP Interceptor] Retried request response:', response);
 		if (response.status === 401) {
@@ -361,7 +374,14 @@ async function apiFetch(path, options = {}) {
 		return response;
 	} catch (error) {
 		console.error('[HTTP Interceptor] Token refresh failed:', error);
-		//If refresh fails, clear tokens and redirect to login
+		// Only treat as session-expired on confirmed auth failures; network/CORS errors should surface to the caller.
+		if (error?.isNetworkError) {
+			throw error;
+		}
+		const authFailure = error?.status === 401 || error?.status === 403 || /refresh token/i.test(error?.message || '');
+		if (!authFailure) {
+			throw error;
+		}
 		localStorage.removeItem('accessToken');
 		localStorage.removeItem('refreshToken');
 		if (!sessionExpiredNotified) {
@@ -387,19 +407,28 @@ async function refreshAccessToken() {
 
 	const refreshURL = new URL('/auth/refresh-token', API_BASE_URL);
 	console.log('[HTTP Interceptor] Attempting to refresh access token. Request URL:', refreshURL.href);
-	const response = await fetch(refreshURL.href, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ refreshToken }),
-	});
+	let response;
+	try {
+		response = await fetch(refreshURL.href, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ refreshToken }),
+		});
+	} catch (error) {
+		error.isNetworkError = true;
+		error.message = error.message || 'Network/CORS error.';
+		throw error;
+	}
 
 	const data = await response.json();
 
 	if (!response.ok) {
 		console.error('[HTTP Interceptor] Refresh token request failed. Response:', data);
-		throw new Error(`${data.message} Failed to refresh token`);
+		const err = new Error(`${data.message} Failed to refresh token`);
+		err.status = response.status;
+		throw err;
 	}
 
 	console.log('[HTTP Interceptor] Token refreshed successfully. New access token received.');

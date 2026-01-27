@@ -182,6 +182,66 @@ paths:
                         properties:
                           stats:
                             type: object
+                          insights:
+                            type: object
+                            properties:
+                              adoption:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
+                              quality:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
+                              engagement:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
                           warnings:
@@ -195,6 +255,66 @@ paths:
                         properties:
                           stats:
                             type: object
+                          insights:
+                            type: object
+                            properties:
+                              adoption:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
+                              quality:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
+                              engagement:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    label:
+                                      type: string
+                                    value:
+                                      type: number
+                                      nullable: true
+                                    unit:
+                                      type: string
+                                      nullable: true
+                                    sampleSize:
+                                      type: number
+                                      nullable: true
+                                    note:
+                                      type: string
+                                      nullable: true
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
                           warnings:
@@ -626,6 +746,51 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/usage-warning-api-key:
+    post:
+      tags: [Admin]
+      summary: Send usage warning email (API key)
+      operationId: adminSendUsageWarningApiKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keyName:
+                  type: string
+                usageLevel:
+                  type: string
+      responses:
+        '200':
+          description: Usage warning queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          email:
+                            type: string
+                          usageLevel:
+                            type: string
+                          keyName:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/api-keys/{id}/revoke:
     post:
       tags: [Admin]
@@ -649,7 +814,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            nullable: true
+                          userId:
+                            type: integer
+                            nullable: true
+                          revokedCount:
+                            type: integer
+                            nullable: true
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/api-keys/revoke:
@@ -669,7 +849,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            nullable: true
+                          userId:
+                            type: integer
+                            nullable: true
+                          revokedCount:
+                            type: integer
+                            nullable: true
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/users/{id}/usage-lockout:
@@ -8627,6 +8822,19 @@ paths:
                               type: textarea
                               required: true
                               maxLength: 8000
+                        - type: usage_warning_api_key
+                          description: Usage warning for API key activity.
+                          fields:
+                            - name: keyName
+                              label: Key name
+                              type: text
+                              placeholder: Primary key
+                              required: true
+                            - name: usageLevel
+                              label: Usage level
+                              type: text
+                              placeholder: High
+                              required: true
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8663,6 +8871,14 @@ paths:
                     preferredName: Admin Tester
                     keyName: Primary key
                     keyPrefix: bk_1234
+              usageWarningApiKey:
+                value:
+                  emailType: usage_warning_api_key
+                  toEmail: admin@example.com
+                  context:
+                    preferredName: Admin Tester
+                    keyName: Primary key
+                    usageLevel: High
       responses:
         '200':
           description: Test email sent
@@ -12098,7 +12314,7 @@ components:
           description: Legacy alias of toEmail.
         context:
           type: object
-          description: Template-specific fields (preferredName, reason, subject, markdownBody, keyName, keyPrefix, expiresAt, etc.).
+          description: Template-specific fields (preferredName, reason, subject, markdownBody, keyName, keyPrefix, usageLevel, expiresAt, etc.).
           additionalProperties: true
     AdminEmailTypeField:
       type: object

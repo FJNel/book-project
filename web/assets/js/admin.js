@@ -24,17 +24,22 @@
     adminSectionNav: document.getElementById('adminSectionNav'),
     sections: document.querySelectorAll('.admin-section'),
     userSearchInput: document.getElementById('userSearchInput'),
+    clearUsersSearchBtn: document.getElementById('clearUsersSearchBtn'),
+    usersSortSelect: document.getElementById('usersSortSelect'),
     userRoleFilter: document.getElementById('userRoleFilter'),
     userVerifiedFilter: document.getElementById('userVerifiedFilter'),
     userDisabledFilter: document.getElementById('userDisabledFilter'),
+    usersApplyFiltersBtn: document.getElementById('usersApplyFiltersBtn'),
+    usersResetFiltersBtn: document.getElementById('usersResetFiltersBtn'),
+    usersActiveFilters: document.getElementById('usersActiveFilters'),
+    usersActiveFiltersBar: document.getElementById('usersActiveFiltersBar'),
     usersPerPage: document.getElementById('usersPerPage'),
-    refreshUsersBtn: document.getElementById('refreshUsersBtn'),
     clearUsersFiltersBtn: document.getElementById('clearUsersFiltersBtn'),
     usersTbody: document.getElementById('usersTbody'),
     usersAlert: document.getElementById('usersAlert'),
     usersSuccess: document.getElementById('usersSuccess'),
-    usersPrevBtn: document.getElementById('usersPrevBtn'),
-    usersNextBtn: document.getElementById('usersNextBtn'),
+    usersPagination: document.getElementById('usersPagination'),
+    usersPageInfo: document.getElementById('usersPageInfo'),
     usersSummary: document.getElementById('usersSummary'),
     openCreateUserBtn: document.getElementById('openCreateUserBtn'),
     openCreateLanguageBtn: document.getElementById('openCreateLanguageBtn'),
@@ -60,13 +65,14 @@
     logsStatusMax: document.getElementById('logsStatusMax'),
     logsDateFrom: document.getElementById('logsDateFrom'),
     logsDateTo: document.getElementById('logsDateTo'),
-    logsPrevBtn: document.getElementById('logsPrevBtn'),
-    logsNextBtn: document.getElementById('logsNextBtn'),
+    logsPagination: document.getElementById('logsPagination'),
+    logsPageInfo: document.getElementById('logsPageInfo'),
     logsPageSize: document.getElementById('logsPageSize'),
     logsSummary: document.getElementById('logsSummary'),
     logsRefreshBtn: document.getElementById('logsRefreshBtn'),
-    logsClearFiltersBtn: document.getElementById('logsClearFiltersBtn'),
-    logsLiveToggle: document.getElementById('logsLiveToggle'),
+    logsClearSearchBtn: document.getElementById('logsClearSearchBtn'),
+    logsApplyFiltersBtn: document.getElementById('logsApplyFiltersBtn'),
+    logsResetFiltersBtn: document.getElementById('logsResetFiltersBtn'),
     logsDetailModal: document.getElementById('logsDetailModal'),
     logsDetailContent: document.getElementById('logsDetailContent'),
     logsDetailAlert: document.getElementById('logsDetailAlert'),
@@ -106,15 +112,17 @@
     emailHistoryTypeFilter: document.getElementById('emailHistoryTypeFilter'),
     emailHistoryStatusFilter: document.getElementById('emailHistoryStatusFilter'),
     emailHistoryRecipient: document.getElementById('emailHistoryRecipient'),
+    emailHistoryClearSearchBtn: document.getElementById('emailHistoryClearSearchBtn'),
     emailHistoryDateFrom: document.getElementById('emailHistoryDateFrom'),
     emailHistoryDateTo: document.getElementById('emailHistoryDateTo'),
     emailHistoryPageSize: document.getElementById('emailHistoryPageSize'),
     emailHistoryRefreshBtn: document.getElementById('emailHistoryRefreshBtn'),
-    emailHistoryClearBtn: document.getElementById('emailHistoryClearBtn'),
+    emailHistoryApplyFiltersBtn: document.getElementById('emailHistoryApplyFiltersBtn'),
+    emailHistoryResetFiltersBtn: document.getElementById('emailHistoryResetFiltersBtn'),
     emailHistoryTbody: document.getElementById('emailHistoryTbody'),
     emailHistorySummary: document.getElementById('emailHistorySummary'),
-    emailHistoryPrevBtn: document.getElementById('emailHistoryPrevBtn'),
-    emailHistoryNextBtn: document.getElementById('emailHistoryNextBtn'),
+    emailHistoryPagination: document.getElementById('emailHistoryPagination'),
+    emailHistoryPageInfo: document.getElementById('emailHistoryPageInfo'),
     devEmailStatus: document.getElementById('devEmailStatus'),
     devEmailSubject: document.getElementById('devEmailSubject'),
     devEmailSubjectHelp: document.getElementById('devEmailSubjectHelp'),
@@ -140,6 +148,9 @@
     siteBookTypesTotal: document.getElementById('siteBookTypesTotal'),
     siteTagsTotal: document.getElementById('siteTagsTotal'),
     siteStorageTotal: document.getElementById('siteStorageTotal'),
+    siteInsightsAdoption: document.getElementById('siteInsightsAdoption'),
+    siteInsightsQuality: document.getElementById('siteInsightsQuality'),
+    siteInsightsEngagement: document.getElementById('siteInsightsEngagement'),
     dataViewerAlert: document.getElementById('dataViewerAlert'),
     dataViewerTable: document.getElementById('dataViewerTable'),
     dataViewerSearch: document.getElementById('dataViewerSearch'),
@@ -152,11 +163,11 @@
     dataViewerUserIdHelp: document.getElementById('dataViewerUserIdHelp'),
     dataViewerLimitHelp: document.getElementById('dataViewerLimitHelp'),
     dataViewerPageHelp: document.getElementById('dataViewerPageHelp'),
-    dataViewerLoadBtn: document.getElementById('dataViewerLoadBtn'),
-    dataViewerClearBtn: document.getElementById('dataViewerClearBtn'),
+    dataViewerClearSearchBtn: document.getElementById('dataViewerClearSearchBtn'),
+    dataViewerApplyFiltersBtn: document.getElementById('dataViewerApplyFiltersBtn'),
+    dataViewerResetFiltersBtn: document.getElementById('dataViewerResetFiltersBtn'),
     dataViewerSummary: document.getElementById('dataViewerSummary'),
     dataViewerTableHelp: document.getElementById('dataViewerTableHelp'),
-    dataViewerTablesList: document.getElementById('dataViewerTablesList'),
     dataViewerThead: document.getElementById('dataViewerThead'),
     dataViewerTbody: document.getElementById('dataViewerTbody'),
     createUserModal: document.getElementById('createUserModal'),
@@ -185,6 +196,7 @@
     editPreferredNameHelp: document.getElementById('editPreferredNameHelp'),
     editEmailHelp: document.getElementById('editEmailHelp'),
     editUserSubmit: document.getElementById('editUserSubmit'),
+    editUserChangesSummary: document.getElementById('editUserChangesSummary'),
     confirmActionModal: document.getElementById('confirmActionModal'),
     confirmActionTitle: document.getElementById('confirmActionTitle'),
     confirmActionMessage: document.getElementById('confirmActionMessage'),
@@ -213,6 +225,12 @@
     confirmActionSubmit: document.getElementById('confirmActionSubmit'),
     confirmActionCloseBtn: document.getElementById('confirmActionCloseBtn'),
     confirmActionCancelBtn: document.getElementById('confirmActionCancelBtn'),
+    userDetailsModal: document.getElementById('userDetailsModal'),
+    userDetailsTitle: document.getElementById('userDetailsTitle'),
+    userDetailsAlert: document.getElementById('userDetailsAlert'),
+    userDetailsProfile: document.getElementById('userDetailsProfile'),
+    userDetailsUsage: document.getElementById('userDetailsUsage'),
+    userDetailsActions: document.getElementById('userDetailsActions'),
     sessionsModal: document.getElementById('sessionsModal'),
     sessionsModalTitle: document.getElementById('sessionsModalTitle'),
     sessionsTbody: document.getElementById('sessionsTbody'),
@@ -240,6 +258,8 @@
     currentSection: 'overview',
     currentEditingUser: null,
     confirmActionConfig: null,
+    userDetailsUser: null,
+    userDetailsUsage: null,
     sessionsUser: null,
     languages: [],
     logs: [],
@@ -250,8 +270,6 @@
     logsMeta: { types: [], levels: [], statuses: [] },
     logsMetaLoaded: false,
     logsInitialized: false,
-    logsLiveTimer: null,
-    logsLiveEnabled: false,
     currentLogDetail: null,
     usagePanel: 'logs',
     usageUsers: [],
@@ -315,6 +333,57 @@
       warn('Failed to format date', err);
       return String(value);
     }
+  }
+
+  function renderPaginationNav(navEl, page, hasNext, onPageChange) {
+    if (!navEl) return;
+    navEl.innerHTML = '';
+
+    const createItem = (label, disabled, onClick, ariaLabel) => {
+      const li = document.createElement('li');
+      li.className = `page-item${disabled ? ' disabled' : ''}`;
+      const a = document.createElement('a');
+      a.className = 'page-link';
+      a.href = '#';
+      a.innerHTML = label;
+      if (ariaLabel) a.setAttribute('aria-label', ariaLabel);
+      a.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!disabled && typeof onClick === 'function') onClick();
+      });
+      li.appendChild(a);
+      return li;
+    };
+
+    navEl.appendChild(createItem(
+      `<i class="bi bi-arrow-left"></i>`,
+      page <= 1,
+      () => onPageChange(page - 1),
+      'Previous page'
+    ));
+
+    if (page > 1) {
+      navEl.appendChild(createItem(String(page - 1), false, () => onPageChange(page - 1)));
+    }
+
+    const current = document.createElement('li');
+    current.className = 'page-item active';
+    const span = document.createElement('span');
+    span.className = 'page-link';
+    span.textContent = String(page);
+    current.appendChild(span);
+    navEl.appendChild(current);
+
+    if (hasNext) {
+      navEl.appendChild(createItem(String(page + 1), false, () => onPageChange(page + 1)));
+    }
+
+    navEl.appendChild(createItem(
+      `<i class="bi bi-arrow-right"></i>`,
+      !hasNext,
+      () => onPageChange(page + 1),
+      'Next page'
+    ));
   }
 
   function formatApiError(err) {
@@ -615,7 +684,47 @@
     return value === null || value === undefined ? 'Unavailable' : value;
   }
 
-  function renderSiteStats(stats) {
+  function formatInsightValue(metric) {
+    if (!metric || metric.value === null || metric.value === undefined) {
+      return 'Not enough data yet';
+    }
+    if (metric.unit === 'percent') {
+      return `${Number(metric.value).toFixed(1)}%`;
+    }
+    if (metric.unit === 'number') {
+      return Number(metric.value).toLocaleString();
+    }
+    if (metric.unit) {
+      return `${Number(metric.value).toLocaleString()} ${metric.unit}`;
+    }
+    return Number.isFinite(metric.value) ? Number(metric.value).toLocaleString() : String(metric.value);
+  }
+
+  function renderInsightsList(container, metrics = []) {
+    if (!container) return;
+    if (!Array.isArray(metrics) || metrics.length === 0) {
+      container.innerHTML = '<div class="text-muted small">No insight data yet.</div>';
+      return;
+    }
+    container.innerHTML = metrics.map((metric) => {
+      const value = formatInsightValue(metric);
+      const metaParts = [];
+      if (Number.isFinite(metric.sampleSize)) metaParts.push(`N=${metric.sampleSize}`);
+      if (metric.note) metaParts.push(metric.note);
+      const meta = metaParts.length ? `<div class="insight-meta">${escapeHtml(metaParts.join(' · '))}</div>` : '';
+      return `
+        <div class="insight-item">
+          <div>
+            <div class="insight-label">${escapeHtml(metric.label || 'Insight')}</div>
+            ${meta}
+          </div>
+          <div class="insight-value">${escapeHtml(value)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderSiteStats(stats, insights) {
     if (!stats) return;
     if (dom.siteUsersTotal) dom.siteUsersTotal.textContent = formatAdminStatValue(stats.users?.total);
     if (dom.siteUsersVerified) dom.siteUsersVerified.textContent = formatAdminStatValue(stats.users?.verified);
@@ -629,6 +738,9 @@
     if (dom.siteBookTypesTotal) dom.siteBookTypesTotal.textContent = formatAdminStatValue(stats.library?.bookTypes);
     if (dom.siteTagsTotal) dom.siteTagsTotal.textContent = formatAdminStatValue(stats.library?.tags);
     if (dom.siteStorageTotal) dom.siteStorageTotal.textContent = formatAdminStatValue(stats.library?.storageLocations);
+    renderInsightsList(dom.siteInsightsAdoption, insights?.adoption || []);
+    renderInsightsList(dom.siteInsightsQuality, insights?.quality || []);
+    renderInsightsList(dom.siteInsightsEngagement, insights?.engagement || []);
   }
 
   async function fetchSiteStats() {
@@ -636,7 +748,7 @@
     try {
       const response = await apiFetch('/admin/stats/summary', { method: 'POST', body: {} });
       const data = await parseResponse(response);
-      renderSiteStats(data?.stats);
+      renderSiteStats(data?.stats, data?.insights);
       if (Array.isArray(data?.warnings) && data.warnings.length) {
         showAlert(dom.siteStatsAlert, `Some statistics are unavailable: ${data.warnings.join(' ')}`);
       }
@@ -648,41 +760,52 @@
         users: { total: null, verified: null, disabled: null },
         books: { total: null, active: null, deleted: null },
         library: { authors: null, publishers: null, series: null, bookTypes: null, tags: null, storageLocations: null }
-      });
+      }, null);
     }
   }
 
   function getUserFilters() {
     const search = dom.userSearchInput?.value?.trim() || '';
     const role = dom.userRoleFilter?.value || '';
-    return { search, role };
+    const verified = dom.userVerifiedFilter?.value || '';
+    const disabled = dom.userDisabledFilter?.value || '';
+    const sortValue = dom.usersSortSelect?.value || 'email:asc';
+    const [sortBy, order] = sortValue.split(':');
+    return { search, role, verified, disabled, sortBy: sortBy || 'email', order: order || 'asc' };
   }
 
   function clearUserFilters() {
-    if (dom.userSearchInput) dom.userSearchInput.value = '';
     if (dom.userRoleFilter) dom.userRoleFilter.value = '';
     if (dom.userVerifiedFilter) dom.userVerifiedFilter.value = '';
     if (dom.userDisabledFilter) dom.userDisabledFilter.value = '';
+  }
+
+  function renderUsersActiveFilters(filters) {
+    if (!dom.usersActiveFilters || !dom.usersActiveFiltersBar) return;
+    const chips = [];
+    if (filters.role) chips.push(`Role: ${filters.role}`);
+    if (filters.verified) chips.push(`Verified: ${filters.verified === 'true' ? 'Yes' : 'No'}`);
+    if (filters.disabled) chips.push(`Disabled: ${filters.disabled === 'true' ? 'Yes' : 'No'}`);
+    dom.usersActiveFilters.innerHTML = chips.map((chip) => `<span class="chip chip-muted">${escapeHtml(chip)}</span>`).join('');
+    if (dom.clearUsersFiltersBtn) dom.clearUsersFiltersBtn.classList.toggle('d-none', chips.length === 0);
   }
 
   function renderUsers(users) {
     state.users = Array.isArray(users) ? users : [];
     if (!dom.usersTbody) return;
     if (!state.users.length) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No users found.</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No users found.</td></tr>';
       return;
     }
 
     const rows = state.users.map((user) => {
       const isSelf = state.currentUserId && user.id === state.currentUserId;
       const name = user.preferredName || user.fullName || '—';
-      const languageCount = Number(user.languageCount) || 0;
       const librarySize = Number(user.librarySize) || 0;
       const usageScore = Number(user.usageScore) || 0;
       const usageRank = user.usageRank || '—';
-      const lastActive = user.lastActive || user.lastLogin;
-      const verified = user.isVerified ? '<span class="badge text-bg-success">Yes</span>' : '<span class="badge text-bg-secondary">No</span>';
-      const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Yes</span>' : '<span class="badge text-bg-success">No</span>';
+      const verified = user.isVerified ? '<span class="badge text-bg-success">Verified</span>' : '<span class="badge text-bg-secondary">Unverified</span>';
+      const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Disabled</span>' : '<span class="badge text-bg-success">Active</span>';
       const disableLabel = user.isDisabled ? 'Enable account' : 'Disable account';
       const verifyLabel = user.isVerified ? 'Unverify' : 'Verify';
       const verificationActionClass = user.isVerified ? 'js-unverify-user' : 'js-verify-user';
@@ -704,36 +827,38 @@
       } else {
         banBadges.push('<span class="badge text-bg-secondary">Usage clear</span>');
       }
-      const emailPrefs = user.emailPreferences || {};
-      const emailPrefsSummary = `${emailPrefs.accountUpdates ? 'Updates on' : 'Updates off'} · ${emailPrefs.devFeatures ? 'Dev on' : 'Dev off'}`;
       const disableTextClass = user.isDisabled ? 'text-success' : 'text-warning';
       const disableAttrs = isSelf ? 'disabled aria-disabled="true" title="You cannot disable your own account."' : '';
       const disableClasses = `${disableTextClass} js-toggle-disable${isSelf ? ' disabled' : ''}`;
       return `
-        <tr data-user-id="${user.id}">
-          <td>${user.id ?? '—'}</td>
-          <td>${escapeHtml(name)}</td>
-          <td>${escapeHtml(user.email || '—')}</td>
+        <tr data-user-id="${user.id}" class="clickable-row" tabindex="0" role="button">
           <td>
-            <div class="fw-semibold">Languages: ${escapeHtml(languageCount.toLocaleString())}</div>
-            <div class="text-muted small">Library size: ${escapeHtml(librarySize.toLocaleString())} books</div>
+            <div class="fw-semibold">${escapeHtml(name)}</div>
+            <div class="text-muted small">${escapeHtml(user.email || '—')}</div>
+            <div class="text-muted small">ID ${escapeHtml(String(user.id ?? '—'))}</div>
           </td>
           <td>
-            <div class="fw-semibold">Last active: ${escapeHtml(formatDateTime(lastActive))}</div>
-            <div class="text-muted small">Usage rank: ${escapeHtml(usageRank)} · Score ${escapeHtml(usageScore.toLocaleString())}</div>
+            <div class="fw-semibold">Score ${escapeHtml(usageScore.toLocaleString())}</div>
+            <div class="text-muted small">Usage level: ${escapeHtml(usageRank)}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(librarySize.toLocaleString())} books</div>
+            <div class="text-muted small">Library size</div>
           </td>
           <td>
             <div class="fw-semibold">API keys: ${apiKeyStatusBadge}</div>
             <div class="text-muted small">${escapeHtml(apiKeySummary)}</div>
             <div class="mt-1 d-flex flex-wrap gap-1">${banBadges.join(' ')}</div>
-            <div class="text-muted small mt-1">Email prefs: ${escapeHtml(emailPrefsSummary)}</div>
           </td>
-          <td>${roleBadge}</td>
-          <td>${verified}</td>
-          <td>${disabled}</td>
-          <td>${formatDateTime(user.lastLogin)}</td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              ${roleBadge}
+              ${verified}
+              ${disabled}
+            </div>
+          </td>
           <td class="admin-col-actions text-end">
-            <div class="d-inline-flex align-items-center gap-1 row-actions row-actions-desktop">
+            <div class="d-inline-flex align-items-center gap-1 row-actions row-actions-desktop" data-row-action>
               <button class="btn btn-outline-secondary btn-sm icon-btn js-edit-user" type="button" data-user-id="${user.id}" aria-label="Edit user" title="Edit user">
                 <i class="bi bi-pencil-fill" aria-hidden="true"></i>
               </button>
@@ -765,24 +890,30 @@
     dom.usersTbody.innerHTML = rows;
   }
 
-  async function fetchUsers({ search = '', role = '' } = {}) {
+  async function fetchUsers(filters = {}) {
+    const {
+      search = '',
+      role = '',
+      verified = '',
+      disabled = '',
+      sortBy = 'email',
+      order = 'asc'
+    } = filters;
     hideAlert(dom.usersAlert);
     if (dom.usersTbody) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading users…</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Loading users…</td></tr>';
     }
 
     const body = {
       limit: state.usersLimit,
       offset: (state.usersPage - 1) * state.usersLimit,
-      order: 'asc',
-      sortBy: 'email'
+      order,
+      sortBy
     };
     if (search) body.filterEmail = search;
     if (role) body.filterRole = role;
-    const verified = dom.userVerifiedFilter?.value;
-    const disabled = dom.userDisabledFilter?.value;
-    if (verified) body.filterIsVerified = verified;
-    if (disabled) body.filterIsDisabled = disabled;
+    if (verified !== '') body.filterIsVerified = verified === 'true';
+    if (disabled !== '') body.filterIsDisabled = disabled === 'true';
 
     try {
       const response = await apiFetch('/admin/users/list', { method: 'POST', body });
@@ -797,17 +928,25 @@
       renderUsers(data?.users || []);
     } catch (err) {
       errorLog('Failed to fetch users', err);
-      showAlert(dom.usersAlert, err.message || 'Unable to load users.');
+      if (err?.isNetworkError) {
+        showAlert(dom.usersAlert, 'Network or CORS error. Unable to load users.');
+      } else {
+        showAlert(dom.usersAlert, err.message || 'Unable to load users.');
+      }
       if (dom.usersTbody) {
-        dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Unable to load users.</td></tr>';
+        dom.usersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Unable to load users.</td></tr>';
       }
       throw err;
     }
   }
 
   function renderUsersPagination() {
-    if (dom.usersPrevBtn) dom.usersPrevBtn.disabled = state.usersPage <= 1;
-    if (dom.usersNextBtn) dom.usersNextBtn.disabled = !state.usersHasNext;
+    renderPaginationNav(dom.usersPagination, state.usersPage, state.usersHasNext, (nextPage) => {
+      if (nextPage < 1 || (!state.usersHasNext && nextPage > state.usersPage)) return;
+      state.usersPage = nextPage;
+      fetchUsers(getUserFilters()).catch(() => {});
+    });
+    if (dom.usersPageInfo) dom.usersPageInfo.textContent = `Page ${state.usersPage}`;
   }
 
   function updateUsersSummary(receivedCount, total = null) {
@@ -815,7 +954,7 @@
     const start = ((state.usersPage - 1) * state.usersLimit) + (receivedCount ? 1 : 0);
     const end = ((state.usersPage - 1) * state.usersLimit) + receivedCount;
     const totalLabel = Number.isFinite(total) ? ` of ${total}` : '';
-    dom.usersSummary.textContent = receivedCount ? `Showing ${start}–${end}${totalLabel} (page ${state.usersPage})` : 'No users to show';
+    dom.usersSummary.textContent = receivedCount ? `Showing ${start}–${end}${totalLabel}` : 'No users to show';
   }
 
   function renderLanguages(languages) {
@@ -885,10 +1024,6 @@
     if (target === 'logs') {
       ensureLogsInitialized().catch(() => {});
     } else {
-      if (state.logsLiveEnabled) {
-        stopLogsLive();
-        if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
-      }
       ensureUsageInitialized();
     }
   }
@@ -918,9 +1053,6 @@
       fetchDataViewerTables().catch(() => {});
     } else if (section === 'statistics' && state.authorized) {
       fetchSiteStats();
-    } else if (state.logsLiveEnabled) {
-      stopLogsLive();
-      if (dom.logsLiveToggle) dom.logsLiveToggle.checked = false;
     }
   }
 
@@ -1096,6 +1228,7 @@
     dom.editPreferredNameHelp.textContent = '';
     dom.editEmailHelp.textContent = '';
     toggleSubmit(dom.editUserSubmit, false);
+    validateEditUserForm();
     const instance = bootstrap.Modal.getOrCreateInstance(dom.editUserModal);
     instance.show();
   }
@@ -1118,6 +1251,25 @@
       || preferredName !== (state.currentEditingUser?.preferredName || '')
       || email !== (state.currentEditingUser?.email || '')
       || role !== (state.currentEditingUser?.role || 'user');
+
+    if (dom.editUserChangesSummary) {
+      const items = [];
+      if (fullName !== (state.currentEditingUser?.fullName || '')) {
+        items.push(`Full name: ${state.currentEditingUser?.fullName || '—'} → ${fullName || '—'}`);
+      }
+      if (preferredName !== (state.currentEditingUser?.preferredName || '')) {
+        items.push(`Preferred name: ${state.currentEditingUser?.preferredName || '—'} → ${preferredName || '—'}`);
+      }
+      if (email !== (state.currentEditingUser?.email || '')) {
+        items.push(`Email: ${state.currentEditingUser?.email || '—'} → ${email || '—'}`);
+      }
+      if (role !== (state.currentEditingUser?.role || 'user')) {
+        items.push(`Role: ${state.currentEditingUser?.role || 'user'} → ${role || 'user'}`);
+      }
+      dom.editUserChangesSummary.innerHTML = items.length
+        ? items.map((item) => `<div class="small">${escapeHtml(item)}</div>`).join('')
+        : '<div class="text-muted small">No changes yet.</div>';
+    }
 
     const valid = !errors.fullName && !errors.email && changed;
     toggleSubmit(dom.editUserSubmit, valid);
@@ -1169,9 +1321,9 @@
     const mergedSummaryItems = summaryItems.length ? [...summaryItems] : [{ label: 'Changes', value: 'No field changes detected.' }];
     noticeItems.forEach((note) => mergedSummaryItems.push({ label: 'Notice', value: note }));
 
-    const impactBase = 'Profile fields will be updated and a notification email will be sent.';
+    const impactBase = 'Profile fields will be updated. A notification email will be sent.';
     const impact = noticeItems.length ? `${impactBase} ${noticeItems.join(' ')}` : impactBase;
-    const message = noticeItems.length ? `Update this user? ${noticeItems.join(' ')}` : 'Update this user? They will be notified by email after you confirm.';
+    const message = noticeItems.length ? `Update this user? ${noticeItems.join(' ')}` : 'Update this user? A notification email will be sent after you confirm.';
 
     openConfirmAction({
       title: 'Confirm user update',
@@ -1262,9 +1414,15 @@
 
   function openConfirmAction(config) {
     const resolvedUser = config.user || state.users.find((u) => u.id === config.userId);
-    const userLabel = resolvedUser
-      ? `${escapeHtml(resolvedUser.fullName || resolvedUser.preferredName || 'User')} (${escapeHtml(resolvedUser.email || '—')}) [ID: ${resolvedUser.id}]`
-      : `User ID: ${config.userId}`;
+    const displayName = resolvedUser?.fullName || resolvedUser?.preferredName || resolvedUser?.email || 'User';
+    const displayEmail = resolvedUser?.email || '';
+    const displayId = Number.isInteger(resolvedUser?.id) ? resolvedUser.id : (Number.isInteger(config.userId) ? config.userId : null);
+    const userLabelParts = [
+      escapeHtml(displayName),
+      displayEmail ? `(${escapeHtml(displayEmail)})` : null,
+      displayId ? `ID ${escapeHtml(String(displayId))}` : null
+    ].filter(Boolean);
+    const userLabel = userLabelParts.length ? userLabelParts.join(' · ') : 'User: Unknown';
 
     state.confirmActionConfig = {
       title: config.title || 'Confirm action',
@@ -1325,8 +1483,16 @@
     dom.confirmActionSummaryMeta.innerHTML = '';
     dom.confirmActionSummaryMeta.classList.add('d-none');
     if (items.length) {
-      const metaRows = items.map((item) => `<div class="d-flex justify-content-between small"><span class="text-muted">${escapeHtml(item.label)}:</span><span class="fw-semibold">${escapeHtml(item.value)}</span></div>`).join('');
-      dom.confirmActionSummaryMeta.innerHTML = metaRows;
+      const metaRows = items.map((item) => `
+        <div class="d-flex justify-content-between small">
+          <span class="text-muted">${escapeHtml(item.label)}</span>
+          <span class="fw-semibold">${escapeHtml(item.value)}</span>
+        </div>
+      `).join('');
+      dom.confirmActionSummaryMeta.innerHTML = `
+        <div class="text-muted small mb-1">Details</div>
+        <div class="d-grid gap-1">${metaRows}</div>
+      `;
       dom.confirmActionSummaryMeta.classList.remove('d-none');
     }
   }
@@ -1494,6 +1660,7 @@
   function handleUserActionClick(event) {
     const btn = event.target.closest('button[data-user-id]');
     if (!btn) return;
+    event.stopPropagation();
     const userId = Number(btn.dataset.userId);
     if (!Number.isInteger(userId)) return;
     const user = state.users.find((u) => u.id === userId);
@@ -1894,9 +2061,13 @@
     const start = count > 0 ? offset + 1 : 0;
     const end = offset + count;
     const totalDisplay = Number.isFinite(total) ? total : end;
-    dom.logsSummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.logsPage})` : 'No logs recorded yet.';
-    if (dom.logsPrevBtn) dom.logsPrevBtn.disabled = state.logsPage <= 1;
-    if (dom.logsNextBtn) dom.logsNextBtn.disabled = !state.logsHasNext;
+    dom.logsSummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay}` : 'No logs recorded yet.';
+    if (dom.logsPageInfo) dom.logsPageInfo.textContent = `Page ${state.logsPage}`;
+    renderPaginationNav(dom.logsPagination, state.logsPage, state.logsHasNext, (nextPage) => {
+      if (nextPage < 1 || (!state.logsHasNext && nextPage > state.logsPage)) return;
+      state.logsPage = nextPage;
+      fetchLogs().catch(() => {});
+    });
   }
 
   function renderLogs(logs) {
@@ -1999,7 +2170,9 @@
       updateLogsSummary(count, total);
     } catch (err) {
       errorLog('[Admin][Logs] Failed to fetch logs', err);
-      if (err?.status === 403 && dom.logsAlert) {
+      if (err?.isNetworkError) {
+        showAlert(dom.logsAlert, 'Network or CORS error. Unable to load logs.');
+      } else if (err?.status === 403 && dom.logsAlert) {
         dom.logsAlert.innerHTML = '<strong>Admin access required.</strong> You do not have permission to view logs.';
         dom.logsAlert.classList.remove('d-none');
       } else {
@@ -2049,7 +2222,11 @@
       setLogFilterOptions(dom.logsStatusFilter, state.logsMeta.statuses);
     } catch (err) {
       errorLog('[Admin][Logs] Failed to load metadata', err);
-      showApiError(dom.logsAlert, err);
+      if (err?.isNetworkError) {
+        showAlert(dom.logsAlert, 'Network or CORS error. Unable to load log filters.');
+      } else {
+        showApiError(dom.logsAlert, err);
+      }
       throw err;
     }
   }
@@ -2061,8 +2238,8 @@
     state.logsInitialized = true;
   }
 
-  function clearLogsFilters() {
-    if (dom.logsSearchInput) dom.logsSearchInput.value = '';
+  function clearLogsFilters({ preserveSearch = false } = {}) {
+    if (!preserveSearch && dom.logsSearchInput) dom.logsSearchInput.value = '';
     if (dom.logsTypeFilter) dom.logsTypeFilter.value = '';
     if (dom.logsLevelFilter) dom.logsLevelFilter.value = '';
     if (dom.logsStatusFilter) dom.logsStatusFilter.value = '';
@@ -2078,25 +2255,6 @@
     if (dom.logsStatusMax) dom.logsStatusMax.value = '';
     if (dom.logsDateFrom) dom.logsDateFrom.value = '';
     if (dom.logsDateTo) dom.logsDateTo.value = '';
-  }
-
-  function startLogsLive() {
-    if (state.logsLiveEnabled) return;
-    state.logsLiveEnabled = true;
-    fetchLogs().catch(() => {});
-    state.logsLiveTimer = window.setInterval(() => {
-      if (state.currentSection === 'usage-logs' && state.usagePanel === 'logs') {
-        fetchLogs().catch(() => {});
-      }
-    }, 15000);
-  }
-
-  function stopLogsLive() {
-    if (state.logsLiveTimer) {
-      clearInterval(state.logsLiveTimer);
-      state.logsLiveTimer = null;
-    }
-    state.logsLiveEnabled = false;
   }
 
   function openLogDetail(index) {
@@ -2854,6 +3012,224 @@
     }
   }
 
+  function shouldIgnoreUserRowClick(target) {
+    if (!target) return false;
+    return Boolean(target.closest('[data-row-action], button, a, input, select, textarea, label'));
+  }
+
+  function handleUserRowClick(event) {
+    if (shouldIgnoreUserRowClick(event.target)) return;
+    const row = event.target.closest('tr[data-user-id]');
+    if (!row) return;
+    const userId = Number(row.dataset.userId);
+    if (!Number.isInteger(userId)) return;
+    openUserDetailsModal(userId);
+  }
+
+  function handleUserRowKeydown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (shouldIgnoreUserRowClick(event.target)) return;
+    const row = event.target.closest('tr[data-user-id]');
+    if (!row) return;
+    event.preventDefault();
+    const userId = Number(row.dataset.userId);
+    if (!Number.isInteger(userId)) return;
+    openUserDetailsModal(userId);
+  }
+
+  function renderUserDetailsProfile(user) {
+    if (!dom.userDetailsProfile) return;
+    const rows = [
+      { label: 'Name', value: user.fullName || user.preferredName || '—' },
+      { label: 'Email', value: user.email || '—' },
+      { label: 'User ID', value: Number.isInteger(user.id) ? String(user.id) : '—' },
+      { label: 'Role', value: user.role || 'user' },
+      { label: 'Status', value: user.isDisabled ? 'Disabled' : 'Active' },
+      { label: 'Verified', value: user.isVerified ? 'Yes' : 'No' },
+      { label: 'Created', value: formatDateTime(user.createdAt || user.created_at) },
+      { label: 'Last active', value: formatDateTime(user.lastActive || user.lastLogin || user.last_login) }
+    ];
+    dom.userDetailsProfile.innerHTML = rows.map((row) => `
+      <div>
+        <div class="text-muted small">${escapeHtml(row.label)}</div>
+        <div class="fw-semibold">${escapeHtml(String(row.value || '—'))}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderUserDetailsUsage({ configured, usage, window }) {
+    if (!dom.userDetailsUsage) return;
+    if (configured === false) {
+      dom.userDetailsUsage.innerHTML = '<div class="text-muted small">Usage data is not configured.</div>';
+      return;
+    }
+    if (!usage) {
+      dom.userDetailsUsage.innerHTML = '<div class="text-muted small">No usage recorded yet.</div>';
+      return;
+    }
+    const rows = [
+      { label: 'Usage score', value: Number.isFinite(usage.usageScore) ? usage.usageScore.toLocaleString() : '—' },
+      { label: 'Usage level', value: usage.usageLevel || '—' },
+      { label: 'Requests', value: Number.isFinite(usage.requestCount) ? usage.requestCount.toLocaleString() : '—' },
+      { label: 'Last seen', value: formatDateTime(usage.lastSeen) },
+      { label: 'Window', value: window?.startDate && window?.endDate ? `${formatDateTime(window.startDate)} → ${formatDateTime(window.endDate)}` : '—' }
+    ];
+    const endpoints = Array.isArray(usage.topEndpoints) && usage.topEndpoints.length
+      ? usage.topEndpoints.map((entry) => {
+        const label = [entry.method, entry.path].filter(Boolean).join(' ');
+        return `<div class="small"><span class="fw-semibold">${escapeHtml(label || '—')}</span> <span class="text-muted">× ${Number(entry.count) || 0}</span></div>`;
+      }).join('')
+      : '<div class="text-muted small">No endpoint breakdown yet.</div>';
+    dom.userDetailsUsage.innerHTML = `
+      ${rows.map((row) => `
+        <div>
+          <div class="text-muted small">${escapeHtml(row.label)}</div>
+          <div class="fw-semibold">${escapeHtml(String(row.value || '—'))}</div>
+        </div>
+      `).join('')}
+      <div>
+        <div class="text-muted small">Top endpoints</div>
+        ${endpoints}
+      </div>
+    `;
+  }
+
+  function renderUserDetailsActions(user) {
+    if (!dom.userDetailsActions) return;
+    dom.userDetailsActions.innerHTML = `
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="revoke-api-keys" data-user-id="${user.id}" aria-label="Revoke API keys" title="Revoke API keys">
+        <i class="bi bi-slash-circle" aria-hidden="true"></i>
+        Revoke API keys
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="reinstate-api-keys" data-user-id="${user.id}" aria-label="Reinstate API keys" title="Reinstate API keys">
+        <i class="bi bi-person-check-fill" aria-hidden="true"></i>
+        Reinstate API keys
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="send-usage-warning" data-user-id="${user.id}" aria-label="Send usage warning email" title="Send usage warning email">
+        <i class="bi bi-envelope" aria-hidden="true"></i>
+        Send usage warning email
+      </button>
+    `;
+  }
+
+  async function fetchUserUsageDetails(userId) {
+    const base = getUsageBaseFilters();
+    const body = {
+      userId,
+      limit: 1,
+      offset: 0,
+      startDate: base.startDate || undefined,
+      endDate: base.endDate || undefined,
+      sortBy: 'usageScore',
+      order: 'desc',
+      topLimit: base.topLimit || 5
+    };
+    const response = await apiFetch('/admin/usage/users', { method: 'POST', body });
+    const data = await parseResponse(response);
+    if (data?.configured === false) {
+      return { configured: false, message: data?.message || 'Usage data is not configured.' };
+    }
+    const usage = Array.isArray(data?.users)
+      ? data.users.find((entry) => Number(entry.userId) === Number(userId)) || data.users[0]
+      : null;
+    return { configured: true, usage, window: data?.window };
+  }
+
+  async function openUserDetailsModal(userId) {
+    const user = state.users.find((u) => u.id === userId);
+    if (!user) return;
+    state.userDetailsUser = user;
+    state.userDetailsUsage = null;
+    hideAlert(dom.userDetailsAlert);
+    if (dom.userDetailsTitle) dom.userDetailsTitle.textContent = `User details · ${user.email || user.fullName || user.id}`;
+    renderUserDetailsProfile(user);
+    renderUserDetailsUsage({ configured: true, usage: null, window: null });
+    renderUserDetailsActions(user);
+    bootstrap.Modal.getOrCreateInstance(dom.userDetailsModal).show();
+    try {
+      const usageData = await fetchUserUsageDetails(userId);
+      renderUserDetailsUsage({ configured: usageData.configured, usage: usageData.usage, window: usageData.window });
+      state.userDetailsUsage = usageData;
+    } catch (err) {
+      errorLog('[Admin][Users] Failed to load user usage', err);
+      showApiError(dom.userDetailsAlert, err);
+    }
+  }
+
+  function handleUserDetailsActionClick(event) {
+    const btn = event.target.closest('button[data-user-detail-action]');
+    if (!btn) return;
+    const action = btn.dataset.userDetailAction;
+    const userId = Number(btn.dataset.userId);
+    if (!Number.isInteger(userId)) return;
+    const user = state.users.find((u) => u.id === userId) || state.userDetailsUser;
+    if (!user) return;
+
+    if (action === 'revoke-api-keys') {
+      openConfirmAction({
+        title: 'Revoke API keys',
+        actionLabel: 'Revoke API keys',
+        message: 'Revoke all API keys for this user?',
+        impact: 'All API keys for this user will be revoked. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'api_key_revoked',
+        user,
+        userId,
+        url: '/admin/api-keys/revoke',
+        method: 'POST',
+        baseBody: { userId },
+        confirmText: 'REVOKE',
+        destructive: true,
+        summaryItems: [{ label: 'User', value: user.email || String(userId) }],
+        onSuccess: 'users',
+        successMessage: 'API keys revoked.'
+      });
+      return;
+    }
+
+    if (action === 'reinstate-api-keys') {
+      openConfirmAction({
+        title: 'Reinstate API key creation',
+        actionLabel: 'Reinstate API keys',
+        message: 'Allow API key creation for this user?',
+        impact: 'API key creation will be allowed again. A notification email will be sent.',
+        willNotify: true,
+        emailType: 'api_key_ban_removed',
+        user,
+        userId,
+        url: '/admin/users/api-key-unban',
+        method: 'POST',
+        baseBody: { id: userId },
+        summaryItems: [{ label: 'User', value: user.email || String(userId) }],
+        onSuccess: 'users',
+        successMessage: 'API key creation reinstated.'
+      });
+      return;
+    }
+
+    if (action === 'send-usage-warning') {
+      const usageLevel = state.userDetailsUsage?.usage?.usageLevel || 'High';
+      openConfirmAction({
+        title: 'Send usage warning',
+        actionLabel: 'Send usage warning',
+        message: 'Send a usage warning email to this user?',
+        impact: 'An email will be sent to the recipient. No profile fields will change.',
+        willNotify: true,
+        emailType: 'usage_warning_api_key',
+        user,
+        userId,
+        url: `/admin/users/${userId}/usage-warning-api-key`,
+        method: 'POST',
+        baseBody: { keyName: 'API key', usageLevel },
+        summaryItems: [
+          { label: 'Usage level', value: usageLevel }
+        ],
+        onSuccess: 'users',
+        successMessage: 'Usage warning email queued.'
+      });
+    }
+  }
+
   const scheduleDevEmailPreview = debounce((body) => {
     updateDevEmailPreview(body).catch(() => {});
   }, 400);
@@ -2872,7 +3248,7 @@
       title: 'Send test email',
       actionLabel: 'Send test email',
       message: 'Send a test email using this template?',
-      impact: 'This email is for testing only and does not change any user state.',
+      impact: 'Testing only; no user state changes. An email will be sent to the recipient.',
       willNotify: true,
       user: { id: '—', fullName: 'Email tools', email: recipient },
       baseBody,
@@ -3022,9 +3398,13 @@
     const start = count > 0 ? offset + 1 : 0;
     const end = offset + count;
     const totalDisplay = Number.isFinite(total) ? total : end;
-    dom.emailHistorySummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.emailHistoryPage})` : 'No email history to show';
-    if (dom.emailHistoryPrevBtn) dom.emailHistoryPrevBtn.disabled = state.emailHistoryPage <= 1;
-    if (dom.emailHistoryNextBtn) dom.emailHistoryNextBtn.disabled = !state.emailHistoryHasNext;
+    dom.emailHistorySummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay}` : 'No email history to show';
+    if (dom.emailHistoryPageInfo) dom.emailHistoryPageInfo.textContent = `Page ${state.emailHistoryPage}`;
+    renderPaginationNav(dom.emailHistoryPagination, state.emailHistoryPage, state.emailHistoryHasNext, (nextPage) => {
+      if (nextPage < 1 || (!state.emailHistoryHasNext && nextPage > state.emailHistoryPage)) return;
+      state.emailHistoryPage = nextPage;
+      fetchEmailHistory().catch(() => {});
+    });
   }
 
   async function fetchEmailHistory({ resetPage = false } = {}) {
@@ -3060,7 +3440,11 @@
       state.emailHistoryLoaded = true;
     } catch (err) {
       errorLog('Failed to fetch email history', err);
-      showApiError(dom.emailHistoryAlert, err);
+      if (err?.isNetworkError) {
+        showAlert(dom.emailHistoryAlert, 'Network or CORS error. Unable to load email history.');
+      } else {
+        showApiError(dom.emailHistoryAlert, err);
+      }
       if (dom.emailHistoryTbody) {
         dom.emailHistoryTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Unable to load email history.</td></tr>';
       }
@@ -3068,10 +3452,10 @@
     }
   }
 
-  function clearEmailHistoryFilters() {
+  function clearEmailHistoryFilters({ preserveSearch = false } = {}) {
     if (dom.emailHistoryTypeFilter) dom.emailHistoryTypeFilter.value = '';
     if (dom.emailHistoryStatusFilter) dom.emailHistoryStatusFilter.value = '';
-    if (dom.emailHistoryRecipient) dom.emailHistoryRecipient.value = '';
+    if (!preserveSearch && dom.emailHistoryRecipient) dom.emailHistoryRecipient.value = '';
     if (dom.emailHistoryDateFrom) dom.emailHistoryDateFrom.value = '';
     if (dom.emailHistoryDateTo) dom.emailHistoryDateTo.value = '';
   }
@@ -3088,8 +3472,8 @@
   }
 
   function setDataViewerLoading(isLoading) {
-    if (dom.dataViewerLoadBtn) dom.dataViewerLoadBtn.disabled = isLoading;
-    if (dom.dataViewerClearBtn) dom.dataViewerClearBtn.disabled = isLoading;
+    if (dom.dataViewerApplyFiltersBtn) dom.dataViewerApplyFiltersBtn.disabled = isLoading;
+    if (dom.dataViewerResetFiltersBtn) dom.dataViewerResetFiltersBtn.disabled = isLoading;
   }
 
   function getSelectedDataViewerTable() {
@@ -3133,7 +3517,6 @@
       updateDataViewerSortOptions(null);
       resetDataViewerTable('No data available.');
       setDataViewerSummary('No data tables are configured.');
-      if (dom.dataViewerTablesList) dom.dataViewerTablesList.textContent = 'Available tables: none.';
       renderDataViewerTableHelp(null);
       return;
     }
@@ -3142,11 +3525,6 @@
       .map((table) => `<option value="${escapeHtml(table.name)}">${escapeHtml(table.label || table.name)}</option>`)
       .join('');
 
-    if (dom.dataViewerTablesList) {
-      const labels = tables.map((table) => `${table.label || table.name} (${table.name})`);
-      dom.dataViewerTablesList.textContent = `Available tables: ${labels.join(', ')}`;
-    }
-
     const current = getSelectedDataViewerTable();
     const hasCurrent = current && tables.some((table) => table.name === current);
     if (current && !hasCurrent) {
@@ -3154,8 +3532,12 @@
     }
     const selected = hasCurrent ? current : tables[0].name;
     dom.dataViewerTable.value = selected;
-    updateDataViewerSortOptions(getDataViewerTableConfig(selected));
-    renderDataViewerTableHelp(getDataViewerTableConfig(selected));
+    const selectedConfig = getDataViewerTableConfig(selected);
+    updateDataViewerSortOptions(selectedConfig);
+    renderDataViewerTableHelp(selectedConfig);
+    if (selected) {
+      fetchDataViewerRows().catch(() => {});
+    }
   }
 
   function formatDataViewerValue(value, column) {
@@ -3207,12 +3589,13 @@
     const total = Number.isFinite(payload?.total) ? payload.total : count;
     const currentPage = Number.isFinite(payload?.page) ? payload.page : page;
     const currentLimit = Number.isFinite(payload?.limit) ? payload.limit : limit;
-    const hasNext = payload?.hasNext === true;
-    const pageLabel = Number.isFinite(currentPage) ? `Page ${currentPage}` : 'Page 1';
-    const limitLabel = Number.isFinite(currentLimit) ? `Limit ${currentLimit}` : 'Limit —';
-    const totalLabel = Number.isFinite(total) ? `Total ${total}` : 'Total —';
-    const nextLabel = hasNext ? 'More available' : 'End of results';
-    setDataViewerSummary(`Rows: ${count}. ${pageLabel}. ${limitLabel}. ${totalLabel}. ${nextLabel}.`);
+    const offset = Number.isFinite(currentPage) && Number.isFinite(currentLimit)
+      ? (currentPage - 1) * currentLimit
+      : 0;
+    const start = count > 0 ? offset + 1 : 0;
+    const end = offset + count;
+    const totalLabel = Number.isFinite(total) ? ` of ${total}` : '';
+    setDataViewerSummary(count ? `Showing ${start}–${end}${totalLabel}` : 'No results to show');
   }
 
   async function fetchDataViewerTables({ force = false } = {}) {
@@ -3228,8 +3611,6 @@
       const selected = getSelectedDataViewerTable();
       if (selected) {
         const config = getDataViewerTableConfig(selected);
-        const hint = config?.description ? ` ${config.description}` : '';
-        setDataViewerSummary(`Ready to load ${config?.label || selected}.${hint}`.trim());
         renderDataViewerTableHelp(config);
       } else {
         setDataViewerSummary('Select a table to load data.');
@@ -3241,7 +3622,6 @@
       showAlert(dom.dataViewerAlert, err.message || 'Unable to load data tables.');
       setDataViewerSummary('Unable to load data tables.');
       resetDataViewerTable('No data loaded.');
-      if (dom.dataViewerTablesList) dom.dataViewerTablesList.textContent = 'Available tables: unavailable.';
       renderDataViewerTableHelp(null);
       throw err;
     }
@@ -3325,7 +3705,11 @@
       setDataViewerSummaryFromPayload(data, query);
     } catch (err) {
       errorLog('Failed to load data viewer rows', err);
-      showAlert(dom.dataViewerAlert, err.message || 'Unable to load data.');
+      if (err?.isNetworkError) {
+        showAlert(dom.dataViewerAlert, 'Network or CORS error. Unable to load data.');
+      } else {
+        showAlert(dom.dataViewerAlert, err.message || 'Unable to load data.');
+      }
       setDataViewerSummary('Unable to load data.');
       resetDataViewerTable('No data loaded.');
       throw err;
@@ -3334,8 +3718,8 @@
     }
   }
 
-  function clearDataViewerFilters() {
-    if (dom.dataViewerSearch) dom.dataViewerSearch.value = '';
+  function clearDataViewerFilters({ preserveSearch = false } = {}) {
+    if (!preserveSearch && dom.dataViewerSearch) dom.dataViewerSearch.value = '';
     if (dom.dataViewerUserId) dom.dataViewerUserId.value = '';
     if (dom.dataViewerEmail) dom.dataViewerEmail.value = '';
     if (dom.dataViewerPage) dom.dataViewerPage.value = '1';
@@ -3362,19 +3746,42 @@
       if (hashSection) setSection(hashSection);
     });
 
-    dom.refreshUsersBtn?.addEventListener('click', () => fetchUsers(getUserFilters()).catch(() => {}));
+    dom.usersApplyFiltersBtn?.addEventListener('click', () => {
+      state.usersPage = 1;
+      const filters = getUserFilters();
+      renderUsersActiveFilters(filters);
+      fetchUsers(filters).catch(() => {});
+    });
+    dom.usersResetFiltersBtn?.addEventListener('click', () => {
+      clearUserFilters();
+      state.usersPage = 1;
+      const filters = getUserFilters();
+      renderUsersActiveFilters(filters);
+      fetchUsers(filters).catch(() => {});
+    });
     dom.clearUsersFiltersBtn?.addEventListener('click', () => {
       clearUserFilters();
       state.usersPage = 1;
-      fetchUsers(getUserFilters()).catch(() => {});
+      const filters = getUserFilters();
+      renderUsersActiveFilters(filters);
+      fetchUsers(filters).catch(() => {});
     });
-    dom.userVerifiedFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
-    dom.userDisabledFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
-    dom.userRoleFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
-    dom.userSearchInput?.addEventListener('input', debounce(() => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); }));
+    dom.userSearchInput?.addEventListener('input', debounce(() => {
+      state.usersPage = 1;
+      fetchUsers(getUserFilters()).catch(() => {});
+    }));
     dom.userSearchInput?.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
+      state.usersPage = 1;
+      fetchUsers(getUserFilters()).catch(() => {});
+    });
+    dom.clearUsersSearchBtn?.addEventListener('click', () => {
+      if (dom.userSearchInput) dom.userSearchInput.value = '';
+      state.usersPage = 1;
+      fetchUsers(getUserFilters()).catch(() => {});
+    });
+    dom.usersSortSelect?.addEventListener('change', () => {
       state.usersPage = 1;
       fetchUsers(getUserFilters()).catch(() => {});
     });
@@ -3389,18 +3796,10 @@
       fetchUsers(getUserFilters()).catch(() => {});
     });
 
-    dom.usersPrevBtn?.addEventListener('click', () => {
-      if (state.usersPage <= 1) return;
-      state.usersPage -= 1;
-      fetchUsers(getUserFilters()).catch(() => {});
-    });
-    dom.usersNextBtn?.addEventListener('click', () => {
-      if (!state.usersHasNext) return;
-      state.usersPage += 1;
-      fetchUsers(getUserFilters()).catch(() => {});
-    });
-
     dom.usersTbody?.addEventListener('click', handleUserActionClick);
+    dom.usersTbody?.addEventListener('click', handleUserRowClick);
+    dom.usersTbody?.addEventListener('keydown', handleUserRowKeydown);
+    dom.userDetailsActions?.addEventListener('click', handleUserDetailsActionClick);
 
     dom.confirmActionReason?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionEmail?.addEventListener('input', handleConfirmActionModalInput);
@@ -3448,51 +3847,41 @@
     dom.languageDeleteInput?.addEventListener('input', validateLanguageDelete);
     dom.languageDeleteSubmit?.addEventListener('click', submitLanguageDelete);
 
+    const runLogsFetch = () => {
+      if (!state.logsInitialized) {
+        ensureLogsInitialized().catch(() => {});
+        return;
+      }
+      fetchLogs().catch(() => {});
+    };
+
     dom.logsSearchInput?.addEventListener('input', debounce(() => {
       state.logsPage = 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+      runLogsFetch();
     }));
-    const logFilterChange = () => {
+    dom.logsSearchInput?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
       state.logsPage = 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
-    };
-    dom.logsTypeFilter?.addEventListener('change', logFilterChange);
-    dom.logsLevelFilter?.addEventListener('change', logFilterChange);
-    dom.logsStatusFilter?.addEventListener('change', logFilterChange);
-    dom.logsMethodFilter?.addEventListener('change', logFilterChange);
-    dom.logsActorFilter?.addEventListener('change', logFilterChange);
-    dom.logsPathFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsUserIdFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsUserEmailFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsApiKeyIdFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsApiKeyLabelFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsApiKeyPrefixFilter?.addEventListener('input', debounce(logFilterChange));
-    dom.logsStatusMin?.addEventListener('input', debounce(logFilterChange));
-    dom.logsStatusMax?.addEventListener('input', debounce(logFilterChange));
-    dom.logsDateFrom?.addEventListener('change', logFilterChange);
-    dom.logsDateTo?.addEventListener('change', logFilterChange);
-
-    dom.logsPrevBtn?.addEventListener('click', () => {
-      if (state.logsPage <= 1) return;
-      state.logsPage -= 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+      runLogsFetch();
     });
-    dom.logsNextBtn?.addEventListener('click', () => {
-      if (!state.logsHasNext) return;
-      state.logsPage += 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+    dom.logsClearSearchBtn?.addEventListener('click', () => {
+      if (dom.logsSearchInput) dom.logsSearchInput.value = '';
+      state.logsPage = 1;
+      runLogsFetch();
     });
-
+    dom.logsApplyFiltersBtn?.addEventListener('click', () => {
+      state.logsPage = 1;
+      runLogsFetch();
+    });
+    dom.logsResetFiltersBtn?.addEventListener('click', () => {
+      clearLogsFilters({ preserveSearch: true });
+      state.logsPage = 1;
+      runLogsFetch();
+    });
     dom.logsRefreshBtn?.addEventListener('click', () => {
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
+      runLogsFetch();
     });
-
-    dom.logsClearFiltersBtn?.addEventListener('click', () => {
-      clearLogsFilters();
-      state.logsPage = 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
-    });
-
     dom.logsPageSize?.addEventListener('change', () => {
       const next = Number.parseInt(dom.logsPageSize.value, 10);
       if (Number.isInteger(next) && next >= 5 && next <= 200) {
@@ -3501,18 +3890,7 @@
         dom.logsPageSize.value = state.logsLimit;
       }
       state.logsPage = 1;
-      ensureLogsInitialized().then(() => fetchLogs()).catch(() => {});
-    });
-
-    dom.logsLiveToggle?.addEventListener('change', (event) => {
-      const enabled = event.target.checked;
-      if (enabled) {
-        ensureLogsInitialized().then(() => startLogsLive()).catch(() => {
-          dom.logsLiveToggle.checked = false;
-        });
-      } else {
-        stopLogsLive();
-      }
+      runLogsFetch();
     });
 
     dom.logsTbody?.addEventListener('click', (event) => {
@@ -3549,38 +3927,39 @@
       updateDataViewerSortOptions(config);
       renderDataViewerTableHelp(config);
       clearDataViewerFilters();
-      resetDataViewerTable('No data loaded.');
-      const hint = config?.description ? ` ${config.description}` : '';
-      setDataViewerSummary(table ? `Ready to load ${config?.label || table}.${hint}`.trim() : 'Select a table to load data.');
-    });
-
-    dom.dataViewerLoadBtn?.addEventListener('click', () => {
+      resetDataViewerTable('Loading data…');
+      if (!table) {
+        setDataViewerSummary('Select a table to load data.');
+        return;
+      }
       fetchDataViewerRows().catch(() => {});
     });
 
-    dom.dataViewerClearBtn?.addEventListener('click', () => {
-      clearDataViewerFilters();
-      resetDataViewerTable('No data loaded.');
-      setDataViewerSummary('Filters cleared. Select Load to refresh.');
-    });
-
-    dom.dataViewerLimit?.addEventListener('change', () => {
-      const limit = Number.parseInt(dom.dataViewerLimit.value, 10);
-      if (!Number.isInteger(limit) || limit < 5 || limit > 200) {
-        dom.dataViewerLimit.value = '25';
-      }
+    dom.dataViewerSearch?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
       if (getSelectedDataViewerTable()) {
         fetchDataViewerRows().catch(() => {});
       }
     });
-
-    dom.dataViewerPage?.addEventListener('change', () => {
-      const page = Number.parseInt(dom.dataViewerPage.value, 10);
-      if (!Number.isInteger(page) || page < 1) {
-        dom.dataViewerPage.value = '1';
-      }
+    dom.dataViewerClearSearchBtn?.addEventListener('click', () => {
+      if (dom.dataViewerSearch) dom.dataViewerSearch.value = '';
       if (getSelectedDataViewerTable()) {
         fetchDataViewerRows().catch(() => {});
+      }
+    });
+    dom.dataViewerApplyFiltersBtn?.addEventListener('click', () => {
+      if (getSelectedDataViewerTable()) {
+        fetchDataViewerRows().catch(() => {});
+      }
+    });
+    dom.dataViewerResetFiltersBtn?.addEventListener('click', () => {
+      clearDataViewerFilters({ preserveSearch: true });
+      if (getSelectedDataViewerTable()) {
+        fetchDataViewerRows().catch(() => {});
+      } else {
+        resetDataViewerTable('No data loaded.');
+        setDataViewerSummary('Select a table to load data.');
       }
     });
 
@@ -3591,21 +3970,34 @@
     dom.emailResetBtn?.addEventListener('click', handleEmailReset);
     dom.emailSendTestBtn?.addEventListener('click', handleEmailSendTest);
 
-    const historyFilterChange = () => {
-      state.emailHistoryPage = 1;
+    const runEmailHistoryFetch = () => {
       fetchEmailHistory().catch(() => {});
     };
     dom.emailHistoryRefreshBtn?.addEventListener('click', () => fetchEmailHistory({ resetPage: true }).catch(() => {}));
-    dom.emailHistoryClearBtn?.addEventListener('click', () => {
-      clearEmailHistoryFilters();
+    dom.emailHistoryRecipient?.addEventListener('input', debounce(() => {
       state.emailHistoryPage = 1;
-      fetchEmailHistory().catch(() => {});
+      runEmailHistoryFetch();
+    }));
+    dom.emailHistoryRecipient?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      state.emailHistoryPage = 1;
+      runEmailHistoryFetch();
     });
-    dom.emailHistoryTypeFilter?.addEventListener('change', historyFilterChange);
-    dom.emailHistoryStatusFilter?.addEventListener('change', historyFilterChange);
-    dom.emailHistoryDateFrom?.addEventListener('change', historyFilterChange);
-    dom.emailHistoryDateTo?.addEventListener('change', historyFilterChange);
-    dom.emailHistoryRecipient?.addEventListener('input', debounce(historyFilterChange));
+    dom.emailHistoryClearSearchBtn?.addEventListener('click', () => {
+      if (dom.emailHistoryRecipient) dom.emailHistoryRecipient.value = '';
+      state.emailHistoryPage = 1;
+      runEmailHistoryFetch();
+    });
+    dom.emailHistoryApplyFiltersBtn?.addEventListener('click', () => {
+      state.emailHistoryPage = 1;
+      runEmailHistoryFetch();
+    });
+    dom.emailHistoryResetFiltersBtn?.addEventListener('click', () => {
+      clearEmailHistoryFilters({ preserveSearch: true });
+      state.emailHistoryPage = 1;
+      runEmailHistoryFetch();
+    });
     dom.emailHistoryPageSize?.addEventListener('change', () => {
       const value = Number.parseInt(dom.emailHistoryPageSize.value, 10);
       if (Number.isInteger(value) && value >= 5 && value <= 100) {
@@ -3614,17 +4006,7 @@
         dom.emailHistoryPageSize.value = state.emailHistoryLimit;
       }
       state.emailHistoryPage = 1;
-      fetchEmailHistory().catch(() => {});
-    });
-    dom.emailHistoryPrevBtn?.addEventListener('click', () => {
-      if (state.emailHistoryPage <= 1) return;
-      state.emailHistoryPage -= 1;
-      fetchEmailHistory().catch(() => {});
-    });
-    dom.emailHistoryNextBtn?.addEventListener('click', () => {
-      if (!state.emailHistoryHasNext) return;
-      state.emailHistoryPage += 1;
-      fetchEmailHistory().catch(() => {});
+      runEmailHistoryFetch();
     });
 
     dom.devEmailSubject?.addEventListener('input', () => validateDevEmailForm());

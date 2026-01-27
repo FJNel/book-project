@@ -245,10 +245,13 @@ Purpose: standardize list/table interactions across the app to ensure consistent
   - web/storage-locations.html, web/assets/js/storage-locations.js
   - web/statistics.html, web/assets/js/statistics.js
   - web/admin-library.html, web/assets/js/admin-library.js
-  - web/author-details.html, web/assets/js/author-details.js
-  - web/publisher-details.html, web/assets/js/publisher-details.js
-  - web/series-details.html, web/assets/js/series-details.js
-  - web/book-details.html, web/assets/js/book-details.js
+- web/author-details.html, web/assets/js/author-details.js
+- web/publisher-details.html, web/assets/js/publisher-details.js
+- web/series-details.html, web/assets/js/series-details.js
+- web/book-details.html, web/assets/js/book-details.js
+- Admin user directory row-click details modal:
+  - Reference: web/admin.html (User Details Modal), web/assets/js/admin.js (Users table row click)
+  - Rule: row click opens the user details modal with actions; actions inside the modal must follow Modal + Icon Contracts.
 
 2) Clickable row markup
 - Use the `clickable-row` class on any row/list item that is clickable.

@@ -102,6 +102,36 @@ const adminStatsSummaryHandler = async (req, res) => {
 				throw error;
 			}
 		};
+		const safeScalar = async (label, sql, params = []) => {
+			try {
+				const result = await pool.query(sql, params);
+				const raw = result.rows[0]?.value ?? null;
+				const numeric = raw === null || raw === undefined ? null : Number(raw);
+				return { label, value: Number.isFinite(numeric) ? numeric : null };
+			} catch (error) {
+				if (schemaErrorCodes.has(error.code)) {
+					logToFile("ADMIN_STATS_PARTIAL", {
+						status: "SCHEMA_MISSING",
+						label,
+						error_message: error.message,
+						admin_id: req.user.id
+					}, "warn");
+					return { label, value: null, warning: `${label} unavailable.` };
+				}
+				throw error;
+			}
+		};
+
+		const MIN_SAMPLE_SIZE = 5;
+		const buildMetric = ({ label, value, unit = "number", sampleSize, note }) => {
+			if (!Number.isFinite(sampleSize) || sampleSize < MIN_SAMPLE_SIZE) {
+				return { label, value: null, unit, sampleSize, note: "Not enough data yet" };
+			}
+			if (value === null || value === undefined || Number.isNaN(value)) {
+				return { label, value: null, unit, sampleSize, note: note || "Unavailable" };
+			}
+			return { label, value, unit, sampleSize, note: note || null };
+		};
 
 		const results = await Promise.all([
 			safeCount("users_total", "SELECT COUNT(*)::int AS count FROM users"),
@@ -122,6 +152,75 @@ const adminStatsSummaryHandler = async (req, res) => {
 			return acc;
 		}, {});
 		const warnings = results.filter((entry) => entry.warning).map((entry) => entry.warning);
+		const [
+			zeroBooks,
+			medianBooks,
+			avgAuthors,
+			avgTags,
+			avgPages,
+			booksWithPages,
+			booksMissingCover,
+			booksMissingPageCount
+		] = await Promise.all([
+			safeCount("users_zero_books",
+				`SELECT COUNT(*)::int AS count
+				 FROM users u
+				 LEFT JOIN books b ON b.user_id = u.id AND b.deleted_at IS NULL
+				 WHERE b.id IS NULL`
+			),
+			safeScalar("books_per_user_median",
+				`SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY book_count)::numeric AS value
+				 FROM (
+				   SELECT u.id, COUNT(b.id) AS book_count
+				   FROM users u
+				   LEFT JOIN books b ON b.user_id = u.id AND b.deleted_at IS NULL
+				   GROUP BY u.id
+				 ) t`
+			),
+			safeScalar("authors_per_book_avg",
+				`SELECT AVG(author_count)::numeric AS value
+				 FROM (
+				   SELECT b.id, COUNT(ba.author_id)::int AS author_count
+				   FROM books b
+				   LEFT JOIN book_authors ba ON ba.book_id = b.id
+				   WHERE b.deleted_at IS NULL
+				   GROUP BY b.id
+				 ) t`
+			),
+			safeScalar("tags_per_book_avg",
+				`SELECT AVG(tag_count)::numeric AS value
+				 FROM (
+				   SELECT b.id, COUNT(bt.tag_id)::int AS tag_count
+				   FROM books b
+				   LEFT JOIN book_tags bt ON bt.book_id = b.id
+				   WHERE b.deleted_at IS NULL
+				   GROUP BY b.id
+				 ) t`
+			),
+			safeScalar("avg_page_count",
+				`SELECT AVG(page_count)::numeric AS value
+				 FROM books
+				 WHERE deleted_at IS NULL AND page_count IS NOT NULL`
+			),
+			safeCount("books_with_page_count",
+				`SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NULL AND page_count IS NOT NULL`
+			),
+			safeCount("books_missing_cover",
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE deleted_at IS NULL AND (cover_image_url IS NULL OR cover_image_url = '')`
+			),
+			safeCount("books_missing_page_count",
+				`SELECT COUNT(*)::int AS count
+				 FROM books
+				 WHERE deleted_at IS NULL AND page_count IS NULL`
+			)
+		]);
+
+		const scalarWarnings = [zeroBooks, medianBooks, avgAuthors, avgTags, avgPages, booksWithPages, booksMissingCover, booksMissingPageCount]
+			.filter((entry) => entry?.warning)
+			.map((entry) => entry.warning);
+		if (scalarWarnings.length) warnings.push(...scalarWarnings);
 
 		const responseData = {
 			stats: {
@@ -143,6 +242,74 @@ const adminStatsSummaryHandler = async (req, res) => {
 					tags: resultMap.tags_active?.count ?? null,
 					storageLocations: resultMap.storage_locations_active?.count ?? null
 				}
+			},
+			insights: {
+				adoption: [
+					buildMetric({
+						label: "Average books per user",
+						value: resultMap.users_total?.count
+							? (resultMap.books_active?.count ?? 0) / resultMap.users_total.count
+							: null,
+						unit: "number",
+						sampleSize: resultMap.users_total?.count ?? 0
+					}),
+					buildMetric({
+						label: "Median books per user",
+						value: medianBooks?.value ?? null,
+						unit: "number",
+						sampleSize: resultMap.users_total?.count ?? 0,
+						note: medianBooks?.warning ? "Unavailable" : null
+					}),
+					buildMetric({
+						label: "Users with zero books",
+						value: resultMap.users_total?.count
+							? ((zeroBooks?.count ?? 0) / resultMap.users_total.count) * 100
+							: null,
+						unit: "percent",
+						sampleSize: resultMap.users_total?.count ?? 0
+					})
+				],
+				quality: [
+					buildMetric({
+						label: "Books missing page count",
+						value: resultMap.books_active?.count
+							? ((booksMissingPageCount?.count ?? 0) / resultMap.books_active.count) * 100
+							: null,
+						unit: "percent",
+						sampleSize: resultMap.books_active?.count ?? 0
+					}),
+					buildMetric({
+						label: "Books missing cover image",
+						value: resultMap.books_active?.count
+							? ((booksMissingCover?.count ?? 0) / resultMap.books_active.count) * 100
+							: null,
+						unit: "percent",
+						sampleSize: resultMap.books_active?.count ?? 0
+					})
+				],
+				engagement: [
+					buildMetric({
+						label: "Average authors per book",
+						value: avgAuthors?.value ?? null,
+						unit: "number",
+						sampleSize: resultMap.books_active?.count ?? 0,
+						note: avgAuthors?.warning ? "Unavailable" : null
+					}),
+					buildMetric({
+						label: "Average tags per book",
+						value: avgTags?.value ?? null,
+						unit: "number",
+						sampleSize: resultMap.books_active?.count ?? 0,
+						note: avgTags?.warning ? "Unavailable" : null
+					}),
+					buildMetric({
+						label: "Average page count",
+						value: avgPages?.value ?? null,
+						unit: "pages",
+						sampleSize: booksWithPages?.count ?? 0,
+						note: avgPages?.warning ? "Unavailable" : null
+					})
+				]
 			},
 			cache: { hit: false, ageSeconds: 0 }
 		};
@@ -1230,10 +1397,8 @@ const EMAIL_TYPE_METADATA = {
 		description: "Usage warning for API key activity.",
 		fields: [
 			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
-			{ name: "score", label: "Usage score", type: "number", placeholder: "250", required: true },
-			{ name: "threshold", label: "Threshold", type: "number", placeholder: "200", required: true },
-			{ name: "windowStart", label: "Window start", type: "datetime-local" },
-			{ name: "windowEnd", label: "Window end", type: "datetime-local" }
+			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "usageLevel", label: "Usage level", type: "text", placeholder: "High", required: true, helpText: "Use the current usage level (Low, Medium, High, Very High)." }
 		]
 	},
 	api_key_expiring: {
@@ -1480,6 +1645,30 @@ function getDataViewerTableConfig(name) {
 	return DATA_VIEWER_TABLES.find((table) => table.name === name) || null;
 }
 
+function stripTablePrefix(value) {
+	if (!value || typeof value !== "string") return value;
+	const parts = value.split(".");
+	return parts[parts.length - 1];
+}
+
+async function resolveDataViewerConfig(tableConfig) {
+	if (!tableConfig || tableConfig.name !== "users") return tableConfig;
+	const availability = await getUsersColumnAvailability();
+	const columns = tableConfig.columns.filter((col) => availability.has(col.name));
+	const sortFields = tableConfig.sortFields.filter((field) => availability.has(stripTablePrefix(field.column)));
+	const searchColumns = (tableConfig.searchColumns || []).filter((col) => availability.has(stripTablePrefix(col)));
+	const defaultSort = sortFields.some((field) => field.value === tableConfig.defaultSort)
+		? tableConfig.defaultSort
+		: (sortFields[0]?.value || tableConfig.defaultSort);
+	return {
+		...tableConfig,
+		columns,
+		sortFields,
+		searchColumns,
+		defaultSort
+	};
+}
+
 function shouldRedactDataViewerColumn(name) {
 	if (!name) return false;
 	if (DATA_VIEWER_SAFE_COLUMNS.has(String(name))) return false;
@@ -1494,7 +1683,8 @@ function shouldRedactDataViewerValue(value) {
 }
 
 function redactDataViewerValue(value, columnName) {
-	const sanitized = sanitizeInput(value, columnName);
+	const normalized = value instanceof Date ? value.toISOString() : value;
+	const sanitized = sanitizeInput(normalized, columnName);
 	if (sanitized === null || sanitized === undefined) return sanitized;
 	if (shouldRedactDataViewerColumn(columnName)) return "[REDACTED]";
 	if (shouldRedactDataViewerValue(sanitized)) return "[REDACTED]";
@@ -1503,16 +1693,19 @@ function redactDataViewerValue(value, columnName) {
 
 const adminDataViewerTablesHandler = async (req, res) => {
 	try {
-		const tables = DATA_VIEWER_TABLES.map((table) => ({
-			name: table.name,
-			label: table.label,
-			description: table.description,
-			defaultSort: table.defaultSort,
-			defaultOrder: table.defaultOrder,
-			sortFields: table.sortFields.map((field) => ({
-				value: field.value,
-				label: field.label
-			}))
+		const tables = await Promise.all(DATA_VIEWER_TABLES.map(async (table) => {
+			const resolved = await resolveDataViewerConfig(table);
+			return {
+				name: resolved.name,
+				label: resolved.label,
+				description: resolved.description,
+				defaultSort: resolved.defaultSort,
+				defaultOrder: resolved.defaultOrder,
+				sortFields: resolved.sortFields.map((field) => ({
+					value: field.value,
+					label: field.label
+				}))
+			};
 		}));
 		return successResponse(res, 200, "Data viewer tables retrieved successfully.", { tables });
 	} catch (error) {
@@ -1538,6 +1731,10 @@ const adminDataViewerQueryHandler = async (req, res) => {
 	if (!tableAvailable) {
 		return errorResponse(res, 400, "Validation Error", ["Table is not available."]);
 	}
+	const resolvedConfig = await resolveDataViewerConfig(tableConfig);
+	if (!resolvedConfig.columns.length) {
+		return errorResponse(res, 400, "Validation Error", ["Table columns are not available."]);
+	}
 
 	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 5, max: 200 });
 	const { value: page, error: pageError } = parseOptionalInt(params.page, "page", { min: 1, max: 10000 });
@@ -1554,28 +1751,25 @@ const adminDataViewerQueryHandler = async (req, res) => {
 	const search = normalizeText(params.search);
 	const email = normalizeText(params.email);
 	const sortKey = normalizeText(params.sortBy);
-	const order = (parseSortOrder(params.order) || tableConfig.defaultOrder || "desc").toUpperCase();
-	const sortField = tableConfig.sortFields.find((field) => field.value === sortKey)
-		|| tableConfig.sortFields.find((field) => field.value === tableConfig.defaultSort)
-		|| tableConfig.sortFields[0];
+	const order = (parseSortOrder(params.order) || resolvedConfig.defaultOrder || "desc").toUpperCase();
 
 	const clauses = [];
 	const values = [];
 	let idx = 1;
 
-	if (search && tableConfig.searchColumns?.length) {
-		clauses.push(`(${tableConfig.searchColumns.map((col) => `${col} ILIKE $${idx}`).join(" OR ")})`);
+	if (search && resolvedConfig.searchColumns?.length) {
+		clauses.push(`(${resolvedConfig.searchColumns.map((col) => `${col} ILIKE $${idx}`).join(" OR ")})`);
 		values.push(`%${search}%`);
 		idx += 1;
 	}
 
-	if (Number.isInteger(userId) && tableConfig.filters?.userIdColumn) {
-		clauses.push(`${tableConfig.filters.userIdColumn} = $${idx++}`);
+	if (Number.isInteger(userId) && resolvedConfig.filters?.userIdColumn) {
+		clauses.push(`${resolvedConfig.filters.userIdColumn} = $${idx++}`);
 		values.push(userId);
 	}
 
-	if (email && tableConfig.filters?.emailColumn) {
-		clauses.push(`${tableConfig.filters.emailColumn} ILIKE $${idx++}`);
+	if (email && resolvedConfig.filters?.emailColumn) {
+		clauses.push(`${resolvedConfig.filters.emailColumn} ILIKE $${idx++}`);
 		values.push(`%${email}%`);
 	}
 
@@ -1583,17 +1777,23 @@ const adminDataViewerQueryHandler = async (req, res) => {
 	const limitValue = limit ?? 25;
 	const pageValue = page ?? 1;
 	const offsetValue = (pageValue - 1) * limitValue;
+	const sortField = resolvedConfig.sortFields.find((field) => field.value === sortKey)
+		|| resolvedConfig.sortFields.find((field) => field.value === resolvedConfig.defaultSort)
+		|| resolvedConfig.sortFields[0];
+	if (!sortField) {
+		return errorResponse(res, 400, "Validation Error", ["Sort field is not available."]);
+	}
 
 	try {
 		const countResult = await pool.query(
-			`SELECT COUNT(*)::int AS count FROM ${tableConfig.from} ${whereClause}`,
+			`SELECT COUNT(*)::int AS count FROM ${resolvedConfig.from} ${whereClause}`,
 			values
 		);
 		const total = countResult.rows[0]?.count ?? 0;
-		const selectList = tableConfig.columns.map((col) => `${col.select} AS ${col.name}`).join(", ");
+		const selectList = resolvedConfig.columns.map((col) => `${col.select} AS ${col.name}`).join(", ");
 		const rowsResult = await pool.query(
 			`SELECT ${selectList}
-			 FROM ${tableConfig.from}
+			 FROM ${resolvedConfig.from}
 			 ${whereClause}
 			 ORDER BY ${sortField.column} ${order}
 			 LIMIT $${idx} OFFSET $${idx + 1}`,
@@ -1602,15 +1802,15 @@ const adminDataViewerQueryHandler = async (req, res) => {
 		const rows = rowsResult.rows || [];
 		const sanitizedRows = rows.map((row) => {
 			const safeRow = {};
-			tableConfig.columns.forEach((col) => {
+			resolvedConfig.columns.forEach((col) => {
 				safeRow[col.name] = redactDataViewerValue(row[col.name], col.name);
 			});
 			return safeRow;
 		});
 		const hasNext = offsetValue + rows.length < total;
 		return successResponse(res, 200, "Data viewer results retrieved successfully.", {
-			table: tableConfig.name,
-			columns: tableConfig.columns.map((col) => ({
+			table: resolvedConfig.name,
+			columns: resolvedConfig.columns.map((col) => ({
 				name: col.name,
 				label: col.label,
 				type: col.type
@@ -1671,7 +1871,7 @@ const EMAIL_TYPE_HANDLERS = {
 	api_key_revoked: async (payload) => email.sendApiKeyRevokedEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix),
 	api_key_ban_applied: async (payload) => email.sendApiKeyBanAppliedEmail(payload.toEmail, payload.preferredName, payload.reason),
 	api_key_ban_removed: async (payload) => email.sendApiKeyBanRemovedEmail(payload.toEmail, payload.preferredName),
-	usage_warning_api_key: async (payload) => email.sendApiKeyUsageWarningEmail(payload.toEmail, payload.preferredName, payload.score, payload.threshold, payload.windowStart, payload.windowEnd),
+	usage_warning_api_key: async (payload) => email.sendApiKeyUsageWarningEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.usageLevel),
 	api_key_expiring: async (payload) => email.sendApiKeyExpiringEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix, payload.expiresAt),
 	api_key_expired: async (payload) => email.sendApiKeyExpiredEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix)
 };
@@ -1761,10 +1961,8 @@ function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInM
 			return {
 				toEmail: normalizedEmail,
 				preferredName,
-				score: context.score || 250,
-				threshold: context.threshold || 200,
-				windowStart: context.windowStart || new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-				windowEnd: context.windowEnd || new Date().toISOString()
+				keyName: context.keyName || "Primary key",
+				usageLevel: context.usageLevel || "High"
 			};
 		case "api_key_expiring":
 			return {
@@ -3194,6 +3392,57 @@ async function handleUsageLockout(req, res, targetId, enableLockout) {
 async function handleAdminApiKeyRevoke(req, res, identifier) {
 	const adminId = req.user.id;
 	try {
+		const bulkByUser = Number.isInteger(identifier.userId)
+			&& !Number.isInteger(identifier.id)
+			&& !identifier.name
+			&& !identifier.prefix;
+		if (bulkByUser) {
+			const keysResult = await pool.query(
+				`SELECT k.id, k.name, k.key_prefix, k.user_id, u.email, u.preferred_name
+				 FROM user_api_keys k
+				 JOIN users u ON u.id = k.user_id
+				 WHERE k.user_id = $1 AND k.revoked_at IS NULL`,
+				[identifier.userId]
+			);
+			if (keysResult.rows.length === 0) {
+				return errorResponse(res, 404, "API key not found.", ["No active API keys were found for this user."]);
+			}
+			await pool.query(
+				"UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+				[identifier.userId]
+			);
+			const firstKey = keysResult.rows[0];
+			const keyName = keysResult.rows.length > 1 ? "multiple API keys" : (firstKey.name || "API key");
+			const keyPrefix = keysResult.rows.length > 1 ? null : firstKey.key_prefix;
+			enqueueEmail({
+				type: "api_key_revoked",
+				params: {
+					toEmail: firstKey.email,
+					preferredName: firstKey.preferred_name,
+					keyId: firstKey.id,
+					keyName,
+					keyPrefix,
+					initiator: "admin"
+				},
+				context: "ADMIN_API_KEY_REVOKE",
+				userId: firstKey.user_id
+			});
+
+			logToFile("ADMIN_API_KEY_REVOKE", {
+				status: "SUCCESS",
+				admin_id: adminId,
+				user_id: firstKey.user_id,
+				key_count: keysResult.rows.length,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+
+			return successResponse(res, 200, "API keys revoked successfully.", {
+				userId: firstKey.user_id,
+				revokedCount: keysResult.rows.length
+			});
+		}
+
 		const clauses = [];
 		const values = [];
 		let idx = 1;
@@ -3332,6 +3581,69 @@ router.post("/users/api-key-unban", adminAuth, async (req, res) => {
 		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
 	return handleApiKeyBan(req, res, resolved.id, false);
+});
+
+router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	const keyName = normalizeText(req.body?.keyName) || "API key";
+	const usageLevel = normalizeText(req.body?.usageLevel) || "High";
+	const errors = [];
+	if (keyName.length > 120) errors.push("Key name must be 120 characters or fewer.");
+	if (usageLevel.length > 40) errors.push("Usage level must be 40 characters or fewer.");
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+	try {
+		const result = await pool.query(
+			`SELECT id, email, preferred_name
+			 FROM users
+			 WHERE id = $1`,
+			[targetId]
+		);
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		const user = result.rows[0];
+		enqueueEmail({
+			type: "usage_warning_api_key",
+			params: {
+				toEmail: user.email,
+				preferredName: user.preferred_name,
+				keyName,
+				usageLevel
+			},
+			context: "ADMIN_USAGE_WARNING",
+			userId: user.id
+		});
+		logToFile("ADMIN_USAGE_WARNING", {
+			status: "SUCCESS",
+			admin_id: req.user.id,
+			user_id: user.id,
+			key_name: keyName,
+			usage_level: usageLevel,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+		return successResponse(res, 200, "Usage warning email queued.", {
+			id: user.id,
+			email: user.email,
+			usageLevel,
+			keyName
+		});
+	} catch (error) {
+		logToFile("ADMIN_USAGE_WARNING", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Email service error", ["Unable to queue usage warning email."]);
+	}
 });
 
 router.post("/users/:id/usage-lockout", adminAuth, async (req, res) => {

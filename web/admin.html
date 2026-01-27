@@ -93,6 +93,29 @@
       padding: 12px;
     }
     .action-summary .label { color: var(--bs-secondary-color); font-size: 0.85rem; }
+    .action-summary .summary-value { font-weight: 600; }
+    .action-summary-list {
+      display: grid;
+      gap: 6px;
+    }
+    .action-summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .action-summary-row span:last-child { text-align: right; }
+    .insight-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    .insight-item:last-child { border-bottom: none; }
+    .insight-label { color: var(--bs-secondary-color); font-size: 0.9rem; }
+    .insight-value { font-weight: 700; font-size: 1.05rem; }
+    .insight-meta { color: var(--bs-secondary-color); font-size: 0.8rem; }
     .table-header th {
       background-color: var(--bs-tertiary-bg);
       color: var(--bs-body-color);
@@ -106,6 +129,13 @@
     .admin-table td.admin-col-actions {
       width: 1%;
       white-space: nowrap;
+    }
+    .admin-table tbody tr.clickable-row {
+      cursor: pointer;
+    }
+    .admin-table tbody tr.clickable-row:hover,
+    .admin-table tbody tr.clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
     }
     .row-actions {
       opacity: 0;
@@ -305,13 +335,13 @@
     <section class="mb-4 admin-section d-none" id="statisticsSection" data-section-content="statistics">
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
-          <h2 class="h4 mb-1">Site statistics</h2>
-          <p class="text-muted mb-0">Snapshot across all users.</p>
+          <h2 class="h4 mb-1">Admin insights</h2>
+          <p class="text-muted mb-0">Snapshot across the platform with correlation-only signals.</p>
         </div>
         <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshSiteStatsBtn">Refresh</button>
       </div>
       <div id="siteStatsAlert" class="alert alert-danger d-none" role="alert"></div>
-      <div class="row g-3">
+      <div class="row g-3 mb-3">
         <div class="col-12 col-lg-4">
           <div class="card admin-card h-100">
             <div class="card-body">
@@ -352,67 +382,115 @@
           </div>
         </div>
       </div>
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Adoption</h6>
+              <div class="d-flex flex-column gap-2" id="siteInsightsAdoption">
+                <div class="text-muted small">Loading insights…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Content quality</h6>
+              <div class="d-flex flex-column gap-2" id="siteInsightsQuality">
+                <div class="text-muted small">Loading insights…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <h6 class="text-uppercase text-muted">Engagement</h6>
+              <div class="d-flex flex-column gap-2" id="siteInsightsEngagement">
+                <div class="text-muted small">Loading insights…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="mb-5 admin-section d-none" id="usersSection" data-section-content="users">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div>
-            <p class="mb-1 text-uppercase text-muted small fw-semibold">Users</p>
-            <h2 class="h5 mb-0">User Directory</h2>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Users</p>
+          <h2 class="h5 mb-0">User Directory</h2>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center"></div>
+      </div>
+
+      <div class="card admin-card mb-3">
+        <div class="card-body">
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-lg-6">
+              <label class="form-label fw-semibold mb-1" for="userSearchInput">Search by email</label>
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input class="form-control" type="search" placeholder="Search email…" aria-label="Search email" id="userSearchInput" />
+                <button class="btn btn-outline-secondary" type="button" id="clearUsersSearchBtn">Clear</button>
+              </div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold mb-1" for="usersSortSelect">Sort</label>
+              <select class="form-select" id="usersSortSelect" aria-label="Sort users">
+                <option value="email:asc">Email (A to Z)</option>
+                <option value="createdAt:desc">Created (newest first)</option>
+                <option value="createdAt:asc">Created (oldest first)</option>
+                <option value="lastLogin:desc">Last login (newest first)</option>
+              </select>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold mb-1 d-none d-lg-block">&nbsp;</label>
+              <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#usersFiltersOffcanvas" aria-controls="usersFiltersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
+            </div>
           </div>
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <input class="form-control form-control-sm" type="search" placeholder="Search email…" aria-label="Search email" id="userSearchInput" style="min-width: 200px" />
-            <select class="form-select form-select-sm" id="userRoleFilter" aria-label="Filter role" style="min-width: 130px">
-              <option value="">Role: any</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-            </select>
-            <select class="form-select form-select-sm" id="userVerifiedFilter" aria-label="Filter verified" style="min-width: 140px">
-              <option value="">Verified: any</option>
-              <option value="true">Verified</option>
-              <option value="false">Not verified</option>
-            </select>
-            <select class="form-select form-select-sm" id="userDisabledFilter" aria-label="Filter disabled" style="min-width: 150px">
-              <option value="">Disabled: any</option>
-              <option value="false">Active</option>
-              <option value="true">Disabled</option>
-            </select>
-            <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="usersPerPage" aria-label="Users per page" style="width: 90px" />
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshUsersBtn">Refresh</button>
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="clearUsersFiltersBtn">Clear</button>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-3" id="usersActiveFiltersBar">
+            <span class="text-muted small">Active filters:</span>
+            <div id="usersActiveFilters" class="d-flex flex-wrap gap-2"></div>
+            <button class="btn btn-link btn-sm p-0 d-none" type="button" id="clearUsersFiltersBtn">Clear all filters</button>
           </div>
         </div>
+      </div>
       <div class="alert alert-success d-none" id="usersSuccess"></div>
       <div class="alert alert-warning d-none" id="usersAlert"></div>
       <div class="table-responsive">
         <table class="table table-sm align-middle table-striped table-fixed-sm admin-table">
           <thead class="table-header">
             <tr>
-              <th scope="col">ID</th>
-              <th scope="col">Name</th>
-              <th scope="col">Email</th>
+              <th scope="col">User</th>
+              <th scope="col">Usage</th>
               <th scope="col">Library</th>
-              <th scope="col">Activity</th>
               <th scope="col">Access</th>
-              <th scope="col">Role</th>
-              <th scope="col">Verified</th>
-              <th scope="col">Disabled</th>
-              <th scope="col">Last Login</th>
+              <th scope="col">Status</th>
               <th scope="col" class="admin-col-actions text-end">Actions</th>
             </tr>
           </thead>
           <tbody id="usersTbody">
-            <tr><td colspan="11" class="text-center text-muted py-3">Loading users…</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-3">Loading users…</td></tr>
           </tbody>
         </table>
       </div>
-        <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mt-2 gap-2">
+        <div class="d-flex align-items-center gap-2">
           <div class="text-muted small" id="usersSummary">Showing users</div>
-          <div class="btn-group" role="group" aria-label="Users pagination">
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="usersPrevBtn">Previous</button>
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="usersNextBtn">Next</button>
-          </div>
+          <div class="text-muted small" id="usersPageInfo">Page 1</div>
+          <nav aria-label="Users pagination">
+            <ul class="pagination mb-0" id="usersPagination"></ul>
+          </nav>
         </div>
+        <div>
+          <label class="form-label mb-0 text-muted small" for="usersPerPage">Per page</label>
+          <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="usersPerPage" aria-label="Users per page" style="width: 90px" />
+        </div>
+      </div>
     </section>
 
     <section class="mb-4 admin-section d-none" id="librariesSection" data-section-content="libraries">
@@ -564,22 +642,21 @@
             </div>
           </div>
           <div class="alert alert-warning d-none" id="emailHistoryAlert"></div>
-          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-            <input class="form-control form-control-sm" type="search" id="emailHistoryRecipient" placeholder="Recipient contains" aria-label="Filter recipient" />
-            <select class="form-select form-select-sm" id="emailHistoryTypeFilter" aria-label="Filter email type">
-              <option value="">Type: any</option>
-            </select>
-            <select class="form-select form-select-sm" id="emailHistoryStatusFilter" aria-label="Filter status">
-              <option value="">Status: any</option>
-              <option value="queued">Queued</option>
-              <option value="sent">Sent</option>
-              <option value="failed">Failed</option>
-              <option value="skipped">Skipped</option>
-            </select>
-            <input class="form-control form-control-sm" type="date" id="emailHistoryDateFrom" aria-label="Start date" />
-            <input class="form-control form-control-sm" type="date" id="emailHistoryDateTo" aria-label="End date" />
-            <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="emailHistoryPageSize" aria-label="Page size" />
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryClearBtn">Clear</button>
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-6">
+              <label class="form-label fw-semibold mb-1" for="emailHistoryRecipient">Search recipient</label>
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input class="form-control" type="search" id="emailHistoryRecipient" placeholder="Recipient contains" aria-label="Filter recipient" />
+                <button class="btn btn-outline-secondary" type="button" id="emailHistoryClearSearchBtn">Clear</button>
+              </div>
+            </div>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold mb-1 d-none d-lg-block">&nbsp;</label>
+              <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#emailHistoryFiltersOffcanvas" aria-controls="emailHistoryFiltersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="table table-sm align-middle table-striped table-fixed-sm admin-table">
@@ -599,11 +676,17 @@
               </tbody>
             </table>
           </div>
-          <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
-            <div class="text-muted small" id="emailHistorySummary">Showing email history</div>
-            <div class="btn-group" role="group" aria-label="Email history pagination">
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryPrevBtn">Previous</button>
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryNextBtn">Next</button>
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mt-2 gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <div class="text-muted small" id="emailHistorySummary">Showing email history</div>
+              <div class="text-muted small" id="emailHistoryPageInfo">Page 1</div>
+              <nav aria-label="Email history pagination">
+                <ul class="pagination mb-0" id="emailHistoryPagination"></ul>
+              </nav>
+            </div>
+            <div>
+              <label class="form-label mb-0 text-muted small" for="emailHistoryPageSize">Per page</label>
+              <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="emailHistoryPageSize" aria-label="Page size" style="width: 90px" />
             </div>
           </div>
         </div>
@@ -630,10 +713,6 @@
           <h2 class="h5 mb-0">Audit and HTTP logs</h2>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" role="switch" id="logsLiveToggle" />
-            <label class="form-check-label" for="logsLiveToggle">Live mode</label>
-          </div>
           <button class="btn btn-outline-secondary btn-sm" type="button" id="logsRefreshBtn">Refresh</button>
         </div>
       </div>
@@ -641,56 +720,31 @@
 
       <div class="card admin-card mb-3">
         <div class="card-body">
-          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-              <input class="form-control form-control-sm" type="search" placeholder="Search text" aria-label="Search logs" id="logsSearchInput" style="min-width: 220px" />
-              <select class="form-select form-select-sm" id="logsTypeFilter" aria-label="Filter log type" style="min-width: 160px">
-                <option value="">Type: any</option>
-              </select>
-              <select class="form-select form-select-sm" id="logsLevelFilter" aria-label="Filter log level" style="min-width: 150px">
-                <option value="">Level: any</option>
-              </select>
-              <select class="form-select form-select-sm" id="logsStatusFilter" aria-label="Filter log status" style="min-width: 160px">
-                <option value="">Status: any</option>
-              </select>
-              <select class="form-select form-select-sm" id="logsMethodFilter" aria-label="Filter HTTP method" style="min-width: 130px">
-                <option value="">Method: any</option>
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-              </select>
-              <select class="form-select form-select-sm" id="logsActorFilter" aria-label="Filter actor type" style="min-width: 150px">
-                <option value="">Actor: any</option>
-                <option value="user">User</option>
-                <option value="api_key">API key</option>
-                <option value="anonymous">Anonymous</option>
-              </select>
-              <input class="form-control form-control-sm" type="text" placeholder="Path contains" id="logsPathFilter" aria-label="Path filter" style="min-width: 180px" />
-              <input class="form-control form-control-sm" type="number" min="1" placeholder="User ID" id="logsUserIdFilter" aria-label="User id filter" style="width: 120px" />
-              <input class="form-control form-control-sm" type="email" placeholder="User email" id="logsUserEmailFilter" aria-label="User email filter" style="min-width: 200px" />
-              <input class="form-control form-control-sm" type="number" min="1" placeholder="API key ID" id="logsApiKeyIdFilter" aria-label="API key id filter" style="width: 130px" />
-              <input class="form-control form-control-sm" type="text" placeholder="API key label" id="logsApiKeyLabelFilter" aria-label="API key label filter" style="min-width: 180px" />
-              <input class="form-control form-control-sm" type="text" placeholder="API key prefix" id="logsApiKeyPrefixFilter" aria-label="API key prefix filter" style="min-width: 160px" />
-              <input class="form-control form-control-sm" type="number" min="100" max="599" placeholder="Status min" id="logsStatusMin" aria-label="Status code minimum" style="width: 120px" />
-              <input class="form-control form-control-sm" type="number" min="100" max="599" placeholder="Status max" id="logsStatusMax" aria-label="Status code maximum" style="width: 120px" />
-              <input class="form-control form-control-sm" type="datetime-local" id="logsDateFrom" aria-label="Start date" />
-              <input class="form-control form-control-sm" type="datetime-local" id="logsDateTo" aria-label="End date" />
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-6">
+              <label class="form-label fw-semibold mb-1" for="logsSearchInput">Search</label>
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input class="form-control" type="search" placeholder="Search text" aria-label="Search logs" id="logsSearchInput" />
+                <button class="btn btn-outline-secondary" type="button" id="logsClearSearchBtn">Clear</button>
+              </div>
             </div>
-            <div class="d-flex gap-2 align-items-center">
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="logsClearFiltersBtn">Clear filters</button>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold mb-1 d-none d-lg-block">&nbsp;</label>
+              <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#logsFiltersOffcanvas" aria-controls="logsFiltersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
             </div>
           </div>
           <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
             <div class="text-muted small" id="logsSummary">Showing logs</div>
             <div class="d-flex align-items-center gap-2">
-              <label class="form-label mb-0 small" for="logsPageSize">Page size</label>
+              <label class="form-label mb-0 text-muted small" for="logsPageSize">Per page</label>
               <input class="form-control form-control-sm" type="number" id="logsPageSize" aria-label="Logs page size" value="25" min="5" max="200" step="5" style="width: 90px" />
-              <div class="btn-group" role="group" aria-label="Logs pagination">
-                <button class="btn btn-outline-secondary btn-sm" type="button" id="logsPrevBtn">Previous</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" id="logsNextBtn">Next</button>
-              </div>
+              <div class="text-muted small" id="logsPageInfo">Page 1</div>
+              <nav aria-label="Logs pagination">
+                <ul class="pagination mb-0" id="logsPagination"></ul>
+              </nav>
             </div>
           </div>
         </div>
@@ -827,52 +881,27 @@
       <div class="alert alert-warning d-none" id="dataViewerAlert" role="alert"></div>
       <div class="card admin-card">
         <div class="card-body">
-          <div class="row g-3 mb-3">
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="dataViewerTable">Table</label>
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-lg-4">
+              <label class="form-label fw-semibold mb-1" for="dataViewerTable">Table</label>
               <select class="form-select" id="dataViewerTable"></select>
               <div class="form-text text-muted" id="dataViewerTableHelp"></div>
             </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="dataViewerSearch">Search</label>
-              <input class="form-control" type="text" id="dataViewerSearch" placeholder="Search text" />
+            <div class="col-12 col-lg-5">
+              <label class="form-label fw-semibold mb-1" for="dataViewerSearch">Search</label>
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input class="form-control" type="text" id="dataViewerSearch" placeholder="Search text" />
+                <button class="btn btn-outline-secondary" type="button" id="dataViewerClearSearchBtn">Clear</button>
+              </div>
             </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label" for="dataViewerUserId">User ID</label>
-              <input class="form-control" type="number" id="dataViewerUserId" min="1" />
-              <div class="form-text text-danger" id="dataViewerUserIdHelp"></div>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label" for="dataViewerEmail">Email</label>
-              <input class="form-control" type="email" id="dataViewerEmail" placeholder="user@example.com" />
-            </div>
-            <div class="col-6 col-md-3">
-              <label class="form-label" for="dataViewerSort">Sort by</label>
-              <select class="form-select" id="dataViewerSort"></select>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label" for="dataViewerOrder">Order</label>
-              <select class="form-select" id="dataViewerOrder">
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
-              </select>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label" for="dataViewerLimit">Page size</label>
-              <input class="form-control" type="number" id="dataViewerLimit" min="5" max="200" step="5" value="25" />
-              <div class="form-text text-danger" id="dataViewerLimitHelp"></div>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label" for="dataViewerPage">Page</label>
-              <input class="form-control" type="number" id="dataViewerPage" min="1" value="1" />
-              <div class="form-text text-danger" id="dataViewerPageHelp"></div>
-            </div>
-            <div class="col-12 col-md-3 d-flex align-items-end gap-2">
-              <button class="btn btn-primary" type="button" id="dataViewerLoadBtn">Load</button>
-              <button class="btn btn-outline-secondary" type="button" id="dataViewerClearBtn">Clear</button>
+            <div class="col-12 col-lg-3">
+              <label class="form-label fw-semibold mb-1 d-none d-lg-block">&nbsp;</label>
+              <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#dataViewerFiltersOffcanvas" aria-controls="dataViewerFiltersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
             </div>
           </div>
-          <div class="text-muted small mb-2" id="dataViewerTablesList">Available tables: —</div>
           <div class="text-muted small mb-2" id="dataViewerSummary">Select a table to load data.</div>
           <div class="table-responsive">
             <table class="table table-sm align-middle table-striped admin-table">
@@ -903,6 +932,248 @@
           </ul>
           <p class="mb-0"><em>Close this window to go back to the page where you can log in.</em></p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users: Advanced Filters -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="usersFiltersOffcanvas" aria-labelledby="usersFiltersOffcanvasLabel" data-bs-backdrop="static" data-bs-scroll="true">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="usersFiltersOffcanvasLabel">Advanced filters</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label small mb-1" for="userRoleFilter">Role</label>
+          <select class="form-select" id="userRoleFilter" aria-label="Filter role">
+            <option value="">Role: any</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="userVerifiedFilter">Verified</label>
+          <select class="form-select" id="userVerifiedFilter" aria-label="Filter verified">
+            <option value="">Verified: any</option>
+            <option value="true">Verified</option>
+            <option value="false">Not verified</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="userDisabledFilter">Disabled</label>
+          <select class="form-select" id="userDisabledFilter" aria-label="Filter disabled">
+            <option value="">Disabled: any</option>
+            <option value="false">Active</option>
+            <option value="true">Disabled</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="usersResetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" id="usersApplyFiltersBtn" data-bs-dismiss="offcanvas">Apply &amp; close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email History: Advanced Filters -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="emailHistoryFiltersOffcanvas" aria-labelledby="emailHistoryFiltersOffcanvasLabel" data-bs-backdrop="static" data-bs-scroll="true">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="emailHistoryFiltersOffcanvasLabel">Advanced filters</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label small mb-1" for="emailHistoryTypeFilter">Email type</label>
+          <select class="form-select" id="emailHistoryTypeFilter" aria-label="Filter email type">
+            <option value="">Type: any</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="emailHistoryStatusFilter">Status</label>
+          <select class="form-select" id="emailHistoryStatusFilter" aria-label="Filter status">
+            <option value="">Status: any</option>
+            <option value="queued">Queued</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="skipped">Skipped</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="emailHistoryDateFrom">Start date</label>
+            <input class="form-control" type="date" id="emailHistoryDateFrom" aria-label="Start date" />
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="emailHistoryDateTo">End date</label>
+            <input class="form-control" type="date" id="emailHistoryDateTo" aria-label="End date" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryResetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" id="emailHistoryApplyFiltersBtn" data-bs-dismiss="offcanvas">Apply &amp; close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs: Advanced Filters -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="logsFiltersOffcanvas" aria-labelledby="logsFiltersOffcanvasLabel" data-bs-backdrop="static" data-bs-scroll="true">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="logsFiltersOffcanvasLabel">Advanced filters</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label small mb-1" for="logsTypeFilter">Type</label>
+          <select class="form-select" id="logsTypeFilter" aria-label="Filter log type">
+            <option value="">Type: any</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsLevelFilter">Level</label>
+          <select class="form-select" id="logsLevelFilter" aria-label="Filter log level">
+            <option value="">Level: any</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsStatusFilter">Status</label>
+          <select class="form-select" id="logsStatusFilter" aria-label="Filter log status">
+            <option value="">Status: any</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsMethodFilter">Method</label>
+          <select class="form-select" id="logsMethodFilter" aria-label="Filter HTTP method">
+            <option value="">Method: any</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsActorFilter">Actor</label>
+          <select class="form-select" id="logsActorFilter" aria-label="Filter actor type">
+            <option value="">Actor: any</option>
+            <option value="user">User</option>
+            <option value="api_key">API key</option>
+            <option value="anonymous">Anonymous</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsStatusMin">Status min</label>
+            <input class="form-control" type="number" min="100" max="599" id="logsStatusMin" aria-label="Status code minimum" />
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsStatusMax">Status max</label>
+            <input class="form-control" type="number" min="100" max="599" id="logsStatusMax" aria-label="Status code maximum" />
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsDateFrom">Start date</label>
+            <input class="form-control" type="datetime-local" id="logsDateFrom" aria-label="Start date" />
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsDateTo">End date</label>
+            <input class="form-control" type="datetime-local" id="logsDateTo" aria-label="End date" />
+          </div>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsPathFilter">Path contains</label>
+          <input class="form-control" type="text" id="logsPathFilter" aria-label="Path filter" />
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsUserIdFilter">User ID</label>
+          <input class="form-control" type="number" min="1" id="logsUserIdFilter" aria-label="User id filter" />
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsUserEmailFilter">User email</label>
+          <input class="form-control" type="email" id="logsUserEmailFilter" aria-label="User email filter" />
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsApiKeyIdFilter">API key ID</label>
+          <input class="form-control" type="number" min="1" id="logsApiKeyIdFilter" aria-label="API key id filter" />
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsApiKeyLabelFilter">API key label</label>
+          <input class="form-control" type="text" id="logsApiKeyLabelFilter" aria-label="API key label filter" />
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="logsApiKeyPrefixFilter">API key prefix</label>
+          <input class="form-control" type="text" id="logsApiKeyPrefixFilter" aria-label="API key prefix filter" />
+        </div>
+      </div>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="logsResetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" id="logsApplyFiltersBtn" data-bs-dismiss="offcanvas">Apply &amp; close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Tools: Advanced Filters -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="dataViewerFiltersOffcanvas" aria-labelledby="dataViewerFiltersOffcanvasLabel" data-bs-backdrop="static" data-bs-scroll="true">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="dataViewerFiltersOffcanvasLabel">Advanced filters</h5>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label small mb-1" for="dataViewerUserId">User ID</label>
+          <input class="form-control" type="number" id="dataViewerUserId" min="1" />
+          <div class="form-text text-danger" id="dataViewerUserIdHelp"></div>
+        </div>
+        <div>
+          <label class="form-label small mb-1" for="dataViewerEmail">Email</label>
+          <input class="form-control" type="email" id="dataViewerEmail" placeholder="user@example.com" />
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="dataViewerSort">Sort by</label>
+            <select class="form-select" id="dataViewerSort"></select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="dataViewerOrder">Order</label>
+            <select class="form-select" id="dataViewerOrder">
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="dataViewerLimit">Page size</label>
+            <input class="form-control" type="number" id="dataViewerLimit" min="5" max="200" step="5" value="25" />
+            <div class="form-text text-danger" id="dataViewerLimitHelp"></div>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="dataViewerPage">Page</label>
+            <input class="form-control" type="number" id="dataViewerPage" min="1" value="1" />
+            <div class="form-text text-danger" id="dataViewerPageHelp"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="offcanvas-footer border-top p-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="dataViewerResetFiltersBtn">Reset filters</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="button" id="dataViewerApplyFiltersBtn" data-bs-dismiss="offcanvas">Apply &amp; close</button>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="offcanvas">Close</button>
       </div>
     </div>
   </div>
@@ -1006,7 +1277,8 @@
               </div>
             </div>
           </form>
-          <p class="text-muted small mt-3 mb-0">Changes require confirmation. The user will be notified by email after you confirm.</p>
+          <div class="small text-muted mt-3" id="editUserChangesSummary" aria-live="polite">No changes yet.</div>
+          <p class="text-muted small mt-2 mb-0">Changes require confirmation. The user will be notified by email after you confirm.</p>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
@@ -1027,23 +1299,25 @@
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="confirmActionAlert"></div>
           <div class="action-summary mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="label">User</span>
-              <span class="fw-semibold" id="confirmActionSummaryUser">—</span>
+            <div class="action-summary-list">
+              <div class="action-summary-row">
+                <span class="label">User</span>
+                <span class="summary-value" id="confirmActionSummaryUser">Unknown</span>
+              </div>
+              <div class="action-summary-row">
+                <span class="label">Action</span>
+                <span class="summary-value" id="confirmActionSummaryAction">—</span>
+              </div>
+              <div class="action-summary-row d-none" id="confirmActionSummaryExpiryRow">
+                <span class="label">Token expiry</span>
+                <span class="summary-value" id="confirmActionSummaryExpiry">Default</span>
+              </div>
+              <div>
+                <span class="label d-block">Result</span>
+                <span class="summary-value" id="confirmActionSummaryImpact">—</span>
+              </div>
             </div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="label">Action</span>
-              <span class="fw-semibold" id="confirmActionSummaryAction">—</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mb-1 d-none" id="confirmActionSummaryExpiryRow">
-              <span class="label">Token expiry</span>
-              <span class="fw-semibold" id="confirmActionSummaryExpiry">Default</span>
-            </div>
-            <div class="mb-1">
-              <span class="label d-block">Result</span>
-              <span id="confirmActionSummaryImpact">—</span>
-            </div>
-            <div class="badge text-bg-warning-subtle border border-warning text-warning-emphasis d-none" id="confirmActionNotifyBadge">This action will notify the user by email.</div>
+            <div class="badge text-bg-warning-subtle border border-warning text-warning-emphasis d-none mt-2" id="confirmActionNotifyBadge">This action will notify the user by email.</div>
             <div class="text-danger small mt-1 d-none" id="confirmActionSummaryWarning">This action is destructive and cannot be undone.</div>
             <div class="mt-2 d-none" id="confirmActionSummaryMeta"></div>
           </div>
@@ -1083,6 +1357,50 @@
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal" id="confirmActionCancelBtn">Cancel</button>
           <button class="btn btn-danger" type="button" id="confirmActionSubmit" disabled>Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Details Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="userDetailsModal" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userDetailsTitle">User details</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning d-none" id="userDetailsAlert"></div>
+          <div class="row g-3">
+            <div class="col-12 col-lg-6">
+              <div class="card admin-card h-100">
+                <div class="card-body">
+                  <h6 class="text-uppercase text-muted">Profile</h6>
+                  <div class="d-flex flex-column gap-2" id="userDetailsProfile"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="card admin-card h-100">
+                <div class="card-body">
+                  <h6 class="text-uppercase text-muted">Usage</h6>
+                  <div class="d-flex flex-column gap-2" id="userDetailsUsage"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="card admin-card">
+                <div class="card-body">
+                  <h6 class="text-uppercase text-muted">Actions</h6>
+                  <div class="d-flex flex-wrap gap-2" id="userDetailsActions"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>
