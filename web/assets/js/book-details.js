@@ -137,6 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const editCopyModal = document.getElementById('editCopyModal');
   const editCopyErrorAlert = document.getElementById('editCopyErrorAlert');
+  const editCopyLoading = document.getElementById('editCopyLoading');
+  const editCopyLoadingText = document.getElementById('editCopyLoadingText');
+  const editCopyFormWrap = document.getElementById('editCopyFormWrap');
   const copyLocationSelect = document.getElementById('copyLocationSelect');
   const copyLocationHelp = document.getElementById('copyLocationHelp');
   const copyAcquisitionDate = document.getElementById('copyAcquisitionDate');
@@ -641,13 +644,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const navigate = () => {
       const id = Number.parseInt(row.dataset.bookTypeId, 10);
       if (!Number.isInteger(id)) return;
-      window.location.href = `books?filterBookTypeId=${encodeURIComponent(id)}&filterBookTypeMode=or`;
+      window.location.href = `book-type-details?id=${encodeURIComponent(id)}`;
     };
     row.addEventListener('click', (event) => {
-      if (event?.target?.closest && event.target.closest('a')) return;
+      if (event?.target?.closest && event.target.closest('a, button, input, select, textarea, [data-row-action], [data-stop-row]')) return;
       navigate();
     });
     row.addEventListener('keydown', (event) => {
+      if (event?.target?.closest && event.target.closest('a, button, input, select, textarea, [data-row-action], [data-stop-row]')) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         navigate();
@@ -735,8 +739,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const inlineBadge = details.length === 0;
       const badgeClass = inlineBadge
-        ? 'badge text-bg-light border text-dark px-3 py-2 fs-6'
-        : 'badge text-bg-light border text-dark px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2';
+        ? 'badge bg-body-tertiary text-body border px-3 py-2 fs-6'
+        : 'badge bg-body-tertiary text-body border px-3 py-2 fs-6 position-absolute top-0 end-0 mt-2 me-2';
       item.innerHTML = `
         <div class="d-flex ${inlineBadge ? 'justify-content-between' : 'align-items-center gap-2 flex-wrap'}">
           <div class="fw-semibold mb-0">${name}</div>
@@ -863,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
       item.className = 'accordion-item';
       item.innerHTML = `
         <h2 class="accordion-header" id="${headingId}">
-          <button class="accordion-button ${index === 0 ? '' : 'collapsed'} text-dark bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${index === 0 ? 'true' : 'false'}" aria-controls="${collapseId}">
+          <button class="accordion-button ${index === 0 ? '' : 'collapsed'} text-body bg-body-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${index === 0 ? 'true' : 'false'}" aria-controls="${collapseId}">
             Copy #${index + 1}
             <span class="ms-2 text-muted small d-none d-sm-inline">&bull; ${location}</span>
           </button>
@@ -951,14 +955,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const tagId = Number.isInteger(tag?.id) ? tag.id : (Number.isInteger(tag?.tagId) ? tag.tagId : null);
       if (Number.isInteger(tagId)) {
         const badge = document.createElement('a');
-        badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1 text-decoration-none';
+        badge.className = 'badge rounded-pill bg-body-tertiary text-body border px-3 py-2 fs-6 me-1 mb-1 text-decoration-none';
         badge.href = `books?tags=${encodeURIComponent(tagId)}&filterTagMode=and`;
         badge.textContent = tagName;
         tagsWrap.appendChild(badge);
         return;
       }
       const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill bg-white text-dark border px-3 py-2 fs-6 me-1 mb-1';
+      badge.className = 'badge rounded-pill bg-body-tertiary text-body border px-3 py-2 fs-6 me-1 mb-1';
       badge.textContent = tagName;
       tagsWrap.appendChild(badge);
     });
@@ -1077,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bookTypeRow) {
       bookTypeRow.dataset.bookTypeId = Number.isInteger(book.bookType?.id) ? String(book.bookType.id) : '';
       bookTypeRow.dataset.bookTypeName = book.bookType?.name || '';
-      bookTypeRow.setAttribute('aria-label', book.bookType?.name ? `Filter books by ${book.bookType.name}` : 'Book type');
+      bookTypeRow.setAttribute('aria-label', book.bookType?.name ? `View ${book.bookType.name} details` : 'Book type details');
       bookTypeRow.setAttribute('aria-disabled', Number.isInteger(book.bookType?.id) ? 'false' : 'true');
       bindBookTypeCard();
     }
@@ -2431,7 +2435,7 @@ document.addEventListener('DOMContentLoaded', () => {
     li.className = 'list-group-item d-flex flex-wrap gap-2';
     tagDraft.forEach((tag) => {
       const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill bg-light fw-normal border rounded-1 border-1 border-black d-inline-flex align-items-center me-2 mb-1';
+      badge.className = 'badge rounded-pill bg-body-tertiary text-body fw-normal border rounded-1 d-inline-flex align-items-center me-2 mb-1';
 
       const label = document.createElement('span');
       label.className = 'fs-6 text-black d-flex align-items-center';
@@ -2645,6 +2649,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const setCopyLoading = (loading, message = 'Loading copy details…') => {
+    if (editCopyLoading) {
+      editCopyLoading.classList.toggle('d-none', !loading);
+    }
+    if (editCopyLoadingText) {
+      editCopyLoadingText.textContent = message;
+    }
+    if (editCopyFormWrap) {
+      editCopyFormWrap.classList.toggle('opacity-50', loading);
+      editCopyFormWrap.setAttribute('aria-busy', loading ? 'true' : 'false');
+    }
     toggleDisabled([
       copyLocationSelect,
       copyAcquisitionDate,
@@ -2705,7 +2719,9 @@ document.addEventListener('DOMContentLoaded', () => {
       populateSelect(copyLocationSelect, locations, { placeholder: 'Select storage location', labelKey: 'path', valueKey: 'id', includeEmpty: true });
     } catch (error) {
       errorLog('Failed to load locations.', error);
-      if (copyLocationHelp) copyLocationHelp.textContent = 'Unable to load storage locations right now.';
+      if (editCopyErrorAlert) {
+        renderApiErrorAlert(editCopyErrorAlert, { message: 'Unable to load storage locations right now.' }, 'Unable to load storage locations right now.');
+      }
     }
     if (mode === 'edit') {
       const copy = (bookRecord.bookCopies || []).find((entry) => entry.id === copyId);

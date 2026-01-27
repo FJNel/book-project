@@ -52,7 +52,8 @@
       cursor: pointer;
       transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     }
-    .clickable-card:hover {
+    .clickable-card:hover,
+    .clickable-card:focus-within {
       background-color: var(--bs-tertiary-bg);
     }
     .clickable-card:active {
@@ -93,6 +94,14 @@
       padding-top: 2.25rem;
       padding-right: 2.75rem;
     }
+    .overview-card {
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+    }
+    .overview-section-label {
+      color: var(--bs-secondary-color);
+    }
+
     @media (max-width: 767.98px) {
       .hover-action {
         opacity: 1;
@@ -250,7 +259,7 @@
                   <div class="card-body p-0">
                     <div class="px-3 pt-3 pb-2 fw-bold text-muted">Edition details</div>
                     <ul class="list-group list-group-flush">
-                      <li class="list-group-item d-flex align-items-start justify-content-between gap-2 clickable-card" id="bookTypeRow" role="button" tabindex="0" aria-label="Filter books by this book type">
+                      <li class="list-group-item d-flex align-items-start justify-content-between gap-2 clickable-card" id="bookTypeRow" role="button" tabindex="0" aria-label="View book type details">
                         <div>
                           <div class="text-muted">Book Type</div>
                           <div class="fw-semibold" id="bookTypeName"></div>
@@ -282,7 +291,7 @@
               </div>
 
               <div class="col-12 col-xl-4">
-                <div class="card border-0 shadow-sm h-100" style="background-color: var(--bs-tertiary-bg);">
+                <div class="card shadow-sm h-100 overview-card">
                   <div class="card-body py-3">
                     <div class="fw-semibold mb-2">Overview</div>
                     <div class="overview-tags-wrap mb-3">
@@ -293,14 +302,14 @@
                     </div>
 
                     <div class="small text-muted mb-3">
-                      <div class="fw-semibold text-muted">Library</div>
+                      <div class="fw-semibold overview-section-label">Library</div>
                       <div class="mb-1" id="overviewAuthorsCount"></div>
                       <div class="mb-1" id="overviewSeriesCount"></div>
                       <div class="mb-1" id="overviewCopiesCount"></div>
                     </div>
 
                     <div class="small text-muted" id="overviewOwnership">
-                      <div class="fw-semibold text-muted">Ownership</div>
+                      <div class="fw-semibold overview-section-label">Ownership</div>
                       <div class="mb-1 d-none" id="overviewFirstAcquired"></div>
                       <div class="mb-1 d-none" id="overviewAdded"></div>
                       <div class="mb-0 d-none" id="overviewUpdated"></div>
@@ -780,6 +789,11 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="editCopyErrorAlert"></div>
+          <div class="d-flex align-items-center gap-2 text-muted small mb-3 d-none" id="editCopyLoading">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span id="editCopyLoadingText">Loading copy details…</span>
+          </div>
+          <div id="editCopyFormWrap">
           <form id="editCopyForm">
             <div class="row g-3">
               <div class="col-12">
@@ -829,6 +843,7 @@
               </div>
             </div>
           </form>
+          </div>
           <small class="text-muted d-block mt-3" id="copyChangeSummary"></small>
         </div>
         <div class="modal-footer">

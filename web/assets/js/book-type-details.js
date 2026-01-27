@@ -78,6 +78,14 @@
   let deleteModalInstance = null;
   let modalSaving = false;
   let deleteSaving = false;
+  let initStarted = false;
+  let loadInFlight = false;
+
+  const resolvePageReady = (payload) => {
+    if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+      window.pageContentReady.resolve(payload);
+    }
+  };
 
   const updateView = () => {
     if (!bookType) return;
@@ -91,12 +99,17 @@
   };
 
   const loadBookType = async () => {
+    if (loadInFlight) return;
+    loadInFlight = true;
     const id = getIdFromQuery();
     if (!id) {
       showAlert({ message: 'Select a book type to view.' });
+      resolvePageReady({ success: false, error: 'Missing book type id.' });
+      loadInFlight = false;
       return;
     }
 
+    let pageLoaded = false;
     try {
       log('Loading book type', id);
       const response = await apiFetch('/booktype/get', {
@@ -115,9 +128,13 @@
         throw new Error('Book type not found.');
       }
       updateView();
+      pageLoaded = true;
     } catch (err) {
       errorLog('Failed to load book type', err);
       showAlert({ message: err?.message || 'Unable to load book type right now.' });
+    } finally {
+      resolvePageReady({ success: pageLoaded });
+      loadInFlight = false;
     }
   };
 
@@ -327,6 +344,8 @@
   };
 
   const init = () => {
+    if (initStarted) return;
+    initStarted = true;
     bindEvents();
     loadBookType();
   };

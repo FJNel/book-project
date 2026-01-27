@@ -45,7 +45,7 @@
 
     .tree-node .node-row.selected {
       background: var(--bs-secondary-bg);
-      border: 1px solid var(--bs-border-color);
+      box-shadow: inset 0 0 0 1px var(--bs-border-color);
     }
 
     .tree-node .node-row:hover {
@@ -112,14 +112,27 @@
       min-height: calc(100vh - 180px);
       display: flex;
       flex-direction: column;
+      width: 100%;
+      min-width: 0;
     }
 
     .details-pane-card {
       flex: 1;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .details-pane-card .card-body {
+      min-width: 0;
+    }
+
+    #locationNameHeading,
+    #locationNotesHeading {
+      word-break: break-word;
     }
 
     .details-header {
-      border-bottom: 1px solid rgba(0,0,0,0.06);
+      border-bottom: 1px solid var(--bs-border-color);
       padding-bottom: 0.75rem;
       margin-bottom: 1rem;
     }
