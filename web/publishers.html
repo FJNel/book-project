@@ -19,6 +19,7 @@
   <title>The Book Project</title>
   <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .clickable-row { cursor: pointer; }
     .clickable-row:hover { background-color: var(--bs-tertiary-bg); }
@@ -226,10 +227,7 @@
 
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <button class="btn btn-primary d-flex align-items-center" type="button" id="addPublisherBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" class="align-items-center me-1">
-            <path d="M12 6C12.5523 6 13 6.44772 13 7V11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H13V17C13 17.5523 12.5523 18 12 18C11.4477 18 11 17.5523 11 17V13H7C6.44772 13 6 12.5523 6 12C6 11.4477 6.44772 11 7 11H11V7C11 6.44772 11.4477 6 12 6Z" fill="currentColor"></path>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M5 22C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C20.6569 2 22 3.34315 22 5V19C22 20.6569 20.6569 22 19 22H5ZM4 19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 19.5523 20 19V5C20 4.44772 19.5523 4 19 4H5C4 4 4 4.44772 4 5V19Z" fill="currentColor"></path>
-          </svg>
+          <i class="bi bi-plus-square me-1"></i>
           Add Publisher
         </button>
       </div>
@@ -255,9 +253,7 @@
               <div class="col-12 col-lg-6">
                 <div class="input-group">
                   <span class="input-group-text" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-                    </svg>
+                    <i class="bi bi-search"></i>
                   </span>
                   <input class="form-control" id="searchInput" type="text" autocomplete="off" />
                   <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>

@@ -1,6 +1,39 @@
 Book Project Contracts (UI/UX)
 ================================
 
+Contracts Index & Implementation Order
+--------------------------------------
+
+A) Contracts Index
+- Modal Contract
+  - Location: contracts.txt -> "A) Modal Contract (Book Project standard)"
+  - Reference implementations: web/assets/js/shared-add-modals.js, web/assets/js/book-details.js, web/assets/js/common.js (modalLock)
+- Changes Contract
+  - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
+  - Reference implementations: web/assets/js/book-details.js, web/assets/js/account.js, web/assets/js/storage-locations.js
+- Icon Contract
+  - Location: contracts.txt -> "C) Icon Contract (Bootstrap Icons font)"
+  - Reference implementations: web/books.html, web/book-types.html, web/assets/js/book-details.js
+- Interaction Contract (to be added in Phase 2)
+  - Location: contracts.txt -> (pending section to be added in Phase 2)
+  - Reference implementations: TBD in Phase 2
+- Dark Mode Styling Rules (added Phase 0)
+  - Location: contracts.txt -> "D) Dark Mode Styling Rules"
+  - Reference implementations: web/assets/css/styles.css, web/assets/js/common.js
+
+B) Implementation Order Checklist
+1. Modal Contract baseline
+   - Why: modal structure and locking rules determine safe request handling and consistent error flows.
+2. Changes Contract baseline
+   - Why: change summaries depend on modal structure and must match modal validation/state rules.
+3. Icon Contract
+   - Why: icons are a visible UX contract; normalizing them avoids UI drift during later sweeps.
+4. Interaction Contract (Phase 2 addition pending)
+   - Why: interactions and hover rules build on the modal/icon baselines and must align with them.
+
+C) Reference rule
+- When a page differs intentionally from the reference implementation, the deviation must be documented in contracts.txt and applied consistently.
+
 A) Modal Contract (Book Project standard)
 ----------------------------------------
 Applies to any modal that accepts user input, performs a server action, or confirms a destructive change.
@@ -96,64 +129,131 @@ This is the standard "Changes" summary area for edit/change modals.
 
 These contracts are the single source of truth for modal behavior and edit/change summaries in the Book Project.
 
-C) Icon Contract (Bootstrap Icons only)
+C) Icon Contract (Bootstrap Icons font)
 --------------------------------------
-Applies across Books, Book Types, Admin, Account and any other Book Project pages. Use only Bootstrap Icons (inline SVG with `bi` classes).
+Purpose: standardize icon usage across user + admin UI to prevent drift and keep interactions consistent.
 
-1) Core action icons
-- Add: `bi-plus-square`
-  - Meaning: Create/add a new record.
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-square" viewBox="0 0 16 16">
-    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-  </svg>
-- Edit: `bi-pencil-fill`
-  - Meaning: Edit/update a record or relationship.
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-fill" viewBox="0 0 16 16">
-    <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z"/>
-  </svg>
-- Delete: `bi-trash-fill`
-  - Meaning: Remove/delete a record.
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash-fill" viewBox="0 0 16 16">
-    <path d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5M8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5m3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0"/>
-  </svg>
+1) Canonical markup + source of truth
+- Use Bootstrap Icons font classes only: `<i class="bi bi-..."></i>`.
+- Inline SVG icons are not allowed in Book Project UI.
+- Do not mix icon sets. If a new icon is required, add it to this contract first.
+- Icon-only buttons must keep an accessible label (aria-label or tooltip/title).
+- Whitelisted exception: vendor assets under `api/docs/swagger-ui/` may contain inline SVG; do not modify vendor bundles.
 
-2) Navigation + filters
-- Search: `bi-search`
-  - Meaning: Search/filter input.
-  - Used in: Books toolbar search, Book Types toolbar search.
-- Grid view: `bi-grid-3x3-gap`
-  - Meaning: Card view.
-  - Used in: Books view toggle.
-- List view: `bi-list`
-  - Meaning: List/table view.
-  - Used in: Books view toggle.
+2) Canonical mappings (Action/Concept → Icon class → Where used → Notes)
+- Add → `bi bi-plus-square` → Add buttons across pages → Use for create/add actions.
+- Edit → `bi bi-pencil-fill` → Edit buttons, manage icons → Use for edit/update actions.
+- Delete → `bi bi-trash-fill` → Delete/permanent delete → Use only for destructive deletion.
+- Remove → `bi bi-x-square` → Remove from list/relationship → Not for permanent deletion.
+- Search → `bi bi-search` → Search inputs/toolbars → Inline in input group.
+- Grid view → `bi bi-grid-3x3-gap` → View toggles → Card view icon.
+- List view → `bi bi-list` → View toggles → Table/list view icon.
+- Export/download → `bi bi-download` → Export actions → Icon-only allowed with tooltip.
+- Raw data → `bi bi-filetype-json` → Raw data view → Use for JSON/raw data.
+- Complete status → `bi bi-check-circle` → Status indicators → Use for complete/verified.
+- Missing/incomplete → `bi bi-dash-circle` → Status indicators → Use for missing/incomplete.
+- Revoke sessions → `bi bi-slash-circle` → Account sessions → Sign out all devices.
+- Disable account → `bi bi-person-x-fill` → Account danger zone → Disable account.
+- Enable account → `bi bi-person-check-fill` → Account admin enable → Enable account.
+- API/DB Healthy → `bi bi-cloud-check` → Admin status → Healthy service state.
+- API/DB Unhealthy → `bi bi-cloud-slash` → Admin status → Unhealthy service state.
+- AI features → `bi bi-stars` → AI helper labels → Use only where AI assistance is described.
+- Favourite (outline) → `bi bi-star` → Favourite toggle → Use when not selected.
+- Favourite (filled) → `bi bi-star-fill` → Favourite toggle → Use when selected.
+- Android → `bi bi-android` → Device indicators → Account sessions.
+- Apple → `bi bi-apple` → Device indicators → Account sessions.
+- Windows → `bi bi-windows` → Device indicators → Account sessions.
+- Mac → `bi bi-command` → Device indicators → Account sessions.
+- Linux → `bi bi-linux` → Device indicators → Account sessions.
+- Phone → `bi bi-phone` → Device indicators → Account sessions.
+- Desktop → `bi bi-pc-display-horizontal` → Device indicators → Account sessions.
+- Unknown device → `bi bi-question-circle` → Device indicators + general unknown state → Also used for 404 page icon.
+- Emails → `bi bi-envelope` → Admin email tools → Email tooling.
+- Logs → `bi bi-clock-history` → Admin logs tools → Audit/logs.
+- Usage → `bi bi-person-lines-fill` → Admin usage tools → Usage analytics.
+- Books → `bi bi-book-half` → Dashboard + nav → Books feature card.
+- Book Types → `bi bi-journals` → Dashboard + nav → Book Types feature card.
+- Publishers → `bi bi-building-fill` → Dashboard + nav → Publishers feature card.
+- Authors → `bi bi-people` → Dashboard + nav → Authors feature card.
+- Series → `bi bi-collection-fill` → Dashboard + nav → Series feature card.
+- Storage Locations → `bi bi-diagram-3-fill` → Dashboard + nav → Storage Locations feature card.
+- Statistics → `bi bi-bar-chart-line-fill` → Dashboard + stats pages → Statistics feature card.
+- Move → `bi bi-arrows-move` → Move actions → Storage locations move.
+- Copy (outline) → `bi bi-clipboard` → Copy actions → Copy before success.
+- Copy (done) → `bi bi-clipboard-check` → Copy actions → Show after success.
+- Info tooltip → `bi bi-info-circle` → Form help tooltips → Inline next to labels.
+- Restore → `bi bi-arrow-counterclockwise` → Restore from recycle bin → Soft-delete restore.
+- View details → `bi bi-eye` → Row action “View” → Used in Book Types list.
+- Pagination previous → `bi bi-arrow-left` → Pagination controls → Previous page.
+- Pagination next → `bi bi-arrow-right` → Pagination controls → Next page.
+- Navigation hint → `bi bi-chevron-right` → Clickable rows/chevrons → Book details hints.
+- Expand all → `bi bi-arrows-expand` → Tree controls → Storage locations tree.
+- Collapse all → `bi bi-arrows-collapse` → Tree controls → Storage locations tree.
+- Tree expanded → `bi bi-chevron-down` → Tree rows → Storage locations expanded state.
+- Clear → `bi bi-x` → Clear actions → Clear search/filter buttons.
 
-3) Data utilities
-- Export/download: `bi-download`
-  - Meaning: Export current view.
-  - Used in: Books export action.
-- Raw data: `bi-database-fill-down`
-  - Meaning: Open raw data view.
-  - Used in: Books raw data action.
+3) Consistency rules
+- Same action must use the same icon across user + admin surfaces.
+- Use the same icon for the same concept in all pages.
+- Do not change icon classes for a page without updating this contract and all related pages.
 
-4) Status indicators
-- Complete: `bi-check-circle`
-  - Meaning: Completed/verified item.
-  - Used in: Account profile checklist.
-- Missing/incomplete: `bi-dash-circle`
-  - Meaning: Missing or incomplete item.
-  - Used in: Account profile checklist.
+4) Behaviour notes
+- Favourite icons: use `bi bi-star` for off, `bi bi-star-fill` for on.
+- Copy icons: use `bi bi-clipboard` before copy, switch to `bi bi-clipboard-check` on success.
 
-5) Account actions
-- Revoke sessions: `bi-slash-circle`
-  - Meaning: Sign out of all devices.
-  - Used in: Account active sessions actions.
-- Disable request: `bi-file-earmark-x-fill`
-  - Meaning: Request account disable.
-  - Used in: Account danger zone actions.
+5) Adding new icons
+- Confirm no existing icon fits the concept.
+- Add the new icon to this contract with usage notes and affected pages.
+- Update all relevant pages in the same change to prevent drift.
 
-Rules:
-- Do not introduce new icons without adding them here. You must have a very good reason for adding a new icon instead of using an existing icon.
-- Icon meaning must be consistent across pages.
-- Avoid mixing non-Bootstrap icon sets with Bootstrap Icons.
+D) Dark Mode Styling Rules
+--------------------------
+1) Theme-aware styling only
+- No hard-coded light colors (e.g., #fff, #f8f9fa, "text-dark" used to force light-mode contrast, inline styles with background-color/color) unless explicitly theme-aware.
+- Prefer Bootstrap theme variables/classes and project theme tokens.
+
+2) Hover + focus behavior
+- Hover/focus backgrounds must not cause layout shift or reduce contrast in dark mode.
+- Use shared utility classes or theme tokens; avoid per-page ad-hoc hover colors.
+
+3) Phase 0 scan findings (for later remediation)
+- web/admin-library.html:24 - hover background-color: #f8f9fa (light-only hover state)
+- web/series-details.html:24 - hover background-color: #f8f9fa (light-only hover state)
+- web/author-details.html:24 - hover background-color: #f8f9fa (light-only hover state)
+- web/publisher-details.html:24 - hover background-color: #f8f9fa (light-only hover state)
+- web/storage-locations.html:25 - hover background-color: #f8f9fa (light-only hover state)
+- web/book-details.html:40,50 - background-color: #f8f9fa in local styles
+- web/book-details.html:293 - inline style background-color: #f7f8f9 on card
+- web/admin.html:33 - color: #fff (hard-coded light text)
+- web/account.html:50 - color: #fff (hard-coded light text)
+- web/statistics.html:43 - color: #fff (hard-coded light text)
+- web/assets/css/styles.css:2 - --bp-surface: #ffffff (verify theme override is applied in dark mode)
+- web/assets/js/books.js:783-865 - text-bg-light + text-dark badges (forced light backgrounds)
+- web/assets/js/book-details.js:842-942 - bg-light/text-dark/button class usage (forced light backgrounds)
+- web/assets/js/storage-locations.js:407-580 - text-bg-light + text-dark badges (forced light backgrounds)
+- web/assets/js/add-book-review.js:46 - bg-light text-dark badges (forced light backgrounds)
+
+E) Modal Copy Library (Drafts)
+------------------------------
+1) No write permissions (draft)
+- Title: "Read-only access"
+- Body: "You are viewing this library in read-only mode. Edits are disabled."
+- Primary button: "Close"
+- Secondary button: (omit unless a help pattern already exists)
+- Behavior notes:
+  - Show when a disabled action is clicked in admin read-only context.
+  - Button closes the modal; no side effects.
+
+F) Terminology Audit: "entity/entities"
+---------------------------------------
+Table columns: Location | Context | User-facing? | Proposed replacement | Notes/risk
+
+| Location | Context | User-facing? | Proposed replacement | Notes/risk |
+| --- | --- | --- | --- | --- |
+| api/docs/swagger-ui/LICENSE:17 | Internal vendor license | No | "third parties" | Third-party license text; not rendered to users but keep vendor files untouched. |
+| api/routes/import-export.js:525 | Internal code comment | No | "records"/"items" | Comment only; no UI impact. |
+| api/routes/search.js:76 | Internal code comment | No | "records"/"items" | Comment only; no UI impact. |
+
+OpenAPI/SwaggerUI audit notes:
+- api/docs/openapi.yaml: no occurrences found in summary/description/examples/tags.
+- SwaggerUI assets: LICENSE contains the term but does not render into the UI.

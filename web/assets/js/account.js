@@ -392,8 +392,8 @@
 
     const listItems = completeness.items.map((item) => {
       const icon = item.complete
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle text-success" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M10.97 5.97a.75.75 0 0 0-1.07-1.05L7.477 7.94 6.384 6.846a.75.75 0 1 0-1.06 1.06L6.97 9.553a.75.75 0 0 0 1.079-.02z"/></svg>'
-        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash-circle text-warning" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/></svg>';
+        ? '<i class="bi bi-check-circle text-success"></i>'
+        : '<i class="bi bi-dash-circle text-warning"></i>';
       const helper = item.complete ? 'Completed' : item.hint;
       const optionalLabel = item.optional ? ' (optional)' : '';
       return `<li class="d-flex align-items-start gap-2 mb-1"><span class="mt-1">${icon}</span><div><div class="fw-semibold">${item.label}${optionalLabel}</div><div class="text-muted small">${helper}</div></div></li>`;
@@ -574,15 +574,15 @@
       return;
     }
     const icons = {
-      android: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-android device-icon" viewBox="0 0 16 16"><path d="M3.586 1.846a.5.5 0 0 1 .707.03l.815.89A4.487 4.487 0 0 1 8 2c1.12 0 2.146.398 2.892 1.07l.815-.893a.5.5 0 1 1 .738.676l-.8.877A4.49 4.49 0 0 1 13 6h1.5a.5.5 0 0 1 0 1H13v3.5a1.5 1.5 0 0 1-3 0V7H6v3.5a1.5 1.5 0 0 1-3 0V7H1.5a.5.5 0 0 1 0-1H3a4.49 4.49 0 0 1 .355-2.27l-.8-.877a.5.5 0 0 1 .03-.707M5 4.5a.5.5 0 1 0 1 0 .5.5 0 0 0-1 0m6 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0"/></svg>',
-      apple: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-apple device-icon" viewBox="0 0 16 16"><path d="M11.182.008c.053.5-.146 1.002-.44 1.414-.29.408-.855.774-1.377.728-.062-.494.172-1.01.46-1.35C10.141.356 10.701.038 11.182.008M8.48 3.041c-.777 0-1.67.45-2.177.45-.548 0-1.387-.43-2.285-.416-1.177.017-2.266.684-2.868 1.74-1.226 2.13-.315 5.29.88 7.026.582.84 1.273 1.785 2.184 1.754.867-.035 1.19-.566 2.233-.566 1.026 0 1.33.566 2.273.549.942-.017 1.54-.858 2.116-1.7.664-.974.94-1.92.956-1.968-.021-.01-1.836-.705-1.857-2.797-.016-1.748 1.426-2.58 1.49-2.62-.815-1.19-2.068-1.324-2.48-1.347-.597-.06-1.088.453-1.786.453"/></svg>',
+      android: '<i class="bi bi-android device-icon"></i>',
+      apple: '<i class="bi bi-apple device-icon"></i>',
     
-      windows: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-windows device-icon" viewBox="0 0 16 16"><path d="M6.555 3.108v5.392H0V4.047l6.555-.939zm1.074-.153 7.99-1.144v6.689H7.629V2.955zM0 9.5h6.555v5.392L0 13.953V9.5zm7.629 0h7.99v6.689l-7.99-1.144V9.5z"/></svg>',
-      mac: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-command device-icon" viewBox="0 0 16 16"><path d="M3.5 9a1.5 1.5 0 1 0 1.5 1.5V9zm0-1V6.5A1.5 1.5 0 1 0 2 8zm9 1v1.5a1.5 1.5 0 1 0 1.5-1.5zM9 3.5h1.5a1.5 1.5 0 1 0-1.5-1.5zM8 6h1V5H8zm0 1h1v2H8zm0 3h1v1H8zm2-4h1V5h-1zm1 1h1v2h-1zm0 3h1v1h-1zM6 5h1V4H6zm1 1h1v2H7zm0 3h1v1H7zm-2-3h1V4H5zm0 4h1v1H5zm4-5h1V4H9z"/></svg>',
-      linux: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-linux device-icon" viewBox="0 0 16 16"><path d="M11.479 1.5c-.54-.116-1.14.498-1.03 1.099.03.317.138.55.47.703.327.149.72-.014.94-.246.294-.312.275-.962-.012-1.276-.105-.11-.207-.218-.368-.248zM9.406 2.8c-.606-.018-1.07.438-1.106 1.01-.02.307.09.536.34.706.348.219.743.05.98-.238.31-.338.293-1.026-.093-1.302-.055-.04-.107-.084-.12-.176z"/><path d="M8.004 0c-.614 0-1.353.21-1.713.77-.178.271-.23.58-.25.884-.02.3-.044.707-.23.974-.457.634-.456 1.44-.4 2.185.05.692.137 1.39.043 2.084-.074.558-.28 1.106-.52 1.615-.247.523-.546 1.033-.813 1.556-.262.511-.523 1.036-.67 1.594-.156.6-.215 1.35.19 1.87.355.46.957.603 1.52.67.978.12 1.967.086 2.95.062.984.024 1.973.058 2.951-.062.563-.067 1.165-.21 1.52-.67.405-.52.346-1.27.19-1.87-.147-.558-.408-1.083-.67-1.594-.267-.523-.566-1.033-.813-1.556-.24-.509-.446-1.057-.52-1.615-.094-.694-.007-1.392.043-2.084.056-.745.057-1.551-.4-2.185-.186-.267-.21-.674-.23-.974-.02-.304-.072-.613-.25-.884C9.357.21 8.618 0 8.004 0m.657 13.248c-.18.25-.502.35-.81.36-.366.016-.857-.056-1.02-.445-.112-.27.005-.568.23-.73.206-.142.47-.184.707-.238.224-.067.448-.123.68-.13.234-.007.5.034.683.196.246.22.305.6.14.987m-3.72-1.59c-.398.326-.714.638-1.21.79-.61.152-.82-.42-.677-.887.118-.404.34-.77.564-1.13.244-.386.485-.78.712-1.18.21-.358.4-.72.535-1.108.152-.43.21-.88.262-1.33.032-.486.063-.98-.046-1.457-.07-.308-.253-.565-.3-.88-.07-.61.01-1.48.665-1.763.437-.184.953.005 1.195.4.29.46.25 1.052.498 1.53.214.478.554.885.73 1.378.225.614.255 1.29.185 1.94-.067.46-.175.918-.314 1.364-.134.44-.296.874-.48 1.298-.29.59-.63 1.162-1.114 1.613M9.94 4.944c-.48-.01-.857-.46-.833-.93.013-.505.467-.9.944-.852.503.02.907.506.855 1.002-.04.454-.447.796-.966.78m-3.59-.93c-.26-.06-.45-.28-.518-.53-.065-.29.05-.61.28-.8.255-.21.676-.24.933.006.262.26.318.74.09 1.035-.155.215-.43.322-.685.29m4.294 2.507c-.03-.12.05-.242.17-.274.237-.075.48.122.502.36.048.364-.063.734-.27 1.03-.17.254-.515.63-.84.36-.17-.134-.11-.39-.044-.57.167-.282.267-.598.48-.867zm-4.53-.004c.213.27.313.585.48.867.068.18.126.436-.044.57-.325.27-.67-.106-.84-.36-.208-.296-.318-.666-.27-1.03.022-.238.264-.435.5-.36.12.032.2.154.17.274z"/></svg>',
-      phone: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-phone device-icon" viewBox="0 0 16 16"><path d="M11 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM5 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/><path d="M8 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></svg>',
-      desktop: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-pc-display-horizontal device-icon" viewBox="0 0 16 16"><path d="M13.5 1h-11A1.5 1.5 0 0 0 1 2.5V9a1 1 0 0 0 1 1H2v1H1.5a.5.5 0 0 0 0 1H7v1.5H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1H9V11h5.5a.5.5 0 0 0 0-1H14v-1h.5a1 1 0 0 0 1-1V2.5A1.5 1.5 0 0 0 13.5 1M13 9H3V2.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5z"/></svg>',
-      unknown: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-question-circle device-icon" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5.255 5.786a1.78 1.78 0 0 1 1.533-.311c.513.128.838.45.99.674.154.227.196.355.196.55 0 .24-.08.412-.44.757-.35.335-.677.62-.677 1.23v.07a.5.5 0 0 0 1 0c0-.24.08-.412.44-.757.35-.335.677-.62.677-1.23 0-.336-.083-.681-.287-.97-.204-.292-.52-.56-.987-.684a2.78 2.78 0 0 0-2.401.484.5.5 0 1 0 .586.8"/><path d="M7.002 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>'
+      windows: '<i class="bi bi-windows device-icon"></i>',
+      mac: '<i class="bi bi-command device-icon"></i>',
+      linux: '<i class="bi bi-linux device-icon"></i>',
+      phone: '<i class="bi bi-phone device-icon"></i>',
+      desktop: '<i class="bi bi-pc-display-horizontal device-icon"></i>',
+      unknown: '<i class="bi bi-question-circle device-icon"></i>'
     };
 
     tbody.innerHTML = sessions.map((s) => {
@@ -600,10 +600,7 @@
         <td>${formatDate(s.expiresAt)}</td>
         <td class="text-end">
           <button class="btn btn-outline-danger btn-sm js-revoke-session d-inline-flex align-items-center gap-2" data-fp="${s.fingerprint}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-            </svg>
+            <i class="bi bi-trash-fill"></i>
             Log out
           </button>
         </td>

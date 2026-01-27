@@ -71,3 +71,5 @@ bootstrap/
 # Drive
 .tmp.drivedownload
 .tmp.driveupload
+
+AGENTS.md
