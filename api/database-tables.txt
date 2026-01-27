@@ -331,6 +331,21 @@ CREATE INDEX IF NOT EXISTS request_logs_status_code_idx ON request_logs (status_
 CREATE INDEX IF NOT EXISTS request_logs_level_idx ON request_logs (level);
 CREATE INDEX IF NOT EXISTS request_logs_category_idx ON request_logs (category);
 
+CREATE TABLE IF NOT EXISTS email_send_history (
+  id              SERIAL PRIMARY KEY,
+  job_id          UUID,
+  email_type      VARCHAR(120) NOT NULL,
+  recipient_email VARCHAR(255) NOT NULL,
+  queued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_at         TIMESTAMPTZ,
+  status          VARCHAR(20) NOT NULL,
+  failure_reason  TEXT,
+  retry_count     INT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS email_send_history_queued_at_idx ON email_send_history (queued_at);
+CREATE INDEX IF NOT EXISTS email_send_history_type_idx ON email_send_history (email_type);
+
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN

@@ -166,7 +166,11 @@ router.get("/status", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 				healthy: true,
 				latencyMs: dbLatencyMs
 			},
-			emailQueue: queueStats
+			emailQueue: queueStats,
+			user: {
+				id: req.user ? req.user.id : null,
+				email: req.user ? req.user.email : null
+			}
 		});
 	} catch (error) {
 		logToFile("STATUS_CHECK", {

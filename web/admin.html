@@ -208,7 +208,7 @@
           <p class="text-muted mb-0">Manage users, languages, and system status.</p>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button class="btn btn-primary btn-sm" type="button" id="openCreateUserBtn">Create user</button>
+          <button class="btn btn-primary btn-sm" type="button" id="openCreateUserBtn"><i class="bi bi-plus-square me-1" aria-hidden="true"></i>Create user</button>
           <span class="chip chip-alert" id="adminRolePill">Role: unknown</span>
           <span class="chip chip-muted" id="adminStatusPill">Status: checking…</span>
         </div>
@@ -379,6 +379,7 @@
             </select>
             <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="usersPerPage" aria-label="Users per page" style="width: 90px" />
             <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshUsersBtn">Refresh</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="clearUsersFiltersBtn">Clear</button>
           </div>
         </div>
       <div class="alert alert-success d-none" id="usersSuccess"></div>
@@ -495,29 +496,12 @@
               <input class="form-control" type="email" id="emailRecipientInput" placeholder="admin@example.com" />
               <div class="form-text text-danger" id="emailRecipientHelp"></div>
             </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="emailTokenExpirySelect">Token expiry</label>
-              <div class="d-flex gap-2">
-                <select class="form-select" id="emailTokenExpirySelect">
-                  <option value="">Use default (select an email type)</option>
-                  <option value="15">15 minutes</option>
-                  <option value="30">30 minutes</option>
-                  <option value="60">1 hour</option>
-                  <option value="1440">24 hours</option>
-                  <option value="custom">Custom</option>
-                </select>
-                <input class="form-control d-none" type="number" id="emailTokenExpiryCustom" min="1" max="1440" step="1" placeholder="Minutes" style="width: 130px" />
-              </div>
-              <div class="form-text">Controls how long the link in the email remains valid.</div>
-              <div class="form-text text-danger" id="emailTokenExpiryHelp"></div>
-            </div>
             <div class="col-12">
-              <label class="form-label" for="emailContextInput">Optional context (JSON)</label>
-              <textarea class="form-control" id="emailContextInput" rows="3" placeholder='{"preferredName":"Test"}'></textarea>
-              <div class="form-text text-danger" id="emailContextHelp"></div>
+              <div class="small text-muted" id="emailTypeDescription">Select an email type to see the supported fields.</div>
             </div>
+            <div class="col-12" id="emailTypeFields"></div>
             <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <div class="text-muted small">This is a test email. Tokens inside the email will not be valid.</div>
+              <div class="text-muted small">This is a test email. It does not change user data.</div>
               <div class="d-flex gap-2">
                 <button class="btn btn-outline-secondary" type="button" id="emailResetBtn">Clear</button>
                 <button class="btn btn-primary" type="button" id="emailSendTestBtn" disabled>Send test email</button>
@@ -550,7 +534,7 @@
             <div class="col-12 col-lg-6">
               <label class="form-label" for="devEmailPreview">Preview</label>
               <div class="markdown-preview" id="devEmailPreview" aria-live="polite"></div>
-              <div class="form-text text-muted">Preview matches the email markdown renderer.</div>
+              <div class="form-text text-muted">Preview uses GitHub Markdown rendering and may differ slightly from the final email.</div>
             </div>
             <div class="col-12 col-lg-6">
               <label class="form-label" for="devEmailTestRecipient">Send test to</label>
@@ -563,6 +547,63 @@
             </div>
             <div class="col-12">
               <div class="small text-muted" id="devEmailSummary">No sends yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card admin-card mt-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+              <p class="mb-1 text-uppercase text-muted small fw-semibold">Email send history</p>
+              <h3 class="h6 mb-0">Recent delivery attempts</h3>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryRefreshBtn">Refresh</button>
+            </div>
+          </div>
+          <div class="alert alert-warning d-none" id="emailHistoryAlert"></div>
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <input class="form-control form-control-sm" type="search" id="emailHistoryRecipient" placeholder="Recipient contains" aria-label="Filter recipient" />
+            <select class="form-select form-select-sm" id="emailHistoryTypeFilter" aria-label="Filter email type">
+              <option value="">Type: any</option>
+            </select>
+            <select class="form-select form-select-sm" id="emailHistoryStatusFilter" aria-label="Filter status">
+              <option value="">Status: any</option>
+              <option value="queued">Queued</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+              <option value="skipped">Skipped</option>
+            </select>
+            <input class="form-control form-control-sm" type="date" id="emailHistoryDateFrom" aria-label="Start date" />
+            <input class="form-control form-control-sm" type="date" id="emailHistoryDateTo" aria-label="End date" />
+            <input class="form-control form-control-sm" type="number" min="5" max="100" step="5" value="25" id="emailHistoryPageSize" aria-label="Page size" />
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryClearBtn">Clear</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-striped table-fixed-sm admin-table">
+              <thead class="table-header">
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Recipient</th>
+                  <th scope="col">Queued</th>
+                  <th scope="col">Sent</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Retries</th>
+                  <th scope="col">Failure reason</th>
+                </tr>
+              </thead>
+              <tbody id="emailHistoryTbody">
+                <tr><td colspan="7" class="text-center text-muted py-3">Loading history…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+            <div class="text-muted small" id="emailHistorySummary">Showing email history</div>
+            <div class="btn-group" role="group" aria-label="Email history pagination">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryPrevBtn">Previous</button>
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="emailHistoryNextBtn">Next</button>
             </div>
           </div>
         </div>

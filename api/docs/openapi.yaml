@@ -270,6 +270,10 @@ paths:
                       data:
                         type: object
                         properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
                           window:
                             $ref: '#/components/schemas/UsageWindow'
                           usageLevels:
@@ -304,6 +308,10 @@ paths:
                       data:
                         type: object
                         properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
                           window:
                             $ref: '#/components/schemas/UsageWindow'
                           usageLevels:
@@ -353,6 +361,10 @@ paths:
                       data:
                         type: object
                         properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
                           window:
                             $ref: '#/components/schemas/UsageWindow'
                           usageLevels:
@@ -387,6 +399,10 @@ paths:
                       data:
                         type: object
                         properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
                           window:
                             $ref: '#/components/schemas/UsageWindow'
                           usageLevels:
@@ -7398,12 +7414,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: object
-                        properties:
-                          logs:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/LogEntry'
+                        $ref: '#/components/schemas/LogListResponseData'
               examples:
                 success:
                   value:
@@ -7412,6 +7423,11 @@ paths:
                     responseTime: "2.40"
                     message: Logs retrieved successfully.
                     data:
+                      configured: true
+                      total: 1
+                      count: 1
+                      limit: 20
+                      offset: 0
                       logs:
                         - id: 101
                           logged_at: "2026-01-05T10:21:44.000Z"
@@ -7460,12 +7476,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: object
-                        properties:
-                          logs:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/LogEntry'
+                        $ref: '#/components/schemas/LogListResponseData'
               examples:
                 success:
                   value:
@@ -7474,6 +7485,11 @@ paths:
                     responseTime: "2.35"
                     message: Logs retrieved successfully.
                     data:
+                      configured: true
+                      total: 0
+                      count: 0
+                      limit: 10
+                      offset: 0
                       logs: []
                     errors: []
         '401':
@@ -7489,7 +7505,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          count:
+                            type: integer
+                          logTypes:
+                            type: array
+                            items:
+                              type: string
+                          warnings:
+                            type: array
+                            items:
+                              type: string
               examples:
                 success:
                   value:
@@ -7498,6 +7534,8 @@ paths:
                     responseTime: "1.90"
                     message: Log types retrieved successfully.
                     data:
+                      configured: true
+                      count: 3
                       logTypes: ["HTTP_REQUEST", "USER_REGISTERED", "LOGIN_ATTEMPT"]
                     errors: []
         '401':
@@ -7513,7 +7551,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          count:
+                            type: integer
+                          levels:
+                            type: array
+                            items:
+                              type: string
+                          warnings:
+                            type: array
+                            items:
+                              type: string
               examples:
                 success:
                   value:
@@ -7522,6 +7580,8 @@ paths:
                     responseTime: "1.90"
                     message: Log levels retrieved successfully.
                     data:
+                      configured: true
+                      count: 3
                       levels: ["info", "warn", "error"]
                     errors: []
         '401':
@@ -7537,7 +7597,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          count:
+                            type: integer
+                          statuses:
+                            type: array
+                            items:
+                              type: integer
+                          warnings:
+                            type: array
+                            items:
+                              type: string
               examples:
                 success:
                   value:
@@ -7546,7 +7626,9 @@ paths:
                     responseTime: "1.90"
                     message: Log statuses retrieved successfully.
                     data:
-                      statuses: ["SUCCESS", "FAILURE", "INFO"]
+                      configured: true
+                      count: 3
+                      statuses: [200, 400, 500]
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -7610,7 +7692,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/LogEntry'
         '401':
           $ref: '#/components/responses/AuthError'
   /admin/users:
@@ -7652,6 +7746,8 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminUserSummary'
+                          total:
+                            type: integer
               examples:
                 success:
                   value:
@@ -7682,6 +7778,7 @@ paths:
                           emailPreferences:
                             accountUpdates: true
                             devFeatures: false
+                      total: 128
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -7735,6 +7832,62 @@ paths:
                       lastLogin: null
                       createdAt: "2025-02-05T09:00:00.000Z"
                       updatedAt: "2025-02-05T09:00:00.000Z"
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /admin/users/list:
+    post:
+      tags: [Admin]
+      summary: Admin list users (JSON body)
+      operationId: adminListUsersBody
+      description: JSON-body list variant for admin users. Equivalent to GET /admin/users.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserListRequest'
+            examples:
+              listUsers:
+                value:
+                  limit: 25
+                  sortBy: email
+                  order: asc
+                  filterEmail: admin
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserSummary'
+                          total:
+                            type: integer
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.10"
+                    message: Users retrieved successfully.
+                    data:
+                      users: []
+                      total: 0
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8417,7 +8570,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          types:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminEmailTypeMetadata'
               examples:
                 success:
                   value:
@@ -8427,9 +8590,43 @@ paths:
                     message: Email types retrieved.
                     data:
                       types:
-                        - verification
-                        - password_reset
-                        - welcome
+                        - type: verification
+                          description: Verification link for new sign-ins or email confirmation.
+                          fields:
+                            - name: preferredName
+                              label: Preferred name
+                              type: text
+                              placeholder: Avery
+                              required: false
+                        - type: password_reset
+                          description: Password reset link for a user who requested help.
+                          fields:
+                            - name: preferredName
+                              label: Preferred name
+                              type: text
+                              placeholder: Avery
+                              required: false
+                        - type: welcome
+                          description: Welcome message for newly created accounts.
+                          fields:
+                            - name: preferredName
+                              label: Preferred name
+                              type: text
+                              placeholder: Avery
+                              required: false
+                        - type: dev_features_announcement
+                          description: Announcement email for development updates.
+                          fields:
+                            - name: subject
+                              label: Subject
+                              type: text
+                              placeholder: The Book Project update
+                              required: true
+                            - name: markdownBody
+                              label: Markdown body
+                              type: textarea
+                              required: true
+                              maxLength: 8000
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8456,10 +8653,16 @@ paths:
                 value:
                   emailType: verification
                   toEmail: admin@example.com
-                  token: test
-                  tokenExpiry: 30
                   context:
                     preferredName: Admin Tester
+              apiKeyRevoked:
+                value:
+                  emailType: api_key_revoked
+                  toEmail: admin@example.com
+                  context:
+                    preferredName: Admin Tester
+                    keyName: Primary key
+                    keyPrefix: bk_1234
       responses:
         '200':
           description: Test email sent
@@ -8477,7 +8680,6 @@ paths:
                     data:
                       emailType: verification
                       toEmail: admin@example.com
-                      token: test
                       expiresInMinutes: 30
                     errors: []
         '401':
@@ -8486,6 +8688,78 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '429':
           $ref: '#/components/responses/RateLimit'
+  /admin/emails/history:
+    get:
+      tags: [Admin]
+      summary: List email send history
+      operationId: adminEmailHistoryList
+      description: Retrieve recent email send history. Query parameters are supported for compatibility.
+      responses:
+        '200':
+          description: Email history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEmailHistoryResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [Admin]
+      summary: List email send history (JSON body)
+      operationId: adminEmailHistoryListJson
+      description: Retrieve recent email send history with a JSON body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminEmailHistoryRequest'
+            examples:
+              recent:
+                value:
+                  status: failed
+                  limit: 25
+                  page: 1
+      responses:
+        '200':
+          description: Email history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEmailHistoryResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /admin/markdown/render:
+    post:
+      tags: [Admin]
+      summary: Render markdown preview
+      operationId: adminRenderMarkdown
+      description: Render markdown using GitHub's Markdown API for previews.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminMarkdownRenderRequest'
+            examples:
+              preview:
+                value:
+                  text: "## Release notes\n- New features"
+      responses:
+        '200':
+          description: Rendered markdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMarkdownRenderResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /booktype/list:
     post:
       tags: [BookTypes]
@@ -8938,10 +9212,11 @@ paths:
                         healthy: true
                         latencyMs: 7
                       emailQueue:
-                        pending: 0
-                        processing: 0
-                        failed: 0
-                        lastRunAt: "2026-01-02T16:00:10.000Z"
+                        queueLength: 0
+                        isProcessing: false
+                      user:
+                        id: 2
+                        email: admin@example.com
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -11339,6 +11614,29 @@ components:
         endDate:
           type: string
           format: date-time
+    LogListResponseData:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        message:
+          type: string
+        total:
+          type: integer
+        count:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+        warnings:
+          type: array
+          items:
+            type: string
     AdminUserListRequest:
       type: object
       properties:
@@ -11354,9 +11652,11 @@ components:
           type: string
         filterRole:
           type: string
-        filterVerified:
+        filterIsVerified:
           type: boolean
-        filterDisabled:
+        filterIsDisabled:
+          type: boolean
+        nameOnly:
           type: boolean
     AdminUsageRequest:
       type: object
@@ -11784,20 +12084,144 @@ components:
       properties:
         emailType:
           type: string
+          description: Email template type (preferred).
         toEmail:
           type: string
           format: email
-        token:
+          description: Recipient email (preferred).
+        email_type:
           type: string
-          description: Defaults to "test" if omitted.
-        tokenExpiry:
-          type: integer
-          description: Token expiry in minutes. Defaults to template-specific value if omitted.
-          minimum: 1
-          maximum: 1440
+          description: Legacy alias of emailType.
+        recipient_email:
+          type: string
+          format: email
+          description: Legacy alias of toEmail.
         context:
           type: object
+          description: Template-specific fields (preferredName, reason, subject, markdownBody, keyName, keyPrefix, expiresAt, etc.).
           additionalProperties: true
+    AdminEmailTypeField:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        placeholder:
+          type: string
+        required:
+          type: boolean
+        helpText:
+          type: string
+        maxLength:
+          type: integer
+        pattern:
+          type: string
+    AdminEmailTypeMetadata:
+      type: object
+      properties:
+        type:
+          type: string
+        description:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminEmailTypeField'
+    AdminEmailHistoryRequest:
+      type: object
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+          description: queued, sent, failed, or skipped.
+        recipient:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 5
+          maximum: 100
+    AdminEmailHistoryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        job_id:
+          type: string
+          format: uuid
+        email_type:
+          type: string
+        recipient_email:
+          type: string
+          format: email
+        queued_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        failure_reason:
+          type: string
+          nullable: true
+        retry_count:
+          type: integer
+    AdminEmailHistoryResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                history:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AdminEmailHistoryRecord'
+                count:
+                  type: integer
+                total:
+                  type: integer
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                hasNext:
+                  type: boolean
+                warnings:
+                  type: array
+                  items:
+                    type: string
+    AdminMarkdownRenderRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+    AdminMarkdownRenderResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                html:
+                  type: string
     AdminDeletionRequest:
       type: object
       properties:

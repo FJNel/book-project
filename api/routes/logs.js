@@ -9,6 +9,25 @@ const { authenticatedLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 
 const MAX_LIMIT = 1000;
+let requestLogsAvailability = null;
+const LOGS_NOT_CONFIGURED_MESSAGE = "Request logs are not configured. Create the request_logs table and enable request logging.";
+
+async function getRequestLogsAvailability() {
+	if (requestLogsAvailability) return requestLogsAvailability;
+	try {
+		const result = await pool.query("SELECT to_regclass('public.request_logs') AS table_exists");
+		const hasTable = Boolean(result.rows[0]?.table_exists);
+		requestLogsAvailability = { hasTable };
+		return requestLogsAvailability;
+	} catch (error) {
+		logToFile("LOGS_SCHEMA_CHECK", {
+			status: "FAILURE",
+			error_message: error.message
+		}, "error");
+		requestLogsAvailability = { hasTable: false };
+		return requestLogsAvailability;
+	}
+}
 
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
@@ -61,7 +80,7 @@ function buildFilters(params = {}) {
 		values.push(`%${normalizeText(params.apiKeyLabel)}%`);
 	}
 	if (normalizeText(params.apiKeyPrefix)) {
-		filters.push(`api_key_prefix = $${idx++}`);
+		filters.push(`api_key_prefix ILIKE $${idx++}`);
 		values.push(`%${normalizeText(params.apiKeyPrefix)}%`);
 	}
 	if (normalizeText(params.method)) {
@@ -134,6 +153,20 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
+	const availability = await getRequestLogsAvailability();
+	if (!availability.hasTable) {
+		return successResponse(res, 200, "Logs unavailable.", {
+			configured: false,
+			message: LOGS_NOT_CONFIGURED_MESSAGE,
+			total: 0,
+			count: 0,
+			limit: limit ?? 50,
+			offset: offset ?? 0,
+			logs: [],
+			warnings: ["Request logs are unavailable."]
+		});
+	}
+
 	const { filters, values, idx } = buildFilters({
 		...params,
 		startDate,
@@ -165,6 +198,7 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 		}, "info");
 
 		return successResponse(res, 200, "Logs retrieved successfully.", {
+			configured: true,
 			total,
 			count: logResult.rows.length,
 			limit: limit ?? 50,
@@ -203,6 +237,20 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
+	const availability = await getRequestLogsAvailability();
+	if (!availability.hasTable) {
+		return successResponse(res, 200, "Logs unavailable.", {
+			configured: false,
+			message: LOGS_NOT_CONFIGURED_MESSAGE,
+			total: 0,
+			count: 0,
+			limit: limit ?? 50,
+			offset: offset ?? 0,
+			logs: [],
+			warnings: ["Request logs are unavailable."]
+		});
+	}
+
 	const { filters, values, idx } = buildFilters({
 		...params,
 		startDate,
@@ -234,6 +282,7 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 		}, "info");
 
 		return successResponse(res, 200, "Logs retrieved successfully.", {
+			configured: true,
 			total,
 			count: logResult.rows.length,
 			limit: limit ?? 50,
@@ -252,6 +301,16 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 
 router.get("/log_types", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
 	try {
+		const availability = await getRequestLogsAvailability();
+		if (!availability.hasTable) {
+			return successResponse(res, 200, "Log types unavailable.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				count: 0,
+				logTypes: [],
+				warnings: ["Request logs are unavailable."]
+			});
+		}
 		const result = await pool.query(
 			"SELECT DISTINCT category FROM request_logs WHERE category IS NOT NULL ORDER BY category ASC"
 		);
@@ -262,6 +321,7 @@ router.get("/log_types", requiresAuth, authenticatedLimiter, requireRole(["admin
 			count: list.length
 		}, "info");
 		return successResponse(res, 200, "Log types retrieved successfully.", {
+			configured: true,
 			count: list.length,
 			logTypes: list
 		});
@@ -277,6 +337,16 @@ router.get("/log_types", requiresAuth, authenticatedLimiter, requireRole(["admin
 
 router.get("/levels", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
 	try {
+		const availability = await getRequestLogsAvailability();
+		if (!availability.hasTable) {
+			return successResponse(res, 200, "Log levels unavailable.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				count: 0,
+				levels: [],
+				warnings: ["Request logs are unavailable."]
+			});
+		}
 		const result = await pool.query(
 			"SELECT DISTINCT level FROM request_logs WHERE level IS NOT NULL ORDER BY level ASC"
 		);
@@ -287,6 +357,7 @@ router.get("/levels", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 			count: list.length
 		}, "info");
 		return successResponse(res, 200, "Log levels retrieved successfully.", {
+			configured: true,
 			count: list.length,
 			levels: list
 		});
@@ -302,6 +373,16 @@ router.get("/levels", requiresAuth, authenticatedLimiter, requireRole(["admin"])
 
 router.get("/statuses", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
 	try {
+		const availability = await getRequestLogsAvailability();
+		if (!availability.hasTable) {
+			return successResponse(res, 200, "Log statuses unavailable.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				count: 0,
+				statuses: [],
+				warnings: ["Request logs are unavailable."]
+			});
+		}
 		const result = await pool.query(
 			"SELECT DISTINCT status_code FROM request_logs WHERE status_code IS NOT NULL ORDER BY status_code ASC"
 		);
@@ -312,6 +393,7 @@ router.get("/statuses", requiresAuth, authenticatedLimiter, requireRole(["admin"
 			count: list.length
 		}, "info");
 		return successResponse(res, 200, "Log statuses retrieved successfully.", {
+			configured: true,
 			count: list.length,
 			statuses: list
 		});
@@ -341,6 +423,15 @@ router.post("/export", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 	const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
 
 	try {
+		const availability = await getRequestLogsAvailability();
+		if (!availability.hasTable) {
+			return successResponse(res, 200, "Logs unavailable.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				logs: [],
+				warnings: ["Request logs are unavailable."]
+			});
+		}
 		const result = await pool.query(
 			`SELECT * FROM request_logs ${whereClause} ORDER BY logged_at DESC`,
 			values
@@ -364,7 +455,7 @@ router.post("/export", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 			return res.send(lines.join("\n"));
 		}
 
-		return successResponse(res, 200, "Log export ready.", { logs: result.rows });
+		return successResponse(res, 200, "Log export ready.", { configured: true, logs: result.rows });
 	} catch (error) {
 		logToFile("LOGS_EXPORT", {
 			status: "FAILURE",
@@ -385,6 +476,10 @@ router.get("/:id", requiresAuth, authenticatedLimiter, requireRole(["admin"]), a
 		return errorResponse(res, 400, "Validation Error", ["Log id must be a valid integer."]);
 	}
 	try {
+		const availability = await getRequestLogsAvailability();
+		if (!availability.hasTable) {
+			return errorResponse(res, 503, "Logs unavailable.", ["Request logs are unavailable."]);
+		}
 		const result = await pool.query("SELECT * FROM request_logs WHERE id = $1", [id]);
 		if (result.rows.length === 0) {
 			return errorResponse(res, 404, "Log not found.", ["The requested log entry could not be located."]);

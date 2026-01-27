@@ -11,6 +11,7 @@ const { logToFile, sanitizeInput } = require("../utils/logging");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { enqueueEmail } = require("../utils/email-queue");
+const { recordEmailHistory, updateEmailHistory } = require("../utils/email-history");
 const email = require("../utils/email");
 const {
 	DEFAULT_ADMIN_TTL_SECONDS,
@@ -26,6 +27,7 @@ const {
 } = require("../utils/email-preferences");
 const config = require("../config");
 const pool = require("../db");
+const fetch = (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
 
 router.use((req, res, next) => {
 	const start = process.hrtime();
@@ -112,8 +114,8 @@ const adminStatsSummaryHandler = async (req, res) => {
 			safeCount("publishers_active", "SELECT COUNT(*)::int AS count FROM publishers WHERE deleted_at IS NULL"),
 			safeCount("series_active", "SELECT COUNT(*)::int AS count FROM book_series WHERE deleted_at IS NULL"),
 			safeCount("book_types_total", "SELECT COUNT(*)::int AS count FROM book_types"),
-			safeCount("tags_active", "SELECT COUNT(*)::int AS count FROM tags WHERE deleted_at IS NULL"),
-			safeCount("storage_locations_active", "SELECT COUNT(*)::int AS count FROM storage_locations WHERE deleted_at IS NULL")
+			safeCount("tags_active", "SELECT COUNT(*)::int AS count FROM tags"),
+			safeCount("storage_locations_active", "SELECT COUNT(*)::int AS count FROM storage_locations")
 		]);
 		const resultMap = results.reduce((acc, entry) => {
 			acc[entry.label] = entry;
@@ -219,6 +221,8 @@ const adminUsageUsersHandler = async (req, res) => {
 		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
 		if (!hasTable) {
 			return successResponse(res, 200, "User usage retrieved successfully.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
 				window: { startDate: windowStart, endDate: windowEnd },
 				limit: limit ?? 25,
 				offset: offset ?? 0,
@@ -307,6 +311,7 @@ const adminUsageUsersHandler = async (req, res) => {
 		}
 
 		const responseData = {
+			configured: true,
 			window: { startDate: windowStart, endDate: windowEnd },
 			limit: limit ?? 25,
 			offset: offset ?? 0,
@@ -393,6 +398,8 @@ const adminUsageApiKeysHandler = async (req, res) => {
 		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
 		if (!hasTable) {
 			return successResponse(res, 200, "API key usage retrieved successfully.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
 				window: { startDate: windowStart, endDate: windowEnd },
 				limit: limit ?? 25,
 				offset: offset ?? 0,
@@ -487,6 +494,7 @@ const adminUsageApiKeysHandler = async (req, res) => {
 		}
 
 		const responseData = {
+			configured: true,
 			window: { startDate: windowStart, endDate: windowEnd },
 			limit: limit ?? 25,
 			offset: offset ?? 0,
@@ -523,6 +531,7 @@ const USAGE_LEVEL_THRESHOLDS = [
 	{ label: "High", min: 500, max: 999 },
 	{ label: "Very High", min: 1000, max: Number.POSITIVE_INFINITY }
 ];
+// This list should mirror api/database-tables.txt (sanitized, read-only).
 const DATA_VIEWER_TABLES = [
 	{
 		name: "users",
@@ -537,9 +546,11 @@ const DATA_VIEWER_TABLES = [
 			{ name: "role", label: "Role", type: "text", select: "u.role" },
 			{ name: "is_verified", label: "Verified", type: "boolean", select: "u.is_verified" },
 			{ name: "is_disabled", label: "Disabled", type: "boolean", select: "u.is_disabled" },
+			{ name: "api_key_ban_enabled", label: "API key blocked", type: "boolean", select: "u.api_key_ban_enabled" },
+			{ name: "usage_lockout_until", label: "Usage lockout until", type: "datetime", select: "u.usage_lockout_until" },
+			{ name: "last_login", label: "Last login", type: "datetime", select: "u.last_login" },
 			{ name: "created_at", label: "Created", type: "datetime", select: "u.created_at" },
-			{ name: "updated_at", label: "Updated", type: "datetime", select: "u.updated_at" },
-			{ name: "last_login", label: "Last login", type: "datetime", select: "u.last_login" }
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "u.updated_at" }
 		],
 		searchColumns: ["u.full_name", "u.preferred_name", "u.email"],
 		sortFields: [
@@ -551,6 +562,74 @@ const DATA_VIEWER_TABLES = [
 		defaultSort: "created_at",
 		defaultOrder: "desc",
 		filters: { userIdColumn: "u.id", emailColumn: "u.email" }
+	},
+	{
+		name: "verification_tokens",
+		label: "Verification tokens",
+		description: "Verification and reset tokens without the raw token values.",
+		from: "verification_tokens vt",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "vt.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "vt.user_id" },
+			{ name: "token_type", label: "Token type", type: "text", select: "vt.token_type" },
+			{ name: "expires_at", label: "Expires", type: "datetime", select: "vt.expires_at" },
+			{ name: "used", label: "Used", type: "boolean", select: "vt.used" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "vt.created_at" }
+		],
+		searchColumns: ["vt.token_type"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "vt.created_at" },
+			{ value: "expires_at", label: "Expires", column: "vt.expires_at" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "vt.user_id" }
+	},
+	{
+		name: "oauth_accounts",
+		label: "OAuth accounts",
+		description: "OAuth connections without access or refresh tokens.",
+		from: "oauth_accounts oa",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "oa.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "oa.user_id" },
+			{ name: "provider", label: "Provider", type: "text", select: "oa.provider" },
+			{ name: "provider_user_id", label: "Provider user ID", type: "text", select: "oa.provider_user_id" },
+			{ name: "scopes", label: "Scopes", type: "json", select: "oa.scopes" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "oa.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "oa.updated_at" }
+		],
+		searchColumns: ["oa.provider", "oa.provider_user_id"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "oa.created_at" },
+			{ value: "provider", label: "Provider", column: "oa.provider" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "oa.user_id" }
+	},
+	{
+		name: "refresh_tokens",
+		label: "Refresh tokens",
+		description: "Refresh token metadata without fingerprints.",
+		from: "refresh_tokens rt",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "rt.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "rt.user_id" },
+			{ name: "issued_at", label: "Issued", type: "datetime", select: "rt.issued_at" },
+			{ name: "expires_at", label: "Expires", type: "datetime", select: "rt.expires_at" },
+			{ name: "revoked", label: "Revoked", type: "boolean", select: "rt.revoked" },
+			{ name: "ip_address", label: "IP address", type: "text", select: "rt.ip_address" },
+			{ name: "user_agent", label: "User agent", type: "text", select: "rt.user_agent" }
+		],
+		searchColumns: ["rt.user_agent"],
+		sortFields: [
+			{ value: "issued_at", label: "Issued", column: "rt.issued_at" },
+			{ value: "expires_at", label: "Expires", column: "rt.expires_at" }
+		],
+		defaultSort: "issued_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "rt.user_id" }
 	},
 	{
 		name: "languages",
@@ -572,6 +651,249 @@ const DATA_VIEWER_TABLES = [
 		],
 		defaultSort: "name",
 		defaultOrder: "asc"
+	},
+	{
+		name: "book_types",
+		label: "Book types",
+		description: "User-defined book type records.",
+		from: "book_types bt",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "bt.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "bt.user_id" },
+			{ name: "name", label: "Name", type: "text", select: "bt.name" },
+			{ name: "description", label: "Description", type: "text", select: "bt.description" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "bt.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "bt.updated_at" }
+		],
+		searchColumns: ["bt.name", "bt.description"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "bt.name" },
+			{ value: "created_at", label: "Created", column: "bt.created_at" },
+			{ value: "updated_at", label: "Updated", column: "bt.updated_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "bt.user_id" }
+	},
+	{
+		name: "dates",
+		label: "Dates",
+		description: "Parsed date fragments used by other records.",
+		from: "dates d",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "d.id" },
+			{ name: "day", label: "Day", type: "number", select: "d.day" },
+			{ name: "month", label: "Month", type: "number", select: "d.month" },
+			{ name: "year", label: "Year", type: "number", select: "d.year" },
+			{ name: "text", label: "Text", type: "text", select: "d.text" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "d.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "d.updated_at" }
+		],
+		searchColumns: ["d.text"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "d.created_at" },
+			{ value: "year", label: "Year", column: "d.year" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc"
+	},
+	{
+		name: "authors",
+		label: "Authors",
+		description: "Author records with soft-delete status.",
+		from: "authors a",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "a.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "a.user_id" },
+			{ name: "display_name", label: "Display name", type: "text", select: "a.display_name" },
+			{ name: "first_names", label: "First names", type: "text", select: "a.first_names" },
+			{ name: "last_name", label: "Last name", type: "text", select: "a.last_name" },
+			{ name: "birth_date_id", label: "Birth date ID", type: "number", select: "a.birth_date_id" },
+			{ name: "death_date_id", label: "Death date ID", type: "number", select: "a.death_date_id" },
+			{ name: "deceased", label: "Deceased", type: "boolean", select: "a.deceased" },
+			{ name: "deleted_at", label: "Deleted", type: "datetime", select: "a.deleted_at" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "a.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "a.updated_at" }
+		],
+		searchColumns: ["a.display_name", "a.first_names", "a.last_name"],
+		sortFields: [
+			{ value: "display_name", label: "Display name", column: "a.display_name" },
+			{ value: "created_at", label: "Created", column: "a.created_at" }
+		],
+		defaultSort: "display_name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "a.user_id" }
+	},
+	{
+		name: "publishers",
+		label: "Publishers",
+		description: "Publisher records with soft-delete status.",
+		from: "publishers p",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "p.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "p.user_id" },
+			{ name: "name", label: "Name", type: "text", select: "p.name" },
+			{ name: "founded_date_id", label: "Founded date ID", type: "number", select: "p.founded_date_id" },
+			{ name: "website", label: "Website", type: "text", select: "p.website" },
+			{ name: "notes", label: "Notes", type: "text", select: "p.notes" },
+			{ name: "deleted_at", label: "Deleted", type: "datetime", select: "p.deleted_at" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "p.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "p.updated_at" }
+		],
+		searchColumns: ["p.name", "p.website"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "p.name" },
+			{ value: "created_at", label: "Created", column: "p.created_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "p.user_id" }
+	},
+	{
+		name: "book_authors",
+		label: "Book authors",
+		description: "Author assignments to books.",
+		from: "book_authors ba",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "ba.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "ba.user_id" },
+			{ name: "book_id", label: "Book ID", type: "number", select: "ba.book_id" },
+			{ name: "author_id", label: "Author ID", type: "number", select: "ba.author_id" },
+			{ name: "role", label: "Role", type: "text", select: "ba.role" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "ba.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "ba.updated_at" }
+		],
+		searchColumns: ["ba.role"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "ba.created_at" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "ba.user_id" }
+	},
+	{
+		name: "book_series",
+		label: "Series",
+		description: "Series records with soft-delete status.",
+		from: "book_series s",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "s.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "s.user_id" },
+			{ name: "name", label: "Name", type: "text", select: "s.name" },
+			{ name: "description", label: "Description", type: "text", select: "s.description" },
+			{ name: "website", label: "Website", type: "text", select: "s.website" },
+			{ name: "deleted_at", label: "Deleted", type: "datetime", select: "s.deleted_at" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "s.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "s.updated_at" }
+		],
+		searchColumns: ["s.name", "s.description"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "s.name" },
+			{ value: "created_at", label: "Created", column: "s.created_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "s.user_id" }
+	},
+	{
+		name: "book_series_books",
+		label: "Series books",
+		description: "Book order within a series.",
+		from: "book_series_books sb",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "sb.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "sb.user_id" },
+			{ name: "series_id", label: "Series ID", type: "number", select: "sb.series_id" },
+			{ name: "book_id", label: "Book ID", type: "number", select: "sb.book_id" },
+			{ name: "book_order", label: "Order", type: "number", select: "sb.book_order" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "sb.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "sb.updated_at" }
+		],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "sb.created_at" },
+			{ value: "book_order", label: "Order", column: "sb.book_order" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "sb.user_id" }
+	},
+	{
+		name: "storage_locations",
+		label: "Storage locations",
+		description: "Storage location records for physical copies.",
+		from: "storage_locations sl",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "sl.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "sl.user_id" },
+			{ name: "name", label: "Name", type: "text", select: "sl.name" },
+			{ name: "parent_id", label: "Parent ID", type: "number", select: "sl.parent_id" },
+			{ name: "notes", label: "Notes", type: "text", select: "sl.notes" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "sl.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "sl.updated_at" }
+		],
+		searchColumns: ["sl.name", "sl.notes"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "sl.name" },
+			{ value: "created_at", label: "Created", column: "sl.created_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "sl.user_id" }
+	},
+	{
+		name: "book_copies",
+		label: "Book copies",
+		description: "Physical copy records and acquisition details.",
+		from: "book_copies bc",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "bc.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "bc.user_id" },
+			{ name: "book_id", label: "Book ID", type: "number", select: "bc.book_id" },
+			{ name: "storage_location_id", label: "Storage location ID", type: "number", select: "bc.storage_location_id" },
+			{ name: "acquisition_date_id", label: "Acquisition date ID", type: "number", select: "bc.acquisition_date_id" },
+			{ name: "acquired_from", label: "Acquired from", type: "text", select: "bc.acquired_from" },
+			{ name: "acquisition_type", label: "Acquisition type", type: "text", select: "bc.acquisition_type" },
+			{ name: "acquisition_location", label: "Acquisition location", type: "text", select: "bc.acquisition_location" },
+			{ name: "notes", label: "Notes", type: "text", select: "bc.notes" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "bc.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "bc.updated_at" }
+		],
+		searchColumns: ["bc.acquired_from", "bc.acquisition_type", "bc.acquisition_location"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "bc.created_at" },
+			{ value: "updated_at", label: "Updated", column: "bc.updated_at" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "bc.user_id" }
+	},
+	{
+		name: "books",
+		label: "Books",
+		description: "Book records with soft-delete status.",
+		from: "books b",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "b.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "b.user_id" },
+			{ name: "title", label: "Title", type: "text", select: "b.title" },
+			{ name: "subtitle", label: "Subtitle", type: "text", select: "b.subtitle" },
+			{ name: "isbn", label: "ISBN", type: "text", select: "b.isbn" },
+			{ name: "publication_date_id", label: "Publication date ID", type: "number", select: "b.publication_date_id" },
+			{ name: "book_type_id", label: "Book type ID", type: "number", select: "b.book_type_id" },
+			{ name: "publisher_id", label: "Publisher ID", type: "number", select: "b.publisher_id" },
+			{ name: "page_count", label: "Pages", type: "number", select: "b.page_count" },
+			{ name: "deleted_at", label: "Deleted", type: "datetime", select: "b.deleted_at" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "b.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "b.updated_at" }
+		],
+		searchColumns: ["b.title", "b.subtitle", "b.isbn"],
+		sortFields: [
+			{ value: "title", label: "Title", column: "b.title" },
+			{ value: "created_at", label: "Created", column: "b.created_at" }
+		],
+		defaultSort: "title",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "b.user_id" }
 	},
 	{
 		name: "book_languages",
@@ -597,23 +919,64 @@ const DATA_VIEWER_TABLES = [
 		filters: { userIdColumn: "bl.user_id" }
 	},
 	{
+		name: "tags",
+		label: "Tags",
+		description: "Tags assigned to books.",
+		from: "tags t",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "t.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "t.user_id" },
+			{ name: "name", label: "Name", type: "text", select: "t.name" },
+			{ name: "name_normalized", label: "Normalized", type: "text", select: "t.name_normalized" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "t.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "t.updated_at" }
+		],
+		searchColumns: ["t.name", "t.name_normalized"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "t.name" },
+			{ value: "created_at", label: "Created", column: "t.created_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc",
+		filters: { userIdColumn: "t.user_id" }
+	},
+	{
+		name: "book_tags",
+		label: "Book tags",
+		description: "Tag assignments on books.",
+		from: "book_tags bt",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "bt.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "bt.user_id" },
+			{ name: "book_id", label: "Book ID", type: "number", select: "bt.book_id" },
+			{ name: "tag_id", label: "Tag ID", type: "number", select: "bt.tag_id" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "bt.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "bt.updated_at" }
+		],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "bt.created_at" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "bt.user_id" }
+	},
+	{
 		name: "user_api_keys",
 		label: "API keys",
-		description: "API key labels with prefixes (no hashes).",
+		description: "API key metadata without hashes or prefixes.",
 		from: "user_api_keys k LEFT JOIN users u ON u.id = k.user_id",
 		columns: [
 			{ name: "id", label: "ID", type: "number", select: "k.id" },
 			{ name: "user_id", label: "User ID", type: "number", select: "k.user_id" },
 			{ name: "user_email", label: "User email", type: "text", select: "u.email" },
 			{ name: "name", label: "Label", type: "text", select: "k.name" },
-			{ name: "key_prefix", label: "Key prefix", type: "text", select: "k.key_prefix" },
 			{ name: "last_used_at", label: "Last used", type: "datetime", select: "k.last_used_at" },
 			{ name: "expires_at", label: "Expires", type: "datetime", select: "k.expires_at" },
 			{ name: "revoked_at", label: "Revoked", type: "datetime", select: "k.revoked_at" },
 			{ name: "created_at", label: "Created", type: "datetime", select: "k.created_at" },
 			{ name: "updated_at", label: "Updated", type: "datetime", select: "k.updated_at" }
 		],
-		searchColumns: ["k.name", "k.key_prefix", "u.email"],
+		searchColumns: ["k.name", "u.email"],
 		sortFields: [
 			{ value: "created_at", label: "Created", column: "k.created_at" },
 			{ value: "last_used_at", label: "Last used", column: "k.last_used_at" },
@@ -637,17 +1000,19 @@ const DATA_VIEWER_TABLES = [
 			{ name: "correlation_id", label: "Correlation", type: "text", select: "l.correlation_id" },
 			{ name: "method", label: "Method", type: "text", select: "l.method" },
 			{ name: "path", label: "Path", type: "text", select: "l.path" },
+			{ name: "route_pattern", label: "Route", type: "text", select: "l.route_pattern" },
 			{ name: "actor_type", label: "Actor", type: "text", select: "l.actor_type" },
 			{ name: "user_id", label: "User ID", type: "number", select: "l.user_id" },
 			{ name: "user_email", label: "User email", type: "text", select: "l.user_email" },
 			{ name: "api_key_label", label: "API key label", type: "text", select: "l.api_key_label" },
-			{ name: "api_key_prefix", label: "API key prefix", type: "text", select: "l.api_key_prefix" },
 			{ name: "status_code", label: "Status", type: "number", select: "l.status_code" },
 			{ name: "duration_ms", label: "Duration (ms)", type: "number", select: "l.duration_ms" },
 			{ name: "cost_units", label: "Cost", type: "number", select: "l.cost_units" },
-			{ name: "error_summary", label: "Error summary", type: "text", select: "l.error_summary" }
+			{ name: "error_summary", label: "Error summary", type: "text", select: "l.error_summary" },
+			{ name: "request_bytes", label: "Request bytes", type: "number", select: "l.request_bytes" },
+			{ name: "response_bytes", label: "Response bytes", type: "number", select: "l.response_bytes" }
 		],
-		searchColumns: ["l.path", "l.user_email", "l.api_key_label", "l.api_key_prefix", "l.correlation_id"],
+		searchColumns: ["l.path", "l.user_email", "l.api_key_label", "l.correlation_id"],
 		sortFields: [
 			{ value: "logged_at", label: "Logged", column: "l.logged_at" },
 			{ value: "status_code", label: "Status", column: "l.status_code" },
@@ -657,9 +1022,39 @@ const DATA_VIEWER_TABLES = [
 		defaultSort: "logged_at",
 		defaultOrder: "desc",
 		filters: { userIdColumn: "l.user_id", emailColumn: "l.user_email" }
+	},
+	{
+		name: "email_send_history",
+		label: "Email send history",
+		description: "Send attempts without email content.",
+		from: "email_send_history eh",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "eh.id" },
+			{ name: "email_type", label: "Type", type: "text", select: "eh.email_type" },
+			{ name: "recipient_email", label: "Recipient", type: "text", select: "eh.recipient_email" },
+			{ name: "queued_at", label: "Queued", type: "datetime", select: "eh.queued_at" },
+			{ name: "sent_at", label: "Sent", type: "datetime", select: "eh.sent_at" },
+			{ name: "status", label: "Status", type: "text", select: "eh.status" },
+			{ name: "retry_count", label: "Retries", type: "number", select: "eh.retry_count" },
+			{ name: "failure_reason", label: "Failure reason", type: "text", select: "eh.failure_reason" }
+		],
+		searchColumns: ["eh.email_type", "eh.recipient_email", "eh.status"],
+		sortFields: [
+			{ value: "queued_at", label: "Queued", column: "eh.queued_at" },
+			{ value: "sent_at", label: "Sent", column: "eh.sent_at" }
+		],
+		defaultSort: "queued_at",
+		defaultOrder: "desc"
 	}
 ];
+// Sanitization strategy: denylist-based redaction with a small allowlist override.
+// If unsure, fields are redacted rather than exposed.
 const DATA_VIEWER_REDACT_COLUMN_PATTERN = /(password|token|secret|hash|api[_-]?key|authorization|cookie|refresh|access)/i;
+const DATA_VIEWER_SAFE_COLUMNS = new Set([
+	"token_type",
+	"api_key_label",
+	"api_key_ban_enabled"
+]);
 const DATA_VIEWER_REDACT_VALUE_PATTERNS = [
 	/^bearer\s+/i,
 	/^apikey\s+/i,
@@ -669,6 +1064,7 @@ const DATA_VIEWER_REDACT_VALUE_PATTERNS = [
 	/^[A-Za-z0-9-_]{32,}$/
 ];
 const TOKEN_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+const LOGS_NOT_CONFIGURED_MESSAGE = "Request logs are not configured. Create the request_logs table and enable request logging.";
 const TOKEN_EMAIL_TYPES = new Set([
 	"verification",
 	"password_reset",
@@ -686,6 +1082,251 @@ const TOKEN_EXPIRY_DEFAULTS = {
 	admin_account_setup: 60
 };
 let lastTokenCleanupAt = 0;
+
+const EMAIL_TYPE_METADATA = {
+	verification: {
+		description: "Verification link for new sign-ins or email confirmation.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	password_reset: {
+		description: "Password reset link for a user who requested help.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	welcome: {
+		description: "Welcome message for newly created accounts.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	password_reset_success: {
+		description: "Confirmation that a password reset completed.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	account_disable_verification: {
+		description: "Verification link before disabling an account.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	account_disable_confirmation: {
+		description: "Confirmation that an account was disabled.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	account_delete_verification: {
+		description: "Verification link before deleting an account.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	account_delete_admin_notice: {
+		description: "Admin notice when a user requests account deletion.",
+		fields: [
+			{ name: "userFullName", label: "User full name", type: "text", placeholder: "Avery Reader" },
+			{ name: "userPreferredName", label: "User preferred name", type: "text", placeholder: "Avery" },
+			{ name: "userId", label: "User ID", type: "number", placeholder: "123" },
+			{ name: "requestIp", label: "Request IP", type: "text", placeholder: "203.0.113.5" },
+			{ name: "requestedAt", label: "Requested at", type: "datetime-local" }
+		]
+	},
+	email_change_verification: {
+		description: "Verification link for an email address change.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	email_change_confirmation: {
+		description: "Confirmation that an email change was completed.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "newEmail", label: "New email", type: "email", placeholder: "new@example.com", required: true }
+		]
+	},
+	admin_profile_update: {
+		description: "Notice that a profile was updated by an admin.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "changeSummary", label: "Change summary", type: "text", placeholder: "Role updated to admin", required: true }
+		]
+	},
+	admin_account_disabled: {
+		description: "Notice that an admin disabled the account.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	admin_account_enabled: {
+		description: "Notice that an admin re-enabled the account.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	admin_email_unverified: {
+		description: "Notice that an admin marked the email as unverified.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "reason", label: "Reason", type: "text", placeholder: "Email bounced", required: true, maxLength: MAX_REASON_LENGTH }
+		]
+	},
+	admin_email_verified: {
+		description: "Notice that an admin verified the email address.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "reason", label: "Reason", type: "text", placeholder: "Identity confirmed", required: true, maxLength: MAX_REASON_LENGTH }
+		]
+	},
+	admin_account_setup: {
+		description: "Account setup message with verification details.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	dev_features_announcement: {
+		description: "Announcement email for development updates.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "subject", label: "Subject", type: "text", placeholder: "The Book Project update", required: true, maxLength: MAX_EMAIL_SUBJECT_LENGTH },
+			{ name: "markdownBody", label: "Markdown body", type: "textarea", placeholder: "## Release notes\n- New features...", required: true, maxLength: MAX_EMAIL_BODY_LENGTH }
+		]
+	},
+	api_key_created: {
+		description: "Notice that an API key was created.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "keyPrefix", label: "Key prefix", type: "text", placeholder: "bk_1234", required: true },
+			{ name: "expiresAt", label: "Expires at", type: "datetime-local" }
+		]
+	},
+	api_key_revoked: {
+		description: "Notice that an API key was revoked.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "keyPrefix", label: "Key prefix", type: "text", placeholder: "bk_1234", required: true }
+		]
+	},
+	api_key_ban_applied: {
+		description: "Notice that API key creation was blocked.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "reason", label: "Reason", type: "text", placeholder: "Usage policy violation", required: true, maxLength: MAX_REASON_LENGTH }
+		]
+	},
+	api_key_ban_removed: {
+		description: "Notice that API key creation was allowed again.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
+		]
+	},
+	usage_warning_api_key: {
+		description: "Usage warning for API key activity.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "score", label: "Usage score", type: "number", placeholder: "250", required: true },
+			{ name: "threshold", label: "Threshold", type: "number", placeholder: "200", required: true },
+			{ name: "windowStart", label: "Window start", type: "datetime-local" },
+			{ name: "windowEnd", label: "Window end", type: "datetime-local" }
+		]
+	},
+	api_key_expiring: {
+		description: "Notice that an API key is expiring soon.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "keyPrefix", label: "Key prefix", type: "text", placeholder: "bk_1234", required: true },
+			{ name: "expiresAt", label: "Expires at", type: "datetime-local" }
+		]
+	},
+	api_key_expired: {
+		description: "Notice that an API key has expired.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "keyPrefix", label: "Key prefix", type: "text", placeholder: "bk_1234", required: true }
+		]
+	}
+};
+
+function normalizeEmailTypeField(field) {
+	return {
+		name: field.name,
+		label: field.label || field.name,
+		type: field.type || "text",
+		placeholder: field.placeholder || "",
+		required: Boolean(field.required),
+		helpText: field.helpText || "",
+		maxLength: Number.isInteger(field.maxLength) ? field.maxLength : null,
+		pattern: field.pattern || null
+	};
+}
+
+function resolveEmailTypeMetadata(emailType) {
+	const meta = EMAIL_TYPE_METADATA[emailType] || { description: "Email preview for the selected template.", fields: [] };
+	const fields = Array.isArray(meta.fields) ? meta.fields.map(normalizeEmailTypeField) : [];
+	return {
+		description: meta.description || "Email preview for the selected template.",
+		fields
+	};
+}
+
+function validateEmailTypeContext(emailType, context = {}) {
+	const meta = resolveEmailTypeMetadata(emailType);
+	const errors = [];
+	const fields = Array.isArray(meta.fields) ? meta.fields : [];
+	fields.forEach((field) => {
+		const label = field.label || field.name;
+		let value = context[field.name];
+		if (field.name === "changeSummary") {
+			value = Array.isArray(context.changes) ? context.changes[0]?.newValue : null;
+		}
+		const isBlank = value === null || value === undefined || (typeof value === "string" && !value.trim());
+		if (field.required && isBlank) {
+			errors.push(`${label} is required.`);
+			return;
+		}
+		if (isBlank) return;
+		if (field.type === "number") {
+			const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
+			if (!Number.isInteger(parsed)) {
+				errors.push(`${label} must be a number.`);
+				return;
+			}
+		}
+		if (field.type === "email") {
+			const emailError = validateEmail(String(value));
+			if (emailError) errors.push(emailError.replace("Email", label));
+		}
+		if (field.type === "datetime-local") {
+			const parsed = Date.parse(String(value));
+			if (Number.isNaN(parsed)) {
+				errors.push(`${label} must be a valid date and time.`);
+				return;
+			}
+		}
+		if (typeof value === "string" && Number.isInteger(field.maxLength) && value.length > field.maxLength) {
+			errors.push(`${label} must be ${field.maxLength} characters or fewer.`);
+		}
+		if (typeof value === "string" && field.pattern) {
+			try {
+				const pattern = new RegExp(field.pattern);
+				if (!pattern.test(value)) {
+					errors.push(`${label} has an invalid format.`);
+				}
+			} catch (err) {
+				errors.push(`${label} has an invalid format pattern.`);
+			}
+		}
+	});
+	return errors;
+}
 
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
@@ -763,6 +1404,8 @@ function parseDateFilter(value, fieldLabel) {
 }
 
 let requestLogsAvailability = null;
+let usersColumnAvailability = null;
+const tableExistsCache = new Map();
 
 async function getRequestLogsAvailability() {
 	if (requestLogsAvailability) return requestLogsAvailability;
@@ -793,6 +1436,45 @@ async function getRequestLogsAvailability() {
 	}
 }
 
+async function getUsersColumnAvailability() {
+	if (usersColumnAvailability) return usersColumnAvailability;
+	try {
+		const result = await pool.query(
+			`SELECT column_name
+			 FROM information_schema.columns
+			 WHERE table_schema = 'public'
+			   AND table_name = 'users'`
+		);
+		usersColumnAvailability = new Set(result.rows.map((row) => row.column_name));
+		return usersColumnAvailability;
+	} catch (error) {
+		logToFile("ADMIN_USERS_SCHEMA_CHECK", {
+			status: "FAILURE",
+			error_message: error.message
+		}, "error");
+		usersColumnAvailability = new Set();
+		return usersColumnAvailability;
+	}
+}
+
+async function tableExists(tableName) {
+	if (tableExistsCache.has(tableName)) return tableExistsCache.get(tableName);
+	try {
+		const result = await pool.query("SELECT to_regclass($1) AS table_exists", [`public.${tableName}`]);
+		const exists = Boolean(result.rows[0]?.table_exists);
+		tableExistsCache.set(tableName, exists);
+		return exists;
+	} catch (error) {
+		logToFile("ADMIN_TABLE_CHECK", {
+			status: "FAILURE",
+			error_message: error.message,
+			table: tableName
+		}, "error");
+		tableExistsCache.set(tableName, false);
+		return false;
+	}
+}
+
 function getDataViewerTableConfig(name) {
 	if (!name) return null;
 	return DATA_VIEWER_TABLES.find((table) => table.name === name) || null;
@@ -800,6 +1482,7 @@ function getDataViewerTableConfig(name) {
 
 function shouldRedactDataViewerColumn(name) {
 	if (!name) return false;
+	if (DATA_VIEWER_SAFE_COLUMNS.has(String(name))) return false;
 	return DATA_VIEWER_REDACT_COLUMN_PATTERN.test(String(name));
 }
 
@@ -849,6 +1532,10 @@ const adminDataViewerQueryHandler = async (req, res) => {
 	const tableName = normalizeText(params.table);
 	const tableConfig = getDataViewerTableConfig(tableName);
 	if (!tableConfig) {
+		return errorResponse(res, 400, "Validation Error", ["Table is not available."]);
+	}
+	const tableAvailable = await tableExists(tableConfig.name);
+	if (!tableAvailable) {
 		return errorResponse(res, 400, "Validation Error", ["Table is not available."]);
 	}
 
@@ -1441,85 +2128,23 @@ function validateLanguageName(name) {
 	return errors;
 }
 
-// `GET /admin/users/` - List all users (admin only, with pagination and filtering) and their appropriate information (from JSON body if provided)
-router.get("/users", adminAuth, async (req, res) => {
+const adminUsersListHandler = async (req, res) => {
 	const adminId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly) ?? false;
-	const targetId = parseId(listParams.id);
-	const rawLookupEmail = listParams.email;
-	const lookupEmail = rawLookupEmail ? normalizeEmail(rawLookupEmail) : "";
-
-	if (targetId !== null || lookupEmail) {
-		try {
-			const resolved = await resolveTargetUserId({ idValue: targetId, emailValue: lookupEmail });
-			if (resolved.error) {
-				return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
-			}
-			const resolvedId = resolved.id;
-			const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
-			const usageLastSeenSelect = hasTable
-				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
-				: "NULL AS usage_last_seen";
-			const usageScoreSelect = hasTable
-				? (hasCostUnits
-					? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
-					: "0::int AS usage_score")
-				: "0::int AS usage_score";
-
-			const result = await pool.query(
-				`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
-				        u.password_updated, u.last_login, u.created_at, u.updated_at,
-				        u.api_key_ban_enabled, u.usage_lockout_until,
-				        u.email_pref_account_updates, u.email_pref_dev_features,
-				        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
-				        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
-				        ${usageLastSeenSelect},
-				        ${usageScoreSelect},
-				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
-				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
-				        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
-				 FROM users u
-				 WHERE u.id = $1`,
-				[resolvedId]
-			);
-
-			const row = result.rows[0];
-			logToFile("ADMIN_USERS_GET", {
-				status: "SUCCESS",
-				admin_id: adminId,
-				user_id: row.id,
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "info");
-
-			return successResponse(res, 200, "User retrieved successfully.", formatUserRow(row, {
-				nameOnly,
-				includeOauthProviders: !nameOnly
-			}));
-		} catch (error) {
-			logToFile("ADMIN_USERS_GET", {
-				status: "FAILURE",
-				error_message: error.message,
-				admin_id: adminId,
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "error");
-			return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the user."]);
-		}
-	}
-
 	const errors = [];
+	const userColumns = await getUsersColumnAvailability();
+	const hasUserApiKeys = await tableExists("user_api_keys");
 	const sortFields = {
 		id: "u.id",
 		email: "u.email",
 		fullName: "u.full_name",
 		preferredName: "u.preferred_name",
 		role: "u.role",
-		isVerified: "u.is_verified",
-		isDisabled: "u.is_disabled",
-		lastLogin: "u.last_login",
-		passwordUpdated: "u.password_updated",
+		isVerified: userColumns.has("is_verified") ? "u.is_verified" : null,
+		isDisabled: userColumns.has("is_disabled") ? "u.is_disabled" : null,
+		lastLogin: userColumns.has("last_login") ? "u.last_login" : null,
+		passwordUpdated: userColumns.has("password_updated") ? "u.password_updated" : null,
 		createdAt: "u.created_at",
 		updatedAt: "u.updated_at"
 	};
@@ -1594,22 +2219,30 @@ router.get("/users", adminAuth, async (req, res) => {
 	}
 
 	if (listParams.filterIsVerified !== undefined) {
-		const parsed = parseBooleanFlag(listParams.filterIsVerified);
-		if (parsed === null) {
-			errors.push("filterIsVerified must be a boolean.");
+		if (!userColumns.has("is_verified")) {
+			errors.push("filterIsVerified is not available for the current schema.");
 		} else {
-			filters.push(`u.is_verified = $${paramIndex++}`);
-			values.push(parsed);
+			const parsed = parseBooleanFlag(listParams.filterIsVerified);
+			if (parsed === null) {
+				errors.push("filterIsVerified must be a boolean.");
+			} else {
+				filters.push(`u.is_verified = $${paramIndex++}`);
+				values.push(parsed);
+			}
 		}
 	}
 
 	if (listParams.filterIsDisabled !== undefined) {
-		const parsed = parseBooleanFlag(listParams.filterIsDisabled);
-		if (parsed === null) {
-			errors.push("filterIsDisabled must be a boolean.");
+		if (!userColumns.has("is_disabled")) {
+			errors.push("filterIsDisabled is not available for the current schema.");
 		} else {
-			filters.push(`u.is_disabled = $${paramIndex++}`);
-			values.push(parsed);
+			const parsed = parseBooleanFlag(listParams.filterIsDisabled);
+			if (parsed === null) {
+				errors.push("filterIsDisabled must be a boolean.");
+			} else {
+				filters.push(`u.is_disabled = $${paramIndex++}`);
+				values.push(parsed);
+			}
 		}
 	}
 
@@ -1643,6 +2276,7 @@ router.get("/users", adminAuth, async (req, res) => {
 	}
 
 	const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+	const selectUserColumn = (column, fallback) => userColumns.has(column) ? `u.${column}` : `${fallback} AS ${column}`;
 	const usageLastSeenSelect = hasTable
 		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
 		: "NULL AS usage_last_seen";
@@ -1651,36 +2285,57 @@ router.get("/users", adminAuth, async (req, res) => {
 			? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
 			: "0::int AS usage_score")
 		: "0::int AS usage_score";
+	const apiKeyActiveSelect = hasUserApiKeys
+		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
+		: "0::int AS api_key_active_count";
+	const apiKeyRevokedSelect = hasUserApiKeys
+		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count"
+		: "0::int AS api_key_revoked_count";
 
 	const fields = nameOnly
 		? "u.id, u.email, u.full_name"
-		: `u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
-		   u.password_updated, u.last_login, u.created_at, u.updated_at,
-		   u.api_key_ban_enabled, u.usage_lockout_until,
-		   u.email_pref_account_updates, u.email_pref_dev_features,
+		: `u.id, u.email, u.full_name, u.preferred_name, u.role,
+		   ${selectUserColumn("is_verified", "FALSE")},
+		   ${selectUserColumn("is_disabled", "FALSE")},
+		   ${selectUserColumn("password_updated", "NULL")},
+		   ${selectUserColumn("last_login", "NULL")},
+		   ${selectUserColumn("created_at", "NOW()")},
+		   ${selectUserColumn("updated_at", "NOW()")},
+		   ${selectUserColumn("api_key_ban_enabled", "FALSE")},
+		   ${selectUserColumn("usage_lockout_until", "NULL")},
+		   ${selectUserColumn("email_pref_account_updates", "TRUE")},
+		   ${selectUserColumn("email_pref_dev_features", "FALSE")},
 		   (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
 		   (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
 		   ${usageLastSeenSelect},
 		   ${usageScoreSelect},
-		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
-		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count`;
+		   ${apiKeyActiveSelect},
+		   ${apiKeyRevokedSelect}`;
 
 	try {
 		let query = `SELECT ${fields} FROM users u`;
+		const whereClause = filters.length > 0 ? ` WHERE ${filters.join(" AND ")}` : "";
 		if (filters.length > 0) {
-			query += ` WHERE ${filters.join(" AND ")}`;
+			query += whereClause;
 		}
 		query += ` ORDER BY ${sortColumn} ${order.toUpperCase()}`;
+		const countResult = await pool.query(
+			`SELECT COUNT(*)::int AS total FROM users u${whereClause}`,
+			values
+		);
+		const total = countResult.rows[0]?.total ?? 0;
+		const queryValues = [...values];
+		let queryIndex = paramIndex;
 		if (limit !== null) {
-			query += ` LIMIT $${paramIndex++}`;
-			values.push(limit);
+			query += ` LIMIT $${queryIndex++}`;
+			queryValues.push(limit);
 		}
 		if (offset !== null) {
-			query += ` OFFSET $${paramIndex++}`;
-			values.push(offset);
+			query += ` OFFSET $${queryIndex++}`;
+			queryValues.push(offset);
 		}
 
-		const result = await pool.query(query, values);
+		const result = await pool.query(query, queryValues);
 
 		logToFile("ADMIN_USERS_LIST", {
 			status: "SUCCESS",
@@ -1691,7 +2346,7 @@ router.get("/users", adminAuth, async (req, res) => {
 		}, "info");
 
 		const payload = result.rows.map((row) => formatUserRow(row, { nameOnly }));
-		return successResponse(res, 200, "Users retrieved successfully.", { users: payload });
+		return successResponse(res, 200, "Users retrieved successfully.", { users: payload, total });
 	} catch (error) {
 		logToFile("ADMIN_USERS_LIST", {
 			status: "FAILURE",
@@ -1702,7 +2357,99 @@ router.get("/users", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving users."]);
 	}
+};
+
+// `GET /admin/users/` - List all users (admin only, with pagination and filtering) and their appropriate information (from JSON body if provided)
+router.get("/users", adminAuth, async (req, res) => {
+	const adminId = req.user.id;
+	const listParams = { ...req.query, ...(req.body || {}) };
+	const targetId = parseId(listParams.id);
+	const rawLookupEmail = listParams.email;
+	const lookupEmail = rawLookupEmail ? normalizeEmail(rawLookupEmail) : "";
+
+	if (targetId !== null || lookupEmail) {
+		try {
+			const resolved = await resolveTargetUserId({ idValue: targetId, emailValue: lookupEmail });
+			if (resolved.error) {
+				return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+			}
+			const resolvedId = resolved.id;
+			const userColumns = await getUsersColumnAvailability();
+			const hasUserApiKeys = await tableExists("user_api_keys");
+			const hasOauthAccounts = await tableExists("oauth_accounts");
+			const selectUserColumn = (column, fallback) => userColumns.has(column) ? `u.${column}` : `${fallback} AS ${column}`;
+			const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+			const usageLastSeenSelect = hasTable
+				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
+				: "NULL AS usage_last_seen";
+			const usageScoreSelect = hasTable
+				? (hasCostUnits
+					? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
+					: "0::int AS usage_score")
+				: "0::int AS usage_score";
+			const apiKeyActiveSelect = hasUserApiKeys
+				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
+				: "0::int AS api_key_active_count";
+			const apiKeyRevokedSelect = hasUserApiKeys
+				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count"
+				: "0::int AS api_key_revoked_count";
+			const oauthProvidersSelect = hasOauthAccounts
+				? "COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers"
+				: "'[]'::json AS oauth_providers";
+
+			const result = await pool.query(
+				`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role,
+				        ${selectUserColumn("is_verified", "FALSE")},
+				        ${selectUserColumn("is_disabled", "FALSE")},
+				        ${selectUserColumn("password_updated", "NULL")},
+				        ${selectUserColumn("last_login", "NULL")},
+				        ${selectUserColumn("created_at", "NOW()")},
+				        ${selectUserColumn("updated_at", "NOW()")},
+				        ${selectUserColumn("api_key_ban_enabled", "FALSE")},
+				        ${selectUserColumn("usage_lockout_until", "NULL")},
+				        ${selectUserColumn("email_pref_account_updates", "TRUE")},
+				        ${selectUserColumn("email_pref_dev_features", "FALSE")},
+				        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
+				        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
+				        ${usageLastSeenSelect},
+				        ${usageScoreSelect},
+				        ${apiKeyActiveSelect},
+				        ${apiKeyRevokedSelect},
+				        ${oauthProvidersSelect}
+				 FROM users u
+				 WHERE u.id = $1`,
+				[resolvedId]
+			);
+
+			const row = result.rows[0];
+			logToFile("ADMIN_USERS_GET", {
+				status: "SUCCESS",
+				admin_id: adminId,
+				user_id: row.id,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+
+			return successResponse(res, 200, "User retrieved successfully.", formatUserRow(row, {
+				nameOnly,
+				includeOauthProviders: !nameOnly
+			}));
+		} catch (error) {
+			logToFile("ADMIN_USERS_GET", {
+				status: "FAILURE",
+				error_message: error.message,
+				admin_id: adminId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the user."]);
+		}
+	}
+	return adminUsersListHandler(req, res);
 });
+
+// POST /admin/users/list - JSON-body list variant (admin only)
+router.post("/users/list", adminAuth, adminUsersListHandler);
 
 // `POST /admin/users/` - Create a new user (admin only)
 router.post("/users", adminAuth, async (req, res) => {
@@ -3053,7 +3800,10 @@ router.post("/users/email-preferences/check", adminAuth, async (req, res) => {
 });
 
 router.get("/emails/types", adminAuth, async (req, res) => {
-	const types = Object.keys(EMAIL_TYPE_HANDLERS);
+	const types = Object.keys(EMAIL_TYPE_HANDLERS).map((type) => ({
+		type,
+		...resolveEmailTypeMetadata(type)
+	}));
 	logToFile("ADMIN_EMAIL_TYPES", {
 		status: "SUCCESS",
 		admin_id: req.user.id,
@@ -3064,12 +3814,151 @@ router.get("/emails/types", adminAuth, async (req, res) => {
 	return successResponse(res, 200, "Email types retrieved.", { types });
 });
 
+const adminEmailHistoryHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const allowedStatuses = new Set(["queued", "sent", "failed", "skipped"]);
+	const type = normalizeText(params.type);
+	const status = normalizeText(params.status);
+	const recipient = normalizeText(params.recipient);
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 5, max: 100 });
+	const { value: page, error: pageError } = parseOptionalInt(params.page, "page", { min: 1, max: 100000 });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (pageError) errors.push(pageError);
+	if (status && !allowedStatuses.has(status)) {
+		errors.push("status must be one of: queued, sent, failed, skipped.");
+	}
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const filters = [];
+	const values = [];
+	let idx = 1;
+	if (type) {
+		filters.push(`email_type = $${idx++}`);
+		values.push(type);
+	}
+	if (status) {
+		filters.push(`status = $${idx++}`);
+		values.push(status);
+	}
+	if (recipient) {
+		filters.push(`recipient_email ILIKE $${idx++}`);
+		values.push(`%${recipient}%`);
+	}
+	if (startDate) {
+		filters.push(`queued_at >= $${idx++}`);
+		values.push(startDate);
+	}
+	if (endDate) {
+		filters.push(`queued_at <= $${idx++}`);
+		values.push(endDate);
+	}
+	const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+	const limitValue = limit ?? 25;
+	const pageValue = page ?? 1;
+	const offsetValue = (pageValue - 1) * limitValue;
+
+	try {
+		const countResult = await pool.query(
+			`SELECT COUNT(*)::int AS count FROM email_send_history ${whereClause}`,
+			values
+		);
+		const total = countResult.rows[0]?.count ?? 0;
+		const rowsResult = await pool.query(
+			`SELECT id, job_id, email_type, recipient_email, queued_at, sent_at, status, failure_reason, retry_count
+			 FROM email_send_history
+			 ${whereClause}
+			 ORDER BY queued_at DESC
+			 LIMIT $${idx} OFFSET $${idx + 1}`,
+			[...values, limitValue, offsetValue]
+		);
+		const rows = rowsResult.rows || [];
+		const hasNext = offsetValue + rows.length < total;
+		return successResponse(res, 200, "Email history retrieved successfully.", {
+			history: rows,
+			count: rows.length,
+			total,
+			page: pageValue,
+			limit: limitValue,
+			hasNext
+		});
+	} catch (error) {
+		if (error?.code === "42P01") {
+			return successResponse(res, 200, "Email history unavailable.", {
+				history: [],
+				count: 0,
+				total: 0,
+				page: pageValue,
+				limit: limitValue,
+				hasNext: false,
+				warnings: ["Email history is not available yet."]
+			});
+		}
+		logToFile("ADMIN_EMAIL_HISTORY", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load email history."]);
+	}
+};
+
+router.get("/emails/history", adminAuth, adminEmailHistoryHandler);
+router.post("/emails/history", adminAuth, adminEmailHistoryHandler);
+
+router.post("/markdown/render", adminAuth, async (req, res) => {
+	const text = typeof req.body?.text === "string" ? req.body.text : "";
+	if (text.length > MAX_EMAIL_BODY_LENGTH) {
+		return errorResponse(res, 400, "Validation Error", [`Markdown body must be ${MAX_EMAIL_BODY_LENGTH} characters or fewer.`]);
+	}
+	try {
+		const response = await fetch("https://api.github.com/markdown", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Accept": "application/vnd.github+json",
+				"X-GitHub-Api-Version": "2022-11-28",
+				"User-Agent": "BookProjectAdmin"
+			},
+			body: JSON.stringify({ text, mode: "gfm" })
+		});
+		if (!response.ok) {
+			const errorBody = await response.text();
+			logToFile("ADMIN_MARKDOWN_RENDER", {
+				status: "FAILURE",
+				admin_id: req.user.id,
+				http_status: response.status,
+				error_message: errorBody.slice(0, 240)
+			}, "warn");
+			return errorResponse(res, 502, "Markdown rendering failed.", ["Unable to render preview right now."]);
+		}
+		const html = await response.text();
+		return successResponse(res, 200, "Markdown rendered successfully.", { html });
+	} catch (error) {
+		logToFile("ADMIN_MARKDOWN_RENDER", {
+			status: "FAILURE",
+			admin_id: req.user.id,
+			error_message: error.message
+		}, "error");
+		return errorResponse(res, 502, "Markdown rendering failed.", ["Unable to render preview right now."]);
+	}
+});
+
 router.post("/emails/send-test", [...adminAuth, emailCostLimiter], async (req, res) => {
 	const adminId = req.user.id;
-	const emailType = typeof req.body?.emailType === "string" ? req.body.emailType.trim() : "";
-	const toEmail = normalizeEmail(req.body?.toEmail);
-	const tokenInput = typeof req.body?.token === "string" && req.body.token.trim() ? req.body.token.trim() : "test";
-	const tokenExpiry = req.body?.tokenExpiry ?? req.body?.duration ?? null;
+	const emailTypeRaw = req.body?.emailType || req.body?.email_type;
+	const emailType = typeof emailTypeRaw === "string" ? emailTypeRaw.trim() : "";
+	const toEmailRaw = req.body?.toEmail || req.body?.recipient_email;
+	const toEmail = normalizeEmail(toEmailRaw);
 	const context = req.body?.context && typeof req.body.context === "object" ? req.body.context : {};
 
 	const errors = [];
@@ -3080,27 +3969,29 @@ router.post("/emails/send-test", [...adminAuth, emailCostLimiter], async (req, r
 	}
 
 	errors.push(...validateEmail(toEmail));
+	errors.push(...validateEmailTypeContext(emailType, context));
 
-	let expiresInMinutes = null;
-	if (TOKEN_EMAIL_TYPES.has(emailType)) {
-		const durationResult = normalizeDurationMinutes(tokenExpiry, resolveDefaultExpiry(emailType));
-		if (durationResult.error) {
-			errors.push(durationResult.error);
-		} else {
-			expiresInMinutes = durationResult.value;
-		}
-	}
+	const expiresInMinutes = TOKEN_EMAIL_TYPES.has(emailType) ? resolveDefaultExpiry(emailType) : null;
 
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	const params = buildTestEmailParams(emailType, toEmail, tokenInput, expiresInMinutes, context, req.ip);
+	const params = buildTestEmailParams(emailType, toEmail, "test", expiresInMinutes, context, req.ip);
 	if (!params) {
 		return errorResponse(res, 400, "Validation Error", ["Unable to build email payload for this emailType."]);
 	}
 
+	const jobId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
 	try {
+		await recordEmailHistory({
+			jobId,
+			emailType,
+			recipientEmail: toEmail,
+			queuedAt: new Date().toISOString(),
+			status: "queued",
+			retryCount: 0
+		});
 		const sent = await EMAIL_TYPE_HANDLERS[emailType](params);
 		logToFile("ADMIN_EMAIL_TEST", {
 			status: sent ? "SUCCESS" : "FAILURE",
@@ -3112,15 +4003,30 @@ router.post("/emails/send-test", [...adminAuth, emailCostLimiter], async (req, r
 			user_agent: req.get("user-agent")
 		}, sent ? "info" : "error");
 		if (!sent) {
+			await updateEmailHistory(jobId, {
+				status: "failed",
+				failureReason: "Email service error",
+				retryCount: 0
+			});
 			return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
 		}
+		await updateEmailHistory(jobId, {
+			status: "sent",
+			sentAt: new Date().toISOString(),
+			failureReason: null,
+			retryCount: 0
+		});
 		return successResponse(res, 200, "Test email sent.", {
 			emailType,
 			toEmail,
-			token: tokenInput,
 			expiresInMinutes
 		});
 	} catch (error) {
+		await updateEmailHistory(jobId, {
+			status: "failed",
+			failureReason: error.message,
+			retryCount: 0
+		});
 		logToFile("ADMIN_EMAIL_TEST", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -3161,6 +4067,16 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 		}
 
 		if (!preference.canSend) {
+			const jobId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+			await recordEmailHistory({
+				jobId,
+				emailType: "dev_features_announcement",
+				recipientEmail: toEmail,
+				queuedAt: new Date().toISOString(),
+				status: "skipped",
+				failureReason: preference.reason,
+				retryCount: 0
+			});
 			return successResponse(res, 200, "Test email skipped by preferences.", {
 				willSend: false,
 				reason: preference.reason,

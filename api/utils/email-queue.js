@@ -35,6 +35,7 @@ const {
 	getEmailCategoryForType,
 	logPreferenceSkip
 } = require('./email-preferences');
+const { recordEmailHistory, updateEmailHistory } = require("./email-history");
 
 const config = {
 	maxRetries: 3,
@@ -69,6 +70,14 @@ function enqueueEmail({ type, params = {}, context = null, userId = null }) {
 		},
 		'info',
 	);
+	recordEmailHistory({
+		jobId: job.id,
+		emailType: type,
+		recipientEmail: params?.toEmail,
+		queuedAt: new Date(job.enqueuedAt).toISOString(),
+		status: "queued",
+		retryCount: 0
+	});
 
 	processQueue();
 }
@@ -115,6 +124,12 @@ async function processQueue() {
 				},
 				'info',
 			);
+			await updateEmailHistory(job.id, {
+				status: "skipped",
+				sentAt: new Date().toISOString(),
+				failureReason: result.reason,
+				retryCount: job.attempt || 0
+			});
 			return;
 		}
 		const sendDurationMs = Date.now() - sendStartedAt;
@@ -134,6 +149,12 @@ async function processQueue() {
 			},
 			'info',
 		);
+		await updateEmailHistory(job.id, {
+			status: "sent",
+			sentAt: new Date().toISOString(),
+			failureReason: null,
+			retryCount: job.attempt || 0
+		});
 	} catch (e) {
 		job.attempt += 1;
 		const sendDurationMs = Date.now() - sendStartedAt;
@@ -157,6 +178,11 @@ async function processQueue() {
 				},
 				'warn',
 			);
+			await updateEmailHistory(job.id, {
+				status: "failed",
+				failureReason: e.message,
+				retryCount: job.attempt
+			});
 			setTimeout(() => {
 				job.enqueuedAt = Date.now();
 				queue.push(job);
@@ -181,6 +207,11 @@ async function processQueue() {
 				},
 				'error',
 			);
+			await updateEmailHistory(job.id, {
+				status: "failed",
+				failureReason: e.message,
+				retryCount: job.attempt
+			});
 		}
 	} finally {
 		isProcessing = false;

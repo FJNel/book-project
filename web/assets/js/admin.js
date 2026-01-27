@@ -29,6 +29,7 @@
     userDisabledFilter: document.getElementById('userDisabledFilter'),
     usersPerPage: document.getElementById('usersPerPage'),
     refreshUsersBtn: document.getElementById('refreshUsersBtn'),
+    clearUsersFiltersBtn: document.getElementById('clearUsersFiltersBtn'),
     usersTbody: document.getElementById('usersTbody'),
     usersAlert: document.getElementById('usersAlert'),
     usersSuccess: document.getElementById('usersSuccess'),
@@ -94,16 +95,26 @@
     emailsAlert: document.getElementById('emailsAlert'),
     emailsSuccess: document.getElementById('emailsSuccess'),
     emailTypeSelect: document.getElementById('emailTypeSelect'),
+    emailTypeDescription: document.getElementById('emailTypeDescription'),
+    emailTypeFields: document.getElementById('emailTypeFields'),
     emailRecipientInput: document.getElementById('emailRecipientInput'),
     emailRecipientHelp: document.getElementById('emailRecipientHelp'),
-    emailTokenExpirySelect: document.getElementById('emailTokenExpirySelect'),
-    emailTokenExpiryCustom: document.getElementById('emailTokenExpiryCustom'),
-    emailTokenExpiryHelp: document.getElementById('emailTokenExpiryHelp'),
-    emailContextInput: document.getElementById('emailContextInput'),
-    emailContextHelp: document.getElementById('emailContextHelp'),
     emailTypesRefreshBtn: document.getElementById('emailTypesRefreshBtn'),
     emailResetBtn: document.getElementById('emailResetBtn'),
     emailSendTestBtn: document.getElementById('emailSendTestBtn'),
+    emailHistoryAlert: document.getElementById('emailHistoryAlert'),
+    emailHistoryTypeFilter: document.getElementById('emailHistoryTypeFilter'),
+    emailHistoryStatusFilter: document.getElementById('emailHistoryStatusFilter'),
+    emailHistoryRecipient: document.getElementById('emailHistoryRecipient'),
+    emailHistoryDateFrom: document.getElementById('emailHistoryDateFrom'),
+    emailHistoryDateTo: document.getElementById('emailHistoryDateTo'),
+    emailHistoryPageSize: document.getElementById('emailHistoryPageSize'),
+    emailHistoryRefreshBtn: document.getElementById('emailHistoryRefreshBtn'),
+    emailHistoryClearBtn: document.getElementById('emailHistoryClearBtn'),
+    emailHistoryTbody: document.getElementById('emailHistoryTbody'),
+    emailHistorySummary: document.getElementById('emailHistorySummary'),
+    emailHistoryPrevBtn: document.getElementById('emailHistoryPrevBtn'),
+    emailHistoryNextBtn: document.getElementById('emailHistoryNextBtn'),
     devEmailStatus: document.getElementById('devEmailStatus'),
     devEmailSubject: document.getElementById('devEmailSubject'),
     devEmailSubjectHelp: document.getElementById('devEmailSubjectHelp'),
@@ -252,40 +263,22 @@
     emailTypes: [],
     emailTypesLoaded: false,
     emailTypesLoading: false,
-    emailDefaultExpiryMinutes: null,
-    emailDefaultExpiryLabel: 'Default',
+    emailTypeMeta: {},
+    adminEmail: null,
+    emailHistory: [],
+    emailHistoryPage: 1,
+    emailHistoryLimit: 25,
+    emailHistoryHasNext: false,
+    emailHistoryTotal: 0,
+    emailHistoryLoaded: false,
     siteStatsLoaded: false,
     dataViewerTables: [],
     dataViewerLoaded: false,
     successTimers: new Map()
   };
 
-  const emailTokenDefaults = {
-    verification: 30,
-    password_reset: 30,
-    account_disable_verification: 60,
-    account_delete_verification: 60,
-    email_change_verification: 60,
-    admin_account_setup: 60
-  };
-
-  function getEmailDefaultExpiryMinutes(emailType) {
-    if (!emailType) return null;
-    return emailTokenDefaults[emailType] ?? null;
-  }
-
-  function updateEmailDefaultExpiryOption(emailType) {
-    const defaultMinutes = getEmailDefaultExpiryMinutes(emailType);
-    state.emailDefaultExpiryMinutes = defaultMinutes;
-    state.emailDefaultExpiryLabel = defaultMinutes ? `${defaultMinutes} minutes` : 'Default';
-    const option = dom.emailTokenExpirySelect?.querySelector('option[value=""]');
-    if (option) {
-      if (emailType) {
-        option.textContent = defaultMinutes ? `Use default (${defaultMinutes} minutes)` : 'Use default';
-      } else {
-        option.textContent = 'Use default (select an email type)';
-      }
-    }
+  function getEmailTypeFallback() {
+    return { description: 'Email preview for the selected template.', fields: [] };
   }
 
   const johannesburgFormatter = new Intl.DateTimeFormat('en-ZA', {
@@ -571,6 +564,7 @@
   function renderStatus(payload) {
     const dbLatency = payload?.db?.latencyMs;
     const queueStats = payload?.emailQueue;
+    const adminEmail = payload?.user?.email || '';
 
     setBadge('ok');
     if (dom.apiStatusText) dom.apiStatusText.textContent = 'Online';
@@ -578,6 +572,11 @@
     if (dom.queueText) dom.queueText.textContent = queueStats?.queueLength != null ? `${queueStats.queueLength} queued` : 'Unavailable';
     if (dom.statusUpdatedAt) dom.statusUpdatedAt.textContent = `Last checked ${formatDateTime(Date.now())}`;
     updateStatusPill('Ready');
+    if (adminEmail) {
+      state.adminEmail = adminEmail;
+      if (dom.emailRecipientInput && !dom.emailRecipientInput.value) dom.emailRecipientInput.value = adminEmail;
+      if (dom.devEmailTestRecipient && !dom.devEmailTestRecipient.value) dom.devEmailTestRecipient.value = adminEmail;
+    }
   }
 
   function renderStatusError(message) {
@@ -635,7 +634,7 @@
   async function fetchSiteStats() {
     hideAlert(dom.siteStatsAlert);
     try {
-      const response = await apiFetch('/admin/stats/summary', { method: 'GET' });
+      const response = await apiFetch('/admin/stats/summary', { method: 'POST', body: {} });
       const data = await parseResponse(response);
       renderSiteStats(data?.stats);
       if (Array.isArray(data?.warnings) && data.warnings.length) {
@@ -657,6 +656,13 @@
     const search = dom.userSearchInput?.value?.trim() || '';
     const role = dom.userRoleFilter?.value || '';
     return { search, role };
+  }
+
+  function clearUserFilters() {
+    if (dom.userSearchInput) dom.userSearchInput.value = '';
+    if (dom.userRoleFilter) dom.userRoleFilter.value = '';
+    if (dom.userVerifiedFilter) dom.userVerifiedFilter.value = '';
+    if (dom.userDisabledFilter) dom.userDisabledFilter.value = '';
   }
 
   function renderUsers(users) {
@@ -765,24 +771,28 @@
       dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading users…</td></tr>';
     }
 
-    const params = new URLSearchParams();
-    params.set('limit', String(state.usersLimit));
-    params.set('offset', String((state.usersPage - 1) * state.usersLimit));
-    params.set('order', 'asc');
-    params.set('sortBy', 'email');
-    if (search) params.set('filterEmail', search);
-    if (role) params.set('filterRole', role);
+    const body = {
+      limit: state.usersLimit,
+      offset: (state.usersPage - 1) * state.usersLimit,
+      order: 'asc',
+      sortBy: 'email'
+    };
+    if (search) body.filterEmail = search;
+    if (role) body.filterRole = role;
     const verified = dom.userVerifiedFilter?.value;
     const disabled = dom.userDisabledFilter?.value;
-    if (verified) params.set('filterIsVerified', verified);
-    if (disabled) params.set('filterIsDisabled', disabled);
+    if (verified) body.filterIsVerified = verified;
+    if (disabled) body.filterIsDisabled = disabled;
 
     try {
-      const response = await apiFetch(`/admin/users?${params.toString()}`, { method: 'GET' });
+      const response = await apiFetch('/admin/users/list', { method: 'POST', body });
       const data = await parseResponse(response);
       const received = Array.isArray(data?.users) ? data.users.length : 0;
-      state.usersHasNext = received === state.usersLimit;
-      updateUsersSummary(received);
+      const total = Number.isFinite(data?.total) ? data.total : null;
+      state.usersHasNext = total !== null
+        ? ((state.usersPage - 1) * state.usersLimit + received < total)
+        : received === state.usersLimit;
+      updateUsersSummary(received, total);
       renderUsersPagination();
       renderUsers(data?.users || []);
     } catch (err) {
@@ -800,11 +810,12 @@
     if (dom.usersNextBtn) dom.usersNextBtn.disabled = !state.usersHasNext;
   }
 
-  function updateUsersSummary(receivedCount) {
+  function updateUsersSummary(receivedCount, total = null) {
     if (!dom.usersSummary) return;
     const start = ((state.usersPage - 1) * state.usersLimit) + (receivedCount ? 1 : 0);
     const end = ((state.usersPage - 1) * state.usersLimit) + receivedCount;
-    dom.usersSummary.textContent = receivedCount ? `Showing ${start}–${end} (page ${state.usersPage})` : 'No users to show';
+    const totalLabel = Number.isFinite(total) ? ` of ${total}` : '';
+    dom.usersSummary.textContent = receivedCount ? `Showing ${start}–${end}${totalLabel} (page ${state.usersPage})` : 'No users to show';
   }
 
   function renderLanguages(languages) {
@@ -900,6 +911,9 @@
       setUsagePanel(state.usagePanel || 'logs');
     } else if (section === 'emails' && state.authorized) {
       ensureEmailTypesLoaded().catch(() => {});
+      if (!state.emailHistoryLoaded) {
+        fetchEmailHistory({ resetPage: true }).catch(() => {});
+      }
     } else if (section === 'data-tools' && state.authorized) {
       fetchDataViewerTables().catch(() => {});
     } else if (section === 'statistics' && state.authorized) {
@@ -1806,6 +1820,12 @@
     if (dom.logsTbody) dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Loading logs…</td></tr>';
   }
 
+  function renderLogsNotConfigured() {
+    if (!dom.logsTbody) return;
+    dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Request logs are not configured. Create the request_logs table and enable request logging.</td></tr>';
+    if (dom.logsSummary) dom.logsSummary.textContent = 'Logs are not configured.';
+  }
+
   function setLogFilterOptions(selectEl, values) {
     if (!selectEl || !Array.isArray(values)) return;
     const current = selectEl.value;
@@ -1842,28 +1862,6 @@
     };
   }
 
-  function hasLogFilters(filters) {
-    if (!filters) return false;
-    return Boolean(
-      filters.search
-      || filters.type
-      || filters.level
-      || filters.status
-      || filters.method
-      || filters.actorType
-      || filters.path
-      || Number.isFinite(filters.userId)
-      || filters.userEmail
-      || Number.isFinite(filters.apiKeyId)
-      || filters.apiKeyLabel
-      || filters.apiKeyPrefix
-      || Number.isFinite(filters.statusMin)
-      || Number.isFinite(filters.statusMax)
-      || filters.startDate
-      || filters.endDate
-    );
-  }
-
   function renderLogBadge(value, type) {
     if (!value) return '—';
     const normalized = String(value).toUpperCase();
@@ -1896,7 +1894,7 @@
     const start = count > 0 ? offset + 1 : 0;
     const end = offset + count;
     const totalDisplay = Number.isFinite(total) ? total : end;
-    dom.logsSummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.logsPage})` : 'No logs to show';
+    dom.logsSummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.logsPage})` : 'No logs recorded yet.';
     if (dom.logsPrevBtn) dom.logsPrevBtn.disabled = state.logsPage <= 1;
     if (dom.logsNextBtn) dom.logsNextBtn.disabled = !state.logsHasNext;
   }
@@ -1905,7 +1903,7 @@
     state.logs = Array.isArray(logs) ? logs : [];
     if (!dom.logsTbody) return;
     if (!state.logs.length) {
-      dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">No logs found.</td></tr>';
+      dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">No logs recorded yet.</td></tr>';
       return;
     }
 
@@ -1957,44 +1955,44 @@
     resetLogsTablePlaceholder();
 
     const filters = getLogFilters();
-    const useSearch = hasLogFilters(filters);
     const offset = (state.logsPage - 1) * state.logsLimit;
     const limit = state.logsLimit;
 
     try {
-      log('[Admin][Logs] Fetch logs', { page: state.logsPage, limit, filters, mode: useSearch ? 'search' : 'list' });
-      let payload;
-      if (useSearch) {
-        const body = {
-          search: filters.search || undefined,
-          category: filters.type || undefined,
-          level: filters.level || undefined,
-          method: filters.method || undefined,
-          actorType: filters.actorType || undefined,
-          path: filters.path || undefined,
-          userId: Number.isFinite(filters.userId) ? filters.userId : undefined,
-          userEmail: filters.userEmail || undefined,
-          apiKeyId: Number.isFinite(filters.apiKeyId) ? filters.apiKeyId : undefined,
-          apiKeyLabel: filters.apiKeyLabel || undefined,
-          apiKeyPrefix: filters.apiKeyPrefix || undefined,
-          statusCodeMin: Number.isFinite(filters.statusMin) ? filters.statusMin : (filters.status || undefined),
-          statusCodeMax: Number.isFinite(filters.statusMax) ? filters.statusMax : (filters.status || undefined),
-          startDate: filters.startDate || undefined,
-          endDate: filters.endDate || undefined,
-          limit,
-          offset
-        };
-        const response = await apiFetch('/logs/search', { method: 'POST', body });
-        payload = await parseResponse(response);
-      } else {
-        const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-        const response = await apiFetch(`/logs?${params.toString()}`, { method: 'GET' });
-        payload = await parseResponse(response);
-      }
+      log('[Admin][Logs] Fetch logs', { page: state.logsPage, limit, filters, mode: 'search' });
+      const body = {
+        search: filters.search || undefined,
+        category: filters.type || undefined,
+        level: filters.level || undefined,
+        method: filters.method || undefined,
+        actorType: filters.actorType || undefined,
+        path: filters.path || undefined,
+        userId: Number.isFinite(filters.userId) ? filters.userId : undefined,
+        userEmail: filters.userEmail || undefined,
+        apiKeyId: Number.isFinite(filters.apiKeyId) ? filters.apiKeyId : undefined,
+        apiKeyLabel: filters.apiKeyLabel || undefined,
+        apiKeyPrefix: filters.apiKeyPrefix || undefined,
+        statusCodeMin: Number.isFinite(filters.statusMin) ? filters.statusMin : (filters.status || undefined),
+        statusCodeMax: Number.isFinite(filters.statusMax) ? filters.statusMax : (filters.status || undefined),
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+        limit,
+        offset
+      };
+      const response = await apiFetch('/logs/search', { method: 'POST', body });
+      const payload = await parseResponse(response);
 
       const logs = Array.isArray(payload?.logs) ? payload.logs : [];
+      if (payload?.configured === false) {
+        showAlert(dom.logsAlert, payload?.message || 'Logs are not configured for this environment.');
+        renderLogsNotConfigured();
+        return;
+      }
       const count = Number.isFinite(payload?.count) ? payload.count : logs.length;
       const total = Number.isFinite(payload?.total) ? payload.total : (offset + count);
+      if (Array.isArray(payload?.warnings) && payload.warnings.length) {
+        showAlert(dom.logsAlert, payload.warnings.join(' '));
+      }
       state.logsTotal = total;
       state.logsHasNext = offset + count < total;
       renderLogs(logs);
@@ -2026,6 +2024,20 @@
         parseResponse(levelsResp),
         parseResponse(statusesResp)
       ]);
+      const warnings = [
+        ...(Array.isArray(typesData?.warnings) ? typesData.warnings : []),
+        ...(Array.isArray(levelsData?.warnings) ? levelsData.warnings : []),
+        ...(Array.isArray(statusesData?.warnings) ? statusesData.warnings : [])
+      ];
+      if (typesData?.configured === false || levelsData?.configured === false || statusesData?.configured === false) {
+        showAlert(dom.logsAlert, typesData?.message || levelsData?.message || statusesData?.message || 'Logs are not configured for this environment.');
+        renderLogsNotConfigured();
+        state.logsMetaLoaded = true;
+        return;
+      }
+      if (warnings.length) {
+        showAlert(dom.logsAlert, warnings.join(' '));
+      }
       state.logsMeta = {
         types: Array.isArray(typesData?.logTypes) ? typesData.logTypes : [],
         levels: Array.isArray(levelsData?.levels) ? levelsData.levels : [],
@@ -2227,7 +2239,7 @@
   function updateUsageSummary(el, count, window) {
     if (!el) return;
     if (!count) {
-      el.textContent = 'No usage found for this window.';
+      el.textContent = 'No usage recorded yet.';
       return;
     }
     const start = window?.startDate ? formatDateTime(window.startDate) : '—';
@@ -2245,7 +2257,7 @@
     state.usageUsers = Array.isArray(users) ? users : [];
     if (!dom.usageUsersTbody) return;
     if (!state.usageUsers.length) {
-      dom.usageUsersTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No usage found.</td></tr>';
+      dom.usageUsersTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No usage recorded yet.</td></tr>';
       updateUsageSummary(dom.usageUsersSummary, 0, window);
       return;
     }
@@ -2305,7 +2317,7 @@
     state.usageApiKeys = Array.isArray(keys) ? keys : [];
     if (!dom.usageApiKeysTbody) return;
     if (!state.usageApiKeys.length) {
-      dom.usageApiKeysTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No usage found.</td></tr>';
+      dom.usageApiKeysTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No usage recorded yet.</td></tr>';
       updateUsageSummary(dom.usageApiKeysSummary, 0, window);
       return;
     }
@@ -2389,6 +2401,11 @@
     try {
       const response = await apiFetch('/admin/usage/users', { method: 'POST', body });
       const data = await parseResponse(response);
+      if (data?.configured === false) {
+        showAlert(dom.usageAlert, data?.message || 'Usage data is not configured for this environment.');
+        renderUsageNotConfigured();
+        return;
+      }
       renderUsageUsers(data?.users || [], data?.window);
       if (Array.isArray(data?.warnings) && data.warnings.length) {
         showAlert(dom.usageAlert, data.warnings.join(' '));
@@ -2422,6 +2439,11 @@
     try {
       const response = await apiFetch('/admin/usage/api-keys', { method: 'POST', body });
       const data = await parseResponse(response);
+      if (data?.configured === false) {
+        showAlert(dom.usageAlert, data?.message || 'Usage data is not configured for this environment.');
+        renderUsageNotConfigured();
+        return;
+      }
       renderUsageApiKeys(data?.apiKeys || [], data?.window);
       if (Array.isArray(data?.warnings) && data.warnings.length) {
         showAlert(dom.usageAlert, data.warnings.join(' '));
@@ -2563,10 +2585,39 @@
   }
 
   function renderEmailTypes(types) {
-    state.emailTypes = Array.isArray(types) ? types : [];
+    const items = Array.isArray(types) ? types : [];
+    const normalized = [];
+    const meta = {};
+    items.forEach((item) => {
+      if (typeof item === 'string') {
+        normalized.push(item);
+        meta[item] = getEmailTypeFallback();
+        return;
+      }
+      if (item && typeof item === 'object') {
+        const key = item.type || item.name;
+        if (!key) return;
+        normalized.push(key);
+        meta[key] = {
+          description: item.description || getEmailTypeFallback().description,
+          fields: Array.isArray(item.fields) ? item.fields : getEmailTypeFallback().fields
+        };
+      }
+    });
+    state.emailTypes = normalized;
+    state.emailTypeMeta = meta;
     if (!dom.emailTypeSelect) return;
     const options = ['<option value="">Select an email type</option>', ...state.emailTypes.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`)];
     dom.emailTypeSelect.innerHTML = options.join('');
+    updateEmailHistoryTypeOptions();
+  }
+
+  function updateEmailHistoryTypeOptions() {
+    if (!dom.emailHistoryTypeFilter) return;
+    const current = dom.emailHistoryTypeFilter.value;
+    const options = ['<option value="">Type: any</option>', ...state.emailTypes.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`)];
+    dom.emailHistoryTypeFilter.innerHTML = options.join('');
+    if (current) dom.emailHistoryTypeFilter.value = current;
   }
 
   async function fetchEmailTypes(force = false) {
@@ -2578,6 +2629,7 @@
       const response = await apiFetch('/admin/emails/types', { method: 'GET' });
       const data = await parseResponse(response);
       renderEmailTypes(data?.types || data?.emailTypes || []);
+      renderEmailTypeFields(dom.emailTypeSelect?.value || '');
       state.emailTypesLoaded = true;
     } catch (err) {
       state.emailTypesLoaded = false;
@@ -2593,48 +2645,147 @@
     await fetchEmailTypes(true);
   }
 
+  function getEmailTypeMeta(type) {
+    return state.emailTypeMeta?.[type] || getEmailTypeFallback();
+  }
+
+  function renderEmailTypeFields(type) {
+    const meta = getEmailTypeMeta(type);
+    if (dom.emailTypeDescription) dom.emailTypeDescription.textContent = meta.description || '';
+    if (!dom.emailTypeFields) return;
+    if (!meta.fields.length) {
+      dom.emailTypeFields.innerHTML = '<div class="text-muted small">No additional details required.</div>';
+      return;
+    }
+    dom.emailTypeFields.innerHTML = meta.fields.map((field) => {
+      const fieldId = `emailField_${field.name}`;
+      const helpId = `emailHelp_${field.name}`;
+      const hintId = `emailHint_${field.name}`;
+      const label = escapeHtml(field.label || field.name);
+      const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : '';
+      const requiredAttr = field.required ? ' required' : '';
+      const maxLengthAttr = Number.isInteger(field.maxLength) ? ` maxlength="${field.maxLength}"` : '';
+      const patternAttr = field.pattern ? ` pattern="${escapeHtml(field.pattern)}"` : '';
+      const hintMarkup = field.helpText ? `<div class="form-text text-muted" id="${hintId}">${escapeHtml(field.helpText)}</div>` : '';
+      if (field.type === 'textarea') {
+        return `
+          <div class="mb-3">
+            <label class="form-label" for="${fieldId}">${label}</label>
+            <textarea class="form-control" id="${fieldId}" data-email-field="${escapeHtml(field.name)}" rows="3"${placeholder}${requiredAttr}${maxLengthAttr}${patternAttr}></textarea>
+            ${hintMarkup}
+            <div class="form-text text-danger" id="${helpId}" data-email-field-help="${escapeHtml(field.name)}"></div>
+          </div>
+        `;
+      }
+      const inputType = field.type === 'datetime-local' ? 'datetime-local' : (field.type || 'text');
+      const stepAttr = field.type === 'number' ? ' step="1"' : '';
+      return `
+        <div class="mb-3">
+          <label class="form-label" for="${fieldId}">${label}</label>
+          <input class="form-control" type="${inputType}" id="${fieldId}" data-email-field="${escapeHtml(field.name)}"${stepAttr}${placeholder}${requiredAttr}${maxLengthAttr}${patternAttr} />
+          ${hintMarkup}
+          <div class="form-text text-danger" id="${helpId}" data-email-field-help="${escapeHtml(field.name)}"></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderUsageNotConfigured() {
+    const message = 'Usage data is not configured. Request logs storage is required to generate usage.';
+    if (dom.usageUsersTbody) {
+      dom.usageUsersTbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">${message}</td></tr>`;
+    }
+    if (dom.usageApiKeysTbody) {
+      dom.usageApiKeysTbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-3">${message}</td></tr>`;
+    }
+    if (dom.usageUsersSummary) dom.usageUsersSummary.textContent = 'Usage is not configured.';
+    if (dom.usageApiKeysSummary) dom.usageApiKeysSummary.textContent = 'Usage is not configured.';
+  }
+
   function resetEmailForm() {
     clearSuccess(dom.emailsSuccess);
     hideAlert(dom.emailsAlert);
     if (dom.emailTypeSelect) dom.emailTypeSelect.value = '';
-    if (dom.emailRecipientInput) dom.emailRecipientInput.value = '';
+    if (dom.emailRecipientInput) dom.emailRecipientInput.value = state.adminEmail || '';
     if (dom.emailRecipientHelp) dom.emailRecipientHelp.textContent = '';
-    if (dom.emailContextInput) dom.emailContextInput.value = '';
-    if (dom.emailContextHelp) dom.emailContextHelp.textContent = '';
-    if (dom.emailTokenExpirySelect) dom.emailTokenExpirySelect.value = '';
-    if (dom.emailTokenExpiryCustom) {
-      dom.emailTokenExpiryCustom.value = '';
-      dom.emailTokenExpiryCustom.classList.add('d-none');
-    }
-    if (dom.emailTokenExpiryHelp) dom.emailTokenExpiryHelp.textContent = '';
-    updateEmailDefaultExpiryOption('');
+    renderEmailTypeFields('');
     toggleSubmit(dom.emailSendTestBtn, false);
   }
 
-  function resolveEmailExpirySelection() {
-    const defaultLabel = state.emailDefaultExpiryLabel || 'Default';
-    if (!dom.emailTokenExpirySelect) return { valid: true, minutes: null, label: defaultLabel, isDefault: true };
-    const value = dom.emailTokenExpirySelect.value;
-    if (value === 'custom') {
-      const customVal = Number.parseInt(dom.emailTokenExpiryCustom?.value, 10);
-      if (!Number.isInteger(customVal) || customVal < 1 || customVal > 1440) {
-        dom.emailTokenExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
-        return { valid: false };
+  function resolveEmailFieldValue(field) {
+    const input = dom.emailTypeFields?.querySelector(`[data-email-field="${field.name}"]`);
+    const help = dom.emailTypeFields?.querySelector(`[data-email-field-help="${field.name}"]`);
+    if (help) help.textContent = '';
+    if (!input) return { value: null };
+    const raw = (input.value || '').trim();
+    if (!raw) {
+      if (field.required) {
+        if (help) help.textContent = 'This field is required.';
+        return { error: true };
       }
-      dom.emailTokenExpiryHelp.textContent = '';
-      return { valid: true, minutes: customVal, label: `${customVal} minutes`, isDefault: false };
+      return { value: null };
     }
-    if (value) {
-      const parsed = Number.parseInt(value, 10);
-      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1440) {
-        dom.emailTokenExpiryHelp.textContent = 'Enter a value between 1 and 1440 minutes.';
-        return { valid: false };
+    if (Number.isInteger(field.maxLength) && raw.length > field.maxLength) {
+      if (help) help.textContent = `Use ${field.maxLength} characters or fewer.`;
+      return { error: true };
+    }
+    if (field.pattern) {
+      try {
+        const pattern = new RegExp(field.pattern);
+        if (!pattern.test(raw)) {
+          if (help) help.textContent = 'Value does not match the required format.';
+          return { error: true };
+        }
+      } catch (err) {
+        if (help) help.textContent = 'Invalid format pattern.';
+        return { error: true };
       }
-      dom.emailTokenExpiryHelp.textContent = '';
-      return { valid: true, minutes: parsed, label: `${parsed} minutes`, isDefault: false };
     }
-    dom.emailTokenExpiryHelp.textContent = '';
-    return { valid: true, minutes: null, label: defaultLabel, isDefault: true };
+    if (field.type === 'number') {
+      const parsed = Number.parseInt(raw, 10);
+      if (!Number.isInteger(parsed)) {
+        if (help) help.textContent = 'Enter a valid number.';
+        return { error: true };
+      }
+      return { value: parsed };
+    }
+    if (field.type === 'email') {
+      const error = validateEmail(raw);
+      if (error) {
+        if (help) help.textContent = error;
+        return { error: true };
+      }
+      return { value: raw };
+    }
+    if (field.type === 'datetime-local') {
+      const parsed = Date.parse(raw);
+      if (Number.isNaN(parsed)) {
+        if (help) help.textContent = 'Use a valid date and time.';
+        return { error: true };
+      }
+      return { value: new Date(parsed).toISOString() };
+    }
+    return { value: raw };
+  }
+
+  function collectEmailContext(type) {
+    const meta = getEmailTypeMeta(type);
+    const context = {};
+    let valid = true;
+    meta.fields.forEach((field) => {
+      const resolved = resolveEmailFieldValue(field);
+      if (resolved?.error) {
+        valid = false;
+        return;
+      }
+      if (resolved?.value === null || resolved?.value === undefined) return;
+      if (field.name === 'changeSummary') {
+        context.changes = [{ label: 'Update', oldValue: '', newValue: resolved.value }];
+        return;
+      }
+      context[field.name] = resolved.value;
+    });
+    return { valid, context };
   }
 
   function validateEmailTestForm() {
@@ -2642,37 +2793,19 @@
     const recipient = dom.emailRecipientInput?.value.trim() || '';
     const emailError = validateEmail(recipient);
     if (dom.emailRecipientHelp) dom.emailRecipientHelp.textContent = recipient ? emailError : '';
-    const expirySelection = resolveEmailExpirySelection();
-    let contextValid = true;
-    if (dom.emailContextHelp) dom.emailContextHelp.textContent = '';
-    const contextRaw = dom.emailContextInput?.value.trim();
-    if (contextRaw) {
-      try {
-        JSON.parse(contextRaw);
-      } catch (err) {
-        if (dom.emailContextHelp) dom.emailContextHelp.textContent = 'Context must be valid JSON.';
-        contextValid = false;
-      }
-    }
-    const valid = !!emailType && !emailError && expirySelection?.valid !== false && contextValid;
+    const { valid: fieldsValid, context } = collectEmailContext(emailType);
+    const valid = !!emailType && !emailError && fieldsValid;
     toggleSubmit(dom.emailSendTestBtn, valid);
-    return { valid, emailType, recipient, expirySelection, contextRaw };
+    return { valid, emailType, recipient, context };
   }
 
   function handleEmailFormChange() {
+    validateEmailTestForm();
+  }
+
+  function handleEmailTypeChange() {
     const selectedType = dom.emailTypeSelect?.value || '';
-    updateEmailDefaultExpiryOption(selectedType);
-    validateEmailTestForm();
-  }
-
-  function handleEmailExpirySelectChange() {
-    if (!dom.emailTokenExpirySelect) return;
-    const isCustom = dom.emailTokenExpirySelect.value === 'custom';
-    if (dom.emailTokenExpiryCustom) dom.emailTokenExpiryCustom.classList.toggle('d-none', !isCustom);
-    validateEmailTestForm();
-  }
-
-  function handleEmailExpiryCustomInput() {
+    renderEmailTypeFields(selectedType);
     validateEmailTestForm();
   }
 
@@ -2680,48 +2813,60 @@
     resetEmailForm();
   }
 
-  function parseContextValue(raw) {
-    if (!raw) return undefined;
+  function sanitizeHtml(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html || '';
+    const blockedTags = ['script', 'style', 'iframe', 'object', 'embed', 'link', 'base'];
+    blockedTags.forEach((tag) => {
+      template.content.querySelectorAll(tag).forEach((node) => node.remove());
+    });
+    template.content.querySelectorAll('*').forEach((node) => {
+      [...node.attributes].forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const value = String(attr.value || '');
+        if (name.startsWith('on')) {
+          node.removeAttribute(attr.name);
+        }
+        if ((name === 'href' || name === 'src') && value.trim().toLowerCase().startsWith('javascript:')) {
+          node.removeAttribute(attr.name);
+        }
+      });
+    });
+    return template.innerHTML;
+  }
+
+  async function updateDevEmailPreview(body) {
+    if (!dom.devEmailPreview) return;
+    if (!body) {
+      dom.devEmailPreview.innerHTML = '<div class="text-muted small">Preview will appear here.</div>';
+      return;
+    }
     try {
-      return JSON.parse(raw);
+      const response = await apiFetch('/admin/markdown/render', {
+        method: 'POST',
+        body: { text: body }
+      });
+      const data = await parseResponse(response);
+      const html = sanitizeHtml(data?.html || '');
+      dom.devEmailPreview.innerHTML = html || '<div class="text-muted small">Preview unavailable.</div>';
     } catch (err) {
-      return undefined;
+      dom.devEmailPreview.innerHTML = `<div class="text-danger small">Preview unavailable. ${escapeHtml(err?.message || '')}</div>`;
     }
   }
 
-  function renderMarkdownToHtml(markdown = '') {
-    const escaped = escapeHtml(markdown || '');
-    const bolded = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    const italicized = bolded.replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g, '$1<em>$2</em>');
-    const paragraphs = italicized
-      .split(/\n\n+/)
-      .map((block) => `<p style="margin: 0 0 12px;">${block.replace(/\n/g, '<br>')}</p>`)
-      .join('');
-    return paragraphs || '<p style="margin: 0;">&nbsp;</p>';
-  }
-
-  function updateDevEmailPreview(body) {
-    if (!dom.devEmailPreview) return;
-    const html = renderMarkdownToHtml(body || '');
-    dom.devEmailPreview.innerHTML = html;
-  }
-
-  const scheduleDevEmailPreview = debounce((body) => updateDevEmailPreview(body), 150);
+  const scheduleDevEmailPreview = debounce((body) => {
+    updateDevEmailPreview(body).catch(() => {});
+  }, 400);
 
   function handleEmailSendTest() {
     const validation = validateEmailTestForm();
     if (!validation.valid) return;
-    const { emailType, recipient, expirySelection, contextRaw } = validation;
-    const contextObj = parseContextValue(contextRaw);
+    const { emailType, recipient, context } = validation;
     const baseBody = {
       emailType,
       toEmail: recipient,
-      token: 'test',
-      context: contextObj
+      context
     };
-    if (expirySelection?.minutes !== null) {
-      baseBody.tokenExpiry = expirySelection.minutes;
-    }
 
     openConfirmAction({
       title: 'Send test email',
@@ -2735,9 +2880,7 @@
       method: 'POST',
       summaryItems: [
         { label: 'Email type', value: emailType },
-        { label: 'Recipient', value: recipient },
-        { label: 'Token', value: 'test' },
-        { label: 'Token expiry', value: expirySelection?.label || 'Default' }
+        { label: 'Recipient', value: recipient }
       ],
       successTarget: 'emails',
       successMessage: `Test email sent successfully to ${recipient}.`,
@@ -2822,6 +2965,115 @@
         if (dom.devEmailStatus) dom.devEmailStatus.textContent = 'Sent';
       }
     });
+  }
+
+  function normalizeDateOnlyToIso(value, { endOfDay = false } = {}) {
+    if (!value) return '';
+    const time = endOfDay ? '23:59:59' : '00:00:00';
+    const date = new Date(`${value}T${time}`);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString();
+  }
+
+  function getEmailHistoryFilters() {
+    return {
+      type: dom.emailHistoryTypeFilter?.value || '',
+      status: dom.emailHistoryStatusFilter?.value || '',
+      recipient: dom.emailHistoryRecipient?.value.trim() || '',
+      startDate: normalizeDateOnlyToIso(dom.emailHistoryDateFrom?.value),
+      endDate: normalizeDateOnlyToIso(dom.emailHistoryDateTo?.value, { endOfDay: true })
+    };
+  }
+
+  function renderEmailHistory(rows) {
+    state.emailHistory = Array.isArray(rows) ? rows : [];
+    if (!dom.emailHistoryTbody) return;
+    if (!state.emailHistory.length) {
+      dom.emailHistoryTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No email sends recorded yet.</td></tr>';
+      return;
+    }
+    const badgeClass = {
+      queued: 'text-bg-secondary',
+      sent: 'text-bg-success',
+      failed: 'text-bg-danger',
+      skipped: 'text-bg-warning'
+    };
+    dom.emailHistoryTbody.innerHTML = state.emailHistory.map((row) => {
+      const status = String(row.status || 'queued').toLowerCase();
+      const badge = badgeClass[status] || 'text-bg-secondary';
+      const failure = row.failure_reason || row.failureReason || '';
+      return `
+        <tr>
+          <td>${escapeHtml(row.email_type || row.emailType || '—')}</td>
+          <td>${escapeHtml(row.recipient_email || row.recipientEmail || '—')}</td>
+          <td>${formatDateTime(row.queued_at || row.queuedAt)}</td>
+          <td>${formatDateTime(row.sent_at || row.sentAt)}</td>
+          <td><span class="badge ${badge}">${escapeHtml(status || 'queued')}</span></td>
+          <td>${Number.isFinite(row.retry_count) ? row.retry_count : (row.retryCount ?? 0)}</td>
+          <td title="${escapeHtml(failure)}">${escapeHtml(failure || '—')}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function updateEmailHistorySummary(count, total) {
+    if (!dom.emailHistorySummary) return;
+    const offset = (state.emailHistoryPage - 1) * state.emailHistoryLimit;
+    const start = count > 0 ? offset + 1 : 0;
+    const end = offset + count;
+    const totalDisplay = Number.isFinite(total) ? total : end;
+    dom.emailHistorySummary.textContent = count ? `Showing ${start}–${end} of ${totalDisplay} (page ${state.emailHistoryPage})` : 'No email history to show';
+    if (dom.emailHistoryPrevBtn) dom.emailHistoryPrevBtn.disabled = state.emailHistoryPage <= 1;
+    if (dom.emailHistoryNextBtn) dom.emailHistoryNextBtn.disabled = !state.emailHistoryHasNext;
+  }
+
+  async function fetchEmailHistory({ resetPage = false } = {}) {
+    if (resetPage) state.emailHistoryPage = 1;
+    hideAlert(dom.emailHistoryAlert);
+    if (dom.emailHistoryTbody) {
+      dom.emailHistoryTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Loading history…</td></tr>';
+    }
+    const filters = getEmailHistoryFilters();
+    const limit = state.emailHistoryLimit;
+    const body = {
+      type: filters.type || undefined,
+      status: filters.status || undefined,
+      recipient: filters.recipient || undefined,
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      page: state.emailHistoryPage,
+      limit
+    };
+    try {
+      const response = await apiFetch('/admin/emails/history', { method: 'POST', body });
+      const data = await parseResponse(response);
+      const records = Array.isArray(data?.history) ? data.history : (Array.isArray(data?.records) ? data.records : []);
+      const count = Number.isFinite(data?.count) ? data.count : records.length;
+      const total = Number.isFinite(data?.total) ? data.total : (state.emailHistoryPage - 1) * limit + count;
+      state.emailHistoryTotal = total;
+      state.emailHistoryHasNext = data?.hasNext === true || ((state.emailHistoryPage - 1) * limit + count < total);
+      renderEmailHistory(records);
+      updateEmailHistorySummary(count, total);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.emailHistoryAlert, data.warnings.join(' '));
+      }
+      state.emailHistoryLoaded = true;
+    } catch (err) {
+      errorLog('Failed to fetch email history', err);
+      showApiError(dom.emailHistoryAlert, err);
+      if (dom.emailHistoryTbody) {
+        dom.emailHistoryTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Unable to load email history.</td></tr>';
+      }
+      throw err;
+    }
+  }
+
+  function clearEmailHistoryFilters() {
+    if (dom.emailHistoryTypeFilter) dom.emailHistoryTypeFilter.value = '';
+    if (dom.emailHistoryStatusFilter) dom.emailHistoryStatusFilter.value = '';
+    if (dom.emailHistoryRecipient) dom.emailHistoryRecipient.value = '';
+    if (dom.emailHistoryDateFrom) dom.emailHistoryDateFrom.value = '';
+    if (dom.emailHistoryDateTo) dom.emailHistoryDateTo.value = '';
   }
 
   function setDataViewerSummary(message) {
@@ -3111,10 +3363,21 @@
     });
 
     dom.refreshUsersBtn?.addEventListener('click', () => fetchUsers(getUserFilters()).catch(() => {}));
+    dom.clearUsersFiltersBtn?.addEventListener('click', () => {
+      clearUserFilters();
+      state.usersPage = 1;
+      fetchUsers(getUserFilters()).catch(() => {});
+    });
     dom.userVerifiedFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
     dom.userDisabledFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
     dom.userRoleFilter?.addEventListener('change', () => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); });
     dom.userSearchInput?.addEventListener('input', debounce(() => { state.usersPage = 1; fetchUsers(getUserFilters()).catch(() => {}); }));
+    dom.userSearchInput?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      state.usersPage = 1;
+      fetchUsers(getUserFilters()).catch(() => {});
+    });
     dom.usersPerPage?.addEventListener('change', () => {
       const value = Number.parseInt(dom.usersPerPage.value, 10);
       if (Number.isInteger(value) && value >= 5 && value <= 100) {
@@ -3322,13 +3585,47 @@
     });
 
     dom.emailTypesRefreshBtn?.addEventListener('click', () => fetchEmailTypes(true).catch(() => {}));
-    dom.emailTypeSelect?.addEventListener('change', handleEmailFormChange);
+    dom.emailTypeSelect?.addEventListener('change', handleEmailTypeChange);
     dom.emailRecipientInput?.addEventListener('input', handleEmailFormChange);
-    dom.emailTokenExpirySelect?.addEventListener('change', handleEmailExpirySelectChange);
-    dom.emailTokenExpiryCustom?.addEventListener('input', handleEmailExpiryCustomInput);
-    dom.emailContextInput?.addEventListener('input', handleEmailFormChange);
+    dom.emailTypeFields?.addEventListener('input', handleEmailFormChange);
     dom.emailResetBtn?.addEventListener('click', handleEmailReset);
     dom.emailSendTestBtn?.addEventListener('click', handleEmailSendTest);
+
+    const historyFilterChange = () => {
+      state.emailHistoryPage = 1;
+      fetchEmailHistory().catch(() => {});
+    };
+    dom.emailHistoryRefreshBtn?.addEventListener('click', () => fetchEmailHistory({ resetPage: true }).catch(() => {}));
+    dom.emailHistoryClearBtn?.addEventListener('click', () => {
+      clearEmailHistoryFilters();
+      state.emailHistoryPage = 1;
+      fetchEmailHistory().catch(() => {});
+    });
+    dom.emailHistoryTypeFilter?.addEventListener('change', historyFilterChange);
+    dom.emailHistoryStatusFilter?.addEventListener('change', historyFilterChange);
+    dom.emailHistoryDateFrom?.addEventListener('change', historyFilterChange);
+    dom.emailHistoryDateTo?.addEventListener('change', historyFilterChange);
+    dom.emailHistoryRecipient?.addEventListener('input', debounce(historyFilterChange));
+    dom.emailHistoryPageSize?.addEventListener('change', () => {
+      const value = Number.parseInt(dom.emailHistoryPageSize.value, 10);
+      if (Number.isInteger(value) && value >= 5 && value <= 100) {
+        state.emailHistoryLimit = value;
+      } else {
+        dom.emailHistoryPageSize.value = state.emailHistoryLimit;
+      }
+      state.emailHistoryPage = 1;
+      fetchEmailHistory().catch(() => {});
+    });
+    dom.emailHistoryPrevBtn?.addEventListener('click', () => {
+      if (state.emailHistoryPage <= 1) return;
+      state.emailHistoryPage -= 1;
+      fetchEmailHistory().catch(() => {});
+    });
+    dom.emailHistoryNextBtn?.addEventListener('click', () => {
+      if (!state.emailHistoryHasNext) return;
+      state.emailHistoryPage += 1;
+      fetchEmailHistory().catch(() => {});
+    });
 
     dom.devEmailSubject?.addEventListener('input', () => validateDevEmailForm());
     dom.devEmailBody?.addEventListener('input', () => validateDevEmailForm());
@@ -3372,6 +3669,7 @@
     }
     if (state.currentSection === 'emails') {
       ensureEmailTypesLoaded().catch(() => {});
+      fetchEmailHistory({ resetPage: true }).catch(() => {});
     }
     if (state.currentSection === 'data-tools') {
       fetchDataViewerTables().catch(() => {});
@@ -3384,6 +3682,7 @@
 
   async function initialize() {
     bindEvents();
+    resetEmailForm();
     restoreSection();
     if (dom.usersPerPage) {
       const initialPerPage = Number.parseInt(dom.usersPerPage.value, 10);
@@ -3397,6 +3696,12 @@
         state.logsLimit = Math.min(Math.max(initialLogsPage, 5), 200);
       }
     }
+    if (dom.emailHistoryPageSize) {
+      const initialHistoryPage = Number.parseInt(dom.emailHistoryPageSize.value, 10);
+      if (Number.isInteger(initialHistoryPage)) {
+        state.emailHistoryLimit = Math.min(Math.max(initialHistoryPage, 5), 100);
+      }
+    }
     const authorized = await ensureAuthorized();
     if (!authorized) return;
 
@@ -3408,6 +3713,7 @@
       ]);
       if (state.currentSection === 'emails') {
         ensureEmailTypesLoaded().catch(() => {});
+        fetchEmailHistory({ resetPage: true }).catch(() => {});
       }
       if (window.pageContentReady?.resolve) {
         window.pageContentReady.resolve({ success: true });
