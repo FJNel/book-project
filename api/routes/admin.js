@@ -82,57 +82,71 @@ const adminStatsSummaryHandler = async (req, res) => {
 			});
 		}
 
-		const [
-			usersTotal,
-			usersVerified,
-			usersDisabled,
-			booksTotal,
-			booksActive,
-			booksDeleted,
-			authorsActive,
-			publishersActive,
-			seriesActive,
-			bookTypesTotal,
-			tagsActive,
-			storageLocationsActive
-		] = await Promise.all([
-			pool.query("SELECT COUNT(*)::int AS count FROM users"),
-			pool.query("SELECT COUNT(*)::int AS count FROM users WHERE is_verified = TRUE"),
-			pool.query("SELECT COUNT(*)::int AS count FROM users WHERE is_disabled = TRUE"),
-			pool.query("SELECT COUNT(*)::int AS count FROM books"),
-			pool.query("SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NOT NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM authors WHERE deleted_at IS NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM publishers WHERE deleted_at IS NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM book_series WHERE deleted_at IS NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM book_types"),
-			pool.query("SELECT COUNT(*)::int AS count FROM tags WHERE deleted_at IS NULL"),
-			pool.query("SELECT COUNT(*)::int AS count FROM storage_locations WHERE deleted_at IS NULL")
+		const schemaErrorCodes = new Set(["42P01", "42703"]);
+		const safeCount = async (label, sql, params = []) => {
+			try {
+				const result = await pool.query(sql, params);
+				return { label, count: result.rows[0]?.count ?? 0 };
+			} catch (error) {
+				if (schemaErrorCodes.has(error.code)) {
+					logToFile("ADMIN_STATS_PARTIAL", {
+						status: "SCHEMA_MISSING",
+						label,
+						error_message: error.message,
+						admin_id: req.user.id
+					}, "warn");
+					return { label, count: null, warning: `${label} unavailable.` };
+				}
+				throw error;
+			}
+		};
+
+		const results = await Promise.all([
+			safeCount("users_total", "SELECT COUNT(*)::int AS count FROM users"),
+			safeCount("users_verified", "SELECT COUNT(*)::int AS count FROM users WHERE is_verified = TRUE"),
+			safeCount("users_disabled", "SELECT COUNT(*)::int AS count FROM users WHERE is_disabled = TRUE"),
+			safeCount("books_total", "SELECT COUNT(*)::int AS count FROM books"),
+			safeCount("books_active", "SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NULL"),
+			safeCount("books_deleted", "SELECT COUNT(*)::int AS count FROM books WHERE deleted_at IS NOT NULL"),
+			safeCount("authors_active", "SELECT COUNT(*)::int AS count FROM authors WHERE deleted_at IS NULL"),
+			safeCount("publishers_active", "SELECT COUNT(*)::int AS count FROM publishers WHERE deleted_at IS NULL"),
+			safeCount("series_active", "SELECT COUNT(*)::int AS count FROM book_series WHERE deleted_at IS NULL"),
+			safeCount("book_types_total", "SELECT COUNT(*)::int AS count FROM book_types"),
+			safeCount("tags_active", "SELECT COUNT(*)::int AS count FROM tags WHERE deleted_at IS NULL"),
+			safeCount("storage_locations_active", "SELECT COUNT(*)::int AS count FROM storage_locations WHERE deleted_at IS NULL")
 		]);
+		const resultMap = results.reduce((acc, entry) => {
+			acc[entry.label] = entry;
+			return acc;
+		}, {});
+		const warnings = results.filter((entry) => entry.warning).map((entry) => entry.warning);
 
 		const responseData = {
 			stats: {
 				users: {
-					total: usersTotal.rows[0]?.count ?? 0,
-					verified: usersVerified.rows[0]?.count ?? 0,
-					disabled: usersDisabled.rows[0]?.count ?? 0
+					total: resultMap.users_total?.count ?? null,
+					verified: resultMap.users_verified?.count ?? null,
+					disabled: resultMap.users_disabled?.count ?? null
 				},
 				books: {
-					total: booksTotal.rows[0]?.count ?? 0,
-					active: booksActive.rows[0]?.count ?? 0,
-					deleted: booksDeleted.rows[0]?.count ?? 0
+					total: resultMap.books_total?.count ?? null,
+					active: resultMap.books_active?.count ?? null,
+					deleted: resultMap.books_deleted?.count ?? null
 				},
 				library: {
-					authors: authorsActive.rows[0]?.count ?? 0,
-					publishers: publishersActive.rows[0]?.count ?? 0,
-					series: seriesActive.rows[0]?.count ?? 0,
-					bookTypes: bookTypesTotal.rows[0]?.count ?? 0,
-					tags: tagsActive.rows[0]?.count ?? 0,
-					storageLocations: storageLocationsActive.rows[0]?.count ?? 0
+					authors: resultMap.authors_active?.count ?? null,
+					publishers: resultMap.publishers_active?.count ?? null,
+					series: resultMap.series_active?.count ?? null,
+					bookTypes: resultMap.book_types_total?.count ?? null,
+					tags: resultMap.tags_active?.count ?? null,
+					storageLocations: resultMap.storage_locations_active?.count ?? null
 				}
 			},
 			cache: { hit: false, ageSeconds: 0 }
 		};
+		if (warnings.length) {
+			responseData.warnings = warnings;
+		}
 		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
 		return successResponse(res, 200, "Site statistics retrieved successfully.", responseData);
 	} catch (error) {
@@ -202,12 +216,49 @@ const adminUsageUsersHandler = async (req, res) => {
 	const sortColumn = sortColumnMap[sortBy] || "usage_score";
 
 	try {
+		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+		if (!hasTable) {
+			return successResponse(res, 200, "User usage retrieved successfully.", {
+				window: { startDate: windowStart, endDate: windowEnd },
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				usageLevels: USAGE_LEVEL_THRESHOLDS,
+				users: [],
+				warnings: ["Request logs are unavailable, so usage data cannot be generated."]
+			});
+		}
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/usage/users",
+			params: {
+				windowStart,
+				windowEnd,
+				sortBy,
+				order: sortOrder,
+				topLimit,
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				userId: parseId(params.userId),
+				email: normalizeText(params.email),
+				path: normalizeText(params.path),
+				method: normalizeText(params.method)
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "User usage retrieved successfully.", cached.data);
+		}
+
+		const usageScoreSelect = hasCostUnits
+			? "COALESCE(SUM(l.cost_units), 0)::int AS usage_score"
+			: "0::int AS usage_score";
+
 		const usageResult = await pool.query(
 			`SELECT l.user_id,
 			        l.user_email,
 			        l.user_role,
 			        COUNT(*)::int AS request_count,
-			        COALESCE(SUM(l.cost_units), 0)::int AS usage_score,
+			        ${usageScoreSelect},
 			        MAX(l.logged_at) AS last_seen
 			 FROM request_logs l
 			 WHERE ${clauses.join(" AND ")}
@@ -255,13 +306,15 @@ const adminUsageUsersHandler = async (req, res) => {
 			});
 		}
 
-		return successResponse(res, 200, "User usage retrieved successfully.", {
+		const responseData = {
 			window: { startDate: windowStart, endDate: windowEnd },
 			limit: limit ?? 25,
 			offset: offset ?? 0,
 			usageLevels: USAGE_LEVEL_THRESHOLDS,
 			users
-		});
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
+		return successResponse(res, 200, "User usage retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("ADMIN_USAGE_USERS", {
 			status: "FAILURE",
@@ -337,6 +390,45 @@ const adminUsageApiKeysHandler = async (req, res) => {
 	const sortColumn = sortColumnMap[sortBy] || "usage_score";
 
 	try {
+		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+		if (!hasTable) {
+			return successResponse(res, 200, "API key usage retrieved successfully.", {
+				window: { startDate: windowStart, endDate: windowEnd },
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				usageLevels: USAGE_LEVEL_THRESHOLDS,
+				apiKeys: [],
+				warnings: ["Request logs are unavailable, so usage data cannot be generated."]
+			});
+		}
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/usage/api-keys",
+			params: {
+				windowStart,
+				windowEnd,
+				sortBy,
+				order: sortOrder,
+				topLimit,
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				userId: parseId(params.userId),
+				email: normalizeText(params.email),
+				apiKeyId: parseId(params.apiKeyId),
+				apiKeyLabel: normalizeText(params.apiKeyLabel),
+				method: normalizeText(params.method),
+				path: normalizeText(params.path)
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "API key usage retrieved successfully.", cached.data);
+		}
+
+		const usageScoreSelect = hasCostUnits
+			? "COALESCE(SUM(l.cost_units), 0)::int AS usage_score"
+			: "0::int AS usage_score";
+
 		const usageResult = await pool.query(
 			`SELECT l.api_key_id,
 			        l.api_key_label,
@@ -344,7 +436,7 @@ const adminUsageApiKeysHandler = async (req, res) => {
 			        l.user_id,
 			        l.user_email,
 			        COUNT(*)::int AS request_count,
-			        COALESCE(SUM(l.cost_units), 0)::int AS usage_score,
+			        ${usageScoreSelect},
 			        MAX(l.logged_at) AS last_seen
 			 FROM request_logs l
 			 WHERE ${clauses.join(" AND ")}
@@ -394,13 +486,15 @@ const adminUsageApiKeysHandler = async (req, res) => {
 			});
 		}
 
-		return successResponse(res, 200, "API key usage retrieved successfully.", {
+		const responseData = {
 			window: { startDate: windowStart, endDate: windowEnd },
 			limit: limit ?? 25,
 			offset: offset ?? 0,
 			usageLevels: USAGE_LEVEL_THRESHOLDS,
 			apiKeys
-		});
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
+		return successResponse(res, 200, "API key usage retrieved successfully.", responseData);
 	} catch (error) {
 		logToFile("ADMIN_USAGE_API_KEYS", {
 			status: "FAILURE",
@@ -457,6 +551,50 @@ const DATA_VIEWER_TABLES = [
 		defaultSort: "created_at",
 		defaultOrder: "desc",
 		filters: { userIdColumn: "u.id", emailColumn: "u.email" }
+	},
+	{
+		name: "languages",
+		label: "Languages",
+		description: "Global languages list used across libraries.",
+		from: "languages l",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "l.id" },
+			{ name: "name", label: "Name", type: "text", select: "l.name" },
+			{ name: "name_normalized", label: "Normalized", type: "text", select: "l.name_normalized" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "l.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "l.updated_at" }
+		],
+		searchColumns: ["l.name", "l.name_normalized"],
+		sortFields: [
+			{ value: "name", label: "Name", column: "l.name" },
+			{ value: "created_at", label: "Created", column: "l.created_at" },
+			{ value: "updated_at", label: "Updated", column: "l.updated_at" }
+		],
+		defaultSort: "name",
+		defaultOrder: "asc"
+	},
+	{
+		name: "book_languages",
+		label: "Library languages",
+		description: "Language assignments within user libraries.",
+		from: "book_languages bl LEFT JOIN languages l ON l.id = bl.language_id",
+		columns: [
+			{ name: "id", label: "ID", type: "number", select: "bl.id" },
+			{ name: "user_id", label: "User ID", type: "number", select: "bl.user_id" },
+			{ name: "language_id", label: "Language ID", type: "number", select: "bl.language_id" },
+			{ name: "language_name", label: "Language", type: "text", select: "l.name" },
+			{ name: "created_at", label: "Created", type: "datetime", select: "bl.created_at" },
+			{ name: "updated_at", label: "Updated", type: "datetime", select: "bl.updated_at" }
+		],
+		searchColumns: ["l.name"],
+		sortFields: [
+			{ value: "created_at", label: "Created", column: "bl.created_at" },
+			{ value: "updated_at", label: "Updated", column: "bl.updated_at" },
+			{ value: "language_name", label: "Language", column: "l.name" }
+		],
+		defaultSort: "created_at",
+		defaultOrder: "desc",
+		filters: { userIdColumn: "bl.user_id" }
 	},
 	{
 		name: "user_api_keys",
@@ -622,6 +760,37 @@ function parseDateFilter(value, fieldLabel) {
 		return { error: `${fieldLabel} must be a valid ISO 8601 date.` };
 	}
 	return { value: new Date(parsed).toISOString() };
+}
+
+let requestLogsAvailability = null;
+
+async function getRequestLogsAvailability() {
+	if (requestLogsAvailability) return requestLogsAvailability;
+	try {
+		const tableResult = await pool.query("SELECT to_regclass('public.request_logs') AS table_exists");
+		const hasTable = Boolean(tableResult.rows[0]?.table_exists);
+		let hasCostUnits = false;
+		if (hasTable) {
+			const colResult = await pool.query(
+				`SELECT 1
+				 FROM information_schema.columns
+				 WHERE table_schema = 'public'
+				   AND table_name = 'request_logs'
+				   AND column_name = 'cost_units'
+				 LIMIT 1`
+			);
+			hasCostUnits = colResult.rows.length > 0;
+		}
+		requestLogsAvailability = { hasTable, hasCostUnits };
+		return requestLogsAvailability;
+	} catch (error) {
+		logToFile("ADMIN_USERS_SCHEMA_CHECK", {
+			status: "FAILURE",
+			error_message: error.message
+		}, "error");
+		requestLogsAvailability = { hasTable: false, hasCostUnits: false };
+		return requestLogsAvailability;
+	}
 }
 
 function getDataViewerTableConfig(name) {
@@ -1288,6 +1457,15 @@ router.get("/users", adminAuth, async (req, res) => {
 				return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 			}
 			const resolvedId = resolved.id;
+			const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+			const usageLastSeenSelect = hasTable
+				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
+				: "NULL AS usage_last_seen";
+			const usageScoreSelect = hasTable
+				? (hasCostUnits
+					? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
+					: "0::int AS usage_score")
+				: "0::int AS usage_score";
 
 			const result = await pool.query(
 				`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
@@ -1296,8 +1474,8 @@ router.get("/users", adminAuth, async (req, res) => {
 				        u.email_pref_account_updates, u.email_pref_dev_features,
 				        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
 				        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
-				        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
-				        (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+				        ${usageLastSeenSelect},
+				        ${usageScoreSelect},
 				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
 				        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
 				        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
@@ -1464,6 +1642,16 @@ router.get("/users", adminAuth, async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
+	const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+	const usageLastSeenSelect = hasTable
+		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
+		: "NULL AS usage_last_seen";
+	const usageScoreSelect = hasTable
+		? (hasCostUnits
+			? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
+			: "0::int AS usage_score")
+		: "0::int AS usage_score";
+
 	const fields = nameOnly
 		? "u.id, u.email, u.full_name"
 		: `u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
@@ -1472,8 +1660,8 @@ router.get("/users", adminAuth, async (req, res) => {
 		   u.email_pref_account_updates, u.email_pref_dev_features,
 		   (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
 		   (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
-		   (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
-		   (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+		   ${usageLastSeenSelect},
+		   ${usageScoreSelect},
 		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
 		   (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count`;
 

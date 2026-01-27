@@ -184,6 +184,10 @@ paths:
                             type: object
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
                   - type: object
                     properties:
                       data:
@@ -193,6 +197,10 @@ paths:
                             type: object
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
@@ -223,6 +231,10 @@ paths:
                             type: object
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/usage/users:
@@ -268,6 +280,10 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminUserUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
     get:
@@ -298,6 +314,10 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminUserUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/usage/api-keys:
@@ -343,6 +363,10 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminApiKeyUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
     get:
@@ -373,6 +397,10 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminApiKeyUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/data-viewer/tables:

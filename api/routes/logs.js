@@ -250,27 +250,6 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 	}
 });
 
-router.get("/:id", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
-	const id = Number.parseInt(req.params.id, 10);
-	if (!Number.isInteger(id)) {
-		return errorResponse(res, 400, "Validation Error", ["Log id must be a valid integer."]);
-	}
-	try {
-		const result = await pool.query("SELECT * FROM request_logs WHERE id = $1", [id]);
-		if (result.rows.length === 0) {
-			return errorResponse(res, 404, "Log not found.", ["The requested log entry could not be located."]);
-		}
-		return successResponse(res, 200, "Log retrieved successfully.", { log: result.rows[0] });
-	} catch (error) {
-		logToFile("LOGS_DETAIL", {
-			status: "FAILURE",
-			admin_id: req.user ? req.user.id : null,
-			error_message: error.message
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log entry at this time."]);
-	}
-});
-
 router.get("/log_types", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
 	try {
 		const result = await pool.query(
@@ -398,6 +377,27 @@ router.post("/export", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 
 router.get("/log-types", requiresAuth, authenticatedLimiter, requireRole(["admin"]), (req, res) => {
 	return res.redirect(308, "/logs/log_types");
+});
+
+router.get("/:id", requiresAuth, authenticatedLimiter, requireRole(["admin"]), async (req, res) => {
+	const id = Number.parseInt(req.params.id, 10);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Log id must be a valid integer."]);
+	}
+	try {
+		const result = await pool.query("SELECT * FROM request_logs WHERE id = $1", [id]);
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "Log not found.", ["The requested log entry could not be located."]);
+		}
+		return successResponse(res, 200, "Log retrieved successfully.", { log: result.rows[0] });
+	} catch (error) {
+		logToFile("LOGS_DETAIL", {
+			status: "FAILURE",
+			admin_id: req.user ? req.user.id : null,
+			error_message: error.message
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve log entry at this time."]);
+	}
 });
 
 module.exports = router;

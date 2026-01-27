@@ -68,6 +68,7 @@ const pool = new Pool(connectionString ? {
 	database: config.db.name,
 	ssl
 });
+pool.sslMode = effectiveSslMode;
 
 let hasLoggedConnect = false;
 pool.on("connect", (client) => {

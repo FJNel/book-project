@@ -74,6 +74,7 @@ router.get("/health", async (req, res) => {
 		const dbStart = Date.now();
 		await pool.query("SELECT 1");
 		const dbLatencyMs = Date.now() - dbStart;
+		const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
 		const requiredColumns = [
 			{ table: "users", column: "usage_lockout_until" },
 			{ table: "authors", column: "deleted_at" },
@@ -123,6 +124,7 @@ router.get("/health", async (req, res) => {
 			db: {
 				healthy: true,
 				schemaOk: true,
+				sslMode,
 				latencyMs: dbLatencyMs
 			}
 		});
@@ -136,7 +138,7 @@ router.get("/health", async (req, res) => {
 		return errorResponse(res, 500, "Database Error", ["Database connectivity failed."], {
 			db: {
 				healthy: false,
-				sslMode: process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable")
+				sslMode: pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable")
 			}
 		});
 	}

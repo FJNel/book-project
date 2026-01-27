@@ -138,9 +138,14 @@
     dataViewerOrder: document.getElementById('dataViewerOrder'),
     dataViewerLimit: document.getElementById('dataViewerLimit'),
     dataViewerPage: document.getElementById('dataViewerPage'),
+    dataViewerUserIdHelp: document.getElementById('dataViewerUserIdHelp'),
+    dataViewerLimitHelp: document.getElementById('dataViewerLimitHelp'),
+    dataViewerPageHelp: document.getElementById('dataViewerPageHelp'),
     dataViewerLoadBtn: document.getElementById('dataViewerLoadBtn'),
     dataViewerClearBtn: document.getElementById('dataViewerClearBtn'),
     dataViewerSummary: document.getElementById('dataViewerSummary'),
+    dataViewerTableHelp: document.getElementById('dataViewerTableHelp'),
+    dataViewerTablesList: document.getElementById('dataViewerTablesList'),
     dataViewerThead: document.getElementById('dataViewerThead'),
     dataViewerTbody: document.getElementById('dataViewerTbody'),
     createUserModal: document.getElementById('createUserModal'),
@@ -467,8 +472,8 @@
   }
 
   function resetHealthStatus() {
-    if (dom.schemaStatusText) dom.schemaStatusText.textContent = '—';
-    if (dom.dbSslModeText) dom.dbSslModeText.textContent = '—';
+    if (dom.schemaStatusText) dom.schemaStatusText.textContent = 'Unavailable';
+    if (dom.dbSslModeText) dom.dbSslModeText.textContent = 'Unavailable';
     if (dom.schemaDetails) {
       dom.schemaDetails.textContent = '';
       dom.schemaDetails.classList.add('d-none');
@@ -510,7 +515,12 @@
     }
 
     if (dom.dbSslModeText) {
-      dom.dbSslModeText.textContent = db?.sslMode || '—';
+      if (db?.sslMode) {
+        dom.dbSslModeText.textContent = db.sslMode;
+      } else {
+        warn('Health payload missing db.sslMode');
+        dom.dbSslModeText.textContent = 'Unavailable';
+      }
     }
 
     if (schemaOk === false) {
@@ -564,8 +574,8 @@
 
     setBadge('ok');
     if (dom.apiStatusText) dom.apiStatusText.textContent = 'Online';
-    if (dom.dbLatencyText) dom.dbLatencyText.textContent = Number.isFinite(dbLatency) ? `${dbLatency} ms` : '—';
-    if (dom.queueText) dom.queueText.textContent = queueStats?.queueLength != null ? `${queueStats.queueLength} queued` : '—';
+    if (dom.dbLatencyText) dom.dbLatencyText.textContent = Number.isFinite(dbLatency) ? `${dbLatency} ms` : 'Unavailable';
+    if (dom.queueText) dom.queueText.textContent = queueStats?.queueLength != null ? `${queueStats.queueLength} queued` : 'Unavailable';
     if (dom.statusUpdatedAt) dom.statusUpdatedAt.textContent = `Last checked ${formatDateTime(Date.now())}`;
     updateStatusPill('Ready');
   }
@@ -573,8 +583,8 @@
   function renderStatusError(message) {
     setBadge('error');
     if (dom.apiStatusText) dom.apiStatusText.textContent = 'Unavailable';
-    if (dom.dbLatencyText) dom.dbLatencyText.textContent = '—';
-    if (dom.queueText) dom.queueText.textContent = '—';
+    if (dom.dbLatencyText) dom.dbLatencyText.textContent = 'Unavailable';
+    if (dom.queueText) dom.queueText.textContent = 'Unavailable';
     resetHealthStatus();
     updateStatusPill('Error');
     showAlert(dom.statusAlert, message);
@@ -602,31 +612,44 @@
     }
   }
 
+  function formatAdminStatValue(value) {
+    return value === null || value === undefined ? 'Unavailable' : value;
+  }
+
   function renderSiteStats(stats) {
     if (!stats) return;
-    if (dom.siteUsersTotal) dom.siteUsersTotal.textContent = stats.users?.total ?? '—';
-    if (dom.siteUsersVerified) dom.siteUsersVerified.textContent = stats.users?.verified ?? '—';
-    if (dom.siteUsersDisabled) dom.siteUsersDisabled.textContent = stats.users?.disabled ?? '—';
-    if (dom.siteBooksTotal) dom.siteBooksTotal.textContent = stats.books?.total ?? '—';
-    if (dom.siteBooksActive) dom.siteBooksActive.textContent = stats.books?.active ?? '—';
-    if (dom.siteBooksDeleted) dom.siteBooksDeleted.textContent = stats.books?.deleted ?? '—';
-    if (dom.siteAuthorsTotal) dom.siteAuthorsTotal.textContent = stats.library?.authors ?? '—';
-    if (dom.sitePublishersTotal) dom.sitePublishersTotal.textContent = stats.library?.publishers ?? '—';
-    if (dom.siteSeriesTotal) dom.siteSeriesTotal.textContent = stats.library?.series ?? '—';
-    if (dom.siteBookTypesTotal) dom.siteBookTypesTotal.textContent = stats.library?.bookTypes ?? '—';
-    if (dom.siteTagsTotal) dom.siteTagsTotal.textContent = stats.library?.tags ?? '—';
-    if (dom.siteStorageTotal) dom.siteStorageTotal.textContent = stats.library?.storageLocations ?? '—';
+    if (dom.siteUsersTotal) dom.siteUsersTotal.textContent = formatAdminStatValue(stats.users?.total);
+    if (dom.siteUsersVerified) dom.siteUsersVerified.textContent = formatAdminStatValue(stats.users?.verified);
+    if (dom.siteUsersDisabled) dom.siteUsersDisabled.textContent = formatAdminStatValue(stats.users?.disabled);
+    if (dom.siteBooksTotal) dom.siteBooksTotal.textContent = formatAdminStatValue(stats.books?.total);
+    if (dom.siteBooksActive) dom.siteBooksActive.textContent = formatAdminStatValue(stats.books?.active);
+    if (dom.siteBooksDeleted) dom.siteBooksDeleted.textContent = formatAdminStatValue(stats.books?.deleted);
+    if (dom.siteAuthorsTotal) dom.siteAuthorsTotal.textContent = formatAdminStatValue(stats.library?.authors);
+    if (dom.sitePublishersTotal) dom.sitePublishersTotal.textContent = formatAdminStatValue(stats.library?.publishers);
+    if (dom.siteSeriesTotal) dom.siteSeriesTotal.textContent = formatAdminStatValue(stats.library?.series);
+    if (dom.siteBookTypesTotal) dom.siteBookTypesTotal.textContent = formatAdminStatValue(stats.library?.bookTypes);
+    if (dom.siteTagsTotal) dom.siteTagsTotal.textContent = formatAdminStatValue(stats.library?.tags);
+    if (dom.siteStorageTotal) dom.siteStorageTotal.textContent = formatAdminStatValue(stats.library?.storageLocations);
   }
 
   async function fetchSiteStats() {
+    hideAlert(dom.siteStatsAlert);
     try {
       const response = await apiFetch('/admin/stats/summary', { method: 'GET' });
       const data = await parseResponse(response);
       renderSiteStats(data?.stats);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.siteStatsAlert, `Some statistics are unavailable: ${data.warnings.join(' ')}`);
+      }
       state.siteStatsLoaded = true;
     } catch (err) {
       errorLog('Failed to load site stats', err);
       showAlert(dom.siteStatsAlert, err.message || 'Unable to load site stats.');
+      renderSiteStats({
+        users: { total: null, verified: null, disabled: null },
+        books: { total: null, active: null, deleted: null },
+        library: { authors: null, publishers: null, series: null, bookTypes: null, tags: null, storageLocations: null }
+      });
     }
   }
 
@@ -640,7 +663,7 @@
     state.users = Array.isArray(users) ? users : [];
     if (!dom.usersTbody) return;
     if (!state.users.length) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">No users found.</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No users found.</td></tr>';
       return;
     }
 
@@ -703,12 +726,18 @@
           <td>${verified}</td>
           <td>${disabled}</td>
           <td>${formatDateTime(user.lastLogin)}</td>
-          <td>
-            <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-primary js-edit-user" type="button" data-user-id="${user.id}">Edit</button>
-              <button class="btn btn-outline-secondary js-view-sessions" type="button" data-user-id="${user.id}">Sessions</button>
+          <td class="admin-col-actions text-end">
+            <div class="d-inline-flex align-items-center gap-1 row-actions row-actions-desktop">
+              <button class="btn btn-outline-secondary btn-sm icon-btn js-edit-user" type="button" data-user-id="${user.id}" aria-label="Edit user" title="Edit user">
+                <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+              </button>
+              <button class="btn btn-outline-secondary btn-sm icon-btn js-view-sessions" type="button" data-user-id="${user.id}" aria-label="View sessions" title="View sessions">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
               <div class="btn-group btn-group-sm" role="group">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
+                <button class="btn btn-outline-secondary btn-sm icon-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions" title="More actions">
+                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </button>
                 <div class="dropdown-menu dropdown-menu-end">
                   <button class="dropdown-item js-view-library" type="button" data-user-id="${user.id}">View library</button>
                   <div class="dropdown-divider"></div>
@@ -733,7 +762,7 @@
   async function fetchUsers({ search = '', role = '' } = {}) {
     hideAlert(dom.usersAlert);
     if (dom.usersTbody) {
-      dom.usersTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Loading users…</td></tr>';
+      dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Loading users…</td></tr>';
     }
 
     const params = new URLSearchParams();
@@ -759,6 +788,9 @@
     } catch (err) {
       errorLog('Failed to fetch users', err);
       showAlert(dom.usersAlert, err.message || 'Unable to load users.');
+      if (dom.usersTbody) {
+        dom.usersTbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Unable to load users.</td></tr>';
+      }
       throw err;
     }
   }
@@ -790,10 +822,14 @@
         <td>${escapeHtml(lang.nameNormalized || lang.name_normalized || '—')}</td>
         <td>${formatDateTime(lang.createdAt || lang.created_at)}</td>
         <td>${formatDateTime(lang.updatedAt || lang.updated_at)}</td>
-        <td>
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary js-edit-language" type="button" data-language-id="${lang.id}">Edit</button>
-            <button class="btn btn-outline-danger js-delete-language" type="button" data-language-id="${lang.id}">Delete</button>
+        <td class="admin-col-actions text-end">
+          <div class="d-inline-flex align-items-center gap-1 row-actions row-actions-desktop">
+            <button class="btn btn-outline-secondary btn-sm icon-btn js-edit-language" type="button" data-language-id="${lang.id}" aria-label="Edit language" title="Edit language">
+              <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm icon-btn js-delete-language" type="button" data-language-id="${lang.id}" aria-label="Delete language" title="Delete language">
+              <i class="bi bi-trash-fill" aria-hidden="true"></i>
+            </button>
           </div>
         </td>
       </tr>
@@ -1901,7 +1937,13 @@
           <td title="${escapeHtml(message)}">${escapeHtml(message.length > 80 ? `${message.slice(0, 77)}…` : message)}</td>
           <td title="${escapeHtml(pathText)}">${escapeHtml(pathText || '—')}</td>
           <td>${Number.isFinite(log.duration_ms) ? `${log.duration_ms} ms` : '—'}</td>
-          <td><button class="btn btn-outline-primary btn-sm js-view-log" type="button" data-log-index="${index}">View</button></td>
+          <td class="admin-col-actions text-end">
+            <div class="d-inline-flex align-items-center row-actions">
+              <button class="btn btn-outline-secondary btn-sm icon-btn js-view-log" type="button" data-log-index="${index}" aria-label="View log details" title="View log details">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+          </td>
         </tr>
       `;
     }).join('');
@@ -2031,7 +2073,7 @@
     state.logsLiveEnabled = true;
     fetchLogs().catch(() => {});
     state.logsLiveTimer = window.setInterval(() => {
-      if (state.currentSection === 'logs') {
+      if (state.currentSection === 'usage-logs' && state.usagePanel === 'logs') {
         fetchLogs().catch(() => {});
       }
     }, 15000);
@@ -2220,14 +2262,18 @@
       const lastSeen = formatDateTime(user.lastSeen);
       const topEndpoints = renderUsageEndpoints(user.topEndpoints);
       const dropdown = userId ? `
-        <div class="dropdown">
-          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
-          <div class="dropdown-menu dropdown-menu-end">
-            <button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Block API key creation</button>
-            <button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Allow API key creation</button>
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Apply usage lockout</button>
-            <button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Clear usage lockout</button>
+        <div class="d-inline-flex align-items-center row-actions">
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm icon-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Usage actions" title="Usage actions">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end">
+              <button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Block API key creation</button>
+              <button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Allow API key creation</button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Apply usage lockout</button>
+              <button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(emailText)}">Clear usage lockout</button>
+            </div>
           </div>
         </div>
       ` : '<span class="text-muted">—</span>';
@@ -2246,7 +2292,7 @@
           <td>${requests}</td>
           <td>${topEndpoints}</td>
           <td>${lastSeen}</td>
-          <td>${dropdown}</td>
+          <td class="admin-col-actions text-end">${dropdown}</td>
         </tr>
       `;
     }).join('');
@@ -2276,16 +2322,20 @@
       const lastSeen = formatDateTime(key.lastSeen);
       const topEndpoints = renderUsageEndpoints(key.topEndpoints);
       const dropdown = apiKeyId ? `
-        <div class="dropdown">
-          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
-          <div class="dropdown-menu dropdown-menu-end">
-            <button class="dropdown-item text-danger" type="button" data-usage-action="revoke-key" data-api-key-id="${apiKeyId}" data-api-key-label="${escapeHtml(keyLabel)}" data-api-key-prefix="${escapeHtml(key.apiKeyPrefix || '')}" data-user-id="${userId || ''}" data-user-email="${escapeHtml(userEmail)}">Revoke API key</button>
-            ${userId ? '<div class="dropdown-divider"></div>' : ''}
-            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Block API key creation</button>` : ''}
-            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Allow API key creation</button>` : ''}
-            ${userId ? '<div class="dropdown-divider"></div>' : ''}
-            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Apply usage lockout</button>` : ''}
-            ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Clear usage lockout</button>` : ''}
+        <div class="d-inline-flex align-items-center row-actions">
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm icon-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Usage actions" title="Usage actions">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end">
+              <button class="dropdown-item text-danger" type="button" data-usage-action="revoke-key" data-api-key-id="${apiKeyId}" data-api-key-label="${escapeHtml(keyLabel)}" data-api-key-prefix="${escapeHtml(key.apiKeyPrefix || '')}" data-user-id="${userId || ''}" data-user-email="${escapeHtml(userEmail)}">Revoke API key</button>
+              ${userId ? '<div class="dropdown-divider"></div>' : ''}
+              ${userId ? `<button class="dropdown-item" type="button" data-usage-action="ban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Block API key creation</button>` : ''}
+              ${userId ? `<button class="dropdown-item" type="button" data-usage-action="unban" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Allow API key creation</button>` : ''}
+              ${userId ? '<div class="dropdown-divider"></div>' : ''}
+              ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Apply usage lockout</button>` : ''}
+              ${userId ? `<button class="dropdown-item" type="button" data-usage-action="lockout-clear" data-user-id="${userId}" data-user-email="${escapeHtml(userEmail)}">Clear usage lockout</button>` : ''}
+            </div>
           </div>
         </div>
       ` : '<span class="text-muted">—</span>';
@@ -2308,7 +2358,7 @@
           <td>${requests}</td>
           <td>${topEndpoints}</td>
           <td>${lastSeen}</td>
-          <td>${dropdown}</td>
+          <td class="admin-col-actions text-end">${dropdown}</td>
         </tr>
       `;
     }).join('');
@@ -2340,6 +2390,9 @@
       const response = await apiFetch('/admin/usage/users', { method: 'POST', body });
       const data = await parseResponse(response);
       renderUsageUsers(data?.users || [], data?.window);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.usageAlert, data.warnings.join(' '));
+      }
     } catch (err) {
       errorLog('[Admin][Usage] Failed to fetch user usage', err);
       showApiError(dom.usageAlert, err);
@@ -2370,6 +2423,9 @@
       const response = await apiFetch('/admin/usage/api-keys', { method: 'POST', body });
       const data = await parseResponse(response);
       renderUsageApiKeys(data?.apiKeys || [], data?.window);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.usageAlert, data.warnings.join(' '));
+      }
     } catch (err) {
       errorLog('[Admin][Usage] Failed to fetch API key usage', err);
       showApiError(dom.usageAlert, err);
@@ -2639,9 +2695,9 @@
     const italicized = bolded.replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g, '$1<em>$2</em>');
     const paragraphs = italicized
       .split(/\n\n+/)
-      .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+      .map((block) => `<p style="margin: 0 0 12px;">${block.replace(/\n/g, '<br>')}</p>`)
       .join('');
-    return paragraphs || '<p>&nbsp;</p>';
+    return paragraphs || '<p style="margin: 0;">&nbsp;</p>';
   }
 
   function updateDevEmailPreview(body) {
@@ -2649,6 +2705,8 @@
     const html = renderMarkdownToHtml(body || '');
     dom.devEmailPreview.innerHTML = html;
   }
+
+  const scheduleDevEmailPreview = debounce((body) => updateDevEmailPreview(body), 150);
 
   function handleEmailSendTest() {
     const validation = validateEmailTestForm();
@@ -2703,19 +2761,13 @@
     const recipientOk = !recipientError && !!recipient;
     if (dom.devEmailTestBtn) dom.devEmailTestBtn.disabled = !validBase || !recipientOk;
     if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase;
-    updateDevEmailPreview(body);
+    scheduleDevEmailPreview(body);
     return { valid: validBase && (!requireRecipient || recipientOk), subject, body, recipient };
   }
 
   async function handleDevEmailTest() {
     const { valid, subject, body, recipient } = validateDevEmailForm({ requireRecipient: true });
     if (!valid) return;
-    const normalized = String(value).toUpperCase();
-    if (type === 'status' && Number.isFinite(Number(value))) {
-      const code = Number(value);
-      const className = code >= 500 ? 'text-bg-danger' : code >= 400 ? 'text-bg-warning' : 'text-bg-success';
-      return `<span class="badge ${className}">${escapeHtml(String(code))}</span>`;
-    }
     openConfirmAction({
       title: 'Send development update test',
       actionLabel: 'Send test',
@@ -2809,8 +2861,17 @@
       const defaultSort = tableConfig?.defaultSort;
       dom.dataViewerSort.value = defaultSort && sortFields.some((field) => field.value === defaultSort)
         ? defaultSort
-        : sortFields[0].value;
+      : sortFields[0].value;
     }
+  }
+
+  function renderDataViewerTableHelp(tableConfig) {
+    if (!dom.dataViewerTableHelp) return;
+    if (!tableConfig) {
+      dom.dataViewerTableHelp.textContent = 'Select a table to view sanitized records.';
+      return;
+    }
+    dom.dataViewerTableHelp.textContent = tableConfig.description || 'Sanitized, read-only records.';
   }
 
   function populateDataViewerTables(tables) {
@@ -2820,6 +2881,8 @@
       updateDataViewerSortOptions(null);
       resetDataViewerTable('No data available.');
       setDataViewerSummary('No data tables are configured.');
+      if (dom.dataViewerTablesList) dom.dataViewerTablesList.textContent = 'Available tables: none.';
+      renderDataViewerTableHelp(null);
       return;
     }
 
@@ -2827,14 +2890,33 @@
       .map((table) => `<option value="${escapeHtml(table.name)}">${escapeHtml(table.label || table.name)}</option>`)
       .join('');
 
-    const selected = getSelectedDataViewerTable() || tables[0].name;
+    if (dom.dataViewerTablesList) {
+      const labels = tables.map((table) => `${table.label || table.name} (${table.name})`);
+      dom.dataViewerTablesList.textContent = `Available tables: ${labels.join(', ')}`;
+    }
+
+    const current = getSelectedDataViewerTable();
+    const hasCurrent = current && tables.some((table) => table.name === current);
+    if (current && !hasCurrent) {
+      showAlert(dom.dataViewerAlert, 'Selected table is not available. Choose a supported table.');
+    }
+    const selected = hasCurrent ? current : tables[0].name;
     dom.dataViewerTable.value = selected;
     updateDataViewerSortOptions(getDataViewerTableConfig(selected));
+    renderDataViewerTableHelp(getDataViewerTableConfig(selected));
   }
 
   function formatDataViewerValue(value, column) {
     if (value === null || value === undefined || value === '') return '—';
     if (column?.type === 'datetime') {
+      if (typeof value === 'object') {
+        const display = typeof value.display === 'string' ? value.display : '';
+        const iso = typeof value.iso === 'string' ? value.iso : '';
+        const resolved = display || formatDateTime(iso || '');
+        if (!resolved || resolved === '—') return '—';
+        const title = iso || display;
+        return title ? `<span title="${escapeHtml(title)}">${escapeHtml(resolved)}</span>` : escapeHtml(resolved);
+      }
       const formatted = formatDateTime(value);
       return formatted || '—';
     }
@@ -2896,8 +2978,10 @@
         const config = getDataViewerTableConfig(selected);
         const hint = config?.description ? ` ${config.description}` : '';
         setDataViewerSummary(`Ready to load ${config?.label || selected}.${hint}`.trim());
+        renderDataViewerTableHelp(config);
       } else {
         setDataViewerSummary('Select a table to load data.');
+        renderDataViewerTableHelp(null);
       }
       return state.dataViewerTables;
     } catch (err) {
@@ -2905,11 +2989,16 @@
       showAlert(dom.dataViewerAlert, err.message || 'Unable to load data tables.');
       setDataViewerSummary('Unable to load data tables.');
       resetDataViewerTable('No data loaded.');
+      if (dom.dataViewerTablesList) dom.dataViewerTablesList.textContent = 'Available tables: unavailable.';
+      renderDataViewerTableHelp(null);
       throw err;
     }
   }
 
   function getDataViewerQuery() {
+    if (dom.dataViewerUserIdHelp) dom.dataViewerUserIdHelp.textContent = '';
+    if (dom.dataViewerLimitHelp) dom.dataViewerLimitHelp.textContent = '';
+    if (dom.dataViewerPageHelp) dom.dataViewerPageHelp.textContent = '';
     const table = getSelectedDataViewerTable();
     const search = dom.dataViewerSearch?.value.trim() || '';
     const email = dom.dataViewerEmail?.value.trim() || '';
@@ -2921,6 +3010,19 @@
     const pageRaw = Number.parseInt(dom.dataViewerPage?.value || '1', 10);
     const limit = Number.isInteger(limitRaw) ? Math.min(Math.max(limitRaw, 5), 200) : 25;
     const page = Number.isInteger(pageRaw) ? Math.max(pageRaw, 1) : 1;
+    const errors = [];
+    if (userIdRaw && !Number.isInteger(userId)) {
+      errors.push('User ID must be a number.');
+      if (dom.dataViewerUserIdHelp) dom.dataViewerUserIdHelp.textContent = 'Enter a valid user id.';
+    }
+    if (!Number.isInteger(limitRaw) || limitRaw < 5 || limitRaw > 200) {
+      errors.push('Page size must be between 5 and 200.');
+      if (dom.dataViewerLimitHelp) dom.dataViewerLimitHelp.textContent = 'Use a value between 5 and 200.';
+    }
+    if (!Number.isInteger(pageRaw) || pageRaw < 1) {
+      errors.push('Page must be 1 or greater.');
+      if (dom.dataViewerPageHelp) dom.dataViewerPageHelp.textContent = 'Use a page number of 1 or higher.';
+    }
     return {
       table,
       search: search || undefined,
@@ -2929,15 +3031,31 @@
       sortBy: sortBy || undefined,
       order,
       limit,
-      page
+      page,
+      invalid: errors.length > 0,
+      errors
     };
   }
 
   async function fetchDataViewerRows() {
     hideAlert(dom.dataViewerAlert);
     const query = getDataViewerQuery();
+    if (query.invalid) {
+      showAlert(dom.dataViewerAlert, query.errors.join(' '));
+      setDataViewerSummary('Fix the highlighted fields to load data.');
+      resetDataViewerTable('No data loaded.');
+      return;
+    }
     if (!query.table) {
       showAlert(dom.dataViewerAlert, 'Select a table to load data.');
+      return;
+    }
+    const tableConfig = getDataViewerTableConfig(query.table);
+    if (!tableConfig) {
+      showAlert(dom.dataViewerAlert, 'That table is not supported yet. Choose one of the available tables.');
+      resetDataViewerTable('No data loaded.');
+      setDataViewerSummary('Select a supported table to load data.');
+      renderDataViewerTableHelp(null);
       return;
     }
     if (dom.dataViewerLimit) dom.dataViewerLimit.value = query.limit;
@@ -3166,6 +3284,7 @@
       const table = getSelectedDataViewerTable();
       const config = getDataViewerTableConfig(table);
       updateDataViewerSortOptions(config);
+      renderDataViewerTableHelp(config);
       clearDataViewerFilters();
       resetDataViewerTable('No data loaded.');
       const hint = config?.description ? ` ${config.description}` : '';

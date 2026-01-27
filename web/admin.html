@@ -93,6 +93,49 @@
       padding: 12px;
     }
     .action-summary .label { color: var(--bs-secondary-color); font-size: 0.85rem; }
+    .table-header th {
+      background-color: var(--bs-tertiary-bg);
+      color: var(--bs-body-color);
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    .admin-table th,
+    .admin-table td {
+      vertical-align: middle;
+    }
+    .admin-table th.admin-col-actions,
+    .admin-table td.admin-col-actions {
+      width: 1%;
+      white-space: nowrap;
+    }
+    .row-actions {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+    .admin-table tbody tr:hover .row-actions,
+    .admin-table tbody tr:focus-within .row-actions {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+    }
+
+    @media (max-width: 767.98px) {
+      .row-actions {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .row-actions-desktop { display: none !important; }
+    }
   </style>
 </head>
 
@@ -166,7 +209,6 @@
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button class="btn btn-primary btn-sm" type="button" id="openCreateUserBtn">Create user</button>
-          <button class="btn btn-outline-primary btn-sm" type="button" id="openCreateLanguageBtn">Create language</button>
           <span class="chip chip-alert" id="adminRolePill">Role: unknown</span>
           <span class="chip chip-muted" id="adminStatusPill">Status: checking…</span>
         </div>
@@ -342,8 +384,8 @@
       <div class="alert alert-success d-none" id="usersSuccess"></div>
       <div class="alert alert-warning d-none" id="usersAlert"></div>
       <div class="table-responsive">
-        <table class="table table-sm align-middle table-striped table-fixed-sm">
-          <thead class="table-light">
+        <table class="table table-sm align-middle table-striped table-fixed-sm admin-table">
+          <thead class="table-header">
             <tr>
               <th scope="col">ID</th>
               <th scope="col">Name</th>
@@ -355,11 +397,11 @@
               <th scope="col">Verified</th>
               <th scope="col">Disabled</th>
               <th scope="col">Last Login</th>
-              <th scope="col">Actions</th>
+              <th scope="col" class="admin-col-actions text-end">Actions</th>
             </tr>
           </thead>
           <tbody id="usersTbody">
-            <tr><td colspan="10" class="text-center text-muted py-3">Loading users…</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-3">Loading users…</td></tr>
           </tbody>
         </table>
       </div>
@@ -407,15 +449,15 @@
       <div class="card admin-card">
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-striped" id="languagesTable">
-              <thead class="table-light">
+            <table class="table table-sm align-middle table-striped admin-table" id="languagesTable">
+              <thead class="table-header">
                 <tr>
                   <th scope="col">ID</th>
                   <th scope="col">Name</th>
                   <th scope="col">Normalized</th>
                   <th scope="col">Created</th>
                   <th scope="col">Updated</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" class="admin-col-actions text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="languagesTbody">
@@ -616,8 +658,8 @@
       <div class="card admin-card">
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-striped">
-              <thead class="table-light">
+            <table class="table table-sm align-middle table-striped admin-table">
+              <thead class="table-header">
                 <tr>
                   <th scope="col">Timestamp</th>
                   <th scope="col">Level</th>
@@ -627,7 +669,7 @@
                   <th scope="col">Details</th>
                   <th scope="col">Path</th>
                   <th scope="col">Duration</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" class="admin-col-actions text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="logsTbody">
@@ -685,8 +727,8 @@
           </div>
           <div class="text-muted small mb-2" id="usageUsersSummary">No usage loaded yet.</div>
           <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle">
-              <thead class="table-light">
+            <table class="table table-sm table-striped align-middle admin-table">
+              <thead class="table-header">
                 <tr>
                   <th>Rank</th>
                   <th>User</th>
@@ -694,7 +736,7 @@
                   <th>Requests</th>
                   <th>Top endpoints</th>
                   <th>Last seen</th>
-                  <th>Actions</th>
+                  <th class="admin-col-actions text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usageUsersTbody">
@@ -711,8 +753,8 @@
           </div>
           <div class="text-muted small mb-2" id="usageApiKeysSummary">No usage loaded yet.</div>
           <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle">
-              <thead class="table-light">
+            <table class="table table-sm table-striped align-middle admin-table">
+              <thead class="table-header">
                 <tr>
                   <th>Rank</th>
                   <th>API key</th>
@@ -721,7 +763,7 @@
                   <th>Requests</th>
                   <th>Top endpoints</th>
                   <th>Last seen</th>
-                  <th>Actions</th>
+                  <th class="admin-col-actions text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="usageApiKeysTbody">
@@ -748,6 +790,7 @@
             <div class="col-12 col-md-4">
               <label class="form-label" for="dataViewerTable">Table</label>
               <select class="form-select" id="dataViewerTable"></select>
+              <div class="form-text text-muted" id="dataViewerTableHelp"></div>
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label" for="dataViewerSearch">Search</label>
@@ -756,6 +799,7 @@
             <div class="col-6 col-md-2">
               <label class="form-label" for="dataViewerUserId">User ID</label>
               <input class="form-control" type="number" id="dataViewerUserId" min="1" />
+              <div class="form-text text-danger" id="dataViewerUserIdHelp"></div>
             </div>
             <div class="col-6 col-md-2">
               <label class="form-label" for="dataViewerEmail">Email</label>
@@ -775,20 +819,23 @@
             <div class="col-6 col-md-2">
               <label class="form-label" for="dataViewerLimit">Page size</label>
               <input class="form-control" type="number" id="dataViewerLimit" min="5" max="200" step="5" value="25" />
+              <div class="form-text text-danger" id="dataViewerLimitHelp"></div>
             </div>
             <div class="col-6 col-md-2">
               <label class="form-label" for="dataViewerPage">Page</label>
               <input class="form-control" type="number" id="dataViewerPage" min="1" value="1" />
+              <div class="form-text text-danger" id="dataViewerPageHelp"></div>
             </div>
             <div class="col-12 col-md-3 d-flex align-items-end gap-2">
               <button class="btn btn-primary" type="button" id="dataViewerLoadBtn">Load</button>
               <button class="btn btn-outline-secondary" type="button" id="dataViewerClearBtn">Clear</button>
             </div>
           </div>
+          <div class="text-muted small mb-2" id="dataViewerTablesList">Available tables: —</div>
           <div class="text-muted small mb-2" id="dataViewerSummary">Select a table to load data.</div>
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-striped">
-              <thead class="table-light" id="dataViewerThead"></thead>
+            <table class="table table-sm align-middle table-striped admin-table">
+              <thead class="table-header" id="dataViewerThead"></thead>
               <tbody id="dataViewerTbody">
                 <tr><td class="text-center text-muted py-3">No data loaded.</td></tr>
               </tbody>
@@ -1012,7 +1059,7 @@
           <div class="alert alert-danger d-none" id="sessionsAlert"></div>
           <div class="table-responsive">
             <table class="table table-sm align-middle table-striped">
-              <thead class="table-light">
+              <thead class="table-header">
                 <tr>
                   <th scope="col">Fingerprint</th>
                   <th scope="col">Issued</th>
