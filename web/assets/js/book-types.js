@@ -296,6 +296,10 @@
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       row.dataset.id = item.id;
+      const rowHref = `book-type-details?id=${encodeURIComponent(item.id)}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
       row.innerHTML = `
         <td>
           <div class="fw-semibold">${escapeHtml(item.name || '')}</div>
@@ -318,6 +322,13 @@
           </div>
         </td>
       `;
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
+      });
       dom.listTableBody.appendChild(row);
     });
 
@@ -605,6 +616,7 @@
     if (!item) return;
 
     if (button) {
+      event.stopPropagation();
       const action = button.dataset.action;
       if (action === 'view') {
         window.location.href = `book-type-details?id=${encodeURIComponent(id)}`;

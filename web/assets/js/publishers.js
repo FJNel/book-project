@@ -464,6 +464,10 @@
       const websiteLabel = websiteUrl ? `<a href="${websiteUrl}" target="_blank" rel="noopener">${escapeHtml(publisher.website)}</a>` : '';
       const row = document.createElement('tr');
       row.className = 'clickable-row';
+      const rowHref = `publisher-details?id=${publisher.id}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
       row.innerHTML = `
         <td class="list-col-name">
           <div class="fw-semibold">${escapeHtml(publisher.name || 'Untitled publisher')}</div>
@@ -477,8 +481,16 @@
           <span class="text-muted">${escapeHtml(formatTimestamp(publisher.updatedAt) || '—')}</span>
         </td>
       `;
-      row.addEventListener('click', () => {
-        window.location.href = `publisher-details?id=${publisher.id}`;
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        window.location.href = rowHref;
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
       });
       dom.listTableBody.appendChild(row);
     });

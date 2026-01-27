@@ -347,6 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
     books.forEach((book) => {
       const row = document.createElement('tr');
       row.className = 'clickable-row';
+      const rowHref = `book-details?id=${book.id}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
       const cover = book.coverImageUrl || placeholderCover(book.title);
       const subtitle = book.subtitle ? `<div class="text-muted small">${escapeHtml(book.subtitle)}</div>` : '';
       const languageNames = Array.isArray(book.languages) ? book.languages.map((lang) => lang.name).filter(Boolean) : [];
@@ -383,8 +387,16 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
       `;
-      row.addEventListener('click', () => {
-        window.location.href = `book-details?id=${book.id}`;
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        window.location.href = rowHref;
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
       });
       body.appendChild(row);
     });

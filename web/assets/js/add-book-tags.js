@@ -117,6 +117,11 @@
             addButton.classList.remove('pulse-add');
         }
     });
+    input.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        addTag();
+    });
 
     addButton.addEventListener('click', addTag);
     renderTags();

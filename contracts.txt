@@ -14,11 +14,11 @@ A) Contracts Index
 - Icon Contract
   - Location: contracts.txt -> "C) Icon Contract (Bootstrap Icons font)"
   - Reference implementations: web/books.html, web/book-types.html, web/assets/js/book-details.js
-- Interaction Contract (to be added in Phase 2)
-  - Location: contracts.txt -> (pending section to be added in Phase 2)
-  - Reference implementations: TBD in Phase 2
+- Interaction Contract
+  - Location: contracts.txt -> "D) Interaction Contract (lists + tables)"
+  - Reference implementations: web/books.html, web/assets/js/books.js, web/book-types.html, web/assets/js/book-types.js
 - Dark Mode Styling Rules (added Phase 0)
-  - Location: contracts.txt -> "D) Dark Mode Styling Rules"
+  - Location: contracts.txt -> "E) Dark Mode Styling Rules"
   - Reference implementations: web/assets/css/styles.css, web/assets/js/common.js
 
 B) Implementation Order Checklist
@@ -28,7 +28,7 @@ B) Implementation Order Checklist
    - Why: change summaries depend on modal structure and must match modal validation/state rules.
 3. Icon Contract
    - Why: icons are a visible UX contract; normalizing them avoids UI drift during later sweeps.
-4. Interaction Contract (Phase 2 addition pending)
+4. Interaction Contract
    - Why: interactions and hover rules build on the modal/icon baselines and must align with them.
 
 C) Reference rule
@@ -206,7 +206,70 @@ Purpose: standardize icon usage across user + admin UI to prevent drift and keep
 - Add the new icon to this contract with usage notes and affected pages.
 - Update all relevant pages in the same change to prevent drift.
 
-D) Dark Mode Styling Rules
+D) Interaction Contract (lists + tables)
+----------------------------------------
+Purpose: standardize list/table interactions across the app to ensure consistent hover, keyboard, and row-action behavior.
+
+1) Scope + baseline
+- Applies to list tables, card lists, and any "clickable row" list UI.
+- Baseline implementation: Books page.
+  - Reference: web/books.html, web/assets/js/books.js
+- Additional reference pages (must match baseline unless documented):
+  - web/book-types.html, web/assets/js/book-types.js
+  - web/authors.html, web/assets/js/authors.js
+  - web/publishers.html, web/assets/js/publishers.js
+  - web/series.html, web/assets/js/series.js
+  - web/storage-locations.html, web/assets/js/storage-locations.js
+  - web/statistics.html, web/assets/js/statistics.js
+  - web/admin-library.html, web/assets/js/admin-library.js
+  - web/author-details.html, web/assets/js/author-details.js
+  - web/publisher-details.html, web/assets/js/publisher-details.js
+  - web/series-details.html, web/assets/js/series-details.js
+  - web/book-details.html, web/assets/js/book-details.js
+
+2) Clickable row markup
+- Use the `clickable-row` class on any row/list item that is clickable.
+- For navigation rows, add `data-row-href="..."` and set:
+  - `tabindex="0"`
+  - `role="link"`
+- For non-navigation row actions (no URL), use `data-row-action="..."` and:
+  - `tabindex="0"`
+  - `role="button"`
+- If row text is not descriptive, add `aria-label` that matches the primary action.
+
+3) Pointer + hover rules
+- Clickable rows: cursor must be pointer and hover background must be visible.
+- Non-clickable rows: no pointer cursor and no hover styling that implies click.
+- Hover and focus-visible backgrounds must not cause layout shift.
+
+4) Event propagation rules
+- Row click handlers must ignore interactions on controls:
+  - Ignore clicks originating from `button`, `a`, `input`, `select`, `textarea`, or any element with `data-row-action` or `data-stop-row`.
+- Row action buttons/links must call `event.stopPropagation()` to prevent row click.
+
+5) Hover/focus-within parity for row actions
+- Any action controls shown on hover must also appear on `:focus-within`.
+- Use a stable container with `row-actions` class and keep layout fixed:
+  - right-aligned
+  - `white-space: nowrap`
+  - fixed/min width so columns do not jitter
+
+6) Keyboard interaction + accessibility
+- Clickable rows must be tabbable and activate on Enter/Space.
+- Action buttons must be tabbable and keep meaningful `aria-label` and/or tooltip text.
+- Focus styling must remain visible and theme-aware.
+
+7) Touch/no-hover rule + mobile exception
+- On touch/no-hover devices, row actions must be accessible via focus-within.
+- Project-specific exception: row edit/delete actions are intentionally hidden on mobile.
+  - This is not a bug; it is a documented behavior for this project phase.
+
+8) Loading/empty/error behavior
+- Loading states must not leave rows clickable.
+- Empty/error states must follow existing page patterns; do not add ad-hoc refresh buttons.
+- Page loading modals/spinners must always close on success and error paths.
+
+E) Dark Mode Styling Rules
 --------------------------
 1) Theme-aware styling only
 - No hard-coded light colors (e.g., #fff, #f8f9fa, "text-dark" used to force light-mode contrast, inline styles with background-color/color) unless explicitly theme-aware.
@@ -233,7 +296,7 @@ D) Dark Mode Styling Rules
 - web/assets/js/storage-locations.js:407-580 - text-bg-light + text-dark badges (forced light backgrounds)
 - web/assets/js/add-book-review.js:46 - bg-light text-dark badges (forced light backgrounds)
 
-E) Modal Copy Library (Drafts)
+F) Modal Copy Library (Drafts)
 ------------------------------
 1) No write permissions (draft)
 - Title: "Read-only access"
@@ -244,7 +307,7 @@ E) Modal Copy Library (Drafts)
   - Show when a disabled action is clicked in admin read-only context.
   - Button closes the modal; no side effects.
 
-F) Terminology Audit: "entity/entities"
+G) Terminology Audit: "entity/entities"
 ---------------------------------------
 Table columns: Location | Context | User-facing? | Proposed replacement | Notes/risk
 

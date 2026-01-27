@@ -23,8 +23,15 @@
 
   <style>
     .clickable-row { cursor: pointer; }
-    .clickable-row:hover { background-color: var(--bs-tertiary-bg); }
+    .clickable-row:hover,
+    .clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
+    }
     .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
 
     .books-toolbar {
       position: sticky;
@@ -52,7 +59,7 @@
       width: 72px;
       height: 96px;
       object-fit: cover;
-      background: #f1f3f5;
+      background: var(--bs-secondary-bg);
     }
 
     .cover-card {
@@ -60,7 +67,7 @@
       aspect-ratio: 2 / 3;
       height: auto;
       object-fit: cover;
-      background: #f1f3f5;
+      background: var(--bs-secondary-bg);
       display: block;
     }
     @media (max-width: 576px) {
@@ -96,7 +103,7 @@
     }
 
     .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meta-label { color: #6c757d; font-size: 0.85rem; }
+    .meta-label { color: var(--bs-secondary-color); font-size: 0.85rem; }
     .meta-value { font-weight: 600; font-size: 0.95rem; }
     .book-card-link { cursor: pointer; }
 
@@ -105,13 +112,13 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.35rem 0.6rem;
-      border: 1px solid rgba(0,0,0,0.10);
+      border: 1px solid var(--bs-border-color);
       border-radius: 999px;
       font-size: 0.875rem;
-      background: #f8f9fa;
+      background: var(--bs-tertiary-bg);
     }
 
-    .subtle-panel { background-color: #f7f8f9; }
+    .subtle-panel { background-color: var(--bs-tertiary-bg); }
 
     .list-table th { white-space: nowrap; }
     .list-meta-mobile-subtitle,
@@ -123,7 +130,7 @@
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
 
     .placeholder-skeleton {
-      background: linear-gradient(90deg, #f1f3f5 25%, #e9ecef 37%, #f1f3f5 63%);
+      background: linear-gradient(90deg, var(--bs-tertiary-bg) 25%, var(--bs-secondary-bg) 37%, var(--bs-tertiary-bg) 63%);
       background-size: 400% 100%;
       animation: shimmer 1.4s ease infinite;
       border-radius: 0.5rem;

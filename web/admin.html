@@ -22,18 +22,26 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .stats-nav .nav-link {
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--bs-border-color);
       border-radius: 999px;
-      font-weight: 500;
-      color: #495057;
+      font-weight: 600;
+      color: var(--bs-body-color);
+      background: var(--bs-body-bg);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     }
-
+    .stats-nav .nav-link:hover {
+      color: var(--bs-primary);
+      border-color: var(--bs-primary);
+      background: var(--bs-tertiary-bg);
+    }
+    .stats-nav .nav-link:focus-visible { outline: none; box-shadow: var(--bs-focus-ring-box-shadow); }
     .stats-nav .nav-link.active {
       background: var(--bs-primary);
       border-color: var(--bs-primary);
-      color: #fff;
+      color: var(--bs-white);
       font-weight: 700;
-      box-shadow: 0 6px 14px rgba(13, 110, 253, 0.18);
+      box-shadow: 0 10px 22px rgba(13, 110, 253, 0.2);
     }
 
     .stats-nav {
@@ -45,8 +53,9 @@
     .stats-nav .nav-link { white-space: nowrap; }
 
     .admin-card {
-      border: 1px solid rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--bs-border-color);
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+      background: var(--bs-body-bg);
     }
     .stat-pill {
       min-width: 92px;
@@ -60,27 +69,30 @@
       font-size: 0.9rem;
     }
     .table-fixed-sm td { white-space: nowrap; }
-    .muted-label { font-size: 0.9rem; color: #6c757d; }
+    .muted-label { font-size: 0.9rem; color: var(--bs-secondary-color); }
     .chip {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
       border-radius: 999px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      background-color: #f8f9fa;
+      border: 1px solid var(--bs-border-color);
+      background-color: var(--bs-tertiary-bg);
       font-weight: 600;
       font-size: 0.9rem;
     }
-    .chip-muted { color: #6c757d; }
-    .chip-alert { color: #b02a37; border-color: rgba(176, 42, 55, 0.25); }
+    .chip-muted { color: var(--bs-secondary-color); }
+    .chip-alert {
+      color: var(--bs-danger-text-emphasis);
+      border-color: var(--bs-danger-border-subtle);
+    }
     .action-summary {
-      border: 1px solid rgba(0, 0, 0, 0.05);
-      background: #f8f9fa;
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-tertiary-bg);
       border-radius: 12px;
       padding: 12px;
     }
-    .action-summary .label { color: #6c757d; font-size: 0.85rem; }
+    .action-summary .label { color: var(--bs-secondary-color); font-size: 0.85rem; }
   </style>
 </head>
 
@@ -330,7 +342,7 @@
       <div class="alert alert-success d-none" id="usersSuccess"></div>
       <div class="alert alert-warning d-none" id="usersAlert"></div>
       <div class="table-responsive">
-        <table class="table table-sm align-middle table-hover table-striped table-fixed-sm">
+        <table class="table table-sm align-middle table-striped table-fixed-sm">
           <thead class="table-light">
             <tr>
               <th scope="col">ID</th>
@@ -395,7 +407,7 @@
       <div class="card admin-card">
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover table-striped" id="languagesTable">
+            <table class="table table-sm align-middle table-striped" id="languagesTable">
               <thead class="table-light">
                 <tr>
                   <th scope="col">ID</th>
@@ -604,7 +616,7 @@
       <div class="card admin-card">
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover table-striped">
+            <table class="table table-sm align-middle table-striped">
               <thead class="table-light">
                 <tr>
                   <th scope="col">Timestamp</th>
@@ -775,7 +787,7 @@
           </div>
           <div class="text-muted small mb-2" id="dataViewerSummary">Select a table to load data.</div>
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover table-striped">
+            <table class="table table-sm align-middle table-striped">
               <thead class="table-light" id="dataViewerThead"></thead>
               <tbody id="dataViewerTbody">
                 <tr><td class="text-center text-muted py-3">No data loaded.</td></tr>
@@ -999,7 +1011,7 @@
         <div class="modal-body">
           <div class="alert alert-danger d-none" id="sessionsAlert"></div>
           <div class="table-responsive">
-            <table class="table table-sm align-middle table-hover table-striped">
+            <table class="table table-sm align-middle table-striped">
               <thead class="table-light">
                 <tr>
                   <th scope="col">Fingerprint</th>

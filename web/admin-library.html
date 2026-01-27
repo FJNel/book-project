@@ -22,12 +22,24 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .clickable-row { cursor: pointer; }
-    .clickable-row:hover { background-color: #f8f9fa; }
-    .clickable-row:active { background-color: #f1f3f5; }
+    .clickable-row:hover,
+    .clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
+    }
+    .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
     .banner-readonly {
-      border: 1px dashed rgba(0,0,0,0.15);
+      border: 1px dashed var(--bs-border-color);
       border-radius: 0.75rem;
-      background: #fff8e1;
+      background: var(--bs-warning-bg-subtle);
+    }
+    .library-table th:last-child,
+    .library-table td:last-child {
+      width: 1%;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -99,7 +111,7 @@
     </div>
 
     <div class="table-responsive">
-      <table class="table align-middle">
+      <table class="table align-middle library-table">
         <thead>
           <tr class="text-muted">
             <th>Title</th>

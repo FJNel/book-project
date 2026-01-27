@@ -124,6 +124,10 @@
       const row = document.createElement('tr');
       row.className = 'clickable-row';
       row.dataset.id = book.id;
+      const rowHref = `admin-library-details?userId=${encodeURIComponent(state.userId)}&bookId=${encodeURIComponent(book.id)}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
       row.innerHTML = `
         <td>
           <div class="fw-semibold">${escapeHtml(book.title || '')}</div>
@@ -134,6 +138,13 @@
         <td>${formatTimestamp(book.updatedAt)}</td>
         <td class="text-end"><button class="btn btn-sm btn-outline-secondary" data-action="view">View</button></td>
       `;
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
+      });
       dom.table.appendChild(row);
     });
 
@@ -210,9 +221,14 @@
       const action = event.target.closest('button[data-action]');
       const bookId = row.dataset.id;
       if (!bookId) return;
-      if (action || row) {
-        window.location.href = `admin-library-details?userId=${encodeURIComponent(state.userId)}&bookId=${encodeURIComponent(bookId)}`;
+      const rowHref = row.dataset.rowHref || `admin-library-details?userId=${encodeURIComponent(state.userId)}&bookId=${encodeURIComponent(bookId)}`;
+      if (action) {
+        event.stopPropagation();
+        window.location.href = rowHref;
+        return;
       }
+      if (event.target.closest('a, input, select, textarea')) return;
+      window.location.href = rowHref;
     });
   };
 

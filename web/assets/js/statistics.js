@@ -874,7 +874,7 @@
         .slice(0, 6)
       : [];
     const topRows = topAuthors.map((entry) => `
-      <tr class="clickable-row" data-row-href="author-details?id=${encodeURIComponent(entry.id)}">
+      <tr class="clickable-row" data-row-href="author-details?id=${encodeURIComponent(entry.id)}" role="link" tabindex="0">
         <td>${escapeHtml(entry.displayName || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
       </tr>
@@ -963,7 +963,7 @@
     } : null, dom.publishers.topEmpty);
 
     const rows = topPublishers.map((entry) => `
-      <tr class="clickable-row" data-row-href="publisher-details?id=${encodeURIComponent(entry.id)}">
+      <tr class="clickable-row" data-row-href="publisher-details?id=${encodeURIComponent(entry.id)}" role="link" tabindex="0">
         <td>${escapeHtml(entry.name || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
       </tr>
@@ -1065,7 +1065,7 @@
     renderListItems(dom.series.healthList, healthItems);
 
     const breakdownRows = topSeries.map((entry) => `
-      <tr class="clickable-row" data-row-href="series-details?id=${encodeURIComponent(entry.id)}">
+      <tr class="clickable-row" data-row-href="series-details?id=${encodeURIComponent(entry.id)}" role="link" tabindex="0">
         <td>${escapeHtml(entry.name || 'Unknown')}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.bookCount))}</td>
         <td class="text-end">${escapeHtml(formatNumber(entry.gapCount ?? 0))}</td>
@@ -1129,7 +1129,7 @@
     const breakdownRows = breakdown.map((entry) => {
       const totalCopies = Number(entry.directCopyCount ?? 0) + Number(entry.nestedCopyCount ?? 0);
       return `
-        <tr class="clickable-row" data-row-href="storage-locations?id=${encodeURIComponent(entry.id)}">
+        <tr class="clickable-row" data-row-href="storage-locations?id=${encodeURIComponent(entry.id)}" role="link" tabindex="0">
           <td>${escapeHtml(entry.path || 'Unknown')}</td>
           <td class="text-end">${escapeHtml(formatNumber(totalCopies))}</td>
           <td class="text-end">${escapeHtml(formatNumber(entry.directCopyCount ?? 0))}</td>
@@ -1495,6 +1495,7 @@
       }
       const row = event.target.closest('[data-row-href]');
       if (row && row.dataset.rowHref) {
+        if (event.target.closest('button, a, input, select, textarea')) return;
         window.location.href = row.dataset.rowHref;
       }
     });
@@ -1505,6 +1506,12 @@
       if (targetCard && targetCard.dataset.href) {
         event.preventDefault();
         window.location.href = targetCard.dataset.href;
+        return;
+      }
+      const row = event.target.closest('[data-row-href]');
+      if (row && row.dataset.rowHref) {
+        event.preventDefault();
+        window.location.href = row.dataset.rowHref;
       }
     });
 

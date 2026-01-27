@@ -22,14 +22,21 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .clickable-row { cursor: pointer; }
-    .clickable-row:hover { background-color: #f8f9fa; }
-    .clickable-row:active { background-color: #f1f3f5; }
+    .clickable-row:hover,
+    .clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
+    }
+    .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
 
     .cover-thumb {
       width: 60px;
       height: 80px;
       object-fit: cover;
-      background: #f1f3f5;
+      background: var(--bs-secondary-bg);
       border-radius: 0.35rem;
     }
 
@@ -56,16 +63,23 @@
 
     .list-table th { white-space: nowrap; }
     .list-table td { vertical-align: middle; }
+    .list-table th.list-col-actions,
+    .list-table td.list-col-actions {
+      width: 1%;
+      white-space: nowrap;
+    }
     .list-meta-mobile { display: none; }
     .row-actions {
       opacity: 0;
       visibility: hidden;
+      pointer-events: none;
       transition: opacity 0.15s ease-in-out;
     }
     .clickable-row:hover .row-actions,
     .clickable-row:focus-within .row-actions {
       opacity: 1;
       visibility: visible;
+      pointer-events: auto;
     }
   </style>
 </head>

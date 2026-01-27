@@ -470,6 +470,10 @@
       const metaLine = metaParts.join(' • ');
       const row = document.createElement('tr');
       row.className = 'clickable-row';
+      const rowHref = `series-details?id=${series.id}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
       row.innerHTML = `
         <td class="list-col-name">
           <div class="fw-semibold">${escapeHtml(series.name || 'Untitled series')}</div>
@@ -489,8 +493,16 @@
           <span class="text-muted">${escapeHtml(formatTimestamp(series.updatedAt) || '—')}</span>
         </td>
       `;
-      row.addEventListener('click', () => {
-        window.location.href = `series-details?id=${series.id}`;
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        window.location.href = rowHref;
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
       });
       dom.listTableBody.appendChild(row);
     });

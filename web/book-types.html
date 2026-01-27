@@ -22,8 +22,15 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .clickable-row { cursor: pointer; }
-    .clickable-row:hover { background-color: var(--bs-tertiary-bg); }
+    .clickable-row:hover,
+    .clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
+    }
     .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
 
     .books-toolbar {
       position: sticky;
@@ -64,6 +71,11 @@
     }
 
     .list-table th { white-space: nowrap; }
+    .list-table th.list-col-actions,
+    .list-table td.list-col-actions {
+      width: 1%;
+      white-space: nowrap;
+    }
     .list-table td { vertical-align: middle; }
     .list-table tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
     .list-meta-mobile { display: none; }
@@ -73,10 +85,10 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.35rem 0.6rem;
-      border: 1px solid rgba(0,0,0,0.10);
+      border: 1px solid var(--bs-border-color);
       border-radius: 999px;
       font-size: 0.875rem;
-      background: #f8f9fa;
+      background: var(--bs-tertiary-bg);
     }
 
     .row-actions {
@@ -86,10 +98,15 @@
       transition: opacity 0.15s ease, visibility 0.15s ease;
     }
 
-    .clickable-row:hover .row-actions {
+    .clickable-row:hover .row-actions,
+    .clickable-row:focus-within .row-actions {
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
+    }
+
+    @media (max-width: 767.98px) {
+      .row-actions { display: none !important; }
     }
   </style>
 </head>

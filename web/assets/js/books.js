@@ -814,8 +814,20 @@
     books.forEach((book) => {
       const row = document.createElement('tr');
       row.className = 'clickable-row';
-      row.addEventListener('click', () => {
-        window.location.href = `book-details?id=${book.id}`;
+      const rowHref = `book-details?id=${book.id}`;
+      row.dataset.rowHref = rowHref;
+      row.setAttribute('role', 'link');
+      row.setAttribute('tabindex', '0');
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        window.location.href = rowHref;
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.target.closest && event.target.closest('button, a, input, select, textarea, [data-row-action], [data-stop-row]')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = rowHref;
+        }
       });
 
       const coverSrc = book.coverImageUrl || placeholderCover(book.title, '600x900');

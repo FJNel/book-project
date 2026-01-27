@@ -22,8 +22,15 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
   <style>
     .clickable-row { cursor: pointer; }
-    .clickable-row:hover { background-color: var(--bs-tertiary-bg); }
+    .clickable-row:hover,
+    .clickable-row:focus-within {
+      background-color: var(--bs-tertiary-bg);
+    }
     .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
 
     .books-toolbar {
       position: sticky;
@@ -77,14 +84,14 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.35rem 0.6rem;
-      border: 1px solid rgba(0,0,0,0.10);
+      border: 1px solid var(--bs-border-color);
       border-radius: 999px;
       font-size: 0.875rem;
-      background: #f8f9fa;
+      background: var(--bs-tertiary-bg);
     }
 
     .placeholder-skeleton {
-      background: linear-gradient(90deg, #f1f3f5 25%, #e9ecef 37%, #f1f3f5 63%);
+      background: linear-gradient(90deg, var(--bs-tertiary-bg) 25%, var(--bs-secondary-bg) 37%, var(--bs-tertiary-bg) 63%);
       background-size: 400% 100%;
       animation: shimmer 1.4s ease infinite;
       border-radius: 0.5rem;

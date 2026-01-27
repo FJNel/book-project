@@ -128,5 +128,10 @@
         helpEl?.classList.add('attention-hint');
         addButton.classList.add('pulse-add');
     });
+    languageSelect.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        addLanguage();
+    });
     addButton.addEventListener('click', addLanguage);
 })();

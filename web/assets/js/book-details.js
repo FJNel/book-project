@@ -687,8 +687,20 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       if (Number.isInteger(author.authorId)) {
-        item.addEventListener('click', () => {
-          window.location.href = `author-details?id=${author.authorId}`;
+        const rowHref = `author-details?id=${author.authorId}`;
+        item.dataset.rowHref = rowHref;
+        item.setAttribute('role', 'link');
+        item.setAttribute('tabindex', '0');
+        item.addEventListener('click', (event) => {
+          if (event.target.closest('a, button, input, select, textarea')) return;
+          window.location.href = rowHref;
+        });
+        item.addEventListener('keydown', (event) => {
+          if (event.target.closest && event.target.closest('a, button, input, select, textarea')) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            window.location.href = rowHref;
+          }
         });
       }
       list.appendChild(item);
@@ -740,8 +752,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ${details.length ? `<div class="small text-muted mt-2">${details.join('')}</div>` : ''}
       `;
       if (Number.isInteger(entry.seriesId)) {
-        item.addEventListener('click', () => {
-          window.location.href = `series-details?id=${entry.seriesId}`;
+        const rowHref = `series-details?id=${entry.seriesId}`;
+        item.dataset.rowHref = rowHref;
+        item.setAttribute('role', 'link');
+        item.setAttribute('tabindex', '0');
+        item.addEventListener('click', (event) => {
+          if (event.target.closest('a, button, input, select, textarea')) return;
+          window.location.href = rowHref;
+        });
+        item.addEventListener('keydown', (event) => {
+          if (event.target.closest && event.target.closest('a, button, input, select, textarea')) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            window.location.href = rowHref;
+          }
         });
       }
       list.appendChild(item);
@@ -1094,10 +1118,21 @@ document.addEventListener('DOMContentLoaded', () => {
         wrap.classList.remove('d-none');
       });
       if (Number.isInteger(book.publisher?.id)) {
+        const rowHref = `publisher-details?id=${book.publisher.id}`;
+        publisherRow.dataset.rowHref = rowHref;
+        publisherRow.setAttribute('role', 'link');
+        publisherRow.setAttribute('tabindex', '0');
         publisherRow.addEventListener('click', (event) => {
           const target = event.target;
-          if (target && target.closest && target.closest('a')) return;
-          window.location.href = `publisher-details?id=${book.publisher.id}`;
+          if (target && target.closest && target.closest('a, button, input, select, textarea')) return;
+          window.location.href = rowHref;
+        });
+        publisherRow.addEventListener('keydown', (event) => {
+          if (event.target.closest && event.target.closest('a, button, input, select, textarea')) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            window.location.href = rowHref;
+          }
         });
       }
     }
