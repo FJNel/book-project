@@ -11,7 +11,7 @@ const { logToFile, sanitizeInput } = require("../utils/logging");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
 const { enqueueEmail } = require("../utils/email-queue");
-const { recordEmailHistory, updateEmailHistory } = require("../utils/email-history");
+const { recordEmailHistory, updateEmailHistory, wasEmailSentRecently, wasTemplateSentRecently } = require("../utils/email-history");
 const email = require("../utils/email");
 const {
 	DEFAULT_ADMIN_TTL_SECONDS,
@@ -379,7 +379,11 @@ const adminUsageUsersHandler = async (req, res) => {
 
 	const sortColumnMap = {
 		usageScore: "usage_score",
+		websiteUsageScore: "website_usage_score",
+		apiUsageScore: "api_usage_score",
 		requests: "request_count",
+		websiteRequests: "website_request_count",
+		apiRequests: "api_request_count",
 		lastSeen: "last_seen"
 	};
 	const sortColumn = sortColumnMap[sortBy] || "usage_score";
@@ -422,17 +426,34 @@ const adminUsageUsersHandler = async (req, res) => {
 
 		// Usage score: capped 0-100 with log10 scaling over the 30-day window (cost_units preferred; fallback to request count).
 		const usageScoreSelect = `${buildUsageScoreExpression(hasCostUnits)} AS usage_score`;
+		const websiteMetric = hasCostUnits
+			? "COALESCE(SUM(CASE WHEN l.actor_type = 'user' THEN l.cost_units ELSE 0 END), 0)"
+			: "COUNT(*) FILTER (WHERE l.actor_type = 'user')";
+		const apiMetric = hasCostUnits
+			? "COALESCE(SUM(CASE WHEN l.actor_type = 'api_key' THEN l.cost_units ELSE 0 END), 0)"
+			: "COUNT(*) FILTER (WHERE l.actor_type = 'api_key')";
+		const websiteUsageScoreSelect = `${buildUsageScoreExpressionFrom(websiteMetric)} AS website_usage_score`;
+		const apiUsageScoreSelect = `${buildUsageScoreExpressionFrom(apiMetric)} AS api_usage_score`;
 
 		const usageResult = await pool.query(
 			`SELECT l.user_id,
 			        l.user_email,
 			        l.user_role,
+			        u.full_name,
+			        u.preferred_name,
 			        COUNT(*)::int AS request_count,
+			        COUNT(*) FILTER (WHERE l.actor_type = 'user')::int AS website_request_count,
+			        COUNT(*) FILTER (WHERE l.actor_type = 'api_key')::int AS api_request_count,
 			        ${usageScoreSelect},
-			        MAX(l.logged_at) AS last_seen
+			        ${websiteUsageScoreSelect},
+			        ${apiUsageScoreSelect},
+			        MAX(l.logged_at) AS last_seen,
+			        MAX(l.logged_at) FILTER (WHERE l.actor_type = 'user') AS website_last_seen,
+			        MAX(l.logged_at) FILTER (WHERE l.actor_type = 'api_key') AS api_last_seen
 			 FROM request_logs l
+			 LEFT JOIN users u ON u.id = l.user_id
 			 WHERE ${clauses.join(" AND ")}
-			 GROUP BY l.user_id, l.user_email, l.user_role
+			 GROUP BY l.user_id, l.user_email, l.user_role, u.full_name, u.preferred_name
 			 ORDER BY ${sortColumn} ${sortOrder}
 			 LIMIT $${idx} OFFSET $${idx + 1}`,
 			[...values, limit ?? 25, offset ?? 0]
@@ -442,22 +463,39 @@ const adminUsageUsersHandler = async (req, res) => {
 			userId: row.user_id,
 			email: row.user_email,
 			role: row.user_role,
+			fullName: row.full_name,
+			preferredName: row.preferred_name,
 			requestCount: row.request_count,
 			usageScore: row.usage_score,
 			usageLevel: getUsageLevel(row.usage_score),
 			lastSeen: row.last_seen,
+			websiteUsage: {
+				requestCount: row.website_request_count,
+				usageScore: row.website_usage_score,
+				usageLevel: getUsageLevel(row.website_usage_score),
+				lastSeen: row.website_last_seen
+			},
+			apiUsage: {
+				requestCount: row.api_request_count,
+				usageScore: row.api_usage_score,
+				usageLevel: getUsageLevel(row.api_usage_score),
+				lastSeen: row.api_last_seen
+			},
 			topEndpoints: []
 		}));
 
 		if (users.length > 0) {
 			const userIds = users.map((u) => u.userId);
 			const topResult = await pool.query(
-				`SELECT l.user_id, l.method, l.path, COUNT(*)::int AS count
+				`SELECT l.user_id,
+				        l.method,
+				        COALESCE(l.route_pattern, l.path) AS endpoint,
+				        COUNT(*)::int AS count
 				 FROM request_logs l
 				 WHERE l.actor_type IN ('user', 'api_key')
 				   AND l.user_id = ANY($1)
 				   AND l.logged_at BETWEEN $2 AND $3
-				 GROUP BY l.user_id, l.method, l.path
+				 GROUP BY l.user_id, l.method, COALESCE(l.route_pattern, l.path)
 				 ORDER BY count DESC`,
 				[userIds, windowStart, windowEnd]
 			);
@@ -466,7 +504,7 @@ const adminUsageUsersHandler = async (req, res) => {
 				if (!grouped.has(row.user_id)) grouped.set(row.user_id, []);
 				grouped.get(row.user_id).push({
 					method: row.method,
-					path: row.path,
+					path: row.endpoint,
 					count: row.count
 				});
 			});
@@ -474,6 +512,16 @@ const adminUsageUsersHandler = async (req, res) => {
 				const list = grouped.get(user.userId) || [];
 				user.topEndpoints = list.slice(0, topLimit);
 			});
+		}
+
+		try {
+			await sendUsageAdminAlerts(users, windowStart, windowEnd);
+		} catch (alertError) {
+			logToFile("ADMIN_USAGE_ALERT", {
+				status: "FAILURE",
+				error_message: alertError.message,
+				admin_id: req.user.id
+			}, "warn");
 		}
 
 		const responseData = {
@@ -723,6 +771,184 @@ const adminUsageApiKeysHandler = async (req, res) => {
 router.get("/usage/api-keys", adminAuth, adminUsageApiKeysHandler);
 router.post("/usage/api-keys", adminAuth, adminUsageApiKeysHandler);
 
+// GET/POST /admin/usage/endpoints - Endpoint usage summary (global)
+const adminEndpointUsageHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 1, max: 500 });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const windowStart = startDate || new Date(Date.now() - USAGE_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+	const windowEnd = endDate || new Date().toISOString();
+
+	try {
+		const { hasTable } = await getRequestLogsAvailability();
+		if (!hasTable) {
+			return successResponse(res, 200, "Endpoint usage retrieved successfully.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				window: { startDate: windowStart, endDate: windowEnd },
+				limit: limit ?? 50,
+				endpoints: [],
+				warnings: ["Request logs are unavailable, so endpoint usage cannot be generated."]
+			});
+		}
+
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/usage/endpoints",
+			params: {
+				windowStart,
+				windowEnd,
+				limit: limit ?? 50
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Endpoint usage retrieved successfully.", cached.data);
+		}
+
+		const result = await pool.query(
+			`SELECT COALESCE(l.route_pattern, l.path) AS endpoint,
+			        l.method,
+			        COUNT(*)::int AS call_count
+			 FROM request_logs l
+			 WHERE l.actor_type IN ('user', 'api_key')
+			   AND l.logged_at BETWEEN $1 AND $2
+			 GROUP BY COALESCE(l.route_pattern, l.path), l.method
+			 ORDER BY call_count DESC
+			 LIMIT $3`,
+			[windowStart, windowEnd, limit ?? 50]
+		);
+
+		const responseData = {
+			configured: true,
+			window: { startDate: windowStart, endDate: windowEnd },
+			limit: limit ?? 50,
+			endpoints: result.rows.map((row) => ({
+				endpoint: row.endpoint,
+				method: row.method,
+				callCount: row.call_count
+			}))
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
+		return successResponse(res, 200, "Endpoint usage retrieved successfully.", responseData);
+	} catch (error) {
+		logToFile("ADMIN_ENDPOINT_USAGE", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve endpoint usage."]);
+	}
+};
+
+router.get("/usage/endpoints", adminAuth, adminEndpointUsageHandler);
+router.post("/usage/endpoints", adminAuth, adminEndpointUsageHandler);
+
+// GET/POST /admin/usage/users/:id/endpoints - Endpoint usage summary (per user)
+const adminUserEndpointUsageHandler = async (req, res) => {
+	const targetId = parseId(req.params.id || req.body?.userId);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	const params = { ...req.query, ...(req.body || {}) };
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 1, max: 200 });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const windowStart = startDate || new Date(Date.now() - USAGE_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+	const windowEnd = endDate || new Date().toISOString();
+
+	try {
+		const { hasTable } = await getRequestLogsAvailability();
+		if (!hasTable) {
+			return successResponse(res, 200, "Endpoint usage retrieved successfully.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				window: { startDate: windowStart, endDate: windowEnd },
+				limit: limit ?? 50,
+				endpoints: [],
+				warnings: ["Request logs are unavailable, so endpoint usage cannot be generated."]
+			});
+		}
+
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/usage/users/endpoints",
+			params: {
+				userId: targetId,
+				windowStart,
+				windowEnd,
+				limit: limit ?? 50
+			}
+		});
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			return successResponse(res, 200, "Endpoint usage retrieved successfully.", cached.data);
+		}
+
+		const result = await pool.query(
+			`SELECT COALESCE(l.route_pattern, l.path) AS endpoint,
+			        l.method,
+			        COUNT(*)::int AS call_count
+			 FROM request_logs l
+			 WHERE l.actor_type IN ('user', 'api_key')
+			   AND l.user_id = $1
+			   AND l.logged_at BETWEEN $2 AND $3
+			 GROUP BY COALESCE(l.route_pattern, l.path), l.method
+			 ORDER BY call_count DESC
+			 LIMIT $4`,
+			[targetId, windowStart, windowEnd, limit ?? 50]
+		);
+
+		const responseData = {
+			configured: true,
+			window: { startDate: windowStart, endDate: windowEnd },
+			limit: limit ?? 50,
+			userId: targetId,
+			endpoints: result.rows.map((row) => ({
+				endpoint: row.endpoint,
+				method: row.method,
+				callCount: row.call_count
+			}))
+		};
+		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
+		return successResponse(res, 200, "Endpoint usage retrieved successfully.", responseData);
+	} catch (error) {
+		logToFile("ADMIN_ENDPOINT_USAGE_USER", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve endpoint usage."]);
+	}
+};
+
+router.get("/usage/users/:id/endpoints", adminAuth, adminUserEndpointUsageHandler);
+router.post("/usage/users/:id/endpoints", adminAuth, adminUserEndpointUsageHandler);
+
 const MAX_LANGUAGE_NAME_LENGTH = 100;
 const MAX_LIST_LIMIT = 200;
 const MAX_REASON_LENGTH = 500;
@@ -742,6 +968,10 @@ const USAGE_SCORE_WINDOW_DAYS = 30;
 
 function buildUsageScoreExpression(hasCostUnits, reference = USAGE_SCORE_REFERENCE) {
 	const metric = hasCostUnits ? "COALESCE(SUM(l.cost_units), COUNT(*))" : "COUNT(*)";
+	return buildUsageScoreExpressionFrom(metric, reference);
+}
+
+function buildUsageScoreExpressionFrom(metric, reference = USAGE_SCORE_REFERENCE) {
 	return `LEAST(100, ROUND(100 * LOG(10, 1 + ${metric}) / LOG(10, 1 + ${reference})))::int`;
 }
 // This list should mirror api/database-tables.txt (sanitized, read-only).
@@ -1439,11 +1669,19 @@ const EMAIL_TYPE_METADATA = {
 			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" }
 		]
 	},
+	usage_warning_user: {
+		description: "Usage notice for website activity.",
+		fields: [
+			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
+			{ name: "usageLevel", label: "Usage level", type: "text", placeholder: "High", required: true, helpText: "Use the current usage level (Low, Medium, High, Very High)." }
+		]
+	},
 	usage_warning_api_key: {
-		description: "Usage warning for API key activity.",
+		description: "Usage notice for API key activity.",
 		fields: [
 			{ name: "preferredName", label: "Preferred name", type: "text", placeholder: "Avery" },
 			{ name: "keyName", label: "Key name", type: "text", placeholder: "Primary key", required: true },
+			{ name: "keyPrefix", label: "Key prefix", type: "text", placeholder: "bk_1234", required: true },
 			{ name: "usageLevel", label: "Usage level", type: "text", placeholder: "High", required: true, helpText: "Use the current usage level (Low, Medium, High, Very High)." }
 		]
 	},
@@ -1558,28 +1796,25 @@ function parseBooleanFlag(value) {
 	return null;
 }
 
-const DEV_FEATURES_TEST_WINDOW_MS = 12 * 60 * 60 * 1000;
-const devFeaturesTestGate = new Map();
+const DEV_FEATURES_TEST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function buildDevFeaturesSignature(subject, markdownBody) {
 	const seed = `${String(subject || "").trim()}::${String(markdownBody || "").trim()}`;
 	return crypto.createHash("sha256").update(seed).digest("hex");
 }
 
-function recordDevFeaturesTest(adminId, subject, markdownBody) {
-	if (!adminId) return;
-	devFeaturesTestGate.set(adminId, {
-		signature: buildDevFeaturesSignature(subject, markdownBody),
-		testedAt: Date.now()
-	});
+function recordDevFeaturesTest() {
+	return;
 }
 
-function hasRecentDevFeaturesTest(adminId, subject, markdownBody) {
+async function hasRecentDevFeaturesTest(adminId, subject, markdownBody) {
 	if (!adminId) return false;
-	const entry = devFeaturesTestGate.get(adminId);
-	if (!entry) return false;
-	if (Date.now() - entry.testedAt > DEV_FEATURES_TEST_WINDOW_MS) return false;
-	return entry.signature === buildDevFeaturesSignature(subject, markdownBody);
+	const signature = buildDevFeaturesSignature(subject, markdownBody);
+	return wasTemplateSentRecently({
+		emailType: "dev_features_announcement",
+		templateSignature: signature,
+		withinHours: Math.ceil(DEV_FEATURES_TEST_WINDOW_MS / (60 * 60 * 1000))
+	});
 }
 
 function parseId(value) {
@@ -1915,6 +2150,49 @@ function getUsageLevel(score) {
 	return match ? match.label : "Low";
 }
 
+async function sendUsageAdminAlerts(users, windowStart, windowEnd, { withinHours = 24 } = {}) {
+	if (!Array.isArray(users) || users.length === 0) return;
+	const recipient = (config.mail && config.mail.supportEmail) ? config.mail.supportEmail : "support@fjnel.co.za";
+	const streams = [
+		{ key: "websiteUsage", label: "Website usage", emailType: "usage_admin_alert_website" },
+		{ key: "apiUsage", label: "API usage", emailType: "usage_admin_alert_api" }
+	];
+	for (const user of users) {
+		if (!Number.isInteger(user.userId)) continue;
+		for (const stream of streams) {
+			const usage = user[stream.key];
+			if (!usage || !Number.isFinite(usage.usageScore)) continue;
+			if (usage.usageScore <= 90) continue;
+			if (!Number.isFinite(usage.requestCount) || usage.requestCount <= 0) continue;
+			const alreadySent = await wasEmailSentRecently({
+				emailType: stream.emailType,
+				recipientEmail: recipient,
+				targetUserId: user.userId,
+				withinHours
+			});
+			if (alreadySent) continue;
+			enqueueEmail({
+				type: stream.emailType,
+				userId: null,
+				targetUserId: user.userId,
+				params: {
+					toEmail: recipient,
+					userId: user.userId,
+					userEmail: user.email || "unknown",
+					userName: user.preferredName || user.fullName || "User",
+					streamLabel: stream.label,
+					score: usage.usageScore,
+					level: usage.usageLevel || getUsageLevel(usage.usageScore),
+					requestCount: usage.requestCount,
+					windowStart,
+					windowEnd
+				},
+				context: { source: "ADMIN_USAGE_ALERT", stream: stream.key }
+			});
+		}
+	}
+}
+
 function resolveDefaultExpiry(emailType) {
 	return TOKEN_EXPIRY_DEFAULTS[emailType] || 60;
 }
@@ -1941,7 +2219,8 @@ const EMAIL_TYPE_HANDLERS = {
 	api_key_revoked: async (payload) => email.sendApiKeyRevokedEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix),
 	api_key_ban_applied: async (payload) => email.sendApiKeyBanAppliedEmail(payload.toEmail, payload.preferredName, payload.reason),
 	api_key_ban_removed: async (payload) => email.sendApiKeyBanRemovedEmail(payload.toEmail, payload.preferredName),
-	usage_warning_api_key: async (payload) => email.sendApiKeyUsageWarningEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.usageLevel),
+	usage_warning_user: async (payload) => email.sendUsageWarningUserEmail(payload.toEmail, payload.preferredName, payload.usageLevel),
+	usage_warning_api_key: async (payload) => email.sendUsageWarningApiKeyEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix, payload.usageLevel),
 	api_key_expiring: async (payload) => email.sendApiKeyExpiringEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix, payload.expiresAt),
 	api_key_expired: async (payload) => email.sendApiKeyExpiredEmail(payload.toEmail, payload.preferredName, payload.keyName, payload.keyPrefix)
 };
@@ -2001,6 +2280,16 @@ function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInM
 				verificationExpiresIn: expiresInMinutes,
 				resetExpiresIn: expiresInMinutes
 			};
+		case "usage_warning_user":
+			return { toEmail: normalizedEmail, preferredName, usageLevel: context.usageLevel || "High" };
+		case "usage_warning_api_key":
+			return {
+				toEmail: normalizedEmail,
+				preferredName,
+				keyName: context.keyName || "Primary key",
+				keyPrefix: context.keyPrefix || "bk_1234",
+				usageLevel: context.usageLevel || "High"
+			};
 		case "dev_features_announcement":
 			return {
 				toEmail: normalizedEmail,
@@ -2027,13 +2316,6 @@ function buildTestEmailParams(emailType, normalizedEmail, tokenValue, expiresInM
 			return { toEmail: normalizedEmail, preferredName, reason };
 		case "api_key_ban_removed":
 			return { toEmail: normalizedEmail, preferredName };
-		case "usage_warning_api_key":
-			return {
-				toEmail: normalizedEmail,
-				preferredName,
-				keyName: context.keyName || "Primary key",
-				usageLevel: context.usageLevel || "High"
-			};
 		case "api_key_expiring":
 			return {
 				toEmail: normalizedEmail,
@@ -2325,8 +2607,12 @@ function formatUserRow(row, { nameOnly = false, includeOauthProviders = false } 
 		};
 	}
 
-	const usageScore = Number(row.usage_score) || 0;
+	const usageScore = Number.isFinite(Number(row.usage_score)) ? Number(row.usage_score) : null;
 	const lastActive = row.last_active || row.last_login || row.usage_last_seen || null;
+	const websiteUsageScore = Number.isFinite(Number(row.website_usage_score)) ? Number(row.website_usage_score) : null;
+	const apiUsageScore = Number.isFinite(Number(row.api_usage_score)) ? Number(row.api_usage_score) : null;
+	const websiteRequestCount = Number.isFinite(Number(row.website_request_count)) ? Number(row.website_request_count) : 0;
+	const apiRequestCount = Number.isFinite(Number(row.api_request_count)) ? Number(row.api_request_count) : 0;
 	const apiKeyActiveCount = Number(row.api_key_active_count) || 0;
 	const apiKeyRevokedCount = Number(row.api_key_revoked_count) || 0;
 	const apiKeyStatus = apiKeyActiveCount > 0 ? "Active" : (apiKeyRevokedCount > 0 ? "Revoked" : "None");
@@ -2347,7 +2633,19 @@ function formatUserRow(row, { nameOnly = false, includeOauthProviders = false } 
 		languageCount: Number(row.language_count) || 0,
 		librarySize: Number(row.library_size) || 0,
 		usageScore,
-		usageRank: getUsageLevel(usageScore),
+		usageRank: Number.isFinite(usageScore) ? getUsageLevel(usageScore) : null,
+		websiteUsage: {
+			usageScore: websiteUsageScore,
+			usageLevel: Number.isFinite(websiteUsageScore) ? getUsageLevel(websiteUsageScore) : null,
+			requestCount: websiteRequestCount,
+			lastSeen: row.website_last_seen || null
+		},
+		apiUsage: {
+			usageScore: apiUsageScore,
+			usageLevel: Number.isFinite(apiUsageScore) ? getUsageLevel(apiUsageScore) : null,
+			requestCount: apiRequestCount,
+			lastSeen: row.api_last_seen || null
+		},
 		apiKeyActiveCount,
 		apiKeyRevokedCount,
 		apiKeyStatus,
@@ -2552,6 +2850,24 @@ const adminUsersListHandler = async (req, res) => {
 	const usageScoreSelect = hasTable
 		? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
 		: "NULL::int AS usage_score";
+	const websiteUsageScoreSelect = hasTable
+		? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS website_usage_score`
+		: "NULL::int AS website_usage_score";
+	const apiUsageScoreSelect = hasTable
+		? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS api_usage_score`
+		: "NULL::int AS api_usage_score";
+	const websiteRequestCountSelect = hasTable
+		? `(SELECT COUNT(*)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS website_request_count`
+		: "0::int AS website_request_count";
+	const apiRequestCountSelect = hasTable
+		? `(SELECT COUNT(*)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS api_request_count`
+		: "0::int AS api_request_count";
+	const websiteLastSeenSelect = hasTable
+		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS website_last_seen"
+		: "NULL AS website_last_seen";
+	const apiLastSeenSelect = hasTable
+		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key') AS api_last_seen"
+		: "NULL AS api_last_seen";
 	const apiKeyActiveSelect = hasUserApiKeys
 		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
 		: "0::int AS api_key_active_count";
@@ -2576,6 +2892,12 @@ const adminUsersListHandler = async (req, res) => {
 		   (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
 		   ${usageLastSeenSelect},
 		   ${usageScoreSelect},
+		   ${websiteUsageScoreSelect},
+		   ${apiUsageScoreSelect},
+		   ${websiteRequestCountSelect},
+		   ${apiRequestCountSelect},
+		   ${websiteLastSeenSelect},
+		   ${apiLastSeenSelect},
 		   ${apiKeyActiveSelect},
 		   ${apiKeyRevokedSelect}`;
 
@@ -2652,6 +2974,24 @@ router.get("/users", adminAuth, async (req, res) => {
 			const usageScoreSelect = hasTable
 				? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
 				: "NULL::int AS usage_score";
+			const websiteUsageScoreSelect = hasTable
+				? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS website_usage_score`
+				: "NULL::int AS website_usage_score";
+			const apiUsageScoreSelect = hasTable
+				? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS api_usage_score`
+				: "NULL::int AS api_usage_score";
+			const websiteRequestCountSelect = hasTable
+				? `(SELECT COUNT(*)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS website_request_count`
+				: "0::int AS website_request_count";
+			const apiRequestCountSelect = hasTable
+				? `(SELECT COUNT(*)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key' AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS api_request_count`
+				: "0::int AS api_request_count";
+			const websiteLastSeenSelect = hasTable
+				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS website_last_seen"
+				: "NULL AS website_last_seen";
+			const apiLastSeenSelect = hasTable
+				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'api_key') AS api_last_seen"
+				: "NULL AS api_last_seen";
 			const apiKeyActiveSelect = hasUserApiKeys
 				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
 				: "0::int AS api_key_active_count";
@@ -2678,6 +3018,12 @@ router.get("/users", adminAuth, async (req, res) => {
 				        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
 				        ${usageLastSeenSelect},
 				        ${usageScoreSelect},
+				        ${websiteUsageScoreSelect},
+				        ${apiUsageScoreSelect},
+				        ${websiteRequestCountSelect},
+				        ${apiRequestCountSelect},
+				        ${websiteLastSeenSelect},
+				        ${apiLastSeenSelect},
 				        ${apiKeyActiveSelect},
 				        ${apiKeyRevokedSelect},
 				        ${oauthProvidersSelect}
@@ -3658,19 +4004,66 @@ router.post("/users/api-key-unban", adminAuth, async (req, res) => {
 	return handleApiKeyBan(req, res, resolved.id, false);
 });
 
-router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
-	const targetId = parseId(req.params.id);
+// GET/POST /admin/users/:id/api-keys - List active API keys for a user (sanitized)
+const adminUserApiKeysHandler = async (req, res) => {
+	const targetId = parseId(req.params.id || req.body?.userId);
 	if (!Number.isInteger(targetId)) {
 		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
 	}
-	const keyName = normalizeText(req.body?.keyName) || "API key";
+	try {
+		const hasKeysTable = await tableExists("user_api_keys");
+		if (!hasKeysTable) {
+			return successResponse(res, 200, "API keys unavailable.", {
+				configured: false,
+				keys: [],
+				warnings: ["API key storage is not configured."]
+			});
+		}
+		const result = await pool.query(
+			`SELECT id, name, key_prefix, expires_at
+			 FROM user_api_keys
+			 WHERE user_id = $1
+			   AND revoked_at IS NULL
+			   AND (expires_at IS NULL OR expires_at > NOW())
+			 ORDER BY created_at DESC`,
+			[targetId]
+		);
+		const keys = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name || "API key",
+			keyPrefix: row.key_prefix,
+			expiresAt: row.expires_at
+		}));
+		return successResponse(res, 200, "API keys retrieved successfully.", { configured: true, keys });
+	} catch (error) {
+		logToFile("ADMIN_USER_API_KEYS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load API keys for this user."]);
+	}
+};
+
+router.get("/users/:id/api-keys", adminAuth, adminUserApiKeysHandler);
+router.post("/users/:id/api-keys", adminAuth, adminUserApiKeysHandler);
+
+async function handleUsageWarning(req, res, targetId) {
+	const warningType = normalizeText(req.body?.warningType || req.body?.type || "website").toLowerCase();
 	const usageLevel = normalizeText(req.body?.usageLevel) || "High";
+	const reason = normalizeText(req.body?.reason || "");
+	const apiKeyId = parseId(req.body?.apiKeyId);
+
 	const errors = [];
-	if (keyName.length > 120) errors.push("Key name must be 120 characters or fewer.");
+	if (!["website", "api"].includes(warningType)) errors.push("Warning type must be website or api.");
 	if (usageLevel.length > 40) errors.push("Usage level must be 40 characters or fewer.");
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
+
 	try {
 		const result = await pool.query(
 			`SELECT id, email, preferred_name
@@ -3682,23 +4075,82 @@ router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
 			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
 		}
 		const user = result.rows[0];
+		if (!user.email) {
+			return errorResponse(res, 400, "Validation Error", ["User email is required to send warnings."]);
+		}
+
+		if (warningType === "api") {
+			const keysResult = await pool.query(
+				`SELECT id, name, key_prefix
+				 FROM user_api_keys
+				 WHERE user_id = $1
+				   AND revoked_at IS NULL`,
+				[targetId]
+			);
+			if (keysResult.rows.length === 0) {
+				return errorResponse(res, 400, "Validation Error", ["User has no active API keys."]);
+			}
+
+			let selectedKey = null;
+			if (Number.isInteger(apiKeyId)) {
+				selectedKey = keysResult.rows.find((row) => row.id === apiKeyId) || null;
+			} else if (keysResult.rows.length === 1) {
+				selectedKey = keysResult.rows[0];
+			}
+			if (!selectedKey) {
+				return errorResponse(res, 400, "Validation Error", ["Select an API key to send this warning."]);
+			}
+
+			enqueueEmail({
+				type: "usage_warning_api_key",
+				params: {
+					toEmail: user.email,
+					preferredName: user.preferred_name,
+					keyName: selectedKey.name || "API key",
+					keyPrefix: selectedKey.key_prefix || "—",
+					usageLevel
+				},
+				context: { source: "ADMIN_USAGE_WARNING", reason },
+				userId: user.id
+			});
+			logToFile("ADMIN_USAGE_WARNING", {
+				status: "SUCCESS",
+				admin_id: req.user.id,
+				user_id: user.id,
+				warning_type: "api",
+				key_id: selectedKey.id,
+				key_prefix: selectedKey.key_prefix,
+				usage_level: usageLevel,
+				reason,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "info");
+			return successResponse(res, 200, "Usage warning email queued.", {
+				id: user.id,
+				email: user.email,
+				usageLevel,
+				warningType: "api",
+				apiKeyId: selectedKey.id
+			});
+		}
+
 		enqueueEmail({
-			type: "usage_warning_api_key",
+			type: "usage_warning_user",
 			params: {
 				toEmail: user.email,
 				preferredName: user.preferred_name,
-				keyName,
 				usageLevel
 			},
-			context: "ADMIN_USAGE_WARNING",
+			context: { source: "ADMIN_USAGE_WARNING", reason },
 			userId: user.id
 		});
 		logToFile("ADMIN_USAGE_WARNING", {
 			status: "SUCCESS",
 			admin_id: req.user.id,
 			user_id: user.id,
-			key_name: keyName,
+			warning_type: "website",
 			usage_level: usageLevel,
+			reason,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
@@ -3706,7 +4158,7 @@ router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
 			id: user.id,
 			email: user.email,
 			usageLevel,
-			keyName
+			warningType: "website"
 		});
 	} catch (error) {
 		logToFile("ADMIN_USAGE_WARNING", {
@@ -3719,6 +4171,23 @@ router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
 		}, "error");
 		return errorResponse(res, 500, "Email service error", ["Unable to queue usage warning email."]);
 	}
+}
+
+router.post("/users/:id/usage-warning", adminAuth, async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleUsageWarning(req, res, targetId);
+});
+
+router.post("/users/:id/usage-warning-api-key", adminAuth, async (req, res) => {
+	req.body = { ...req.body, warningType: "api" };
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	return handleUsageWarning(req, res, targetId);
 });
 
 router.post("/users/:id/usage-lockout", adminAuth, async (req, res) => {
@@ -4265,7 +4734,10 @@ const adminEmailHistoryHandler = async (req, res) => {
 		filters.push(`status = $${idx++}`);
 		values.push(status);
 	}
-	if (resolvedRecipient) {
+	if (Number.isInteger(userId)) {
+		filters.push(`target_user_id = $${idx++}`);
+		values.push(userId);
+	} else if (resolvedRecipient) {
 		filters.push(`recipient_email ILIKE $${idx++}`);
 		values.push(`%${resolvedRecipient}%`);
 	}
@@ -4463,6 +4935,7 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 	const toEmail = normalizeEmail(req.body?.toEmail);
 	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
 	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
+	const templateSignature = buildDevFeaturesSignature(subject, markdownBody);
 
 	const errors = [...validateEmail(toEmail), ...validateDevEmailPayload(subject, markdownBody)];
 	if (errors.length > 0) {
@@ -4510,7 +4983,8 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 				subject,
 				markdownBody
 			},
-			context: { source: "admin_dev_features_test", adminId }
+			context: { source: "admin_dev_features_test", adminId },
+			templateSignature
 		});
 		recordDevFeaturesTest(adminId, subject, markdownBody);
 
@@ -4537,6 +5011,43 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Email service error", ["Unable to send test email."]);
+	}
+});
+
+// POST /admin/emails/dev-features/test-status - Check test send status for a template
+router.post("/emails/dev-features/test-status", adminAuth, async (req, res) => {
+	const adminId = req.user.id;
+	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
+	const errors = validateDevEmailPayload(subject, markdownBody);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+	const templateSignature = buildDevFeaturesSignature(subject, markdownBody);
+	try {
+		const allowed = await wasTemplateSentRecently({
+			emailType: "dev_features_announcement",
+			templateSignature,
+			withinHours: 24
+		});
+		logToFile("ADMIN_DEV_FEATURES_TEST_STATUS", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			template_signature: templateSignature,
+			allowed
+		}, "info");
+		return successResponse(res, 200, "Development update test status retrieved.", {
+			allowed,
+			windowHours: 24,
+			templateSignature
+		});
+	} catch (error) {
+		logToFile("ADMIN_DEV_FEATURES_TEST_STATUS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load test status."]);
 	}
 });
 
@@ -4570,6 +5081,8 @@ router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async
 	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
 	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
 	const confirmFlag = parseBooleanFlag(req.body?.confirm);
+	const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+	const templateSignature = buildDevFeaturesSignature(subject, markdownBody);
 	const errors = validateDevEmailPayload(subject, markdownBody);
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
@@ -4577,7 +5090,7 @@ router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async
 	if (!confirmFlag) {
 		return errorResponse(res, 400, "Confirmation required.", ["Please confirm before sending this update."]);
 	}
-	if (!hasRecentDevFeaturesTest(adminId, subject, markdownBody)) {
+	if (!await hasRecentDevFeaturesTest(adminId, subject, markdownBody)) {
 		return errorResponse(res, 400, "Test required.", ["Send a test email before notifying opted-in users."]);
 	}
 
@@ -4601,7 +5114,9 @@ router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async
 					subject,
 					markdownBody
 				},
-				context: { source: "admin_dev_features_send", adminId }
+				context: { source: "admin_dev_features_send", adminId, reason },
+				templateSignature,
+				targetUserId: row.id
 			});
 		});
 

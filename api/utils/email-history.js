@@ -20,14 +20,16 @@ async function recordEmailHistory({
 	queuedAt = new Date().toISOString(),
 	status = "queued",
 	failureReason = null,
-	retryCount = 0
+	retryCount = 0,
+	targetUserId = null,
+	templateSignature = null
 }) {
 	if (!emailType || !recipientEmail) return null;
 	try {
 		const result = await pool.query(
 			`INSERT INTO email_send_history (
-				job_id, email_type, recipient_email, queued_at, status, failure_reason, retry_count
-			) VALUES ($1, $2, $3, $4, $5, $6, $7)
+				job_id, email_type, recipient_email, queued_at, status, failure_reason, retry_count, target_user_id, template_signature
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			RETURNING id`,
 			[
 				jobId || null,
@@ -36,7 +38,9 @@ async function recordEmailHistory({
 				queuedAt,
 				normalizeStatus(status),
 				sanitizeFailureReason(failureReason),
-				Number.isInteger(retryCount) ? retryCount : 0
+				Number.isInteger(retryCount) ? retryCount : 0,
+				Number.isInteger(targetUserId) ? targetUserId : null,
+				typeof templateSignature === "string" && templateSignature.trim() ? templateSignature.trim() : null
 			]
 		);
 		return result.rows[0]?.id ?? null;
@@ -100,7 +104,83 @@ async function updateEmailHistory(jobId, {
 	}
 }
 
+async function wasEmailSentRecently({
+	emailType,
+	recipientEmail,
+	targetUserId = null,
+	templateSignature = null,
+	withinHours = 24,
+	client = pool
+}) {
+	if (!emailType || !recipientEmail) return false;
+	try {
+		const result = await client.query(
+			`SELECT 1
+			 FROM email_send_history
+			 WHERE email_type = $1
+			   AND recipient_email = $2
+			   AND ($3::int IS NULL OR target_user_id = $3)
+			   AND ($4::text IS NULL OR template_signature = $4)
+			   AND queued_at >= NOW() - ($5::int * INTERVAL '1 hour')
+			 LIMIT 1`,
+			[
+				String(emailType),
+				String(recipientEmail).toLowerCase(),
+				Number.isInteger(targetUserId) ? targetUserId : null,
+				typeof templateSignature === "string" && templateSignature.trim() ? templateSignature.trim() : null,
+				Number.isInteger(withinHours) ? withinHours : 24
+			]
+		);
+		return result.rows.length > 0;
+	} catch (error) {
+		if (error?.code === "42P01") return false;
+		logToFile("EMAIL_HISTORY_QUERY", {
+			status: "FAILURE",
+			error_message: error.message,
+			email_type: emailType,
+			to_email: recipientEmail
+		}, "error");
+		return false;
+	}
+}
+
+async function wasTemplateSentRecently({
+	emailType,
+	templateSignature,
+	withinHours = 24,
+	client = pool
+}) {
+	if (!emailType || !templateSignature) return false;
+	try {
+		const result = await client.query(
+			`SELECT 1
+			 FROM email_send_history
+			 WHERE email_type = $1
+			   AND template_signature = $2
+			   AND status = 'sent'
+			   AND queued_at >= NOW() - ($3::int * INTERVAL '1 hour')
+			 LIMIT 1`,
+			[
+				String(emailType),
+				String(templateSignature).trim(),
+				Number.isInteger(withinHours) ? withinHours : 24
+			]
+		);
+		return result.rows.length > 0;
+	} catch (error) {
+		if (error?.code === "42P01") return false;
+		logToFile("EMAIL_HISTORY_QUERY", {
+			status: "FAILURE",
+			error_message: error.message,
+			email_type: emailType
+		}, "error");
+		return false;
+	}
+}
+
 module.exports = {
 	recordEmailHistory,
-	updateEmailHistory
+	updateEmailHistory,
+	wasEmailSentRecently,
+	wasTemplateSentRecently
 };

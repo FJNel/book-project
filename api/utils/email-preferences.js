@@ -39,6 +39,8 @@ const EMAIL_TYPE_CATEGORY_MAP = {
 	api_key_expired: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	usage_warning_user: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	usage_warning_api_key: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	usage_admin_alert_website: EMAIL_CATEGORIES.ESSENTIAL,
+	usage_admin_alert_api: EMAIL_CATEGORIES.ESSENTIAL,
 	dev_features_announcement: EMAIL_CATEGORIES.DEV_FEATURES
 };
 

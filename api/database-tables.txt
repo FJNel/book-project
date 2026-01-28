@@ -340,6 +340,8 @@ CREATE TABLE IF NOT EXISTS email_send_history (
   job_id          UUID,
   email_type      VARCHAR(120) NOT NULL,
   recipient_email VARCHAR(255) NOT NULL,
+  target_user_id  INT REFERENCES users(id) ON DELETE SET NULL,
+  template_signature TEXT,
   queued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   sent_at         TIMESTAMPTZ,
   status          VARCHAR(20) NOT NULL,
@@ -349,6 +351,8 @@ CREATE TABLE IF NOT EXISTS email_send_history (
 
 CREATE INDEX IF NOT EXISTS email_send_history_queued_at_idx ON email_send_history (queued_at);
 CREATE INDEX IF NOT EXISTS email_send_history_type_idx ON email_send_history (email_type);
+CREATE INDEX IF NOT EXISTS email_send_history_target_user_idx ON email_send_history (target_user_id);
+CREATE INDEX IF NOT EXISTS email_send_history_template_sig_idx ON email_send_history (template_signature);
 
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$

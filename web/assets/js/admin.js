@@ -154,6 +154,9 @@
     siteInsightsAdoption: document.getElementById('siteInsightsAdoption'),
     siteInsightsQuality: document.getElementById('siteInsightsQuality'),
     siteInsightsEngagement: document.getElementById('siteInsightsEngagement'),
+    endpointUsageSummary: document.getElementById('endpointUsageSummary'),
+    endpointUsageAlert: document.getElementById('endpointUsageAlert'),
+    endpointUsageTbody: document.getElementById('endpointUsageTbody'),
     dataViewerAlert: document.getElementById('dataViewerAlert'),
     dataViewerTable: document.getElementById('dataViewerTable'),
     dataViewerSearch: document.getElementById('dataViewerSearch'),
@@ -213,6 +216,12 @@
     confirmActionSummaryMeta: document.getElementById('confirmActionSummaryMeta'),
     confirmActionNotifyBadge: document.getElementById('confirmActionNotifyBadge'),
     confirmActionSummaryWarning: document.getElementById('confirmActionSummaryWarning'),
+    confirmActionWarningTypeWrap: document.getElementById('confirmActionWarningTypeWrap'),
+    confirmActionWarningType: document.getElementById('confirmActionWarningType'),
+    confirmActionWarningTypeHelp: document.getElementById('confirmActionWarningTypeHelp'),
+    confirmActionApiKeyWrap: document.getElementById('confirmActionApiKeyWrap'),
+    confirmActionApiKeySelect: document.getElementById('confirmActionApiKeySelect'),
+    confirmActionApiKeyHelp: document.getElementById('confirmActionApiKeyHelp'),
     confirmActionReasonWrap: document.getElementById('confirmActionReasonWrap'),
     confirmActionReason: document.getElementById('confirmActionReason'),
     confirmActionReasonHelp: document.getElementById('confirmActionReasonHelp'),
@@ -239,6 +248,11 @@
     userDetailsEmailsAlert: document.getElementById('userDetailsEmailsAlert'),
     userDetailsEmailsTbody: document.getElementById('userDetailsEmailsTbody'),
     userDetailsEmailsSummary: document.getElementById('userDetailsEmailsSummary'),
+    userEndpointUsageModal: document.getElementById('userEndpointUsageModal'),
+    userEndpointUsageTitle: document.getElementById('userEndpointUsageTitle'),
+    userEndpointUsageAlert: document.getElementById('userEndpointUsageAlert'),
+    userEndpointUsageSummary: document.getElementById('userEndpointUsageSummary'),
+    userEndpointUsageTbody: document.getElementById('userEndpointUsageTbody'),
     sessionsModal: document.getElementById('sessionsModal'),
     sessionsModalTitle: document.getElementById('sessionsModalTitle'),
     sessionsTbody: document.getElementById('sessionsTbody'),
@@ -266,10 +280,12 @@
     currentSection: 'overview',
     currentEditingUser: null,
     confirmActionConfig: null,
+    confirmActionApiKeys: [],
     userDetailsUser: null,
     userDetailsUsage: null,
     userDetailsEmailHistory: [],
     userDetailsEmailHistoryTotal: 0,
+    userDetailsApiKeys: [],
     sessionsUser: null,
     languages: [],
     logs: [],
@@ -300,6 +316,8 @@
     emailHistoryTotal: 0,
     emailHistoryLoaded: false,
     devFeaturesTestSignature: null,
+    devFeaturesTestAllowed: false,
+    devFeaturesTestCheckSignature: null,
     siteStatsLoaded: false,
     dataViewerTables: [],
     dataViewerLoaded: false,
@@ -757,12 +775,55 @@
     renderInsightsList(dom.siteInsightsEngagement, insights?.engagement || []);
   }
 
+  function renderEndpointUsage(entries = []) {
+    if (!dom.endpointUsageTbody) return;
+    const rows = Array.isArray(entries) ? entries : [];
+    if (!rows.length) {
+      dom.endpointUsageTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No endpoint usage recorded yet.</td></tr>';
+      if (dom.endpointUsageSummary) dom.endpointUsageSummary.textContent = 'No endpoint usage recorded yet.';
+      return;
+    }
+    dom.endpointUsageTbody.innerHTML = rows.map((row) => `
+      <tr>
+        <td>${escapeHtml(row.endpoint || '—')}</td>
+        <td>${escapeHtml(row.method || '—')}</td>
+        <td>${Number.isFinite(row.callCount) ? row.callCount.toLocaleString() : '—'}</td>
+      </tr>
+    `).join('');
+    if (dom.endpointUsageSummary) dom.endpointUsageSummary.textContent = `Showing ${rows.length} endpoints`;
+  }
+
+  async function fetchEndpointUsage() {
+    hideAlert(dom.endpointUsageAlert);
+    if (dom.endpointUsageTbody) {
+      dom.endpointUsageTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Loading endpoint usage…</td></tr>';
+    }
+    try {
+      const response = await apiFetch('/admin/usage/endpoints', { method: 'POST', body: { limit: 15 } });
+      const data = await parseResponse(response);
+      if (data?.configured === false) {
+        showAlert(dom.endpointUsageAlert, data?.message || 'Endpoint usage is not configured.');
+        renderEndpointUsage([]);
+        return;
+      }
+      renderEndpointUsage(Array.isArray(data?.endpoints) ? data.endpoints : []);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.endpointUsageAlert, data.warnings.join(' '));
+      }
+    } catch (err) {
+      errorLog('[Admin][Stats] Failed to load endpoint usage', err);
+      showAlert(dom.endpointUsageAlert, err.message || 'Unable to load endpoint usage.');
+      renderEndpointUsage([]);
+    }
+  }
+
   async function fetchSiteStats() {
     hideAlert(dom.siteStatsAlert);
     try {
       const response = await apiFetch('/admin/stats/summary', { method: 'POST', body: {} });
       const data = await parseResponse(response);
       renderSiteStats(data?.stats, data?.insights);
+      fetchEndpointUsage().catch(() => {});
       if (Array.isArray(data?.warnings) && data.warnings.length) {
         showAlert(dom.siteStatsAlert, `Some statistics are unavailable: ${data.warnings.join(' ')}`);
       }
@@ -775,6 +836,7 @@
         books: { total: null, active: null, deleted: null },
         library: { authors: null, publishers: null, series: null, bookTypes: null, tags: null, storageLocations: null }
       }, null);
+      renderEndpointUsage([]);
     }
   }
 
@@ -816,10 +878,15 @@
       const isSelf = state.currentUserId && user.id === state.currentUserId;
       const name = user.preferredName || user.fullName || '—';
       const librarySize = Number(user.librarySize) || 0;
-      const usageScore = Number.isFinite(user.usageScore) ? user.usageScore : null;
-      const usageRank = user.usageRank || '—';
-      const usageLabel = usageScore === null ? 'Not enough data yet' : `Score ${usageScore.toLocaleString()}`;
-      const usageLevelText = usageScore === null ? 'Usage level: —' : `Usage level: ${usageRank}`;
+      const websiteUsage = user.websiteUsage || {};
+      const apiUsage = user.apiUsage || {};
+      const formatUsageLine = (label, usage) => {
+        if (!Number.isFinite(usage.usageScore)) {
+          return `<div class="text-muted small">${escapeHtml(label)}: Not enough data yet</div>`;
+        }
+        const requests = Number.isFinite(usage.requestCount) ? ` · ${usage.requestCount.toLocaleString()} req` : '';
+        return `<div class="text-muted small">${escapeHtml(label)}: Score ${usage.usageScore.toLocaleString()} (${escapeHtml(usage.usageLevel || '—')})${requests}</div>`;
+      };
       const verified = user.isVerified ? '<span class="badge text-bg-success">Verified</span>' : '<span class="badge text-bg-secondary">Unverified</span>';
       const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Disabled</span>' : '<span class="badge text-bg-success">Active</span>';
       const disableLabel = user.isDisabled ? 'Enable account' : 'Disable account';
@@ -854,8 +921,9 @@
             <div class="text-muted small">ID ${escapeHtml(String(user.id ?? '—'))}</div>
           </td>
           <td>
-            <div class="fw-semibold">${escapeHtml(usageLabel)}</div>
-            <div class="text-muted small">${escapeHtml(usageLevelText)}</div>
+            <div class="fw-semibold">Usage</div>
+            ${formatUsageLine('Website', websiteUsage)}
+            ${formatUsageLine('API', apiUsage)}
           </td>
           <td>
             <div class="fw-semibold">${escapeHtml(librarySize.toLocaleString())} books</div>
@@ -1382,7 +1450,7 @@
   }
 
   function setConfirmModalBusy(isBusy) {
-    [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionInput].forEach((input) => {
+    [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionInput, dom.confirmActionWarningType, dom.confirmActionApiKeySelect].forEach((input) => {
       if (input) input.disabled = isBusy;
     });
     if (dom.confirmActionCloseBtn) dom.confirmActionCloseBtn.disabled = isBusy;
@@ -1416,6 +1484,92 @@
     const defaultOption = dom.confirmActionExpirySelect?.querySelector('option[value=""]');
     if (defaultOption) defaultOption.textContent = defaultLabel;
     if (dom.confirmActionSummaryExpiry) dom.confirmActionSummaryExpiry.textContent = 'Default';
+  }
+
+  function resetConfirmWarningFields() {
+    if (dom.confirmActionWarningTypeWrap) dom.confirmActionWarningTypeWrap.classList.add('d-none');
+    if (dom.confirmActionApiKeyWrap) dom.confirmActionApiKeyWrap.classList.add('d-none');
+    if (dom.confirmActionWarningTypeHelp) dom.confirmActionWarningTypeHelp.textContent = '';
+    if (dom.confirmActionApiKeyHelp) dom.confirmActionApiKeyHelp.textContent = '';
+    if (dom.confirmActionWarningType) dom.confirmActionWarningType.value = 'website';
+    if (dom.confirmActionApiKeySelect) dom.confirmActionApiKeySelect.innerHTML = '';
+    state.confirmActionApiKeys = [];
+  }
+
+  async function loadConfirmActionApiKeys(userId) {
+    if (!Number.isInteger(userId) || !dom.confirmActionApiKeySelect) {
+      state.confirmActionApiKeys = [];
+      return [];
+    }
+    try {
+      const response = await apiFetch(`/admin/users/${userId}/api-keys`, { method: 'POST', body: {} });
+      const data = await parseResponse(response);
+      const keys = Array.isArray(data?.keys) ? data.keys : [];
+      state.confirmActionApiKeys = keys;
+      return keys;
+    } catch (err) {
+      errorLog('[Admin] Failed to load API keys', err);
+      state.confirmActionApiKeys = [];
+      return [];
+    }
+  }
+
+  function renderConfirmActionApiKeys(keys = []) {
+    if (!dom.confirmActionApiKeySelect) return;
+    if (!keys.length) {
+      dom.confirmActionApiKeySelect.innerHTML = '<option value="">No active API keys</option>';
+      return;
+    }
+    const options = ['<option value="">Select API key</option>'].concat(keys.map((key) => {
+      const label = `${key.name || 'API key'}${key.keyPrefix ? ` (${key.keyPrefix})` : ''}`;
+      return `<option value="${escapeHtml(String(key.id))}">${escapeHtml(label)}</option>`;
+    }));
+    dom.confirmActionApiKeySelect.innerHTML = options.join('');
+    if (keys.length === 1) {
+      dom.confirmActionApiKeySelect.value = String(keys[0].id);
+    }
+  }
+
+  function updateConfirmWarningTypeHelp({ hasApiKeys }) {
+    if (!dom.confirmActionWarningTypeHelp) return;
+    if (!hasApiKeys) {
+      dom.confirmActionWarningTypeHelp.textContent = 'API usage warning is unavailable because this user has no active API keys.';
+    } else {
+      dom.confirmActionWarningTypeHelp.textContent = 'Choose which usage stream this notice should cover.';
+    }
+  }
+
+  function getSelectedWarningType() {
+    if (!dom.confirmActionWarningType || dom.confirmActionWarningTypeWrap?.classList.contains('d-none')) return null;
+    return dom.confirmActionWarningType.value || 'website';
+  }
+
+  function getSelectedApiKeyId() {
+    if (!dom.confirmActionApiKeySelect || dom.confirmActionApiKeyWrap?.classList.contains('d-none')) return null;
+    const value = Number(dom.confirmActionApiKeySelect.value);
+    return Number.isInteger(value) ? value : null;
+  }
+
+  function updateConfirmWarningFields(config) {
+    if (!config?.warningTypeEnabled || !dom.confirmActionWarningTypeWrap) {
+      resetConfirmWarningFields();
+      return;
+    }
+    dom.confirmActionWarningTypeWrap.classList.remove('d-none');
+    const warningType = config.warningTypeDefault || 'website';
+    if (dom.confirmActionWarningType) dom.confirmActionWarningType.value = warningType;
+    const hasApiKeys = Array.isArray(state.confirmActionApiKeys) && state.confirmActionApiKeys.length > 0;
+    const apiOption = dom.confirmActionWarningType?.querySelector('option[value="api"]');
+    if (apiOption) apiOption.disabled = !hasApiKeys;
+    updateConfirmWarningTypeHelp({ hasApiKeys });
+    if (dom.confirmActionApiKeyWrap) {
+      const selectedType = dom.confirmActionWarningType?.value;
+      if (selectedType === 'api' && !hasApiKeys) {
+        if (dom.confirmActionWarningType) dom.confirmActionWarningType.value = 'website';
+      }
+      const showApiKey = config.apiKeyEnabled && dom.confirmActionWarningType?.value === 'api';
+      dom.confirmActionApiKeyWrap.classList.toggle('d-none', !showApiKey);
+    }
   }
 
   function resolveConfirmExpirySelection() {
@@ -1468,6 +1622,7 @@
       willNotify: Boolean(config.willNotify),
       destructive: Boolean(config.destructive || config.confirmText),
       confirmLabel: config.confirmLabel || 'Confirm',
+      reasonEnabled: Boolean(config.reasonEnabled || config.reasonRequired),
       expiryEnabled: Boolean(config.expiryEnabled),
       expiryDefaultMinutes: config.expiryDefaultMinutes,
       summaryItems: Array.isArray(config.summaryItems) ? config.summaryItems : [],
@@ -1496,12 +1651,29 @@
       dom.confirmActionSubmit.classList.toggle('btn-primary', !state.confirmActionConfig.destructive);
     }
 
-    dom.confirmActionReasonWrap.classList.toggle('d-none', !state.confirmActionConfig.reasonRequired);
+    const showReason = state.confirmActionConfig.reasonRequired || state.confirmActionConfig.reasonEnabled;
+    dom.confirmActionReasonWrap.classList.toggle('d-none', !showReason);
     dom.confirmActionEmailWrap.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
     configureConfirmExpiry(state.confirmActionConfig);
     dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
+    resetConfirmWarningFields();
+    if (state.confirmActionConfig.warningTypeEnabled) {
+      dom.confirmActionWarningTypeWrap?.classList.remove('d-none');
+      if (dom.confirmActionWarningType) {
+        dom.confirmActionWarningType.value = state.confirmActionConfig.warningTypeDefault || 'website';
+      }
+      loadConfirmActionApiKeys(state.confirmActionConfig.userId).then((keys) => {
+        renderConfirmActionApiKeys(keys);
+        updateConfirmWarningFields(state.confirmActionConfig);
+        validateConfirmAction();
+      });
+      updateConfirmWarningFields(state.confirmActionConfig);
+    }
     dom.confirmActionReason.value = '';
     dom.confirmActionEmail.value = state.confirmActionConfig.prefillEmail || '';
+    if (dom.confirmActionReason) {
+      dom.confirmActionReason.placeholder = state.confirmActionConfig.reasonPlaceholder || '';
+    }
     if (dom.confirmActionEmail) {
       dom.confirmActionEmail.readOnly = Boolean(state.confirmActionConfig.emailReadOnly);
       dom.confirmActionEmail.setAttribute('aria-readonly', dom.confirmActionEmail.readOnly ? 'true' : 'false');
@@ -1587,6 +1759,38 @@
       dom.confirmActionEmailHelp.textContent = emailError;
       valid = valid && !emailError;
     }
+    if (cfg.warningTypeEnabled) {
+      const warningType = getSelectedWarningType();
+      const isValidType = warningType === 'website' || warningType === 'api';
+      if (cfg.warningTypeRequired && !isValidType) {
+        if (dom.confirmActionWarningTypeHelp) {
+          dom.confirmActionWarningTypeHelp.textContent = 'Select a warning type.';
+        }
+        valid = false;
+      }
+      const hasApiKeys = Array.isArray(state.confirmActionApiKeys) && state.confirmActionApiKeys.length > 0;
+      if (isValidType && hasApiKeys && dom.confirmActionWarningTypeHelp) {
+        dom.confirmActionWarningTypeHelp.textContent = 'Choose which usage stream this notice should cover.';
+      }
+      if (warningType === 'api') {
+        if (!hasApiKeys) {
+          if (dom.confirmActionApiKeyHelp) dom.confirmActionApiKeyHelp.textContent = 'No active API keys available for this user.';
+          valid = false;
+        } else if (cfg.apiKeyRequired) {
+          const apiKeyId = getSelectedApiKeyId();
+          if (!apiKeyId) {
+            if (dom.confirmActionApiKeyHelp) dom.confirmActionApiKeyHelp.textContent = 'Select an API key.';
+            valid = false;
+          } else if (dom.confirmActionApiKeyHelp) {
+            dom.confirmActionApiKeyHelp.textContent = '';
+          }
+        }
+      } else if (dom.confirmActionApiKeyHelp) {
+        dom.confirmActionApiKeyHelp.textContent = '';
+      }
+      cfg.warningTypeValue = warningType;
+      cfg.apiKeyIdValue = getSelectedApiKeyId();
+    }
     const expirySelection = resolveConfirmExpirySelection();
     if (expirySelection?.valid === false) {
       valid = false;
@@ -1614,7 +1818,10 @@
     if (cfg.userId && body.id == null) {
       body.id = cfg.userId;
     }
-    if (cfg.reasonRequired) body.reason = dom.confirmActionReason.value.trim();
+    if (cfg.reasonEnabled) {
+      const reasonValue = dom.confirmActionReason.value.trim();
+      if (reasonValue || cfg.reasonRequired) body.reason = reasonValue;
+    }
     if (cfg.emailRequired) {
       const emailValue = dom.confirmActionEmail.value.trim();
       if (cfg.emailFieldName) {
@@ -1628,6 +1835,17 @@
     if (cfg.expiryEnabled && expirySelection && expirySelection.minutes !== null) {
       const expiryField = cfg.expiryFieldName || 'duration';
       body[expiryField] = expirySelection.minutes;
+    }
+    if (cfg.warningTypeEnabled) {
+      const warningType = cfg.warningTypeValue || getSelectedWarningType() || 'website';
+      body.warningType = warningType;
+      if (warningType === 'api') {
+        const apiKeyId = cfg.apiKeyIdValue || getSelectedApiKeyId();
+        if (Number.isInteger(apiKeyId)) body.apiKeyId = apiKeyId;
+      }
+      if (cfg.warningUsageLevels && cfg.warningUsageLevels[warningType]) {
+        body.usageLevel = cfg.warningUsageLevels[warningType];
+      }
     }
 
     log(`Admin action started`, { action: cfg.actionLabel || cfg.title, userId: cfg.userId });
@@ -1906,6 +2124,15 @@
   }
 
   function handleConfirmActionModalInput() {
+    validateConfirmAction();
+  }
+
+  function handleConfirmWarningTypeChange() {
+    updateConfirmWarningFields(state.confirmActionConfig);
+    validateConfirmAction();
+  }
+
+  function handleConfirmApiKeyChange() {
     validateConfirmAction();
   }
 
@@ -3236,13 +3463,27 @@
       dom.userDetailsUsage.innerHTML = '<div class="text-muted small">No usage recorded yet.</div>';
       return;
     }
-    const rows = [
-      { label: 'Usage score', value: Number.isFinite(usage.usageScore) ? usage.usageScore.toLocaleString() : '—' },
-      { label: 'Usage level', value: usage.usageLevel || '—' },
-      { label: 'Requests', value: Number.isFinite(usage.requestCount) ? usage.requestCount.toLocaleString() : '—' },
-      { label: 'Last seen', value: formatDateTime(usage.lastSeen) },
-      { label: 'Window', value: window?.startDate && window?.endDate ? `${formatDateTime(window.startDate)} → ${formatDateTime(window.endDate)}` : '—' }
-    ];
+    const windowLabel = window?.startDate && window?.endDate
+      ? `${formatDateTime(window.startDate)} → ${formatDateTime(window.endDate)}`
+      : '—';
+    const renderUsageBlock = (title, data) => {
+      if (!data || !Number.isFinite(data.usageScore)) {
+        return `
+          <div>
+            <div class="text-muted small">${escapeHtml(title)}</div>
+            <div class="text-muted small">Not enough data yet.</div>
+          </div>
+        `;
+      }
+      return `
+        <div>
+          <div class="text-muted small">${escapeHtml(title)}</div>
+          <div class="fw-semibold">Score ${data.usageScore.toLocaleString()} · ${escapeHtml(data.usageLevel || '—')}</div>
+          <div class="text-muted small">Requests: ${Number.isFinite(data.requestCount) ? data.requestCount.toLocaleString() : '—'}</div>
+          <div class="text-muted small">Last seen: ${escapeHtml(formatDateTime(data.lastSeen))}</div>
+        </div>
+      `;
+    };
     const endpoints = Array.isArray(usage.topEndpoints) && usage.topEndpoints.length
       ? usage.topEndpoints.map((entry) => {
         const label = [entry.method, entry.path].filter(Boolean).join(' ');
@@ -3250,12 +3491,12 @@
       }).join('')
       : '<div class="text-muted small">No endpoint breakdown yet.</div>';
     dom.userDetailsUsage.innerHTML = `
-      ${rows.map((row) => `
-        <div>
-          <div class="text-muted small">${escapeHtml(row.label)}</div>
-          <div class="fw-semibold">${escapeHtml(String(row.value || '—'))}</div>
-        </div>
-      `).join('')}
+      ${renderUsageBlock('Website usage', usage.websiteUsage)}
+      ${renderUsageBlock('API usage', usage.apiUsage)}
+      <div>
+        <div class="text-muted small">Window</div>
+        <div class="fw-semibold">${escapeHtml(windowLabel)}</div>
+      </div>
       <div>
         <div class="text-muted small">Top endpoints</div>
         ${endpoints}
@@ -3298,6 +3539,53 @@
       `;
     }).join('');
     updateUserDetailsEmailsSummary(rows.length, Number.isFinite(state.userDetailsEmailHistoryTotal) ? state.userDetailsEmailHistoryTotal : rows.length);
+  }
+
+  function renderUserEndpointUsage(entries, window) {
+    if (!dom.userEndpointUsageTbody) return;
+    const rows = Array.isArray(entries) ? entries : [];
+    if (!rows.length) {
+      dom.userEndpointUsageTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No endpoint usage recorded yet.</td></tr>';
+      if (dom.userEndpointUsageSummary) dom.userEndpointUsageSummary.textContent = 'No endpoint usage recorded yet.';
+      return;
+    }
+    dom.userEndpointUsageTbody.innerHTML = rows.map((row) => `
+      <tr>
+        <td>${escapeHtml(row.endpoint || '—')}</td>
+        <td>${escapeHtml(row.method || '—')}</td>
+        <td>${Number.isFinite(row.callCount) ? row.callCount.toLocaleString() : '—'}</td>
+      </tr>
+    `).join('');
+    if (dom.userEndpointUsageSummary) {
+      const start = window?.startDate ? formatDateTime(window.startDate) : '—';
+      const end = window?.endDate ? formatDateTime(window.endDate) : '—';
+      dom.userEndpointUsageSummary.textContent = `Showing ${rows.length} endpoints · ${start} → ${end}`;
+    }
+  }
+
+  async function fetchUserEndpointUsage(userId) {
+    if (!Number.isInteger(userId)) return null;
+    hideAlert(dom.userEndpointUsageAlert);
+    if (dom.userEndpointUsageTbody) {
+      dom.userEndpointUsageTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Loading endpoint usage…</td></tr>';
+    }
+    try {
+      const response = await apiFetch(`/admin/usage/users/${userId}/endpoints`, { method: 'POST', body: { limit: 20 } });
+      const data = await parseResponse(response);
+      if (data?.configured === false) {
+        showAlert(dom.userEndpointUsageAlert, data?.message || 'Endpoint usage is not configured.');
+        renderUserEndpointUsage([]);
+        return null;
+      }
+      const entries = Array.isArray(data?.endpoints) ? data.endpoints : [];
+      renderUserEndpointUsage(entries, data?.window);
+      return { entries, window: data?.window };
+    } catch (err) {
+      errorLog('[Admin][Users] Failed to load user endpoint usage', err);
+      showApiError(dom.userEndpointUsageAlert, err);
+      renderUserEndpointUsage([]);
+      return null;
+    }
   }
 
   async function fetchUserDetailsEmails(user) {
@@ -3383,6 +3671,10 @@
         <i class="bi bi-envelope" aria-hidden="true"></i>
         Send usage warning email
       </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="endpoint-details" data-user-id="${user.id}" aria-label="More endpoint details" title="More endpoint details">
+        <i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i>
+        More endpoint details
+      </button>
     `;
   }
 
@@ -3434,6 +3726,22 @@
     } catch (err) {
       errorLog('[Admin][Users] Failed to load user usage', err);
       showApiError(dom.userDetailsAlert, err);
+    }
+  }
+
+  async function openUserEndpointUsageModal(userId) {
+    if (!Number.isInteger(userId)) return;
+    const user = state.users.find((u) => u.id === userId) || state.userDetailsUser;
+    if (dom.userEndpointUsageTitle) {
+      dom.userEndpointUsageTitle.textContent = `Endpoint usage · ${user?.email || user?.fullName || userId}`;
+    }
+    renderUserEndpointUsage([], null);
+    if (dom.userEndpointUsageSummary) dom.userEndpointUsageSummary.textContent = 'Loading endpoint usage…';
+    await fetchUserEndpointUsage(userId);
+    if (window.modalStack && dom.userDetailsModal?.classList.contains('show')) {
+      window.modalStack.push('userDetailsModal', 'userEndpointUsageModal');
+    } else {
+      bootstrap.Modal.getOrCreateInstance(dom.userEndpointUsageModal).show();
     }
   }
 
@@ -3667,26 +3975,44 @@
     }
 
     if (action === 'send-usage-warning') {
-      const usageLevel = state.userDetailsUsage?.usage?.usageLevel || 'High';
+      const usageLevelWebsite = state.userDetailsUsage?.usage?.websiteUsage?.usageLevel || 'High';
+      const usageLevelApi = state.userDetailsUsage?.usage?.apiUsage?.usageLevel || 'High';
       openConfirmAction({
         title: 'Send usage warning',
         actionLabel: 'Send usage warning',
         message: 'Send a usage warning email to this user?',
         impact: 'An email will be sent to the recipient. No profile fields will change.',
         willNotify: true,
-        emailType: 'usage_warning_api_key',
+        emailType: 'usage_warning_user',
         fromUserDetails: true,
         user,
         userId,
-        url: `/admin/users/${userId}/usage-warning-api-key`,
+        url: `/admin/users/${userId}/usage-warning`,
         method: 'POST',
-        baseBody: { keyName: 'API key', usageLevel },
+        baseBody: { usageLevel: usageLevelWebsite },
+        warningTypeEnabled: true,
+        warningTypeRequired: true,
+        warningTypeDefault: 'website',
+        apiKeyEnabled: true,
+        apiKeyRequired: true,
+        reasonEnabled: true,
+        reasonPlaceholder: 'Briefly explain what triggered this warning (optional)',
+        warningUsageLevels: {
+          website: usageLevelWebsite,
+          api: usageLevelApi
+        },
         summaryItems: [
-          { label: 'Usage level', value: usageLevel }
+          { label: 'Usage level', value: usageLevelWebsite }
         ],
         onSuccess: 'users',
         successMessage: 'Usage warning email queued.'
       });
+      return;
+    }
+
+    if (action === 'endpoint-details') {
+      openUserEndpointUsageModal(userId);
+      return;
     }
   }
 
@@ -3694,10 +4020,43 @@
     updateDevEmailPreview(body).catch(() => {});
   }, 400);
 
+  const scheduleDevFeaturesTestStatus = debounce((subject, body, signature) => {
+    if (!subject || !body || !signature) return;
+    if (state.devFeaturesTestCheckSignature === signature && state.devFeaturesTestAllowed) return;
+    fetchDevFeaturesTestStatus(subject, body, signature).catch(() => {});
+  }, 600);
+
   async function fetchDevFeaturesRecipientCount() {
     const response = await apiFetch('/admin/emails/dev-features/recipients', { method: 'POST', body: {} });
     const data = await parseResponse(response);
     return Number.isFinite(data?.count) ? data.count : 0;
+  }
+
+  async function fetchDevFeaturesTestStatus(subject, body, signature) {
+    try {
+      const response = await apiFetch('/admin/emails/dev-features/test-status', {
+        method: 'POST',
+        body: { subject, markdownBody: body }
+      });
+      const data = await parseResponse(response);
+      const allowed = Boolean(data?.allowed);
+      state.devFeaturesTestAllowed = allowed;
+      state.devFeaturesTestCheckSignature = signature;
+      if (dom.devEmailStatus && subject && body) {
+        dom.devEmailStatus.textContent = allowed
+          ? 'Test sent within the last 24 hours. Bulk send is enabled.'
+          : 'Send a test email and wait for delivery to enable bulk send.';
+      }
+      if (dom.devEmailSendBtn) {
+        dom.devEmailSendBtn.disabled = !allowed;
+      }
+      return allowed;
+    } catch (err) {
+      errorLog('[Admin][Emails] Failed to load dev features test status', err);
+      showAlert(dom.emailsAlert, 'Unable to verify test email status right now.');
+      state.devFeaturesTestAllowed = false;
+      return false;
+    }
   }
 
   function handleEmailSendTest() {
@@ -3750,10 +4109,19 @@
     const recipientOk = !recipientError && !!recipient;
     if (dom.devEmailTestBtn) dom.devEmailTestBtn.disabled = !validBase || !recipientOk;
     const signature = buildDevFeaturesSignature(subject, body);
-    const hasTest = Boolean(state.devFeaturesTestSignature) && state.devFeaturesTestSignature === signature;
-    if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase || !hasTest;
+    const hasAllowedTest = Boolean(state.devFeaturesTestAllowed) && state.devFeaturesTestCheckSignature === signature;
+    if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase || !hasAllowedTest;
     if (dom.devEmailStatus && validBase) {
-      dom.devEmailStatus.textContent = hasTest ? 'Test queued' : 'Send a test email to enable bulk send.';
+      if (hasAllowedTest) {
+        dom.devEmailStatus.textContent = 'Test sent within the last 24 hours. Bulk send is enabled.';
+      } else if (state.devFeaturesTestSignature === signature) {
+        dom.devEmailStatus.textContent = 'Test queued. Bulk send will unlock after the test is delivered.';
+      } else {
+        dom.devEmailStatus.textContent = 'Send a test email to enable bulk send.';
+      }
+    }
+    if (validBase) {
+      scheduleDevFeaturesTestStatus(subject, body, signature);
     }
     scheduleDevEmailPreview(body);
     return { valid: validBase && (!requireRecipient || recipientOk), subject, body, recipient };
@@ -3784,6 +4152,8 @@
       successMessage: `Test email queued for ${recipient}.`,
       afterSuccess: () => {
         state.devFeaturesTestSignature = buildDevFeaturesSignature(subject, body);
+        state.devFeaturesTestAllowed = false;
+        state.devFeaturesTestCheckSignature = null;
         if (dom.devEmailSummary) dom.devEmailSummary.textContent = `Last test queued for ${recipient}.`;
         if (dom.devEmailStatus) dom.devEmailStatus.textContent = 'Test queued';
         validateDevEmailForm();
@@ -3818,6 +4188,8 @@
         subject,
         markdownBody: body
       },
+      reasonEnabled: true,
+      reasonPlaceholder: 'Reason / release note context (optional)',
       url: '/admin/emails/dev-features/send',
       method: 'POST',
       summaryItems: [
@@ -4310,6 +4682,8 @@
     dom.confirmActionReason?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionEmail?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionInput?.addEventListener('input', handleConfirmActionModalInput);
+    dom.confirmActionWarningType?.addEventListener('change', handleConfirmWarningTypeChange);
+    dom.confirmActionApiKeySelect?.addEventListener('change', handleConfirmApiKeyChange);
     dom.confirmActionExpirySelect?.addEventListener('change', handleConfirmExpirySelectChange);
     dom.confirmActionExpiryCustom?.addEventListener('input', handleConfirmExpiryCustomInput);
     dom.confirmActionSubmit?.addEventListener('click', handleConfirmActionSubmit);

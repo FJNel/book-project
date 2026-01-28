@@ -414,6 +414,33 @@
           </div>
         </div>
       </div>
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="card admin-card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-uppercase text-muted mb-0">Endpoint usage</h6>
+                <div class="text-muted small" id="endpointUsageSummary">Loading endpoint usage…</div>
+              </div>
+              <div class="alert alert-warning d-none" id="endpointUsageAlert"></div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle table-striped">
+                  <thead class="table-header">
+                    <tr>
+                      <th scope="col">Endpoint</th>
+                      <th scope="col">Method</th>
+                      <th scope="col">Calls</th>
+                    </tr>
+                  </thead>
+                  <tbody id="endpointUsageTbody">
+                    <tr><td colspan="3" class="text-center text-muted py-3">Loading endpoint usage…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="mb-5 admin-section d-none" id="usersSection" data-section-content="users">
@@ -1255,6 +1282,19 @@
             <div class="mt-2 d-none" id="confirmActionSummaryMeta"></div>
           </div>
           <p class="mb-3 text-muted" id="confirmActionMessage">Review and confirm this action.</p>
+          <div class="mb-3 d-none" id="confirmActionWarningTypeWrap">
+            <label class="form-label" for="confirmActionWarningType">Warning type</label>
+            <select class="form-select" id="confirmActionWarningType">
+              <option value="website">Website usage warning</option>
+              <option value="api">API usage warning</option>
+            </select>
+            <div class="form-text text-muted" id="confirmActionWarningTypeHelp">Choose which usage stream this notice should cover.</div>
+          </div>
+          <div class="mb-3 d-none" id="confirmActionApiKeyWrap">
+            <label class="form-label" for="confirmActionApiKeySelect">API key</label>
+            <select class="form-select" id="confirmActionApiKeySelect"></select>
+            <div class="form-text text-danger" id="confirmActionApiKeyHelp"></div>
+          </div>
           <div class="mb-3 d-none" id="confirmActionReasonWrap">
             <label class="form-label" for="confirmActionReason">Reason</label>
             <textarea class="form-control" id="confirmActionReason" rows="2"></textarea>
@@ -1356,6 +1396,41 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Endpoint Usage Modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="userEndpointUsageModal" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userEndpointUsageTitle">Endpoint usage</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning d-none" id="userEndpointUsageAlert"></div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted small" id="userEndpointUsageSummary">Loading endpoint usage…</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle table-striped">
+              <thead class="table-header">
+                <tr>
+                  <th scope="col">Endpoint</th>
+                  <th scope="col">Method</th>
+                  <th scope="col">Calls</th>
+                </tr>
+              </thead>
+              <tbody id="userEndpointUsageTbody">
+                <tr><td colspan="3" class="text-center text-muted py-3">Loading endpoint usage…</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
         <div class="modal-footer">

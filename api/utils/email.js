@@ -30,10 +30,10 @@ function escapeHtml(value) {
 function buildSupportLine(emailType, subject, contactEmail = SUPPORT_EMAIL) {
 	const fallbackEmail = contactEmail || 'support@fjnel.co.za';
 	const subjectSeed = subject || (emailType ? `Book Project ${String(emailType).replace(/_/g, ' ')}` : 'Book Project');
-	const mailto = `mailto:${fallbackEmail}?subject=${encodeURIComponent(`${subjectSeed} support`)}`;
+	const mailto = `mailto:${fallbackEmail}?subject=${encodeURIComponent(`Book Project support — ${subjectSeed}`)}`;
 	return `
 		<p style="font-size: 12px; color: #718096; line-height: 1.5;">
-		  Did not expect this? Contact <a href="${mailto}" style="color: #3182ce;">${escapeHtml(fallbackEmail)}</a>.
+		  Did not expect this email? Contact support at <a href="${mailto}" style="color: #3182ce;">${escapeHtml(fallbackEmail)}</a>.
 		</p>
 	`;
 }
@@ -1441,33 +1441,74 @@ function sendUsageRestrictionRemovedEmail(toEmail, preferredName) {
 }
 
 function sendUsageWarningUserEmail(toEmail, preferredName, usageLevel) {
-	const subject = "High usage alert";
+	const subject = "Usage notice";
 	const lines = [
-		`Your recent usage is currently ranked as ${usageLevel}.`,
-		"If you have any questions about usage limits, please contact support."
+		`Your recent website usage is currently ranked as ${usageLevel}.`,
+		"This is a notice — your account has not been changed.",
+		"If this is unexpected, please review your recent activity and reduce repeated requests.",
+		"If usage remains high, we may take further steps to protect service reliability."
 	];
 	return sendSimpleNoticeEmail({
 		type: "usage_warning_user",
 		toEmail,
 		preferredName,
 		subject,
-		headline: "Usage alert",
-		lines
+		headline: "Usage notice",
+		lines,
+		ctaUrl: `${normalizeFrontendUrl(FRONTEND_URL)}/account`,
+		ctaLabel: "Open Book Project"
 	});
 }
 
-function sendUsageWarningApiKeyEmail(toEmail, preferredName, keyName, usageLevel) {
-	const subject = "API key usage alert";
+function sendUsageWarningApiKeyEmail(toEmail, preferredName, keyName, keyPrefix, usageLevel) {
+	const subject = "API key usage notice";
 	const lines = [
-		`Usage for API key "${keyName}" is currently ranked as ${usageLevel}.`,
-		"Consider rotating or reviewing your API key usage if this is unexpected."
+		`Your API key "${keyName}" (prefix ${keyPrefix}) is currently ranked as ${usageLevel}.`,
+		"This is a notice — your key has not been changed.",
+		"If this is unexpected, consider rotating the key and reviewing any automated scripts using it.",
+		"If usage remains high, we may take further steps to protect service reliability (including limiting or revoking keys)."
 	];
 	return sendSimpleNoticeEmail({
 		type: "usage_warning_api_key",
 		toEmail,
 		preferredName,
 		subject,
-		headline: "API key usage alert",
+		headline: "API key usage notice",
+		lines,
+		ctaUrl: `${normalizeFrontendUrl(FRONTEND_URL)}/account`,
+		ctaLabel: "Manage API keys"
+	});
+}
+
+function sendUsageAdminAlertEmail({
+	toEmail,
+	userId,
+	userEmail,
+	userName,
+	streamLabel,
+	score,
+	level,
+	requestCount,
+	windowStart,
+	windowEnd,
+	emailType
+}) {
+	const subject = "Very high usage detected - action recommended";
+	const lines = [
+		`We detected very high ${streamLabel} usage for the following user.`,
+		`User: ${userName || "User"} (${userEmail}) [ID: ${userId}]`,
+		`Stream: ${streamLabel === "API usage" ? "API usage" : "Website usage"}`,
+		`Score: ${score}/100 (${level})`,
+		`Requests (30 days): ${requestCount}`,
+		`Window: ${windowStart} → ${windowEnd}`,
+		"Suggested next step: Review endpoint usage and consider sending a warning or revoking API keys if needed."
+	];
+	return sendSimpleNoticeEmail({
+		type: emailType || "usage_admin_alert",
+		toEmail,
+		preferredName: "Admin",
+		subject,
+		headline: "Very high usage detected",
 		lines
 	});
 }
@@ -1527,6 +1568,7 @@ module.exports = {
 	sendUsageRestrictionRemovedEmail,
 	sendUsageWarningUserEmail,
 	sendUsageWarningApiKeyEmail,
+	sendUsageAdminAlertEmail,
 	sendApiKeyExpiringEmail,
 	sendApiKeyExpiredEmail
 };

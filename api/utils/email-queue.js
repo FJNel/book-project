@@ -27,6 +27,7 @@ const {
 	sendUsageRestrictionRemovedEmail,
 	sendUsageWarningUserEmail,
 	sendUsageWarningApiKeyEmail,
+	sendUsageAdminAlertEmail,
 	sendApiKeyExpiringEmail,
 	sendApiKeyExpiredEmail,
 } = require('./email');
@@ -46,13 +47,15 @@ const config = {
 const queue = [];
 let isProcessing = false;
 
-function enqueueEmail({ type, params = {}, context = null, userId = null }) {
+function enqueueEmail({ type, params = {}, context = null, userId = null, targetUserId = null, templateSignature = null }) {
 	const job = {
 		id: uuidv4(),
 		type,
 		params,
 		context,
 		userId,
+		targetUserId,
+		templateSignature,
 		attempt: 0,
 		enqueuedAt: Date.now(),
 	};
@@ -76,7 +79,9 @@ function enqueueEmail({ type, params = {}, context = null, userId = null }) {
 		recipientEmail: params?.toEmail,
 		queuedAt: new Date(job.enqueuedAt).toISOString(),
 		status: "queued",
-		retryCount: 0
+		retryCount: 0,
+		targetUserId: job.targetUserId,
+		templateSignature: job.templateSignature
 	});
 
 	processQueue();
@@ -300,7 +305,11 @@ async function runJob(job) {
 		case 'usage_warning_user':
 			return sendUsageWarningUserEmail(params.toEmail, params.preferredName, params.usageLevel);
 		case 'usage_warning_api_key':
-			return sendUsageWarningApiKeyEmail(params.toEmail, params.preferredName, params.keyName, params.usageLevel);
+			return sendUsageWarningApiKeyEmail(params.toEmail, params.preferredName, params.keyName, params.keyPrefix, params.usageLevel);
+		case 'usage_admin_alert_website':
+			return sendUsageAdminAlertEmail({ ...params, emailType: type });
+		case 'usage_admin_alert_api':
+			return sendUsageAdminAlertEmail({ ...params, emailType: type });
 		case 'api_key_expiring':
 			return sendApiKeyExpiringEmail(params.toEmail, params.preferredName, params.keyName, params.expiresAt);
 		case 'api_key_expired':

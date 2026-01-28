@@ -347,8 +347,8 @@ Purpose: keep email templates consistent, auditable, and aligned with user expec
 
 2) Required support line
 - Every email must include the line:
-  "Did not expect this? Contact support@fjnel.co.za"
-- It must be a mailto link with a prefilled subject line appropriate to the email type.
+  "Did not expect this email? Contact support at support@fjnel.co.za."
+- It must be a mailto link with a prefilled subject line: "Book Project support — {Email subject}".
 - If a type-specific support address is required, it must still be a mailto link with a subject.
 
 3) Essential vs optional emails
@@ -358,6 +358,7 @@ Purpose: keep email templates consistent, auditable, and aligned with user expec
   - Password reset / reset success
   - Account disable (including admin disable)
   - Account deletion verification / confirmation
+- Usage notices (website/API) are account updates and must respect preferences.
 - Optional emails must respect preferences (account updates, development updates).
 
 4) Markdown rendering rules

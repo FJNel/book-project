@@ -594,6 +594,177 @@ paths:
                               type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/usage/endpoints:
+    post:
+      tags: [Admin]
+      summary: Endpoint usage analytics (global)
+      operationId: getAdminEndpointUsage
+      description: Aggregate endpoint usage across authenticated traffic. JSON body preferred; query params also supported.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageRequest'
+      responses:
+        '200':
+          description: Endpoint usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          limit:
+                            type: integer
+                          endpoints:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EndpointUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: Endpoint usage analytics (query)
+      operationId: getAdminEndpointUsageQuery
+      responses:
+        '200':
+          description: Endpoint usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          limit:
+                            type: integer
+                          endpoints:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EndpointUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/usage/users/{id}/endpoints:
+    post:
+      tags: [Admin]
+      summary: Endpoint usage analytics for a user
+      operationId: getAdminUserEndpointUsage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUsageRequest'
+      responses:
+        '200':
+          description: Endpoint usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          limit:
+                            type: integer
+                          userId:
+                            type: integer
+                          endpoints:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EndpointUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: Endpoint usage analytics for a user (query)
+      operationId: getAdminUserEndpointUsageQuery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Endpoint usage
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          message:
+                            type: string
+                          window:
+                            $ref: '#/components/schemas/UsageWindow'
+                          limit:
+                            type: integer
+                          userId:
+                            type: integer
+                          endpoints:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EndpointUsageEntry'
+                          warnings:
+                            type: array
+                            items:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/data-viewer/tables:
     get:
       tags: [Admin]
@@ -801,6 +972,78 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/api-keys:
+    post:
+      tags: [Admin]
+      summary: List active API keys for a user
+      operationId: adminListUserApiKeys
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+      responses:
+        '200':
+          description: User API keys
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          keys:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserApiKeySummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [Admin]
+      summary: List active API keys for a user (query)
+      operationId: adminListUserApiKeysQuery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User API keys
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          keys:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserApiKeySummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/users/{id}/usage-warning-api-key:
     post:
       tags: [Admin]
@@ -819,9 +1062,11 @@ paths:
             schema:
               type: object
               properties:
-                keyName:
-                  type: string
+                apiKeyId:
+                  type: integer
                 usageLevel:
+                  type: string
+                reason:
                   type: string
       responses:
         '200':
@@ -844,6 +1089,60 @@ paths:
                             type: string
                           keyName:
                             type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/usage-warning:
+    post:
+      tags: [Admin]
+      summary: Send usage warning email (website or API)
+      operationId: adminSendUsageWarning
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                warningType:
+                  type: string
+                  enum: [website, api]
+                apiKeyId:
+                  type: integer
+                usageLevel:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Usage warning queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          email:
+                            type: string
+                          usageLevel:
+                            type: string
+                          warningType:
+                            type: string
+                          apiKeyId:
+                            type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
   /admin/api-keys/{id}/revoke:
@@ -1247,6 +1546,48 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/emails/dev-features/test-status:
+    post:
+      tags: [Admin]
+      summary: Check development update test status
+      operationId: getDevFeaturesTestStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+                - markdownBody
+              properties:
+                subject:
+                  type: string
+                markdownBody:
+                  type: string
+      responses:
+        '200':
+          description: Test status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          allowed:
+                            type: boolean
+                          windowHours:
+                            type: integer
+                          templateSignature:
+                            type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/emails/dev-features/recipients:
     post:
       tags: [Admin]
@@ -1301,6 +1642,8 @@ paths:
                   type: string
                 confirm:
                   type: boolean
+                reason:
+                  type: string
       responses:
         '200':
           description: Queued
@@ -12307,6 +12650,33 @@ components:
         endDate:
           type: string
           format: date-time
+    UsageStreamSummary:
+      type: object
+      properties:
+        usageScore:
+          type:
+            - integer
+            - "null"
+        usageLevel:
+          type:
+            - string
+            - "null"
+        requestCount:
+          type: integer
+        lastSeen:
+          type:
+            - string
+            - "null"
+          format: date-time
+    EndpointUsageEntry:
+      type: object
+      properties:
+        endpoint:
+          type: string
+        method:
+          type: string
+        callCount:
+          type: integer
     AdminUserUsageEntry:
       type: object
       properties:
@@ -12316,6 +12686,14 @@ components:
           type: string
         role:
           type: string
+        fullName:
+          type:
+            - string
+            - "null"
+        preferredName:
+          type:
+            - string
+            - "null"
         requestCount:
           type: integer
         usageScore:
@@ -12327,6 +12705,10 @@ components:
         lastSeen:
           type: string
           format: date-time
+        websiteUsage:
+          $ref: '#/components/schemas/UsageStreamSummary'
+        apiUsage:
+          $ref: '#/components/schemas/UsageStreamSummary'
         topEndpoints:
           type: array
           items:
@@ -12380,6 +12762,20 @@ components:
           type: boolean
         ageSeconds:
           type: number
+    AdminUserApiKeySummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date-time
     AdminUserSummary:
       type: object
       properties:
@@ -12432,6 +12828,10 @@ components:
             - "null"
         usageRank:
           type: string
+        websiteUsage:
+          $ref: '#/components/schemas/UsageStreamSummary'
+        apiUsage:
+          $ref: '#/components/schemas/UsageStreamSummary'
         apiKeyActiveCount:
           type: integer
         apiKeyRevokedCount:
