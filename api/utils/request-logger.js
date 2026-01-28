@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const config = require('../config');
 const pool = require('../db');
-const { sanitizeInput } = require('./logging');
+const { sanitizeInput, logToFile } = require('./logging');
 
 const DEFAULT_MAX_BODY_BYTES = Number.parseInt(config?.logging?.maxBodyBytes, 10) || 20000;
 const DEFAULT_MAX_HEADER_BYTES = Number.parseInt(config?.logging?.maxHeaderBytes, 10) || 8000;
@@ -174,7 +174,7 @@ async function insertRequestLog(entry) {
 			response_bytes,
 			cost_units
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
 		)`;
 	const values = [
 		entry.loggedAt,
@@ -209,9 +209,10 @@ async function insertRequestLog(entry) {
 	try {
 		await pool.query(text, values);
 	} catch (error) {
-		// Avoid crashing API on logging errors.
-		// eslint-disable-next-line no-console
-		console.error('[Request Logger] Failed to insert request log:', error.message);
+		logToFile("REQUEST_LOG_INSERT", {
+			status: "FAILURE",
+			error_message: error.message
+		}, "error");
 	}
 }
 

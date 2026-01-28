@@ -448,6 +448,61 @@ paths:
                               type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/request-logs/health:
+    get:
+      tags: [Admin]
+      summary: Request logs health
+      operationId: adminRequestLogsHealth
+      description: Admin-only diagnostic for request log persistence.
+      responses:
+        '200':
+          description: Request logs health
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          configured:
+                            type: boolean
+                          total:
+                            type: integer
+                          lastLoggedAt:
+                            type:
+                              - string
+                              - "null"
+                            format: date-time
+              examples:
+                configured:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.80"
+                    message: Request log health retrieved.
+                    data:
+                      configured: true
+                      total: 1284
+                      lastLoggedAt: "2026-01-28T11:04:03.000Z"
+                    errors: []
+                notConfigured:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "1.10"
+                    message: Request logs are not configured.
+                    data:
+                      configured: false
+                      total: 0
+                      lastLoggedAt: null
+                    errors: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/usage/api-keys:
     post:
       tags: [Admin]

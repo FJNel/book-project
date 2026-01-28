@@ -501,6 +501,46 @@ const adminUsageUsersHandler = async (req, res) => {
 router.get("/usage/users", adminAuth, adminUsageUsersHandler);
 router.post("/usage/users", adminAuth, adminUsageUsersHandler);
 
+// Admin: request logs health check (usage logging diagnostic)
+router.get("/request-logs/health", adminAuth, async (req, res) => {
+	try {
+		const tableResult = await pool.query("SELECT to_regclass('public.request_logs') AS table_exists");
+		const hasTable = Boolean(tableResult.rows[0]?.table_exists);
+		if (!hasTable) {
+			return successResponse(res, 200, "Request logs are not configured.", {
+				configured: false,
+				total: 0,
+				lastLoggedAt: null
+			});
+		}
+
+		const statsResult = await pool.query(
+			"SELECT COUNT(*)::int AS total, MAX(logged_at) AS last_logged_at FROM request_logs"
+		);
+		const total = statsResult.rows[0]?.total ?? 0;
+		const lastLoggedAt = statsResult.rows[0]?.last_logged_at ?? null;
+
+		logToFile("ADMIN_REQUEST_LOGS_HEALTH", {
+			status: "SUCCESS",
+			admin_id: req.user ? req.user.id : null,
+			total
+		}, "info");
+
+		return successResponse(res, 200, "Request log health retrieved.", {
+			configured: true,
+			total,
+			lastLoggedAt
+		});
+	} catch (error) {
+		logToFile("ADMIN_REQUEST_LOGS_HEALTH", {
+			status: "FAILURE",
+			admin_id: req.user ? req.user.id : null,
+			error_message: error.message
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve request log health at this time."]);
+	}
+});
+
 // GET/POST /admin/usage/api-keys - Usage dashboard for API keys
 const adminUsageApiKeysHandler = async (req, res) => {
 	const params = { ...req.query, ...(req.body || {}) };
