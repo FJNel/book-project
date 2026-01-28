@@ -7787,16 +7787,15 @@ paths:
                       limit: 20
                       offset: 0
                       logs:
-                        - id: 101
+                        - id: "b2e7d21f9c80c3c7e4f0917c6d1c2a2e6f9a9c65"
                           logged_at: "2026-01-05T10:21:44.000Z"
                           level: info
-                          category: request
+                          category: BOOK_COPY_LIST
                           method: GET
                           path: /book/stats
-                          actor_type: user
-                          user_id: 12
                           status_code: 200
-                          duration_ms: 42.5
+                          status: SUCCESS
+                          duration_ms: 42
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -7971,7 +7970,7 @@ paths:
                           statuses:
                             type: array
                             items:
-                              type: integer
+                              type: string
                           warnings:
                             type: array
                             items:
@@ -7986,7 +7985,7 @@ paths:
                     data:
                       configured: true
                       count: 3
-                      statuses: [200, 400, 500]
+                      statuses: ["200", "400", "500"]
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8000,7 +7999,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: Log entry
@@ -11886,26 +11885,42 @@ components:
             type: string
             enum: [books, authors, publishers, series, tags]
     LogEntry:
-      description: Structured HTTP log entry (sanitized).
+      description: Structured log entry (sanitized).
       type: object
       properties:
         id:
-          type: integer
-        logged_at:
           type: string
+        logged_at:
+          type:
+            - string
+            - "null"
           format: date-time
         level:
-          type: string
+          type:
+            - string
+            - "null"
         category:
-          type: string
+          type:
+            - string
+            - "null"
+        status:
+          type:
+            - string
+            - "null"
         correlation_id:
           type: string
         method:
-          type: string
+          type:
+            - string
+            - "null"
         path:
-          type: string
+          type:
+            - string
+            - "null"
         route_pattern:
-          type: string
+          type:
+            - string
+            - "null"
         query:
           type: object
         headers:
@@ -11915,12 +11930,18 @@ components:
         body_truncated:
           type: boolean
         ip:
-          type: string
+          type:
+            - string
+            - "null"
         user_agent:
-          type: string
+          type:
+            - string
+            - "null"
         actor_type:
-          type: string
-          enum: [user, api_key, anonymous]
+          type:
+            - string
+            - "null"
+          enum: [user, api_key, anonymous, null]
         user_id:
           type:
             - integer
@@ -11946,7 +11967,9 @@ components:
             - string
             - "null"
         status_code:
-          type: integer
+          type:
+            - integer
+            - "null"
         response_body:
           type: object
         response_truncated:

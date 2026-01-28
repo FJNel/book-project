@@ -2043,7 +2043,7 @@
 
   function renderLogsNotConfigured() {
     if (!dom.logsTbody) return;
-    dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Request logs are not configured. Create the request_logs table and enable request logging.</td></tr>';
+    dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Logs are not configured. Enable file logging to view entries.</td></tr>';
     if (dom.logsSummary) dom.logsSummary.textContent = 'Logs are not configured.';
   }
 
@@ -2159,7 +2159,7 @@
     const rows = state.logs.map((log, index) => {
       const rawMessage = log.error_summary || log.message || '—';
       const message = String(rawMessage);
-      const status = log.status_code || '—';
+      const status = log.status_code || log.status || '—';
       const actor = log.actor_type || '—';
       const actorLabel = log.actor_type === 'api_key'
         ? `${log.user_email || 'API key'} · ${log.api_key_label || log.api_key_prefix || 'unknown'}`
@@ -2462,7 +2462,7 @@
     const logEntry = state.logs[index];
     if (!logEntry || !dom.logsDetailContent) return;
     state.currentLogDetail = logEntry;
-    if (Number.isInteger(logEntry.id)) {
+    if (logEntry.id) {
       try {
         const response = await apiFetch(`/logs/${logEntry.id}`, { method: 'GET' });
         const data = await parseResponse(response);
