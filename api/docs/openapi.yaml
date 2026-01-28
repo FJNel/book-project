@@ -12241,7 +12241,9 @@ components:
         requestCount:
           type: integer
         usageScore:
-          type: integer
+          type:
+            - integer
+            - "null"
         usageLevel:
           type: string
         lastSeen:
@@ -12274,7 +12276,9 @@ components:
         requestCount:
           type: integer
         usageScore:
-          type: integer
+          type:
+            - integer
+            - "null"
         usageLevel:
           type: string
         lastSeen:
@@ -12345,7 +12349,9 @@ components:
         librarySize:
           type: integer
         usageScore:
-          type: integer
+          type:
+            - integer
+            - "null"
         usageRank:
           type: string
         apiKeyActiveCount:

@@ -2511,7 +2511,7 @@ const adminUsersListHandler = async (req, res) => {
 	// Usage score (0-100) uses 30-day request_logs activity with log scaling; cost_units preferred when available.
 	const usageScoreSelect = hasTable
 		? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
-		: "0::int AS usage_score";
+		: "NULL::int AS usage_score";
 	const apiKeyActiveSelect = hasUserApiKeys
 		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
 		: "0::int AS api_key_active_count";
@@ -2611,7 +2611,7 @@ router.get("/users", adminAuth, async (req, res) => {
 				: "NULL AS usage_last_seen";
 			const usageScoreSelect = hasTable
 				? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
-				: "0::int AS usage_score";
+				: "NULL::int AS usage_score";
 			const apiKeyActiveSelect = hasUserApiKeys
 				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
 				: "0::int AS api_key_active_count";
@@ -2831,7 +2831,7 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 			: "NULL AS usage_last_seen";
 		const usageScoreSelect = hasTable
 			? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
-			: "0::int AS usage_score";
+			: "NULL::int AS usage_score";
 
 		const result = await pool.query(
 			`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,

@@ -816,8 +816,10 @@
       const isSelf = state.currentUserId && user.id === state.currentUserId;
       const name = user.preferredName || user.fullName || '—';
       const librarySize = Number(user.librarySize) || 0;
-      const usageScore = Number(user.usageScore) || 0;
+      const usageScore = Number.isFinite(user.usageScore) ? user.usageScore : null;
       const usageRank = user.usageRank || '—';
+      const usageLabel = usageScore === null ? 'Not enough data yet' : `Score ${usageScore.toLocaleString()}`;
+      const usageLevelText = usageScore === null ? 'Usage level: —' : `Usage level: ${usageRank}`;
       const verified = user.isVerified ? '<span class="badge text-bg-success">Verified</span>' : '<span class="badge text-bg-secondary">Unverified</span>';
       const disabled = user.isDisabled ? '<span class="badge text-bg-danger">Disabled</span>' : '<span class="badge text-bg-success">Active</span>';
       const disableLabel = user.isDisabled ? 'Enable account' : 'Disable account';
@@ -852,8 +854,8 @@
             <div class="text-muted small">ID ${escapeHtml(String(user.id ?? '—'))}</div>
           </td>
           <td>
-            <div class="fw-semibold">Score ${escapeHtml(usageScore.toLocaleString())}</div>
-            <div class="text-muted small">Usage level: ${escapeHtml(usageRank)}</div>
+            <div class="fw-semibold">${escapeHtml(usageLabel)}</div>
+            <div class="text-muted small">${escapeHtml(usageLevelText)}</div>
           </td>
           <td>
             <div class="fw-semibold">${escapeHtml(librarySize.toLocaleString())} books</div>
@@ -2592,7 +2594,7 @@
       const displayName = resolved.preferredName || resolved.fullName || resolved.email || 'User';
       const emailText = resolved.email || user.email || '—';
       const roleText = user.role ? ` · ${user.role}` : '';
-      const score = Number.isFinite(user.usageScore) ? user.usageScore : 0;
+      const score = Number.isFinite(user.usageScore) ? user.usageScore : null;
       const requests = Number.isFinite(user.requestCount) ? user.requestCount : 0;
       const levelBadge = renderUsageLevelBadge(user.usageLevel || 'Low');
       const lastSeen = formatDateTime(user.lastSeen);
@@ -2622,8 +2624,8 @@
             <div class="text-muted small">${escapeHtml(emailText)}${escapeHtml(roleText)}</div>
           </td>
           <td>
-            <div class="fw-semibold">${score}</div>
-            <div class="mt-1">${levelBadge}</div>
+            <div class="fw-semibold">${score === null ? 'Not enough data yet' : score}</div>
+            <div class="mt-1">${score === null ? '<span class="text-muted">—</span>' : levelBadge}</div>
           </td>
           <td>${requests}</td>
           <td>${topEndpoints}</td>
@@ -2652,7 +2654,7 @@
       const keyLabel = key.apiKeyLabel || 'API key';
       const keyPrefix = key.apiKeyPrefix ? `(${key.apiKeyPrefix})` : '';
       const userEmail = key.email || '—';
-      const score = Number.isFinite(key.usageScore) ? key.usageScore : 0;
+      const score = Number.isFinite(key.usageScore) ? key.usageScore : null;
       const requests = Number.isFinite(key.requestCount) ? key.requestCount : 0;
       const levelBadge = renderUsageLevelBadge(key.usageLevel || 'Low');
       const lastSeen = formatDateTime(key.lastSeen);
@@ -2688,8 +2690,8 @@
             <div class="text-muted small">User ${userId ?? '—'}</div>
           </td>
           <td>
-            <div class="fw-semibold">${score}</div>
-            <div class="mt-1">${levelBadge}</div>
+            <div class="fw-semibold">${score === null ? 'Not enough data yet' : score}</div>
+            <div class="mt-1">${score === null ? '<span class="text-muted">—</span>' : levelBadge}</div>
           </td>
           <td>${requests}</td>
           <td>${topEndpoints}</td>
