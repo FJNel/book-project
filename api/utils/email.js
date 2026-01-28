@@ -15,6 +15,7 @@ const API_BASE_URL = config.api.baseUrl;
 const VERIFY_DISABLE_PATH = config.frontend.verifyDisablePath || '/verify-delete';
 const VERIFY_ACCOUNT_DELETION_PATH = config.frontend.verifyAccountDeletionPath || '/verify-account-deletion';
 const VERIFY_EMAIL_CHANGE_PATH = config.frontend.verifyEmailChangePath || '/verify-email-change';
+const fetch = (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
 
 function escapeHtml(value) {
 	if (value === null || value === undefined) return '';
@@ -24,6 +25,17 @@ function escapeHtml(value) {
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
+}
+
+function buildSupportLine(emailType, subject, contactEmail = SUPPORT_EMAIL) {
+	const fallbackEmail = contactEmail || 'support@fjnel.co.za';
+	const subjectSeed = subject || (emailType ? `Book Project ${String(emailType).replace(/_/g, ' ')}` : 'Book Project');
+	const mailto = `mailto:${fallbackEmail}?subject=${encodeURIComponent(`${subjectSeed} support`)}`;
+	return `
+		<p style="font-size: 12px; color: #718096; line-height: 1.5;">
+		  Did not expect this? Contact <a href="${mailto}" style="color: #3182ce;">${escapeHtml(fallbackEmail)}</a>.
+		</p>
+	`;
 }
 
 function logEmailAttempt(type, toEmail, details = {}) {
@@ -51,6 +63,39 @@ function renderMarkdownToHtml(markdown = "") {
 	return paragraphs || '<p style="margin: 0;">&nbsp;</p>';
 }
 
+async function renderMarkdownWithGithub(markdown = "") {
+	try {
+		const response = await fetch("https://api.github.com/markdown", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Accept": "application/vnd.github+json",
+				"X-GitHub-Api-Version": "2022-11-28",
+				"User-Agent": "BookProjectEmail"
+			},
+			body: JSON.stringify({ text: markdown || "", mode: "gfm" })
+		});
+		if (!response.ok) {
+			const errorBody = await response.text();
+			logToFile("EMAIL_MARKDOWN_RENDER", {
+				status: "FAILURE",
+				email_type: "dev_features_announcement",
+				http_status: response.status,
+				error_message: errorBody.slice(0, 240)
+			}, "warn");
+			return null;
+		}
+		return await response.text();
+	} catch (error) {
+		logToFile("EMAIL_MARKDOWN_RENDER", {
+			status: "FAILURE",
+			email_type: "dev_features_announcement",
+			error_message: error.message
+		}, "error");
+		return null;
+	}
+}
+
 async function sendDevelopmentFeaturesEmail(toEmail, preferredName, subject, markdownBody) {
 	logEmailAttempt("dev_features_announcement", toEmail, { subject });
 	if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL || !FRONTEND_URL) {
@@ -60,8 +105,12 @@ async function sendDevelopmentFeaturesEmail(toEmail, preferredName, subject, mar
 	}
 
 	const year = new Date().getFullYear();
-	const htmlBody = renderMarkdownToHtml(markdownBody || "");
+	const htmlBody = await renderMarkdownWithGithub(markdownBody || "");
+	if (!htmlBody) {
+		return false;
+	}
 	const manageUrl = `${normalizeFrontendUrl(FRONTEND_URL)}/account`;
+	const supportLine = buildSupportLine("dev_features_announcement", subject);
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
 	  <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 620px; background: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -78,6 +127,7 @@ async function sendDevelopmentFeaturesEmail(toEmail, preferredName, subject, mar
 			  ${htmlBody}
 			</div>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;">
+			${supportLine}
 			<p style="font-size: 12px; color: #718096; line-height: 1.5;">
 			  You are receiving this because you opted in to development updates. You can update your preferences in your
 			  <a href="${manageUrl}" style="color: #3182ce;">account settings</a>.
@@ -123,6 +173,7 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 	const verificationUrl = `${FRONTEND_URL}${config.frontend.verifyPath}?token=${verificationToken}`;
 	const subject = "Verify your email address for the Book Project";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("verification", subject);
   
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -146,12 +197,10 @@ async function sendVerificationEmail(toEmail, verificationToken, preferredName, 
 			  </a>
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
-			  If you did not register this account, please contact the system administrator at
-			  <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Account%20Registration" style="color: #3182ce;">${SUPPORT_EMAIL}</a>
-			  to assist you in resolving this matter.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+			${supportLine}
 			<p style="font-size: 12px; color: #a0aec0; text-align: center;">
 			  &copy; ${year} Book Project. All rights reserved.
 			</p>
@@ -190,6 +239,7 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 	const resetUrl = `${FRONTEND_URL}${config.frontend.resetPath}?token=${resetToken}`;
 	const subject = "Reset your password for the Book Project";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("password_reset", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -220,12 +270,10 @@ async function sendPasswordResetEmail(toEmail, resetToken, preferredName, expire
 			  </a>
 			</div>
 			<p style="font-size: 14px; color: #718096; line-height: 1.5;">
-			  If you did not request a password reset, please contact the system administrator at
-			  <a href=\"mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Unauthorised%20Password%20Reset%20Request\" style=\"color: #3182ce;\">${SUPPORT_EMAIL}</a>
-			  to ensure the safety of your account.<br>
 			  This link will expire in <strong>${expiresIn} minutes</strong>.
 			</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+			${supportLine}
 			<p style="font-size: 12px; color: #a0aec0; text-align: center;">
 			  &copy; ${year} Book Project. All rights reserved.
 			</p>
@@ -262,6 +310,7 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 	const subject = "Your Book Project account has been disabled";
 	const year = new Date().getFullYear();
 	const supportEmail = SUPPORT_EMAIL; // Centralized support email
+	const supportLine = buildSupportLine("account_disabled", subject, supportEmail);
   
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -298,6 +347,7 @@ async function sendAccountDisableConfirmationEmail(toEmail, preferredName) {
 			  System Administrator at <a href="mailto:${supportEmail}?subject=The%20Book%20Project%20Account%20Reactivation%20Request" style="color: #3182ce;">${supportEmail}</a>. Provide them with your email address and request account reactivation.
 			</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+			${supportLine}
 			<p style="font-size: 12px; color: #a0aec0; text-align: center;">
 			  &copy; ${year} Book Project. All rights reserved.
 			</p>
@@ -335,6 +385,7 @@ async function sendAccountDisableVerificationEmail(toEmail, preferredName, token
 	const verifyUrl = `${FRONTEND_URL}${VERIFY_DISABLE_PATH}?token=${token}`;
 	const subject = "Confirm your Book Project account disable request";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("account_disable_verification", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -371,6 +422,7 @@ async function sendAccountDisableVerificationEmail(toEmail, preferredName, token
 	          This link will expire in <strong>${expiresIn} minutes</strong>. If it expires, simply sign in and submit another request.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -408,6 +460,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 	const verifyUrl = `${FRONTEND_URL}${VERIFY_ACCOUNT_DELETION_PATH}?token=${token}`;
 	const subject = "Confirm your Book Project account deletion request";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("account_delete_verification", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -441,6 +494,7 @@ async function sendAccountDeletionVerificationEmail(toEmail, preferredName, toke
 	          This link expires in <strong>${expiresIn} minutes</strong>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -484,6 +538,7 @@ async function sendAccountDeletionAdminEmail({
 
 	const subject = `Account deletion confirmation received for ${userEmail}`;
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("account_delete_admin_notice", subject, SUPPORT_EMAIL);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -524,6 +579,7 @@ async function sendAccountDeletionAdminEmail({
 	          Please reach out to the user before fully deleting this account and all associated data. Use the appropriate admin endpoint to complete the deletion.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. Internal notification.
 	        </p>
@@ -561,6 +617,7 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 	const verifyUrl = `${FRONTEND_URL}${VERIFY_EMAIL_CHANGE_PATH}?token=${token}`;
 	const subject = "Verify your new Book Project email address";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("email_change_verification", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -593,6 +650,7 @@ async function sendEmailChangeVerificationEmail(toEmail, preferredName, token, e
 	          This link expires in <strong>${expiresIn} minutes</strong>. If you did not request this change, you can ignore this email.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -629,6 +687,7 @@ async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName
 
 	const subject = "Your Book Project email address has changed";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("email_change_confirmation", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -652,6 +711,7 @@ async function sendEmailChangeConfirmationEmail(toEmail, newEmail, preferredName
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Email%20Change%20Unauthorised" style="color: #3182ce;">${SUPPORT_EMAIL}</a> so that we can help secure your account.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -689,6 +749,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
     const loginUrl = config.frontend.loginUrl;
     const subject = "Welcome to The Book Project";
     const year = new Date().getFullYear();
+    const supportLine = buildSupportLine("welcome", subject);
 
     const html = `
     <div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -720,6 +781,7 @@ async function sendWelcomeEmail(toEmail, preferredName) {
 			  to assist you in resolving this matter.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+            ${supportLine}
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
               &copy; ${year} Book Project. All rights reserved.
             </p>
@@ -755,6 +817,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
     const loginUrl = config.frontend.loginUrl;
     const subject = "Your password has been reset";
     const year = new Date().getFullYear();
+    const supportLine = buildSupportLine("password_reset_success", subject);
 
     const html = `
     <div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -786,6 +849,7 @@ async function sendPasswordResetSuccessEmail(toEmail, preferredName) {
 			  to secure your account.<br>
 			</p>
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+            ${supportLine}
             <p style="font-size: 12px; color: #a0aec0; text-align: center;">
               &copy; ${year} Book Project. All rights reserved.
             </p>
@@ -820,6 +884,7 @@ async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = [])
 
 	const subject = "Your Book Project profile was updated";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("admin_profile_update", subject);
 	const formatValue = (value) => {
 		if (value === null || value === undefined || String(value).trim() === "") return "(not set)";
 		return escapeHtml(value);
@@ -864,6 +929,7 @@ async function sendAdminProfileUpdateEmail(toEmail, preferredName, changes = [])
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Update%20Inquiry" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -922,6 +988,7 @@ async function sendAdminAccountDisabledEmail(toEmail, preferredName) {
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Disable%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -958,6 +1025,7 @@ async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
 	const loginUrl = config.frontend.loginUrl;
 	const subject = "Your Book Project account has been re-enabled";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("admin_account_enabled", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -988,6 +1056,7 @@ async function sendAdminAccountEnabledEmail(toEmail, preferredName) {
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Enable%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -1023,6 +1092,7 @@ async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
 
 	const subject = "Your Book Project email needs verification";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("admin_email_unverified", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -1048,6 +1118,7 @@ async function sendAdminEmailUnverifiedEmail(toEmail, preferredName, reason) {
 	          or contact the system administrator if you need assistance.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -1083,6 +1154,7 @@ async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
 
 	const subject = "Your Book Project email has been verified";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("admin_email_verified", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -1107,6 +1179,7 @@ async function sendAdminEmailVerifiedEmail(toEmail, preferredName, reason) {
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Email%20Verification%20Review" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -1144,6 +1217,7 @@ async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationTo
 	const resetUrl = `${FRONTEND_URL}${config.frontend.resetPath}?token=${resetToken}`;
 	const subject = "Finish setting up your Book Project account";
 	const year = new Date().getFullYear();
+	const supportLine = buildSupportLine("admin_account_setup", subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -1185,6 +1259,7 @@ async function sendAdminAccountSetupEmail(toEmail, preferredName, verificationTo
 	          <a href="mailto:${SUPPORT_EMAIL}?subject=The%20Book%20Project%20Account%20Setup%20Request" style="color: #3182ce;">${SUPPORT_EMAIL}</a>.
 	        </p>
 	        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+	        ${supportLine}
 	        <p style="font-size: 12px; color: #a0aec0; text-align: center;">
 	          &copy; ${year} Book Project. All rights reserved.
 	        </p>
@@ -1226,6 +1301,7 @@ async function sendSimpleNoticeEmail({ type, toEmail, preferredName, subject, he
 			<a href="${ctaUrl}" style="background-color:#3182ce; color:#fff; text-decoration:none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display:inline-block;">${escapeHtml(ctaLabel)}</a>
 		</div>`
 		: '';
+	const supportLine = buildSupportLine(type, subject);
 
 	const html = `
 	<div style="background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
@@ -1242,6 +1318,7 @@ async function sendSimpleNoticeEmail({ type, toEmail, preferredName, subject, he
 			${safeLines}
 			${ctaHtml}
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;">
+			${supportLine}
 			<p style="font-size: 12px; color: #a0aec0; text-align: center;">&copy; ${year} Book Project. All rights reserved.</p>
 		  </td>
 		</tr>

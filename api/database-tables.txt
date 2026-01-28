@@ -90,10 +90,14 @@ CREATE TABLE IF NOT EXISTS book_types (
   user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name              VARCHAR(100) NOT NULL,
   description       TEXT,
+  deleted_at        TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, name)
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS book_types_unique_active_name
+  ON book_types (user_id, name)
+  WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS dates (
   id          SERIAL PRIMARY KEY,

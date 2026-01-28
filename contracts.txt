@@ -333,7 +333,42 @@ F) Modal Copy Library (Drafts)
   - Show when a disabled action is clicked in admin read-only context.
   - Button closes the modal; no side effects.
 
-G) Terminology Audit: "entity/entities"
+G) Emails Contract
+------------------
+Purpose: keep email templates consistent, auditable, and aligned with user expectations.
+
+1) Required structure (all emails)
+- Subject: clear and concise; matches the email's purpose.
+- Greeting: personalized when available; otherwise neutral.
+- Body: short paragraphs; one purpose per email.
+- CTA (optional): one primary action when needed.
+- Footer: must include the required support line (below).
+
+2) Required support line
+- Every email must include the line:
+  "Did not expect this? Contact support@fjnel.co.za"
+- It must be a mailto link with a prefilled subject line appropriate to the email type.
+- If a type-specific support address is required, it must still be a mailto link with a subject.
+
+3) Essential vs optional emails
+- Essential emails cannot be opted out.
+- Must be essential (minimum):
+  - Verification
+  - Password reset / reset success
+  - Account disable (including admin disable)
+  - Account deletion verification / confirmation
+- Optional emails must respect preferences (account updates, development updates).
+
+4) Markdown rendering rules
+- Markdown is allowed only for development update emails.
+- Rendering must use the GitHub Markdown API proxy (admin preview and send pipeline).
+- Rendered HTML must be sanitized before sending.
+
+5) Drift prevention
+- New templates must reference this contract.
+- Any template change that alters structure/copy must update this section.
+
+H) Terminology Audit: "entity/entities"
 ---------------------------------------
 Table columns: Location | Context | User-facing? | Proposed replacement | Notes/risk
 

@@ -1079,11 +1079,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookTypeName = book.bookType?.name || 'Format unknown';
     const bookTypeNameEl = document.getElementById('bookTypeName');
     if (bookTypeRow) {
+      const hasType = Boolean(book.bookType?.name);
       bookTypeRow.dataset.bookTypeId = Number.isInteger(book.bookType?.id) ? String(book.bookType.id) : '';
       bookTypeRow.dataset.bookTypeName = book.bookType?.name || '';
-      bookTypeRow.setAttribute('aria-label', book.bookType?.name ? `View ${book.bookType.name} details` : 'Book type details');
-      bookTypeRow.setAttribute('aria-disabled', Number.isInteger(book.bookType?.id) ? 'false' : 'true');
-      bindBookTypeCard();
+      bookTypeRow.setAttribute('aria-label', hasType ? `View ${book.bookType.name} details` : 'Book type details');
+      bookTypeRow.setAttribute('aria-disabled', hasType ? 'false' : 'true');
+      bookTypeRow.setAttribute('tabindex', hasType ? '0' : '-1');
+      bookTypeRow.classList.toggle('clickable-card', hasType);
+      if (hasType) bindBookTypeCard();
     }
     if (bookTypeNameEl) {
       bookTypeNameEl.textContent = bookTypeName;
@@ -1849,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!authorRoleSelect) return '';
     const selected = authorRoleSelect.value;
     if (selected === 'none') return '';
-    if (selected === 'Other') return authorRoleOtherInput?.value.trim() || '';
+    if (selected === 'Other') return authorRoleOtherInput?.value.trim() || 'Other';
     return selected || '';
   };
 

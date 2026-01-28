@@ -30,7 +30,7 @@ const EMAIL_TYPE_CATEGORY_MAP = {
 	usage_restriction_removed: EMAIL_CATEGORIES.ESSENTIAL,
 	welcome: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_profile_update: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
-	admin_account_disabled: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
+	admin_account_disabled: EMAIL_CATEGORIES.ESSENTIAL,
 	admin_account_enabled: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_email_unverified: EMAIL_CATEGORIES.ACCOUNT_UPDATES,
 	admin_email_verified: EMAIL_CATEGORIES.ACCOUNT_UPDATES,

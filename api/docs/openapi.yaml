@@ -1192,6 +1192,38 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/emails/dev-features/recipients:
+    post:
+      tags: [Admin]
+      summary: Count opted-in development update recipients
+      operationId: countDevFeaturesRecipients
+      responses:
+        '200':
+          description: Recipient count
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.05"
+                    message: Opted-in recipients counted.
+                    data:
+                      count: 128
+                    errors: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/emails/dev-features/send:
     post:
       tags: [Admin]
@@ -1203,11 +1235,17 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - subject
+                - markdownBody
+                - confirm
               properties:
                 subject:
                   type: string
                 markdownBody:
                   type: string
+                confirm:
+                  type: boolean
       responses:
         '200':
           description: Queued
@@ -1215,6 +1253,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.48"
+                    message: Development updates queued.
+                    data:
+                      queued: 128
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2722,11 +2770,13 @@ paths:
                           description: Hardback edition with rigid cover.
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
+                          deletedAt: null
                         - id: 2
                           name: Softcover
                           description: null
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
+                          deletedAt: null
                     errors: []
                 statsIncluded:
                   summary: Single result with stats
@@ -2742,6 +2792,7 @@ paths:
                           description: Hardback edition with rigid cover.
                           createdAt: "2025-01-10T09:15:23.000Z"
                           updatedAt: "2025-01-14T16:58:41.000Z"
+                          deletedAt: null
                           stats:
                             bookCount: 12
                             percentageOfBooks: 60.0
@@ -2799,6 +2850,7 @@ paths:
                       description: Special edition with collector illustrations.
                       createdAt: "2025-01-17T10:02:11.000Z"
                       updatedAt: "2025-01-17T10:02:11.000Z"
+                      deletedAt: null
                     errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2844,6 +2896,7 @@ paths:
                       description: Updated description.
                       createdAt: "2025-01-17T10:02:11.000Z"
                       updatedAt: "2025-01-17T10:05:48.000Z"
+                      deletedAt: null
                     errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2853,7 +2906,7 @@ paths:
           $ref: '#/components/responses/Conflict'
     delete:
       tags: [BookTypes]
-      summary: Delete book type (by id or name)
+      summary: Move book type to recycle bin (by id or name)
       operationId: deleteBookType
       x-rateLimit:
         limit: 60
@@ -2871,7 +2924,7 @@ paths:
                   name: Hardcover
       responses:
         '200':
-          description: Deleted
+          description: Deleted (soft)
           content:
             application/json:
               schema:
@@ -2882,9 +2935,10 @@ paths:
                     status: success
                     httpCode: 200
                     responseTime: "2.48"
-                    message: Book type deleted successfully.
+                    message: Book type moved to trash.
                     data:
                       id: 10
+                      deletedAt: "2025-02-12T10:12:11.000Z"
                     errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2986,17 +3040,7 @@ paths:
         - $ref: '#/components/parameters/id'
         - name: includeDeleted
           in: query
-          description: Include soft-deleted series when true.
-          schema:
-            type: boolean
-        - name: includeDeleted
-          in: query
-          description: Include soft-deleted publisher when true.
-          schema:
-            type: boolean
-        - name: includeDeleted
-          in: query
-          description: Include soft-deleted author when true.
+          description: Include soft-deleted book types when true.
           schema:
             type: boolean
       requestBody:
@@ -3033,6 +3077,7 @@ paths:
                       description: null
                       createdAt: "2025-01-10T09:15:23.000Z"
                       updatedAt: "2025-01-14T16:58:41.000Z"
+                      deletedAt: null
                       stats:
                         bookCount: 8
                         percentageOfBooks: 40.0
@@ -3072,7 +3117,7 @@ paths:
           $ref: '#/components/responses/Conflict'
     delete:
       tags: [BookTypes]
-      summary: Delete book type by id
+      summary: Move book type to recycle bin by id
       operationId: deleteBookTypeById
       x-rateLimit:
         limit: 60
@@ -3081,13 +3126,128 @@ paths:
         - $ref: '#/components/parameters/id'
       responses:
         '200':
-          description: Deleted
+          description: Deleted (soft)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+  /booktype/trash:
+    get:
+      tags: [BookTypes]
+      summary: List deleted book types
+      operationId: listDeletedBookTypes
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Deleted book types
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookTypeList'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Deleted book types retrieved successfully.
+                    data:
+                      bookTypes:
+                        - id: 9
+                          name: Old Format
+                          deletedAt: "2025-02-01T10:00:00.000Z"
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /booktype/restore:
+    post:
+      tags: [BookTypes]
+      summary: Restore deleted book type
+      operationId: restoreBookType
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                name:
+                  type: string
+                mode:
+                  type: string
+                  enum: [decline, merge, override]
+            examples:
+              restore:
+                summary: Restore by ids
+                value:
+                  ids: [5, 7]
+                  mode: merge
+      responses:
+        '200':
+          description: Restore results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /booktype/delete-permanent:
+    post:
+      tags: [BookTypes]
+      summary: Permanently delete deleted book type
+      operationId: deleteBookTypePermanent
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                ids:
+                  type: array
+                  items:
+                    type: integer
+            examples:
+              delete:
+                summary: Permanently delete by ids
+                value:
+                  ids: [5, 7]
+      responses:
+        '200':
+          description: Delete results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
   /booktype/by-name:
     get:
       tags: [BookTypes]
@@ -3110,6 +3270,8 @@ paths:
                 name:
                   type: string
                 returnStats:
+                  type: boolean
+                includeDeleted:
                   type: boolean
             examples:
               byName:
@@ -3137,6 +3299,7 @@ paths:
                       description: Hardback edition with rigid cover.
                       createdAt: "2025-01-10T09:15:23.000Z"
                       updatedAt: "2025-01-14T16:58:41.000Z"
+                      deletedAt: null
                       stats:
                         bookCount: 12
                         percentageOfBooks: 60.0
@@ -8618,6 +8781,7 @@ paths:
                     data:
                       id: 12
                       expiresInMinutes: 45
+                      verifiedReset: true
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8662,6 +8826,7 @@ paths:
                     data:
                       id: 12
                       expiresInMinutes: 30
+                      verifiedReset: false
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
@@ -8937,6 +9102,11 @@ paths:
                 value:
                   status: failed
                   limit: 25
+                  page: 1
+              userFilter:
+                value:
+                  userId: 42
+                  limit: 5
                   page: 1
       responses:
         '200':
@@ -9968,6 +10138,11 @@ components:
         updatedAt:
           type: string
           format: date-time
+        deletedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
         stats:
           description: Optional stats when returnStats is true.
           type: object
@@ -10014,6 +10189,9 @@ components:
           type: string
         filterDescription:
           type: string
+        includeDeleted:
+          type: boolean
+          description: Include soft-deleted book types when true.
     BookTypeList:
       type: object
       properties:
@@ -11798,6 +11976,12 @@ components:
           type: integer
         offset:
           type: integer
+        sortBy:
+          type: string
+          description: logged_at, status_code, duration_ms, level, or category.
+        order:
+          type: string
+          description: asc or desc.
         actorType:
           type: string
         userId:
@@ -12349,6 +12533,8 @@ components:
     AdminEmailHistoryRequest:
       type: object
       properties:
+        userId:
+          type: integer
         type:
           type: string
         status:

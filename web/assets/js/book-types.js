@@ -14,7 +14,8 @@
     createdAfter: '',
     createdBefore: '',
     updatedAfter: '',
-    updatedBefore: ''
+    updatedBefore: '',
+    includeDeleted: false
   });
 
   const state = {
@@ -39,6 +40,7 @@
     filterCreatedBefore: document.getElementById('filterCreatedBefore'),
     filterUpdatedAfter: document.getElementById('filterUpdatedAfter'),
     filterUpdatedBefore: document.getElementById('filterUpdatedBefore'),
+    includeDeletedCheck: document.getElementById('includeDeletedCheck'),
     applyFiltersBtn: document.getElementById('applyFiltersBtn'),
     resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     clearAllFiltersBtn: document.getElementById('clearAllFiltersBtn'),
@@ -128,6 +130,7 @@
     if (params.get('filterCreatedBefore')) f.createdBefore = params.get('filterCreatedBefore');
     if (params.get('filterUpdatedAfter')) f.updatedAfter = params.get('filterUpdatedAfter');
     if (params.get('filterUpdatedBefore')) f.updatedBefore = params.get('filterUpdatedBefore');
+    if (params.get('includeDeleted') === 'true') f.includeDeleted = true;
 
     if (f.name) {
       state.search = f.name;
@@ -151,6 +154,7 @@
     if (f.createdBefore) params.set('filterCreatedBefore', f.createdBefore);
     if (f.updatedAfter) params.set('filterUpdatedAfter', f.updatedAfter);
     if (f.updatedBefore) params.set('filterUpdatedBefore', f.updatedBefore);
+    if (f.includeDeleted) params.set('includeDeleted', 'true');
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
   };
@@ -167,6 +171,7 @@
     dom.filterCreatedBefore.value = f.createdBefore;
     dom.filterUpdatedAfter.value = f.updatedAfter;
     dom.filterUpdatedBefore.value = f.updatedBefore;
+    if (dom.includeDeletedCheck) dom.includeDeletedCheck.checked = f.includeDeleted;
   };
 
   const buildFilterChips = () => {
@@ -178,6 +183,7 @@
     if (f.createdBefore) chips.push({ key: 'Created before', value: f.createdBefore });
     if (f.updatedAfter) chips.push({ key: 'Updated after', value: f.updatedAfter });
     if (f.updatedBefore) chips.push({ key: 'Updated before', value: f.updatedBefore });
+    if (f.includeDeleted) chips.push({ key: 'include deleted', value: 'on' });
 
     dom.activeFilters.innerHTML = '';
     if (!chips.length) {
@@ -204,7 +210,7 @@
 
   const buildRequestPayload = () => {
     const f = state.filters;
-    return {
+    const payload = {
       limit: state.limit,
       page: state.page,
       sort: state.sort.field,
@@ -216,6 +222,8 @@
       updatedAfter: f.updatedAfter || null,
       updatedBefore: f.updatedBefore || null
     };
+    if (f.includeDeleted) payload.includeDeleted = true;
+    return payload;
   };
 
   const updateSummary = (items = []) => {
@@ -311,9 +319,10 @@
       row.dataset.rowHref = rowHref;
       row.setAttribute('role', 'link');
       row.setAttribute('tabindex', '0');
+      const deletedBadge = item.deletedAt ? '<span class="badge text-bg-secondary ms-2">Removed</span>' : '';
       row.innerHTML = `
         <td>
-          <div class="fw-semibold">${escapeHtml(item.name || '')}</div>
+          <div class="fw-semibold">${escapeHtml(item.name || '')}${deletedBadge}</div>
           ${item.description ? `<div class="text-muted small">${escapeHtml(item.description)}</div>` : ''}
           <div class="text-muted small list-meta-mobile">Created ${formatTimestamp(item.createdAt)} · Updated ${formatTimestamp(item.updatedAt)}</div>
         </td>
@@ -397,6 +406,7 @@
     state.filters.createdBefore = dom.filterCreatedBefore.value;
     state.filters.updatedAfter = dom.filterUpdatedAfter.value;
     state.filters.updatedBefore = dom.filterUpdatedBefore.value;
+    state.filters.includeDeleted = Boolean(dom.includeDeletedCheck?.checked);
   };
 
   const searchChanged = () => {

@@ -350,13 +350,13 @@ const adminUsageUsersHandler = async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	const windowStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+	const windowStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 	const windowEnd = endDate || new Date().toISOString();
 	const sortBy = normalizeText(params.sortBy) || "usageScore";
 	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
 	const topLimit = Math.min(Number.parseInt(params.topLimit || "5", 10) || 5, 15);
 
-	const clauses = ["l.actor_type = 'user'", "l.logged_at BETWEEN $1 AND $2"];
+	const clauses = ["l.actor_type IN ('user', 'api_key')", "l.logged_at BETWEEN $1 AND $2"];
 	const values = [windowStart, windowEnd];
 	let idx = 3;
 
@@ -420,9 +420,10 @@ const adminUsageUsersHandler = async (req, res) => {
 			return successResponse(res, 200, "User usage retrieved successfully.", cached.data);
 		}
 
+		// Usage score: capped 0-100 for the selected window (cost_units weight; fallback to request count).
 		const usageScoreSelect = hasCostUnits
-			? "COALESCE(SUM(l.cost_units), 0)::int AS usage_score"
-			: "0::int AS usage_score";
+			? "LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int AS usage_score"
+			: "LEAST(100, COUNT(*))::int AS usage_score";
 
 		const usageResult = await pool.query(
 			`SELECT l.user_id,
@@ -455,7 +456,7 @@ const adminUsageUsersHandler = async (req, res) => {
 			const topResult = await pool.query(
 				`SELECT l.user_id, l.method, l.path, COUNT(*)::int AS count
 				 FROM request_logs l
-				 WHERE l.actor_type = 'user'
+				 WHERE l.actor_type IN ('user', 'api_key')
 				   AND l.user_id = ANY($1)
 				   AND l.logged_at BETWEEN $2 AND $3
 				 GROUP BY l.user_id, l.method, l.path
@@ -519,7 +520,7 @@ const adminUsageApiKeysHandler = async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	const windowStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+	const windowStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 	const windowEnd = endDate || new Date().toISOString();
 	const sortBy = normalizeText(params.sortBy) || "usageScore";
 	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
@@ -599,9 +600,10 @@ const adminUsageApiKeysHandler = async (req, res) => {
 			return successResponse(res, 200, "API key usage retrieved successfully.", cached.data);
 		}
 
+		// Usage score: capped 0-100 for the selected window (cost_units weight; fallback to request count).
 		const usageScoreSelect = hasCostUnits
-			? "COALESCE(SUM(l.cost_units), 0)::int AS usage_score"
-			: "0::int AS usage_score";
+			? "LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int AS usage_score"
+			: "LEAST(100, COUNT(*))::int AS usage_score";
 
 		const usageResult = await pool.query(
 			`SELECT l.api_key_id,
@@ -692,11 +694,12 @@ const MAX_EMAIL_LENGTH = 255;
 const MAX_EMAIL_SUBJECT_LENGTH = 160;
 const MAX_EMAIL_BODY_LENGTH = 8000;
 const VALID_ROLES = new Set(["user", "admin"]);
+// Usage score bands for a 0-100 scale.
 const USAGE_LEVEL_THRESHOLDS = [
-	{ label: "Low", min: 0, max: 199 },
-	{ label: "Medium", min: 200, max: 499 },
-	{ label: "High", min: 500, max: 999 },
-	{ label: "Very High", min: 1000, max: Number.POSITIVE_INFINITY }
+	{ label: "Low", min: 0, max: 39 },
+	{ label: "Medium", min: 40, max: 69 },
+	{ label: "High", min: 70, max: 89 },
+	{ label: "Very High", min: 90, max: 100 }
 ];
 // This list should mirror api/database-tables.txt (sanitized, read-only).
 const DATA_VIEWER_TABLES = [
@@ -1510,6 +1513,30 @@ function parseBooleanFlag(value) {
 	if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
 	if (normalized === "false" || normalized === "0" || normalized === "no") return false;
 	return null;
+}
+
+const DEV_FEATURES_TEST_WINDOW_MS = 12 * 60 * 60 * 1000;
+const devFeaturesTestGate = new Map();
+
+function buildDevFeaturesSignature(subject, markdownBody) {
+	const seed = `${String(subject || "").trim()}::${String(markdownBody || "").trim()}`;
+	return crypto.createHash("sha256").update(seed).digest("hex");
+}
+
+function recordDevFeaturesTest(adminId, subject, markdownBody) {
+	if (!adminId) return;
+	devFeaturesTestGate.set(adminId, {
+		signature: buildDevFeaturesSignature(subject, markdownBody),
+		testedAt: Date.now()
+	});
+}
+
+function hasRecentDevFeaturesTest(adminId, subject, markdownBody) {
+	if (!adminId) return false;
+	const entry = devFeaturesTestGate.get(adminId);
+	if (!entry) return false;
+	if (Date.now() - entry.testedAt > DEV_FEATURES_TEST_WINDOW_MS) return false;
+	return entry.signature === buildDevFeaturesSignature(subject, markdownBody);
 }
 
 function parseId(value) {
@@ -2476,12 +2503,13 @@ const adminUsersListHandler = async (req, res) => {
 	const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
 	const selectUserColumn = (column, fallback) => userColumns.has(column) ? `u.${column}` : `${fallback} AS ${column}`;
 	const usageLastSeenSelect = hasTable
-		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
+		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen"
 		: "NULL AS usage_last_seen";
+	// Usage score (0-100) uses 30-day request_logs activity. cost_units are computed per request (endpoint/duration/size).
 	const usageScoreSelect = hasTable
 		? (hasCostUnits
-			? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
-			: "0::int AS usage_score")
+			? "(SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
+			: "(SELECT LEAST(100, COUNT(*)::int) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score")
 		: "0::int AS usage_score";
 	const apiKeyActiveSelect = hasUserApiKeys
 		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
@@ -2578,12 +2606,12 @@ router.get("/users", adminAuth, async (req, res) => {
 			const selectUserColumn = (column, fallback) => userColumns.has(column) ? `u.${column}` : `${fallback} AS ${column}`;
 			const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
 			const usageLastSeenSelect = hasTable
-				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen"
+				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen"
 				: "NULL AS usage_last_seen";
 			const usageScoreSelect = hasTable
 				? (hasCostUnits
-					? "(SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
-					: "0::int AS usage_score")
+					? "(SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
+					: "(SELECT LEAST(100, COUNT(*)::int) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score")
 				: "0::int AS usage_score";
 			const apiKeyActiveSelect = hasUserApiKeys
 				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
@@ -2805,8 +2833,8 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 			        u.email_pref_account_updates, u.email_pref_dev_features,
 			        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
 			        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
-			        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user') AS usage_last_seen,
-			        (SELECT COALESCE(SUM(l.cost_units), 0)::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type = 'user' AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+			        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen,
+			        (SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
 			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
 			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
 			        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
@@ -3900,9 +3928,14 @@ async function handleSendVerification(req, res, targetId) {
 		}
 
 		const user = userRes.rows[0];
-		if (user.is_verified) {
-			await client.query("ROLLBACK");
-			return errorResponse(res, 400, "Already verified.", ["This user is already verified."]);
+		const wasVerified = Boolean(user.is_verified);
+		if (wasVerified) {
+			await client.query(
+				`UPDATE users
+				 SET is_verified = FALSE, updated_at = NOW()
+				 WHERE id = $1`,
+				[targetId]
+			);
 		}
 
 		const { token, expiresAt } = await issueVerificationToken(client, targetId, durationMinutes);
@@ -3921,6 +3954,7 @@ async function handleSendVerification(req, res, targetId) {
 			status: "SUCCESS",
 			admin_id: adminId,
 			user_id: user.id,
+			was_verified: wasVerified,
 			duration_minutes: durationMinutes,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
@@ -3928,7 +3962,8 @@ async function handleSendVerification(req, res, targetId) {
 
 		return successResponse(res, 200, "Verification email sent successfully.", {
 			id: user.id,
-			expiresInMinutes: durationMinutes
+			expiresInMinutes: durationMinutes,
+			verifiedReset: wasVerified
 		});
 	} catch (error) {
 		await client.query("ROLLBACK");
@@ -4132,6 +4167,7 @@ const adminEmailHistoryHandler = async (req, res) => {
 	const type = normalizeText(params.type);
 	const status = normalizeText(params.status);
 	const recipient = normalizeText(params.recipient);
+	const { value: userId, error: userIdError } = parseOptionalInt(params.userId, "userId", { min: 1, max: null });
 	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
 	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
 	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 5, max: 100 });
@@ -4142,11 +4178,33 @@ const adminEmailHistoryHandler = async (req, res) => {
 	if (endError) errors.push(endError);
 	if (limitError) errors.push(limitError);
 	if (pageError) errors.push(pageError);
+	if (userIdError) errors.push(userIdError);
 	if (status && !allowedStatuses.has(status)) {
 		errors.push("status must be one of: queued, sent, failed, skipped.");
 	}
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	let resolvedRecipient = recipient;
+	if (Number.isInteger(userId)) {
+		const userResult = await pool.query("SELECT email FROM users WHERE id = $1", [userId]);
+		if (userResult.rows.length === 0) {
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+		const userEmail = userResult.rows[0]?.email;
+		if (!userEmail) {
+			return successResponse(res, 200, "Email history retrieved successfully.", {
+				history: [],
+				count: 0,
+				total: 0,
+				page: page ?? 1,
+				limit: limit ?? 25,
+				hasNext: false,
+				warnings: ["This user does not have an email address on file."]
+			});
+		}
+		resolvedRecipient = String(userEmail).trim();
 	}
 
 	const filters = [];
@@ -4160,9 +4218,9 @@ const adminEmailHistoryHandler = async (req, res) => {
 		filters.push(`status = $${idx++}`);
 		values.push(status);
 	}
-	if (recipient) {
+	if (resolvedRecipient) {
 		filters.push(`recipient_email ILIKE $${idx++}`);
-		values.push(`%${recipient}%`);
+		values.push(`%${resolvedRecipient}%`);
 	}
 	if (startDate) {
 		filters.push(`queued_at >= $${idx++}`);
@@ -4407,6 +4465,7 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 			},
 			context: { source: "admin_dev_features_test", adminId }
 		});
+		recordDevFeaturesTest(adminId, subject, markdownBody);
 
 		logToFile("ADMIN_DEV_FEATURES_TEST", {
 			status: "SUCCESS",
@@ -4434,14 +4493,45 @@ router.post("/emails/dev-features/test", [...adminAuth, emailCostLimiter], async
 	}
 });
 
+// POST /admin/emails/dev-features/recipients - Count opted-in recipients for development updates
+router.post("/emails/dev-features/recipients", adminAuth, async (req, res) => {
+	try {
+		const result = await pool.query(
+			`SELECT COUNT(*)::int AS count
+			 FROM users
+			 WHERE is_disabled = FALSE
+			   AND email_pref_dev_features = TRUE
+			   AND email IS NOT NULL`
+		);
+		const count = result.rows[0]?.count ?? 0;
+		return successResponse(res, 200, "Opted-in recipients counted.", { count });
+	} catch (error) {
+		logToFile("ADMIN_DEV_FEATURES_RECIPIENTS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to load recipient count."]);
+	}
+});
+
 // POST /admin/emails/dev-features/send - Send development/features email to opted-in users
 router.post("/emails/dev-features/send", [...adminAuth, emailCostLimiter], async (req, res) => {
 	const adminId = req.user.id;
 	const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
 	const markdownBody = typeof req.body?.markdownBody === "string" ? req.body.markdownBody.trim() : "";
+	const confirmFlag = parseBooleanFlag(req.body?.confirm);
 	const errors = validateDevEmailPayload(subject, markdownBody);
 	if (errors.length > 0) {
 		return errorResponse(res, 400, "Validation Error", errors);
+	}
+	if (!confirmFlag) {
+		return errorResponse(res, 400, "Confirmation required.", ["Please confirm before sending this update."]);
+	}
+	if (!hasRecentDevFeaturesTest(adminId, subject, markdownBody)) {
+		return errorResponse(res, 400, "Test required.", ["Send a test email before notifying opted-in users."]);
 	}
 
 	try {

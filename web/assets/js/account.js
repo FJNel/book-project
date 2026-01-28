@@ -70,6 +70,7 @@
     recycleRestoreBtn: document.getElementById('recycleRestoreBtn'),
     recycleDeleteBtn: document.getElementById('recycleDeleteBtn'),
     recycleFilterBooks: document.getElementById('recycleFilterBooks'),
+    recycleFilterBookTypes: document.getElementById('recycleFilterBookTypes'),
     recycleFilterAuthors: document.getElementById('recycleFilterAuthors'),
     recycleFilterPublishers: document.getElementById('recycleFilterPublishers'),
     recycleFilterSeries: document.getElementById('recycleFilterSeries')
@@ -892,6 +893,13 @@
       deleteEndpoint: '/book/delete-permanent',
       detailUrl: 'book-details'
     },
+    bookType: {
+      label: 'Book type',
+      trashEndpoint: '/booktype/trash',
+      restoreEndpoint: '/booktype/restore',
+      deleteEndpoint: '/booktype/delete-permanent',
+      detailUrl: 'book-type-details'
+    },
     author: {
       label: 'Author',
       trashEndpoint: '/author/trash',
@@ -922,6 +930,7 @@
   function getRecycleFilters() {
     return new Set([
       elements.recycleFilterBooks?.checked ? 'book' : null,
+      elements.recycleFilterBookTypes?.checked ? 'bookType' : null,
       elements.recycleFilterAuthors?.checked ? 'author' : null,
       elements.recycleFilterPublishers?.checked ? 'publisher' : null,
       elements.recycleFilterSeries?.checked ? 'series' : null
@@ -1052,8 +1061,9 @@
     if (!elements.recycleTable) return;
     if (elements.recycleError) elements.recycleError.classList.add('d-none');
     try {
-      const [books, authors, publishers, series] = await Promise.all([
+      const [books, bookTypes, authors, publishers, series] = await Promise.all([
         fetchJson(recycleTypeConfig.book.trashEndpoint, { method: 'GET' }),
+        fetchJson(recycleTypeConfig.bookType.trashEndpoint, { method: 'GET' }),
         fetchJson(recycleTypeConfig.author.trashEndpoint, { method: 'GET' }),
         fetchJson(recycleTypeConfig.publisher.trashEndpoint, { method: 'GET' }),
         fetchJson(recycleTypeConfig.series.trashEndpoint, { method: 'GET' })
@@ -1064,6 +1074,12 @@
         id: book.id,
         name: book.subtitle ? `${book.title}: ${book.subtitle}` : book.title,
         deletedAt: book.deletedAt
+      }));
+      const bookTypeItems = (bookTypes.bookTypes || []).map((bookType) => ({
+        type: 'bookType',
+        id: bookType.id,
+        name: bookType.name,
+        deletedAt: bookType.deletedAt
       }));
       const authorItems = (authors.authors || []).map((author) => ({
         type: 'author',
@@ -1084,7 +1100,7 @@
         deletedAt: entry.deletedAt
       }));
 
-      state.recycleItems = [...bookItems, ...authorItems, ...publisherItems, ...seriesItems]
+      state.recycleItems = [...bookItems, ...bookTypeItems, ...authorItems, ...publisherItems, ...seriesItems]
         .sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
       renderRecycleBin();
     } catch (error) {
@@ -1692,6 +1708,7 @@
       if (items.length) openRecycleDeleteModal(items);
     });
     elements.recycleFilterBooks?.addEventListener('change', renderRecycleBin);
+    elements.recycleFilterBookTypes?.addEventListener('change', renderRecycleBin);
     elements.recycleFilterAuthors?.addEventListener('change', renderRecycleBin);
     elements.recycleFilterPublishers?.addEventListener('change', renderRecycleBin);
     elements.recycleFilterSeries?.addEventListener('change', renderRecycleBin);

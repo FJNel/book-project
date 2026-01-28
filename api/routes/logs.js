@@ -12,6 +12,13 @@ const { logToFile } = require("../utils/logging");
 const MAX_LIMIT = 1000;
 let requestLogsAvailability = null;
 const LOGS_NOT_CONFIGURED_MESSAGE = "Request logs are not configured. Create the request_logs table and enable request logging.";
+const LOGS_SORT_COLUMNS = {
+	logged_at: "logged_at",
+	status_code: "status_code",
+	duration_ms: "duration_ms",
+	level: "level",
+	category: "category"
+};
 
 router.use((req, res, next) => {
 	const origin = req.get("origin");
@@ -161,6 +168,9 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 	const { value: offset, error: offsetError } = parseOptionalInt(params.offset, "offset", { min: 0, max: null });
 	const { value: startDate, error: startError } = parseDate(params.startDate, "startDate");
 	const { value: endDate, error: endError } = parseDate(params.endDate, "endDate");
+	const sortKey = normalizeText(params.sortBy) || "logged_at";
+	const sortColumn = LOGS_SORT_COLUMNS[sortKey] || "logged_at";
+	const sortOrder = normalizeText(params.order) === "asc" ? "ASC" : "DESC";
 
 	const errors = [];
 	if (limitError) errors.push(limitError);
@@ -208,7 +218,7 @@ router.get("/", requiresAuth, authenticatedLimiter, requireRole(["admin"]), asyn
 			`SELECT *
 			 FROM request_logs
 			 ${whereClause}
-			 ORDER BY logged_at DESC
+			 ORDER BY ${sortColumn} ${sortOrder}
 			 LIMIT $${idx} OFFSET $${idx + 1}`,
 			[...values, limit ?? 50, offset ?? 0]
 		);
@@ -245,6 +255,9 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 	const { value: offset, error: offsetError } = parseOptionalInt(params.offset, "offset", { min: 0, max: null });
 	const { value: startDate, error: startError } = parseDate(params.startDate, "startDate");
 	const { value: endDate, error: endError } = parseDate(params.endDate, "endDate");
+	const sortKey = normalizeText(params.sortBy) || "logged_at";
+	const sortColumn = LOGS_SORT_COLUMNS[sortKey] || "logged_at";
+	const sortOrder = normalizeText(params.order) === "asc" ? "ASC" : "DESC";
 
 	const errors = [];
 	if (limitError) errors.push(limitError);
@@ -292,7 +305,7 @@ router.post("/search", requiresAuth, authenticatedLimiter, requireRole(["admin"]
 			`SELECT *
 			 FROM request_logs
 			 ${whereClause}
-			 ORDER BY logged_at DESC
+			 ORDER BY ${sortColumn} ${sortOrder}
 			 LIMIT $${idx} OFFSET $${idx + 1}`,
 			[...values, limit ?? 50, offset ?? 0]
 		);

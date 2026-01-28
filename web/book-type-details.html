@@ -78,20 +78,32 @@
       <div>
         <h1 class="mb-1" id="bookTypeName">Book type</h1>
         <p class="text-muted mb-0" id="bookTypeDescription">Loading description…</p>
+        <div class="d-flex align-items-center gap-2 text-danger small mt-2 d-none" id="bookTypeDeletedNotice">
+          <span class="badge text-bg-danger">Deleted</span>
+          <span id="bookTypeDeletedText">This book type is in the recycle bin.</span>
+        </div>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-outline-primary btn-sm d-flex align-items-center" id="editBookTypeBtn" type="button">
+        <button class="btn btn-outline-primary btn-sm d-flex align-items-center" id="editBookTypeBtn" type="button" data-active-only>
           <i class="bi bi-pencil-fill me-1" aria-hidden="true"></i>
           Edit
         </button>
-        <button class="btn btn-outline-danger btn-sm d-flex align-items-center" id="deleteBookTypeBtn" type="button">
+        <button class="btn btn-outline-danger btn-sm d-flex align-items-center" id="deleteBookTypeBtn" type="button" data-active-only>
           <i class="bi bi-trash-fill me-1" aria-hidden="true"></i>
           Delete
+        </button>
+        <button class="btn btn-success btn-sm d-flex align-items-center d-none" id="restoreBookTypeBtn" type="button" data-deleted-only>
+          <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>
+          Restore
+        </button>
+        <button class="btn btn-danger btn-sm d-flex align-items-center d-none" id="permanentDeleteBookTypeBtn" type="button" data-deleted-only>
+          <i class="bi bi-trash-fill me-1" aria-hidden="true"></i>
+          Delete permanently
         </button>
       </div>
     </div>
 
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4" data-active-only>
       <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-body">
@@ -136,15 +148,15 @@
 
   <div id="sharedAddRecordModals"></div>
 
-  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="bookTypeDeleteModal" aria-labelledby="bookTypeDeleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="bookTypeDeleteModalLabel">Delete book type</h4>
+    <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="bookTypeDeleteModal" aria-labelledby="bookTypeDeleteModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+          <h4 class="modal-title" id="bookTypeDeleteModalLabel">Move book type to recycle bin</h4>
           <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">This will remove <strong id="bookTypeDeleteName">this book type</strong> from your library.</p>
+          <p class="mb-2">This will move <strong id="bookTypeDeleteName">this book type</strong> to the recycle bin.</p>
           <p class="text-muted small mb-2">Type <strong>DELETE</strong> to continue.</p>
           <input class="form-control" id="bookTypeDeleteConfirm" type="text" autocomplete="off" placeholder="DELETE" />
           <small class="form-text text-muted" id="bookTypeDeleteHelp">Enter DELETE to enable deletion.</small>
@@ -152,7 +164,58 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
-          <button class="btn btn-danger" id="bookTypeDeleteBtn" type="button" disabled>Delete</button>
+          <button class="btn btn-danger" id="bookTypeDeleteBtn" type="button" disabled>Move to recycle bin</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="restoreBookTypeModal" aria-labelledby="restoreBookTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="restoreBookTypeModalLabel">Restore book type</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Choose how to handle any conflicts if another book type with the same name exists.</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="restoreBookTypeMode">Restore mode</label>
+            <select class="form-select" id="restoreBookTypeMode">
+              <option value="decline" selected>Decline</option>
+              <option value="merge">Merge</option>
+              <option value="override">Override</option>
+            </select>
+            <div class="form-text text-muted" id="restoreBookTypeModeHelp">Decline leaves the book type deleted if a conflict is found.</div>
+          </div>
+          <div class="small text-muted" id="restoreBookTypeChangesSummary">Restore this book type using Decline mode.</div>
+          <div class="alert alert-danger d-none mt-3" id="restoreBookTypeError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-success" id="restoreBookTypeConfirmBtn" type="button">Restore book type</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="permanentDeleteBookTypeModal" aria-labelledby="permanentDeleteBookTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="permanentDeleteBookTypeModalLabel">Delete book type permanently</h4>
+          <button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">This permanently removes <strong id="permanentDeleteBookTypeName">this book type</strong> and clears it from any books.</p>
+          <p class="text-muted small mb-2">Type <strong>DELETE</strong> to continue.</p>
+          <input class="form-control" id="permanentDeleteBookTypeConfirm" type="text" autocomplete="off" placeholder="DELETE" />
+          <small class="form-text text-muted" id="permanentDeleteBookTypeHelp">Enter DELETE to enable permanent deletion.</small>
+          <div class="alert alert-danger d-none mt-3" id="permanentDeleteBookTypeError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-danger" id="permanentDeleteBookTypeConfirmBtn" type="button" disabled>Delete permanently</button>
         </div>
       </div>
     </div>

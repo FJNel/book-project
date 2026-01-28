@@ -262,7 +262,7 @@ async function fetchSingleBookStats(userId, bookId, bookRow) {
 		hasCoverImage: Boolean(bookRow?.cover_image_url),
 		hasDescription: Boolean(bookRow?.description),
 		hasPublisher: Boolean(bookRow?.publisher_id),
-		hasBookType: Boolean(bookRow?.book_type_id),
+		hasBookType: Boolean(bookRow?.book_type_name),
 		hasPageCount: Number.isInteger(bookRow?.page_count)
 	};
 }
@@ -643,6 +643,18 @@ async function ensureEntitiesExist({ userId, table, ids, label }) {
 	return { ok: true };
 }
 
+async function ensureActiveBookTypes({ userId, ids }) {
+	if (!ids || ids.length === 0) return { ok: true };
+	const result = await pool.query(
+		`SELECT id FROM book_types WHERE user_id = $1 AND deleted_at IS NULL AND id = ANY($2::int[])`,
+		[userId, ids]
+	);
+	if (result.rows.length !== ids.length) {
+		return { ok: false, error: "Book Type includes one or more invalid ids." };
+	}
+	return { ok: true };
+}
+
 async function ensureLanguageIdsExist(ids) {
 	if (!ids || ids.length === 0) return { ok: true };
 	const result = await pool.query(
@@ -735,6 +747,7 @@ function buildBookPayload(row, view, relations) {
 		return { id: row.id, title: row.title };
 	}
 
+	const resolvedBookTypeId = row.book_type_name ? row.book_type_id : null;
 	const base = {
 		id: row.id,
 		title: row.title,
@@ -744,7 +757,7 @@ function buildBookPayload(row, view, relations) {
 			? { id: row.publication_date_id, day: row.pub_day, month: row.pub_month, year: row.pub_year, text: row.pub_text }
 			: null,
 		pageCount: row.page_count,
-		bookTypeId: row.book_type_id,
+		bookTypeId: resolvedBookTypeId,
 		publisherId: row.publisher_id,
 		coverImageUrl: row.cover_image_url,
 		description: row.description,
@@ -761,7 +774,7 @@ function buildBookPayload(row, view, relations) {
 			coverImageUrl: base.coverImageUrl,
 			publicationDate: base.publicationDate,
 			pageCount: base.pageCount,
-			bookTypeId: base.bookTypeId,
+			bookTypeId: resolvedBookTypeId,
 			bookTypeName: row.book_type_name ?? null,
 			authors: relations?.authors || [],
 			languages: relations?.languages || [],
@@ -786,9 +799,9 @@ function buildBookPayload(row, view, relations) {
 			notes: row.publisher_notes ?? null
 		}
 		: null;
-	const bookType = base.bookTypeId
+	const bookType = resolvedBookTypeId
 		? {
-			id: base.bookTypeId,
+			id: resolvedBookTypeId,
 			name: row.book_type_name ?? null,
 			description: row.book_type_description ?? null
 		}
@@ -868,7 +881,7 @@ async function listBooksHandler(req, res) {
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
-				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id AND bt.deleted_at IS NULL
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2${includeDeleted ? "" : " AND b.deleted_at IS NULL"}`,
@@ -1253,7 +1266,7 @@ async function listBooksHandler(req, res) {
 			            make_date(pd.year, COALESCE(pd.month, 1), COALESCE(pd.day, 1)) AS pub_date_sort
 			 FROM books b
 			 LEFT JOIN dates pd ON b.publication_date_id = pd.id
-			 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+			 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id AND bt.deleted_at IS NULL
 			 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
 			 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 			 WHERE b.user_id = $1`;
@@ -1425,7 +1438,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		if (bookTypeId) {
-			const bookTypeCheck = await ensureEntitiesExist({ userId, table: "book_types", ids: [bookTypeId], label: "Book Type" });
+			const bookTypeCheck = await ensureActiveBookTypes({ userId, ids: [bookTypeId] });
 			if (!bookTypeCheck.ok) {
 				return errorResponse(res, 400, "Validation Error", [bookTypeCheck.error]);
 			}
@@ -1601,7 +1614,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
-				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id AND bt.deleted_at IS NULL
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2`,
@@ -1739,7 +1752,7 @@ async function handleBookUpdate(req, res, bookId) {
 		}
 
 		if (hasBookTypeId && bookTypeId) {
-			const check = await ensureEntitiesExist({ userId, table: "book_types", ids: [bookTypeId], label: "Book Type" });
+			const check = await ensureActiveBookTypes({ userId, ids: [bookTypeId] });
 			if (!check.ok) return errorResponse(res, 400, "Validation Error", [check.error]);
 		}
 		if (hasPublisherId && publisherId) {
@@ -1960,7 +1973,7 @@ async function handleBookUpdate(req, res, bookId) {
 				        pd.id AS publication_date_id, pd.day AS pub_day, pd.month AS pub_month, pd.year AS pub_year, pd.text AS pub_text
 				 FROM books b
 				 LEFT JOIN dates pd ON b.publication_date_id = pd.id
-				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id AND bt.deleted_at IS NULL
 				 LEFT JOIN publishers p ON p.id = b.publisher_id AND p.user_id = b.user_id
 				 LEFT JOIN dates fd ON p.founded_date_id = fd.id
 				 WHERE b.user_id = $1 AND b.id = $2`,
@@ -2280,7 +2293,7 @@ const bookStatsHandler = async (req, res) => {
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publication_date_id IS NOT NULL)::int AS with_publication_date,
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.cover_image_url IS NOT NULL AND b.cover_image_url <> '')::int AS with_cover_image,
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.description IS NOT NULL AND b.description <> '')::int AS with_description,
-				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.book_type_id IS NOT NULL)::int AS with_book_type,
+				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.book_type_id IS NOT NULL AND bt.deleted_at IS NULL)::int AS with_book_type,
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.publisher_id IS NOT NULL)::int AS with_publisher,
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL)::int AS with_page_count,
 				 AVG(b.page_count) FILTER (WHERE b.deleted_at IS NULL AND b.page_count IS NOT NULL) AS avg_page_count,
@@ -2295,6 +2308,7 @@ const bookStatsHandler = async (req, res) => {
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.updated_at >= NOW() - INTERVAL '30 days')::int AS edited_30,
 				 COUNT(*) FILTER (WHERE b.deleted_at IS NULL AND b.updated_at >= NOW() - INTERVAL '365 days')::int AS edited_365
 				 FROM books b
+				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
 				 WHERE b.user_id = $1`,
 				[userId]
 			);

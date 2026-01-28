@@ -16,14 +16,30 @@
     bookCount: document.getElementById('bookTypeBookCount'),
     share: document.getElementById('bookTypeShare'),
     avgPages: document.getElementById('bookTypeAvgPages'),
+    deletedNotice: document.getElementById('bookTypeDeletedNotice'),
+    deletedText: document.getElementById('bookTypeDeletedText'),
     editBtn: document.getElementById('editBookTypeBtn'),
     deleteBtn: document.getElementById('deleteBookTypeBtn'),
+    restoreBtn: document.getElementById('restoreBookTypeBtn'),
+    permanentDeleteBtn: document.getElementById('permanentDeleteBookTypeBtn'),
     bookTypeDeleteModal: document.getElementById('bookTypeDeleteModal'),
     bookTypeDeleteName: document.getElementById('bookTypeDeleteName'),
     bookTypeDeleteConfirm: document.getElementById('bookTypeDeleteConfirm'),
     bookTypeDeleteHelp: document.getElementById('bookTypeDeleteHelp'),
     bookTypeDeleteError: document.getElementById('bookTypeDeleteError'),
-    bookTypeDeleteBtn: document.getElementById('bookTypeDeleteBtn')
+    bookTypeDeleteBtn: document.getElementById('bookTypeDeleteBtn'),
+    restoreBookTypeModal: document.getElementById('restoreBookTypeModal'),
+    restoreBookTypeMode: document.getElementById('restoreBookTypeMode'),
+    restoreBookTypeModeHelp: document.getElementById('restoreBookTypeModeHelp'),
+    restoreBookTypeChangesSummary: document.getElementById('restoreBookTypeChangesSummary'),
+    restoreBookTypeError: document.getElementById('restoreBookTypeError'),
+    restoreBookTypeConfirmBtn: document.getElementById('restoreBookTypeConfirmBtn'),
+    permanentDeleteBookTypeModal: document.getElementById('permanentDeleteBookTypeModal'),
+    permanentDeleteBookTypeName: document.getElementById('permanentDeleteBookTypeName'),
+    permanentDeleteBookTypeConfirm: document.getElementById('permanentDeleteBookTypeConfirm'),
+    permanentDeleteBookTypeHelp: document.getElementById('permanentDeleteBookTypeHelp'),
+    permanentDeleteBookTypeError: document.getElementById('permanentDeleteBookTypeError'),
+    permanentDeleteBookTypeConfirmBtn: document.getElementById('permanentDeleteBookTypeConfirmBtn')
   };
 
   const escapeHtml = (value) => String(value)
@@ -65,13 +81,44 @@
 
   let bookType = null;
   let deleteModalInstance = null;
+  let restoreModalInstance = null;
+  let permanentDeleteModalInstance = null;
   let deleteSaving = false;
+  let restoreSaving = false;
+  let permanentDeleteSaving = false;
   let initStarted = false;
   let loadInFlight = false;
 
   const resolvePageReady = (payload) => {
     if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
       window.pageContentReady.resolve(payload);
+    }
+  };
+
+  const setHelpText = (el, message, isError = false) => {
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle('text-danger', isError);
+    el.classList.toggle('text-muted', !isError);
+  };
+
+  const applyDeletedState = (isDeleted, deletedAt) => {
+    document.querySelectorAll('[data-active-only]').forEach((el) => {
+      el.classList.toggle('d-none', Boolean(isDeleted));
+    });
+    document.querySelectorAll('[data-deleted-only]').forEach((el) => {
+      el.classList.toggle('d-none', !isDeleted);
+    });
+    if (dom.deletedNotice) {
+      dom.deletedNotice.classList.toggle('d-none', !isDeleted);
+    }
+    if (dom.deletedText) {
+      if (isDeleted) {
+        const formatted = formatTimestamp(deletedAt) || 'Unknown date';
+        dom.deletedText.textContent = `This book type was deleted on ${formatted}.`;
+      } else {
+        dom.deletedText.textContent = 'This book type is in the recycle bin.';
+      }
     }
   };
 
@@ -84,6 +131,7 @@
     dom.bookCount.textContent = bookType?.stats?.bookCount ?? '—';
     dom.share.textContent = bookType?.stats?.percentageOfBooks != null ? `${Number(bookType.stats.percentageOfBooks).toFixed(1)}%` : '—';
     dom.avgPages.textContent = bookType?.stats?.avgPageCount != null ? Math.round(bookType.stats.avgPageCount) : '—';
+    applyDeletedState(Boolean(bookType.deletedAt), bookType.deletedAt);
   };
 
   const loadBookType = async () => {
@@ -103,7 +151,7 @@
       const response = await apiFetch('/booktype/get', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, returnStats: true })
+        body: JSON.stringify({ id, returnStats: true, includeDeleted: true })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -142,9 +190,7 @@
     if (!bookType) return;
     dom.bookTypeDeleteName.textContent = bookType.name || 'this book type';
     dom.bookTypeDeleteConfirm.value = '';
-    dom.bookTypeDeleteHelp.textContent = 'Enter DELETE to enable deletion.';
-    dom.bookTypeDeleteHelp.classList.remove('text-danger');
-    dom.bookTypeDeleteHelp.classList.add('text-muted');
+    setHelpText(dom.bookTypeDeleteHelp, 'Enter DELETE to enable deletion.', false);
     dom.bookTypeDeleteError.classList.add('d-none');
     dom.bookTypeDeleteBtn.disabled = true;
     if (!deleteModalInstance) deleteModalInstance = new bootstrap.Modal(dom.bookTypeDeleteModal);
@@ -157,17 +203,11 @@
     const ready = value === 'DELETE';
     dom.bookTypeDeleteBtn.disabled = deleteSaving || !ready;
     if (!value) {
-      dom.bookTypeDeleteHelp.textContent = 'Enter DELETE to enable deletion.';
-      dom.bookTypeDeleteHelp.classList.remove('text-danger');
-      dom.bookTypeDeleteHelp.classList.add('text-muted');
+      setHelpText(dom.bookTypeDeleteHelp, 'Enter DELETE to enable deletion.', false);
     } else if (ready) {
-      dom.bookTypeDeleteHelp.textContent = 'Ready to delete.';
-      dom.bookTypeDeleteHelp.classList.remove('text-danger');
-      dom.bookTypeDeleteHelp.classList.add('text-muted');
+      setHelpText(dom.bookTypeDeleteHelp, 'Ready to move to recycle bin.', false);
     } else {
-      dom.bookTypeDeleteHelp.textContent = 'The confirmation text does not match.';
-      dom.bookTypeDeleteHelp.classList.remove('text-muted');
-      dom.bookTypeDeleteHelp.classList.add('text-danger');
+      setHelpText(dom.bookTypeDeleteHelp, 'The confirmation text does not match.', true);
     }
   };
 
@@ -192,7 +232,7 @@
         throw new Error([message, ...details].filter(Boolean).join(' '));
       }
       if (deleteModalInstance) deleteModalInstance.hide();
-      showAlert({ message: 'Book type deleted.', type: 'success' });
+      showAlert({ message: 'Book type moved to the recycle bin.', type: 'success' });
       setTimeout(() => { window.location.href = 'book-types'; }, 600);
     } catch (err) {
       errorLog('Delete failed', err);
@@ -204,11 +244,134 @@
     }
   };
 
+  const updateRestoreSummary = () => {
+    if (!dom.restoreBookTypeMode || !dom.restoreBookTypeChangesSummary) return;
+    const mode = dom.restoreBookTypeMode.value || 'decline';
+    const label = mode === 'merge' ? 'Merge' : mode === 'override' ? 'Override' : 'Decline';
+    dom.restoreBookTypeChangesSummary.textContent = `Restore this book type using ${label} mode.`;
+    if (dom.restoreBookTypeModeHelp) {
+      const helpText = mode === 'merge'
+        ? 'Merge combines details into existing items when possible.'
+        : mode === 'override'
+          ? 'Override replaces existing items by restoring this book type.'
+          : 'Decline leaves the book type deleted if a conflict is found.';
+      setHelpText(dom.restoreBookTypeModeHelp, helpText, false);
+    }
+  };
+
+  const openRestoreModal = () => {
+    if (!bookType) return;
+    if (dom.restoreBookTypeMode) dom.restoreBookTypeMode.value = 'decline';
+    if (dom.restoreBookTypeError) dom.restoreBookTypeError.classList.add('d-none');
+    updateRestoreSummary();
+    if (!restoreModalInstance) restoreModalInstance = new bootstrap.Modal(dom.restoreBookTypeModal);
+    restoreModalInstance.show();
+  };
+
+  const submitRestore = async () => {
+    if (restoreSaving || !bookType) return;
+    restoreSaving = true;
+    if (dom.restoreBookTypeConfirmBtn) dom.restoreBookTypeConfirmBtn.disabled = true;
+    if (dom.restoreBookTypeError) dom.restoreBookTypeError.classList.add('d-none');
+
+    try {
+      const mode = dom.restoreBookTypeMode?.value || 'decline';
+      const response = await apiFetch('/booktype/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bookType.id, mode })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data?.message || 'Unable to restore book type.';
+        const details = Array.isArray(data?.errors) ? data.errors : [];
+        throw new Error([message, ...details].filter(Boolean).join(' '));
+      }
+      if (restoreModalInstance) restoreModalInstance.hide();
+      showAlert({ message: 'Book type restored.', type: 'success' });
+      await loadBookType();
+    } catch (err) {
+      if (dom.restoreBookTypeError) {
+        dom.restoreBookTypeError.textContent = err?.message || 'Unable to restore book type.';
+        dom.restoreBookTypeError.classList.remove('d-none');
+      }
+    } finally {
+      restoreSaving = false;
+      if (dom.restoreBookTypeConfirmBtn) dom.restoreBookTypeConfirmBtn.disabled = false;
+    }
+  };
+
+  const updatePermanentDeleteState = () => {
+    const value = dom.permanentDeleteBookTypeConfirm?.value.trim() || '';
+    const ready = value === 'DELETE';
+    if (dom.permanentDeleteBookTypeConfirmBtn) {
+      dom.permanentDeleteBookTypeConfirmBtn.disabled = permanentDeleteSaving || !ready;
+    }
+    if (!dom.permanentDeleteBookTypeHelp) return;
+    if (!value) {
+      setHelpText(dom.permanentDeleteBookTypeHelp, 'Enter DELETE to enable permanent deletion.', false);
+    } else if (ready) {
+      setHelpText(dom.permanentDeleteBookTypeHelp, 'Confirmed.', false);
+    } else {
+      setHelpText(dom.permanentDeleteBookTypeHelp, 'The confirmation text does not match.', true);
+    }
+  };
+
+  const openPermanentDeleteModal = () => {
+    if (!bookType) return;
+    if (dom.permanentDeleteBookTypeName) dom.permanentDeleteBookTypeName.textContent = bookType.name || 'this book type';
+    if (dom.permanentDeleteBookTypeConfirm) dom.permanentDeleteBookTypeConfirm.value = '';
+    if (dom.permanentDeleteBookTypeError) dom.permanentDeleteBookTypeError.classList.add('d-none');
+    updatePermanentDeleteState();
+    if (!permanentDeleteModalInstance) permanentDeleteModalInstance = new bootstrap.Modal(dom.permanentDeleteBookTypeModal);
+    permanentDeleteModalInstance.show();
+  };
+
+  const submitPermanentDelete = async () => {
+    if (permanentDeleteSaving || !bookType) return;
+    const value = dom.permanentDeleteBookTypeConfirm?.value.trim().toLowerCase();
+    if (value !== 'delete') return;
+    permanentDeleteSaving = true;
+    if (dom.permanentDeleteBookTypeConfirmBtn) dom.permanentDeleteBookTypeConfirmBtn.disabled = true;
+    if (dom.permanentDeleteBookTypeError) dom.permanentDeleteBookTypeError.classList.add('d-none');
+
+    try {
+      const response = await apiFetch('/booktype/delete-permanent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bookType.id })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data?.message || 'Unable to delete book type.';
+        const details = Array.isArray(data?.errors) ? data.errors : [];
+        throw new Error([message, ...details].filter(Boolean).join(' '));
+      }
+      if (permanentDeleteModalInstance) permanentDeleteModalInstance.hide();
+      showAlert({ message: 'Book type deleted permanently.', type: 'success' });
+      setTimeout(() => { window.location.href = 'book-types'; }, 700);
+    } catch (err) {
+      if (dom.permanentDeleteBookTypeError) {
+        dom.permanentDeleteBookTypeError.textContent = err?.message || 'Unable to delete book type.';
+        dom.permanentDeleteBookTypeError.classList.remove('d-none');
+      }
+    } finally {
+      permanentDeleteSaving = false;
+      updatePermanentDeleteState();
+    }
+  };
+
   const bindEvents = () => {
     dom.editBtn.addEventListener('click', openEditModal);
     dom.deleteBtn.addEventListener('click', openDeleteModal);
     dom.bookTypeDeleteConfirm.addEventListener('input', updateDeleteState);
     dom.bookTypeDeleteBtn.addEventListener('click', submitDelete);
+    dom.restoreBtn?.addEventListener('click', openRestoreModal);
+    dom.restoreBookTypeMode?.addEventListener('change', updateRestoreSummary);
+    dom.restoreBookTypeConfirmBtn?.addEventListener('click', submitRestore);
+    dom.permanentDeleteBtn?.addEventListener('click', openPermanentDeleteModal);
+    dom.permanentDeleteBookTypeConfirm?.addEventListener('input', updatePermanentDeleteState);
+    dom.permanentDeleteBookTypeConfirmBtn?.addEventListener('click', submitPermanentDelete);
   };
 
   const init = () => {

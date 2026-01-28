@@ -118,6 +118,39 @@ function parseSortOrder(value) {
 	return null;
 }
 
+function parseConflictMode(value) {
+	if (!value) return "decline";
+	const normalized = String(value).trim().toLowerCase();
+	if (["decline", "merge", "override"].includes(normalized)) return normalized;
+	return null;
+}
+
+function parseIdsInput(value) {
+	if (value === undefined || value === null || value === "") return { ids: [] };
+	if (Array.isArray(value)) {
+		const ids = value.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+		return { ids };
+	}
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? { ids: [value] } : { ids: [] };
+	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed) return { ids: [] };
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (Array.isArray(parsed)) {
+				const ids = parsed.map((entry) => Number.parseInt(entry, 10)).filter(Number.isInteger);
+				return { ids };
+			}
+		} catch (e) {
+			const parsed = Number.parseInt(trimmed, 10);
+			if (Number.isInteger(parsed)) return { ids: [parsed] };
+		}
+	}
+	return { ids: [] };
+}
+
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {
 	if (value === undefined || value === null || value === "") return { value: null };
 	const parsed = Number.parseInt(value, 10);
@@ -166,13 +199,13 @@ async function fetchBookTypeStats(userId, bookTypeId) {
 	};
 }
 
-async function resolveBookTypeId({ userId, id, name }) {
+async function resolveBookTypeId({ userId, id, name, includeDeleted = false }) {
 	const hasId = Number.isInteger(id);
 	const hasName = Boolean(name);
 
 	if (hasId && hasName) {
 		const result = await pool.query(
-			`SELECT id, name FROM book_types WHERE user_id = $1 AND id = $2`,
+			`SELECT id, name FROM book_types WHERE user_id = $1 AND id = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
 			[userId, id]
 		);
 		if (result.rows.length === 0 || result.rows[0].name !== name) {
@@ -187,7 +220,7 @@ async function resolveBookTypeId({ userId, id, name }) {
 
 	if (hasName) {
 		const result = await pool.query(
-			`SELECT id FROM book_types WHERE user_id = $1 AND name = $2`,
+			`SELECT id FROM book_types WHERE user_id = $1 AND name = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
 			[userId, name]
 		);
 		if (result.rows.length === 0) {
@@ -204,6 +237,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const nameOnly = parseBooleanFlag(listParams.nameOnly);
 	const returnStats = parseBooleanFlag(listParams.returnStats);
+	const includeDeleted = parseBooleanFlag(listParams.includeDeleted);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const targetName = normalizeText(req.query.name ?? req.body?.name);
 
@@ -216,22 +250,26 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		try {
-		const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
-		if (resolved.mismatch) {
-			return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
-		}
-		if (!Number.isInteger(resolved.id)) {
-			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
-		}
+			const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName, includeDeleted });
+			if (resolved.mismatch) {
+				return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
+			}
+			if (!Number.isInteger(resolved.id)) {
+				return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+			}
 
-		const result = await pool.query(
-			`SELECT id, name, description, created_at, updated_at
-			 FROM book_types
-			 WHERE user_id = $1 AND id = $2`,
-			[userId, resolved.id]
-		);
+			const result = await pool.query(
+				`SELECT id, name, description, created_at, updated_at, deleted_at
+				 FROM book_types
+				 WHERE user_id = $1 AND id = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
+				[userId, resolved.id]
+			);
 
-		const row = result.rows[0];
+			if (result.rows.length === 0) {
+				return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+			}
+
+			const row = result.rows[0];
 			const payload = nameOnly
 				? { id: row.id, name: row.name }
 				: {
@@ -239,7 +277,8 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 					name: row.name,
 					description: row.description,
 					createdAt: row.created_at,
-					updatedAt: row.updated_at
+					updatedAt: row.updated_at,
+					deletedAt: row.deleted_at
 				};
 
 			if (returnStats) {
@@ -261,7 +300,7 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	const fields = nameOnly
 		? "id, name"
-		: "id, name, description, created_at, updated_at";
+		: "id, name, description, created_at, updated_at, deleted_at";
 
 	try {
 		const errors = [];
@@ -291,6 +330,10 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const filters = [];
 		const values = [userId];
 		let paramIndex = 2;
+		const includeDeleted = parseBooleanFlag(listParams.includeDeleted);
+		if (!includeDeleted) {
+			filters.push("deleted_at IS NULL");
+		}
 
 		if (listParams.filterId !== undefined) {
 			const { ids, error } = parseIdArray(listParams.filterId, "filterId");
@@ -389,7 +432,8 @@ router.get("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				name: row.name,
 				description: row.description,
 				createdAt: row.created_at,
-				updatedAt: row.updated_at
+				updatedAt: row.updated_at,
+				deletedAt: row.deleted_at
 			}));
 
 		return successResponse(res, 200, "Book types retrieved successfully.", { bookTypes: payload });
@@ -420,7 +464,7 @@ router.post("/list", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const nameOnly = parseBooleanFlag(listParams.nameOnly);
 	const fields = nameOnly
 		? "id, name"
-		: "id, name, description, created_at, updated_at";
+		: "id, name, description, created_at, updated_at, deleted_at";
 
 	try {
 		const errors = [];
@@ -455,6 +499,10 @@ router.post("/list", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const filters = [];
 		const values = [userId];
 		let paramIndex = 2;
+		const includeDeleted = parseBooleanFlag(listParams.includeDeleted);
+		if (!includeDeleted) {
+			filters.push("deleted_at IS NULL");
+		}
 
 		if (listParams.filterId !== undefined) {
 			const { ids, error } = parseIdArray(listParams.filterId, "filterId");
@@ -550,7 +598,8 @@ router.post("/list", requiresAuth, authenticatedLimiter, async (req, res) => {
 				name: row.name,
 				description: row.description,
 				createdAt: row.created_at,
-				updatedAt: row.updated_at
+				updatedAt: row.updated_at,
+				deletedAt: row.deleted_at
 			}));
 
 		return successResponse(res, 200, "Book types retrieved successfully.", { bookTypes: payload });
@@ -573,6 +622,7 @@ router.post("/get", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const targetName = normalizeText(req.body?.name ?? req.query?.name);
 	const nameOnly = parseBooleanFlag(req.body?.nameOnly ?? req.query?.nameOnly);
 	const returnStats = parseBooleanFlag(req.body?.returnStats ?? req.query?.returnStats);
+	const includeDeleted = parseBooleanFlag(req.body?.includeDeleted ?? req.query?.includeDeleted);
 
 	if (targetName) {
 		const nameErrors = validateBookTypeName(targetName);
@@ -582,7 +632,7 @@ router.post("/get", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
-		const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName });
+		const resolved = await resolveBookTypeId({ userId, id: targetId, name: targetName, includeDeleted });
 		if (resolved.mismatch) {
 			return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
 		}
@@ -591,11 +641,14 @@ router.post("/get", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		const result = await pool.query(
-			`SELECT id, name, description, created_at, updated_at
+			`SELECT id, name, description, created_at, updated_at, deleted_at
 			 FROM book_types
-			 WHERE user_id = $1 AND id = $2`,
+			 WHERE user_id = $1 AND id = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
 			[userId, resolved.id]
 		);
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+		}
 
 		const row = result.rows[0];
 		const payload = nameOnly
@@ -605,7 +658,8 @@ router.post("/get", requiresAuth, authenticatedLimiter, async (req, res) => {
 				name: row.name,
 				description: row.description,
 				createdAt: row.created_at,
-				updatedAt: row.updated_at
+				updatedAt: row.updated_at,
+				deletedAt: row.deleted_at
 			};
 
 		if (returnStats) {
@@ -684,7 +738,7 @@ const bookTypeStatsHandler = async (req, res) => {
 				   ON b.book_type_id = bt.id
 				  AND b.user_id = bt.user_id
 				  AND b.deleted_at IS NULL
-				 WHERE bt.user_id = $1
+				 WHERE bt.user_id = $1 AND bt.deleted_at IS NULL
 				 GROUP BY bt.id, bt.name
 				 ORDER BY bt.name ASC`,
 				[userId]
@@ -750,8 +804,11 @@ const bookTypeStatsHandler = async (req, res) => {
 		if (needsMissing) {
 			const missingResult = await pool.query(
 				`SELECT COUNT(*)::int AS count
-				 FROM books
-				 WHERE user_id = $1 AND deleted_at IS NULL AND book_type_id IS NULL`,
+				 FROM books b
+				 LEFT JOIN book_types bt ON bt.id = b.book_type_id AND bt.user_id = b.user_id
+				 WHERE b.user_id = $1
+				   AND b.deleted_at IS NULL
+				   AND (b.book_type_id IS NULL OR bt.deleted_at IS NOT NULL)`,
 				[userId]
 			);
 			payload.booksMissingType = missingResult.rows[0]?.count ?? 0;
@@ -784,6 +841,7 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const rawName = normalizeText(req.query.name ?? req.body?.name);
 	const targetId = parseId(req.query.id ?? req.body?.id);
 	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
+	const includeDeleted = parseBooleanFlag(req.query.includeDeleted ?? req.body?.includeDeleted);
 
 	const errors = validateBookTypeName(rawName);
 	if (errors.length > 0) {
@@ -792,16 +850,16 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		if (Number.isInteger(targetId)) {
-			const resolved = await resolveBookTypeId({ userId, id: targetId, name: rawName });
+			const resolved = await resolveBookTypeId({ userId, id: targetId, name: rawName, includeDeleted });
 			if (resolved.mismatch) {
 				return errorResponse(res, 400, "Validation Error", ["Book type id and name must refer to the same record."]);
 			}
 		}
 
 		const result = await pool.query(
-			`SELECT id, name, description, created_at, updated_at
+			`SELECT id, name, description, created_at, updated_at, deleted_at
 			 FROM book_types
-			 WHERE user_id = $1 AND name = $2`,
+			 WHERE user_id = $1 AND name = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
 			[userId, rawName]
 		);
 
@@ -815,7 +873,8 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
 		};
 		if (returnStats) {
 			payload.stats = await fetchBookTypeStats(userId, row.id);
@@ -843,10 +902,11 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 
 	try {
+		const includeDeleted = parseBooleanFlag(req.query?.includeDeleted);
 		const result = await pool.query(
-			`SELECT id, name, description, created_at, updated_at
+			`SELECT id, name, description, created_at, updated_at, deleted_at
 			 FROM book_types
-			 WHERE user_id = $1 AND id = $2`,
+			 WHERE user_id = $1 AND id = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
 			[userId, id]
 		);
 
@@ -860,7 +920,8 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
 		};
 		if (returnStats) {
 			payload.stats = await fetchBookTypeStats(userId, row.id);
@@ -875,6 +936,40 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the book type."]);
+	}
+});
+
+// GET /booktype/trash - List deleted book types
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, name, description, created_at, updated_at, deleted_at
+			 FROM book_types
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			description: row.description,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
+		}));
+
+		return successResponse(res, 200, "Deleted book types retrieved successfully.", { bookTypes: payload });
+	} catch (error) {
+		logToFile("BOOK_TYPE_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted book types."]);
 	}
 });
 
@@ -894,7 +989,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const existing = await pool.query(
-			`SELECT id FROM book_types WHERE user_id = $1 AND LOWER(name) = LOWER($2)`,
+			`SELECT id FROM book_types WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND deleted_at IS NULL`,
 			[userId, rawName]
 		);
 		if (existing.rows.length > 0) {
@@ -904,7 +999,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		const result = await pool.query(
 			`INSERT INTO book_types (user_id, name, description, created_at, updated_at)
 			 VALUES ($1, $2, $3, NOW(), NOW())
-			 RETURNING id, name, description, created_at, updated_at`,
+			 RETURNING id, name, description, created_at, updated_at, deleted_at`,
 			[userId, rawName, rawDescription || null]
 		);
 
@@ -922,7 +1017,8 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at ?? null
 		});
 	} catch (error) {
 		logToFile("BOOK_TYPE_CREATE", {
@@ -960,7 +1056,7 @@ async function handleBookTypeUpdate(req, res, targetId) {
 	try {
 		if (rawName !== undefined) {
 			const existing = await pool.query(
-				`SELECT id FROM book_types WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3`,
+				`SELECT id FROM book_types WHERE user_id = $1 AND LOWER(name) = LOWER($2) AND id <> $3 AND deleted_at IS NULL`,
 				[userId, rawName, targetId]
 			);
 			if (existing.rows.length > 0) {
@@ -984,8 +1080,8 @@ async function handleBookTypeUpdate(req, res, targetId) {
 		const query = `
 			UPDATE book_types
 			SET ${updateFields.join(", ")}, updated_at = NOW()
-			WHERE user_id = $1 AND id = $2
-			RETURNING id, name, description, created_at, updated_at;
+			WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			RETURNING id, name, description, created_at, updated_at, deleted_at;
 		`;
 
 		const result = await pool.query(query, params);
@@ -1007,7 +1103,8 @@ async function handleBookTypeUpdate(req, res, targetId) {
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
-			updatedAt: row.updated_at
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
 		});
 	} catch (error) {
 		logToFile("BOOK_TYPE_UPDATE", {
@@ -1058,27 +1155,52 @@ router.put("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 async function handleBookTypeDelete(req, res, targetId) {
 	const userId = req.user.id;
-
+	const client = await pool.connect();
 	try {
-		const result = await pool.query(
-			`DELETE FROM book_types WHERE user_id = $1 AND id = $2`,
+		await client.query("BEGIN");
+		const target = await client.query(
+			`SELECT id, name FROM book_types WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 			[userId, targetId]
 		);
-
-		if (result.rowCount === 0) {
+		if (target.rowCount === 0) {
+			await client.query("ROLLBACK");
 			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
 		}
+		const name = target.rows[0].name;
+		const cleanup = await client.query(
+			`DELETE FROM book_types
+			 WHERE user_id = $1
+			   AND deleted_at IS NOT NULL
+			   AND LOWER(name) = LOWER($2)
+			   AND id <> $3
+			 RETURNING id`,
+			[userId, name, targetId]
+		);
+		const result = await client.query(
+			`UPDATE book_types
+			 SET deleted_at = NOW()
+			 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
+			 RETURNING id, deleted_at`,
+			[userId, targetId]
+		);
+		await client.query("COMMIT");
 
 		logToFile("BOOK_TYPE_DELETE", {
 			status: "SUCCESS",
 			user_id: userId,
 			book_type_id: targetId,
+			cleanup_count: cleanup.rowCount,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
-		return successResponse(res, 200, "Book type deleted successfully.", { id });
+		return successResponse(res, 200, "Book type moved to trash.", {
+			id: result.rows[0].id,
+			deletedAt: result.rows[0].deleted_at,
+			removedDeletedDuplicates: cleanup.rowCount
+		});
 	} catch (error) {
+		await client.query("ROLLBACK");
 		logToFile("BOOK_TYPE_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
@@ -1087,6 +1209,8 @@ async function handleBookTypeDelete(req, res, targetId) {
 			user_agent: req.get("user-agent")
 		}, "error");
 		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the book type."]);
+	} finally {
+		client.release();
 	}
 }
 
@@ -1123,6 +1247,232 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 		return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
 	}
 	return handleBookTypeDelete(req, res, resolved.id);
+});
+
+// POST /booktype/restore - Restore deleted book types (single or bulk)
+router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const mode = parseConflictMode(params.mode);
+	if (!mode) {
+		return errorResponse(res, 400, "Validation Error", ["mode must be one of: decline, merge, override."]);
+	}
+
+	const idsPayload = params.ids ?? params.id;
+	let { ids } = parseIdsInput(idsPayload);
+	const targetName = normalizeText(params.name);
+
+	if (!ids.length && targetName) {
+		const nameErrors = validateBookTypeName(targetName);
+		if (nameErrors.length > 0) {
+			return errorResponse(res, 400, "Validation Error", nameErrors);
+		}
+		const match = await pool.query(
+			`SELECT id FROM book_types WHERE user_id = $1 AND name = $2 AND deleted_at IS NOT NULL`,
+			[userId, targetName]
+		);
+		ids = match.rows.map((row) => row.id);
+	}
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book type id, ids array, or name to restore."]);
+	}
+
+	const results = [];
+	let restoredCount = 0;
+	let failedCount = 0;
+
+	for (const bookTypeId of ids) {
+		if (!Number.isInteger(bookTypeId)) {
+			results.push({ id: bookTypeId, status: "failed", reason: "Book type id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const deletedRes = await client.query(
+				`SELECT id, name, description
+				 FROM book_types
+				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, bookTypeId]
+			);
+			if (deletedRes.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: bookTypeId, status: "failed", reason: "Book type not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			const deleted = deletedRes.rows[0];
+			const conflictRes = await client.query(
+				`SELECT id, name, description
+				 FROM book_types
+				 WHERE user_id = $1 AND deleted_at IS NULL AND LOWER(name) = LOWER($2) AND id <> $3`,
+				[userId, deleted.name, deleted.id]
+			);
+			const conflict = conflictRes.rows[0];
+
+			if (conflict && mode === "decline") {
+				await client.query("ROLLBACK");
+				results.push({
+					id: deleted.id,
+					status: "failed",
+					reason: `Could not restore '${deleted.name}' because another book type with that name already exists in your library.`
+				});
+				failedCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "merge") {
+				await client.query(
+					`UPDATE book_types SET
+						description = CASE WHEN (description IS NULL OR description = '') AND $2 IS NOT NULL AND $2 <> '' THEN $2 ELSE description END
+					 WHERE id = $1`,
+					[conflict.id, deleted.description]
+				);
+				await client.query(
+					`UPDATE books SET book_type_id = $1 WHERE user_id = $2 AND book_type_id = $3`,
+					[conflict.id, userId, deleted.id]
+				);
+				await client.query(
+					`DELETE FROM book_types WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored", effectiveId: conflict.id });
+				restoredCount += 1;
+				continue;
+			}
+
+			if (conflict && mode === "override") {
+				await client.query(
+					`UPDATE book_types SET deleted_at = NOW() WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+					[userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE books SET book_type_id = $1 WHERE user_id = $2 AND book_type_id = $3`,
+					[deleted.id, userId, conflict.id]
+				);
+				await client.query(
+					`UPDATE book_types SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+					[userId, deleted.id]
+				);
+				await client.query("COMMIT");
+				results.push({ id: deleted.id, status: "restored" });
+				restoredCount += 1;
+				continue;
+			}
+
+			await client.query(
+				`UPDATE book_types SET deleted_at = NULL WHERE user_id = $1 AND id = $2`,
+				[userId, deleted.id]
+			);
+			await client.query("COMMIT");
+			results.push({ id: deleted.id, status: "restored" });
+			restoredCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_TYPE_RESTORE", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				book_type_id: bookTypeId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: bookTypeId, status: "failed", reason: "An error occurred while restoring this book type." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = restoredCount > 0 && failedCount > 0
+		? "Some items were restored successfully."
+		: restoredCount > 0
+			? "Book types restored successfully."
+			: "No book types were restored.";
+
+	return successResponse(res, 200, message, {
+		results,
+		restoredCount,
+		failedCount
+	});
+});
+
+// POST /booktype/delete-permanent - Permanently delete deleted book types (single or bulk)
+router.post("/delete-permanent", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const params = { ...req.query, ...(req.body || {}) };
+	const idsPayload = params.ids ?? params.id;
+	const { ids } = parseIdsInput(idsPayload);
+
+	if (!ids.length) {
+		return errorResponse(res, 400, "Validation Error", ["Please provide a book type id or ids array to permanently delete."]);
+	}
+
+	const results = [];
+	let deletedCount = 0;
+	let failedCount = 0;
+
+	for (const bookTypeId of ids) {
+		if (!Number.isInteger(bookTypeId)) {
+			results.push({ id: bookTypeId, status: "failed", reason: "Book type id must be a valid integer." });
+			failedCount += 1;
+			continue;
+		}
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const match = await client.query(
+				`SELECT id FROM book_types WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
+				[userId, bookTypeId]
+			);
+			if (match.rowCount === 0) {
+				await client.query("ROLLBACK");
+				results.push({ id: bookTypeId, status: "failed", reason: "Book type not found or not deleted." });
+				failedCount += 1;
+				continue;
+			}
+			await client.query(
+				`UPDATE books SET book_type_id = NULL WHERE user_id = $1 AND book_type_id = $2`,
+				[userId, bookTypeId]
+			);
+			await client.query(
+				`DELETE FROM book_types WHERE user_id = $1 AND id = $2`,
+				[userId, bookTypeId]
+			);
+			await client.query("COMMIT");
+			results.push({ id: bookTypeId, status: "deleted" });
+			deletedCount += 1;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logToFile("BOOK_TYPE_DELETE_PERMANENT", {
+				status: "FAILURE",
+				error_message: error.message,
+				user_id: userId,
+				book_type_id: bookTypeId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			results.push({ id: bookTypeId, status: "failed", reason: "An error occurred while deleting this book type." });
+			failedCount += 1;
+		} finally {
+			client.release();
+		}
+	}
+
+	const message = deletedCount > 0 && failedCount > 0
+		? "Some items were deleted successfully."
+		: deletedCount > 0
+			? "Book types deleted permanently."
+			: "No book types were deleted.";
+
+	return successResponse(res, 200, message, {
+		results,
+		deletedCount,
+		failedCount
+	});
 });
 
 module.exports = router;

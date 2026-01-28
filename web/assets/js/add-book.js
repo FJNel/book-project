@@ -1475,11 +1475,17 @@
             loadLocations()
         ]);
         const listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        let editOk = true;
         if (isEditMode()) {
             await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
         }
-        const editOk = await loadBookForEdit();
-        await hideModal('pageLoadingModal');
+        try {
+            editOk = await loadBookForEdit();
+        } finally {
+            if (isEditMode()) {
+                await hideModal('pageLoadingModal');
+            }
+        }
         const allOk = listOk && editOk;
         if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
             window.pageContentReady.resolve({ success: allOk });

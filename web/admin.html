@@ -251,7 +251,7 @@
       <li class="nav-item"><button class="nav-link" type="button" data-section="users">Users</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="libraries">Libraries</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="emails">Emails</button></li>
-      <li class="nav-item"><button class="nav-link" type="button" data-section="usage-logs">Usage / Logs</button></li>
+      <li class="nav-item"><button class="nav-link" type="button" data-section="usage-logs">Logs</button></li>
       <li class="nav-item"><button class="nav-link" type="button" data-section="data-tools">Data tools</button></li>
     </ul>
 
@@ -696,12 +696,11 @@
     <section class="mb-2 admin-section d-none" id="usageLogsNavSection" data-section-content="usage-logs">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <div>
-          <p class="mb-1 text-uppercase text-muted small fw-semibold">Usage / Logs</p>
-          <h2 class="h5 mb-0">Operational insight</h2>
+          <p class="mb-1 text-uppercase text-muted small fw-semibold">Logs</p>
+          <h2 class="h5 mb-0">Audit and HTTP logs</h2>
         </div>
         <ul class="nav nav-pills gap-2" id="usageLogsNav" role="tablist">
           <li class="nav-item"><button class="nav-link active" type="button" data-usage-panel="logs">Logs</button></li>
-          <li class="nav-item"><button class="nav-link" type="button" data-usage-panel="usage">Usage</button></li>
         </ul>
       </div>
     </section>
@@ -741,10 +740,6 @@
             <div class="d-flex align-items-center gap-2">
               <label class="form-label mb-0 text-muted small" for="logsPageSize">Per page</label>
               <input class="form-control form-control-sm" type="number" id="logsPageSize" aria-label="Logs page size" value="25" min="5" max="200" step="5" style="width: 90px" />
-              <div class="text-muted small" id="logsPageInfo">Page 1</div>
-              <nav aria-label="Logs pagination">
-                <ul class="pagination mb-0" id="logsPagination"></ul>
-              </nav>
             </div>
           </div>
         </div>
@@ -772,99 +767,11 @@
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="mb-4 admin-section d-none usage-panel" id="usageSection" data-section-content="usage-logs" data-usage-panel="usage">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <p class="mb-1 text-uppercase text-muted small fw-semibold">Usage</p>
-          <h2 class="h5 mb-0">Usage ranking for users and API keys</h2>
-        </div>
-        <button class="btn btn-outline-secondary btn-sm" type="button" id="usageRefreshBtn">Refresh</button>
-      </div>
-      <div class="alert alert-warning d-none" id="usageAlert"></div>
-
-      <div class="card admin-card mb-3">
-        <div class="card-body">
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <input class="form-control form-control-sm" type="datetime-local" id="usageDateFrom" aria-label="Usage start date" />
-            <input class="form-control form-control-sm" type="datetime-local" id="usageDateTo" aria-label="Usage end date" />
-            <select class="form-select form-select-sm" id="usageSortBy" aria-label="Usage sort" style="min-width: 160px">
-              <option value="usageScore">Sort: usage score</option>
-              <option value="requests">Sort: requests</option>
-              <option value="lastSeen">Sort: last seen</option>
-            </select>
-            <select class="form-select form-select-sm" id="usageSortOrder" aria-label="Usage sort order" style="width: 120px">
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-            <input class="form-control form-control-sm" type="number" id="usageTopLimit" min="1" max="15" value="5" style="width: 120px" aria-label="Top endpoints" placeholder="Top N" />
-          </div>
-        </div>
-      </div>
-
-      <ul class="nav nav-tabs" id="usageTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="usageUsersTab" data-bs-toggle="tab" data-bs-target="#usageUsers" type="button" role="tab">User usage</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="usageApiKeysTab" data-bs-toggle="tab" data-bs-target="#usageApiKeys" type="button" role="tab">API key usage</button>
-        </li>
-      </ul>
-      <div class="tab-content border border-top-0 rounded-bottom p-3">
-        <div class="tab-pane fade show active" id="usageUsers" role="tabpanel">
-          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-            <input class="form-control form-control-sm" type="number" min="1" placeholder="User ID" id="usageUserId" aria-label="User id filter" style="width: 120px" />
-            <input class="form-control form-control-sm" type="email" placeholder="User email" id="usageUserEmail" aria-label="User email filter" style="min-width: 220px" />
-            <input class="form-control form-control-sm" type="text" placeholder="Path contains" id="usageUserPath" aria-label="Path filter" style="min-width: 200px" />
-          </div>
-          <div class="text-muted small mb-2" id="usageUsersSummary">No usage loaded yet.</div>
-          <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle admin-table">
-              <thead class="table-header">
-                <tr>
-                  <th>Rank</th>
-                  <th>User</th>
-                  <th>Usage score</th>
-                  <th>Requests</th>
-                  <th>Top endpoints</th>
-                  <th>Last seen</th>
-                  <th class="admin-col-actions text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="usageUsersTbody">
-                <tr><td colspan="7" class="text-center text-muted py-3">Refresh to load usage.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="usageApiKeys" role="tabpanel">
-          <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-            <input class="form-control form-control-sm" type="number" min="1" placeholder="API key ID" id="usageApiKeyId" aria-label="API key id filter" style="width: 130px" />
-            <input class="form-control form-control-sm" type="text" placeholder="API key label" id="usageApiKeyLabel" aria-label="API key label filter" style="min-width: 200px" />
-            <input class="form-control form-control-sm" type="email" placeholder="User email" id="usageApiKeyEmail" aria-label="User email filter" style="min-width: 220px" />
-          </div>
-          <div class="text-muted small mb-2" id="usageApiKeysSummary">No usage loaded yet.</div>
-          <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle admin-table">
-              <thead class="table-header">
-                <tr>
-                  <th>Rank</th>
-                  <th>API key</th>
-                  <th>User</th>
-                  <th>Usage score</th>
-                  <th>Requests</th>
-                  <th>Top endpoints</th>
-                  <th>Last seen</th>
-                  <th class="admin-col-actions text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="usageApiKeysTbody">
-                <tr><td colspan="8" class="text-center text-muted py-3">Refresh to load usage.</td></tr>
-              </tbody>
-            </table>
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mt-3">
+            <div class="text-muted small" id="logsPageInfo">Page 1</div>
+            <nav aria-label="Logs pagination">
+              <ul class="pagination mb-0" id="logsPagination"></ul>
+            </nav>
           </div>
         </div>
       </div>
@@ -902,7 +809,6 @@
               <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#dataViewerFiltersOffcanvas" aria-controls="dataViewerFiltersOffcanvas" aria-label="Advanced filters">Advanced filters</button>
             </div>
           </div>
-          <div class="text-muted small mb-2" id="dataViewerSummary">Select a table to load data.</div>
           <div class="table-responsive">
             <table class="table table-sm align-middle table-striped admin-table">
               <thead class="table-header" id="dataViewerThead"></thead>
@@ -910,6 +816,15 @@
                 <tr><td class="text-center text-muted py-3">No data loaded.</td></tr>
               </tbody>
             </table>
+          </div>
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mt-3">
+            <div class="text-muted small" id="dataViewerSummary">Select a table to load data.</div>
+            <div class="d-flex align-items-center gap-2">
+              <div class="text-muted small" id="dataViewerPaginationInfo">Page 1</div>
+              <nav aria-label="Data tools pagination">
+                <ul class="pagination mb-0" id="dataViewerPagination"></ul>
+              </nav>
+            </div>
           </div>
         </div>
       </div>
@@ -1049,6 +964,25 @@
           <select class="form-select" id="logsStatusFilter" aria-label="Filter log status">
             <option value="">Status: any</option>
           </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsSortBy">Sort by</label>
+            <select class="form-select" id="logsSortBy" aria-label="Sort logs">
+              <option value="logged_at">Timestamp</option>
+              <option value="status_code">Status</option>
+              <option value="duration_ms">Duration</option>
+              <option value="level">Level</option>
+              <option value="category">Type</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="logsSortOrder">Order</label>
+            <select class="form-select" id="logsSortOrder" aria-label="Sort order">
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+          </div>
         </div>
         <div>
           <label class="form-label small mb-1" for="logsMethodFilter">Method</label>
@@ -1394,6 +1328,32 @@
                 <div class="card-body">
                   <h6 class="text-uppercase text-muted">Actions</h6>
                   <div class="d-flex flex-wrap gap-2" id="userDetailsActions"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="card admin-card">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-uppercase text-muted mb-0">Recent emails</h6>
+                    <div class="text-muted small" id="userDetailsEmailsSummary">Showing latest emails</div>
+                  </div>
+                  <div class="alert alert-warning d-none" id="userDetailsEmailsAlert"></div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle table-striped">
+                      <thead class="table-header">
+                        <tr>
+                          <th scope="col">Type</th>
+                          <th scope="col">Queued</th>
+                          <th scope="col">Sent</th>
+                          <th scope="col">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="userDetailsEmailsTbody">
+                        <tr><td colspan="4" class="text-center text-muted py-3">Loading recent emails…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

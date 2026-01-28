@@ -53,6 +53,8 @@
     logsTypeFilter: document.getElementById('logsTypeFilter'),
     logsLevelFilter: document.getElementById('logsLevelFilter'),
     logsStatusFilter: document.getElementById('logsStatusFilter'),
+    logsSortBy: document.getElementById('logsSortBy'),
+    logsSortOrder: document.getElementById('logsSortOrder'),
     logsMethodFilter: document.getElementById('logsMethodFilter'),
     logsActorFilter: document.getElementById('logsActorFilter'),
     logsPathFilter: document.getElementById('logsPathFilter'),
@@ -167,6 +169,8 @@
     dataViewerApplyFiltersBtn: document.getElementById('dataViewerApplyFiltersBtn'),
     dataViewerResetFiltersBtn: document.getElementById('dataViewerResetFiltersBtn'),
     dataViewerSummary: document.getElementById('dataViewerSummary'),
+    dataViewerPaginationInfo: document.getElementById('dataViewerPaginationInfo'),
+    dataViewerPagination: document.getElementById('dataViewerPagination'),
     dataViewerTableHelp: document.getElementById('dataViewerTableHelp'),
     dataViewerThead: document.getElementById('dataViewerThead'),
     dataViewerTbody: document.getElementById('dataViewerTbody'),
@@ -231,6 +235,9 @@
     userDetailsProfile: document.getElementById('userDetailsProfile'),
     userDetailsUsage: document.getElementById('userDetailsUsage'),
     userDetailsActions: document.getElementById('userDetailsActions'),
+    userDetailsEmailsAlert: document.getElementById('userDetailsEmailsAlert'),
+    userDetailsEmailsTbody: document.getElementById('userDetailsEmailsTbody'),
+    userDetailsEmailsSummary: document.getElementById('userDetailsEmailsSummary'),
     sessionsModal: document.getElementById('sessionsModal'),
     sessionsModalTitle: document.getElementById('sessionsModalTitle'),
     sessionsTbody: document.getElementById('sessionsTbody'),
@@ -260,6 +267,8 @@
     confirmActionConfig: null,
     userDetailsUser: null,
     userDetailsUsage: null,
+    userDetailsEmailHistory: [],
+    userDetailsEmailHistoryTotal: 0,
     sessionsUser: null,
     languages: [],
     logs: [],
@@ -292,6 +301,9 @@
     siteStatsLoaded: false,
     dataViewerTables: [],
     dataViewerLoaded: false,
+    dataViewerPage: 1,
+    dataViewerHasNext: false,
+    dataViewerTotal: 0,
     successTimers: new Map()
   };
 
@@ -863,7 +875,7 @@
                 <i class="bi bi-pencil-fill" aria-hidden="true"></i>
               </button>
               <button class="btn btn-outline-secondary btn-sm icon-btn js-view-sessions" type="button" data-user-id="${user.id}" aria-label="View sessions" title="View sessions">
-                <i class="bi bi-eye" aria-hidden="true"></i>
+                <i class="bi bi-pc-display-horizontal" aria-hidden="true"></i>
               </button>
               <div class="btn-group btn-group-sm" role="group">
                 <button class="btn btn-outline-secondary btn-sm icon-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions" title="More actions">
@@ -1233,19 +1245,41 @@
     instance.show();
   }
 
+  function describeEditChange(fieldLabel, fromValue, toValue) {
+    const fromText = fromValue ? String(fromValue).trim() : '';
+    const toText = toValue ? String(toValue).trim() : '';
+    if (fromText === toText) return null;
+    if (!fromText && toText) return `Adding ${fieldLabel}: '${toText}'.`;
+    if (fromText && !toText) return `Clearing ${fieldLabel} (was '${fromText}').`;
+    return `Changing ${fieldLabel} from '${fromText}' to '${toText}'.`;
+  }
+
   function validateEditUserForm() {
     const fullName = dom.editFullName.value.trim();
     const preferredName = dom.editPreferredName.value.trim();
     const email = dom.editEmail.value.trim();
     const role = dom.editRole.value;
     const errors = {
-      fullName: fullName ? '' : 'Full name cannot be empty.',
+      fullName: validateName(fullName),
       preferredName: '',
       email: validateEmail(email)
     };
     dom.editFullNameHelp.textContent = errors.fullName;
     dom.editPreferredNameHelp.textContent = errors.preferredName;
     dom.editEmailHelp.textContent = errors.email;
+    if (dom.editFullName) {
+      dom.editFullName.classList.toggle('is-invalid', Boolean(errors.fullName));
+      dom.editFullName.classList.toggle('is-valid', !errors.fullName && Boolean(fullName));
+    }
+    if (dom.editPreferredName) {
+      const markValid = Boolean(preferredName);
+      dom.editPreferredName.classList.remove('is-invalid');
+      dom.editPreferredName.classList.toggle('is-valid', markValid);
+    }
+    if (dom.editEmail) {
+      dom.editEmail.classList.toggle('is-invalid', Boolean(errors.email));
+      dom.editEmail.classList.toggle('is-valid', !errors.email && Boolean(email));
+    }
 
     const changed = fullName !== (state.currentEditingUser?.fullName || '')
       || preferredName !== (state.currentEditingUser?.preferredName || '')
@@ -1253,22 +1287,16 @@
       || role !== (state.currentEditingUser?.role || 'user');
 
     if (dom.editUserChangesSummary) {
-      const items = [];
-      if (fullName !== (state.currentEditingUser?.fullName || '')) {
-        items.push(`Full name: ${state.currentEditingUser?.fullName || '—'} → ${fullName || '—'}`);
-      }
-      if (preferredName !== (state.currentEditingUser?.preferredName || '')) {
-        items.push(`Preferred name: ${state.currentEditingUser?.preferredName || '—'} → ${preferredName || '—'}`);
-      }
-      if (email !== (state.currentEditingUser?.email || '')) {
-        items.push(`Email: ${state.currentEditingUser?.email || '—'} → ${email || '—'}`);
-      }
-      if (role !== (state.currentEditingUser?.role || 'user')) {
-        items.push(`Role: ${state.currentEditingUser?.role || 'user'} → ${role || 'user'}`);
-      }
-      dom.editUserChangesSummary.innerHTML = items.length
-        ? items.map((item) => `<div class="small">${escapeHtml(item)}</div>`).join('')
-        : '<div class="text-muted small">No changes yet.</div>';
+      const changes = [];
+      const fullNameChange = describeEditChange('full name', state.currentEditingUser?.fullName || '', fullName);
+      if (fullNameChange) changes.push(fullNameChange);
+      const preferredChange = describeEditChange('preferred name', state.currentEditingUser?.preferredName || '', preferredName);
+      if (preferredChange) changes.push(preferredChange);
+      const emailChange = describeEditChange('email', state.currentEditingUser?.email || '', email);
+      if (emailChange) changes.push(emailChange);
+      const roleChange = describeEditChange('role', state.currentEditingUser?.role || 'user', role || 'user');
+      if (roleChange) changes.push(roleChange);
+      dom.editUserChangesSummary.textContent = changes.length ? changes.join(' ') : 'No changes yet.';
     }
 
     const valid = !errors.fullName && !errors.email && changed;
@@ -1466,6 +1494,10 @@
     dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
     dom.confirmActionReason.value = '';
     dom.confirmActionEmail.value = state.confirmActionConfig.prefillEmail || '';
+    if (dom.confirmActionEmail) {
+      dom.confirmActionEmail.readOnly = Boolean(state.confirmActionConfig.emailReadOnly);
+      dom.confirmActionEmail.setAttribute('aria-readonly', dom.confirmActionEmail.readOnly ? 'true' : 'false');
+    }
     dom.confirmActionInput.value = '';
     dom.confirmActionInput.placeholder = state.confirmActionConfig.confirmText || '';
     dom.confirmActionReasonHelp.textContent = '';
@@ -1763,7 +1795,7 @@
         title: 'Send verification email',
         actionLabel: 'Send verification email',
         message: 'Send a new verification email to this user?',
-        impact: 'User will receive a verification link via email (default 30 minutes expiry).',
+        impact: 'This user will remain unverified until they verify via the link in the email.',
         willNotify: true,
         emailType: 'verification',
         user,
@@ -1773,10 +1805,15 @@
         onSuccess: 'users',
         cooldownKey,
         emailRequired: true,
+        emailReadOnly: true,
         emailFieldName: 'email',
         prefillEmail: user?.email || '',
         expiryEnabled: true,
         expiryDefaultMinutes: 30,
+        summaryItems: [
+          { label: 'Recipient', value: user?.email || '—' },
+          { label: 'Verification status', value: 'Set to unverified until confirmed' }
+        ],
         successMessage: 'Verification email sent successfully.'
       });
       return;
@@ -1802,6 +1839,7 @@
         onSuccess: 'users',
         cooldownKey,
         emailRequired: true,
+        emailReadOnly: true,
         emailFieldName: 'email',
         prefillEmail: user?.email || '',
         expiryEnabled: true,
@@ -2014,6 +2052,8 @@
       type: dom.logsTypeFilter?.value || '',
       level: dom.logsLevelFilter?.value || '',
       status: dom.logsStatusFilter?.value || '',
+      sortBy: dom.logsSortBy?.value || 'logged_at',
+      order: dom.logsSortOrder?.value || 'desc',
       method: dom.logsMethodFilter?.value || '',
       actorType: dom.logsActorFilter?.value || '',
       path: dom.logsPathFilter?.value.trim() || '',
@@ -2135,6 +2175,8 @@
         search: filters.search || undefined,
         category: filters.type || undefined,
         level: filters.level || undefined,
+        sortBy: filters.sortBy || undefined,
+        order: filters.order || undefined,
         method: filters.method || undefined,
         actorType: filters.actorType || undefined,
         path: filters.path || undefined,
@@ -2243,6 +2285,8 @@
     if (dom.logsTypeFilter) dom.logsTypeFilter.value = '';
     if (dom.logsLevelFilter) dom.logsLevelFilter.value = '';
     if (dom.logsStatusFilter) dom.logsStatusFilter.value = '';
+    if (dom.logsSortBy) dom.logsSortBy.value = 'logged_at';
+    if (dom.logsSortOrder) dom.logsSortOrder.value = 'desc';
     if (dom.logsMethodFilter) dom.logsMethodFilter.value = '';
     if (dom.logsActorFilter) dom.logsActorFilter.value = '';
     if (dom.logsPathFilter) dom.logsPathFilter.value = '';
@@ -3057,10 +3101,11 @@
     `).join('');
   }
 
-  function renderUserDetailsUsage({ configured, usage, window }) {
+  function renderUserDetailsUsage({ configured, usage, window, message }) {
     if (!dom.userDetailsUsage) return;
     if (configured === false) {
-      dom.userDetailsUsage.innerHTML = '<div class="text-muted small">Usage data is not configured.</div>';
+      const note = message || 'Usage data is not configured.';
+      dom.userDetailsUsage.innerHTML = `<div class="text-muted small">${escapeHtml(note)}</div>`;
       return;
     }
     if (!usage) {
@@ -3094,9 +3139,114 @@
     `;
   }
 
+  function updateUserDetailsEmailsSummary(count, total) {
+    if (!dom.userDetailsEmailsSummary) return;
+    const totalDisplay = Number.isFinite(total) ? total : count;
+    dom.userDetailsEmailsSummary.textContent = count
+      ? `Showing ${count} of ${totalDisplay}`
+      : 'No recent emails to show';
+  }
+
+  function renderUserDetailsEmails(records) {
+    if (!dom.userDetailsEmailsTbody) return;
+    const rows = Array.isArray(records) ? records : [];
+    if (!rows.length) {
+      dom.userDetailsEmailsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No recent emails sent.</td></tr>';
+      updateUserDetailsEmailsSummary(0, 0);
+      return;
+    }
+    const badgeClass = {
+      queued: 'text-bg-secondary',
+      sent: 'text-bg-success',
+      failed: 'text-bg-danger',
+      skipped: 'text-bg-warning'
+    };
+    dom.userDetailsEmailsTbody.innerHTML = rows.map((row) => {
+      const status = String(row.status || 'queued').toLowerCase();
+      const badge = badgeClass[status] || 'text-bg-secondary';
+      return `
+        <tr>
+          <td>${escapeHtml(row.email_type || row.emailType || '—')}</td>
+          <td>${formatDateTime(row.queued_at || row.queuedAt)}</td>
+          <td>${formatDateTime(row.sent_at || row.sentAt)}</td>
+          <td><span class="badge ${badge}">${escapeHtml(status || 'queued')}</span></td>
+        </tr>
+      `;
+    }).join('');
+    updateUserDetailsEmailsSummary(rows.length, Number.isFinite(state.userDetailsEmailHistoryTotal) ? state.userDetailsEmailHistoryTotal : rows.length);
+  }
+
+  async function fetchUserDetailsEmails(user) {
+    if (!dom.userDetailsEmailsTbody || !user) return;
+    hideAlert(dom.userDetailsEmailsAlert);
+    dom.userDetailsEmailsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading recent emails…</td></tr>';
+    if (!user.email) {
+      dom.userDetailsEmailsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No email address on file.</td></tr>';
+      updateUserDetailsEmailsSummary(0, 0);
+      return;
+    }
+    const body = {
+      recipient: user.email || undefined,
+      userId: Number.isInteger(user.id) ? user.id : undefined,
+      page: 1,
+      limit: 5
+    };
+    try {
+      const response = await apiFetch('/admin/emails/history', { method: 'POST', body });
+      const data = await parseResponse(response);
+      const records = Array.isArray(data?.history) ? data.history : [];
+      state.userDetailsEmailHistory = records;
+      state.userDetailsEmailHistoryTotal = Number.isFinite(data?.total) ? data.total : records.length;
+      renderUserDetailsEmails(records);
+    } catch (err) {
+      errorLog('[Admin][Users] Failed to load recent emails', err);
+      showApiError(dom.userDetailsEmailsAlert, err);
+      dom.userDetailsEmailsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Unable to load recent emails.</td></tr>';
+      updateUserDetailsEmailsSummary(0, 0);
+    }
+  }
+
   function renderUserDetailsActions(user) {
     if (!dom.userDetailsActions) return;
+    const verificationAction = user.isVerified
+      ? { action: 'unverify-user', label: 'Unverify user', icon: 'bi bi-dash-circle' }
+      : { action: 'verify-user', label: 'Verify user', icon: 'bi bi-check-circle' };
+    const disableAction = user.isDisabled
+      ? { action: 'enable-user', label: 'Enable account', icon: 'bi bi-person-check-fill' }
+      : { action: 'disable-user', label: 'Disable account', icon: 'bi bi-person-x-fill' };
     dom.userDetailsActions.innerHTML = `
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="edit-user" data-user-id="${user.id}" aria-label="Edit user" title="Edit user">
+        <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+        Edit user
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="view-sessions" data-user-id="${user.id}" aria-label="View sessions" title="View sessions">
+        <i class="bi bi-pc-display-horizontal" aria-hidden="true"></i>
+        View sessions
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="view-library" data-user-id="${user.id}" aria-label="View library" title="View library">
+        <i class="bi bi-book-half" aria-hidden="true"></i>
+        View library
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="${verificationAction.action}" data-user-id="${user.id}" aria-label="${verificationAction.label}" title="${verificationAction.label}">
+        <i class="${verificationAction.icon}" aria-hidden="true"></i>
+        ${verificationAction.label}
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="send-verification" data-user-id="${user.id}" aria-label="Send verification email" title="Send verification email">
+        <i class="bi bi-envelope" aria-hidden="true"></i>
+        Send verification email
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="reset-password" data-user-id="${user.id}" aria-label="Send password reset" title="Send password reset">
+        <i class="bi bi-envelope" aria-hidden="true"></i>
+        Send password reset
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="${disableAction.action}" data-user-id="${user.id}" aria-label="${disableAction.label}" title="${disableAction.label}">
+        <i class="${disableAction.icon}" aria-hidden="true"></i>
+        ${disableAction.label}
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="force-logout" data-user-id="${user.id}" aria-label="Force logout" title="Force logout">
+        <i class="bi bi-slash-circle" aria-hidden="true"></i>
+        Force logout
+      </button>
       <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="revoke-api-keys" data-user-id="${user.id}" aria-label="Revoke API keys" title="Revoke API keys">
         <i class="bi bi-slash-circle" aria-hidden="true"></i>
         Revoke API keys
@@ -3127,10 +3277,10 @@
     const response = await apiFetch('/admin/usage/users', { method: 'POST', body });
     const data = await parseResponse(response);
     if (data?.configured === false) {
-      return { configured: false, message: data?.message || 'Usage data is not configured.' };
+      return { configured: false, message: data?.message || 'Usage data is not configured.', window: data?.window };
     }
     const usage = Array.isArray(data?.users)
-      ? data.users.find((entry) => Number(entry.userId) === Number(userId)) || data.users[0]
+      ? data.users.find((entry) => Number(entry.userId) === Number(userId)) || null
       : null;
     return { configured: true, usage, window: data?.window };
   }
@@ -3145,10 +3295,17 @@
     renderUserDetailsProfile(user);
     renderUserDetailsUsage({ configured: true, usage: null, window: null });
     renderUserDetailsActions(user);
+    if (dom.userDetailsEmailsSummary) dom.userDetailsEmailsSummary.textContent = 'Loading recent emails…';
     bootstrap.Modal.getOrCreateInstance(dom.userDetailsModal).show();
+    fetchUserDetailsEmails(user).catch(() => {});
     try {
       const usageData = await fetchUserUsageDetails(userId);
-      renderUserDetailsUsage({ configured: usageData.configured, usage: usageData.usage, window: usageData.window });
+      renderUserDetailsUsage({
+        configured: usageData.configured,
+        usage: usageData.usage,
+        window: usageData.window,
+        message: usageData.message
+      });
       state.userDetailsUsage = usageData;
     } catch (err) {
       errorLog('[Admin][Users] Failed to load user usage', err);
@@ -3164,6 +3321,176 @@
     if (!Number.isInteger(userId)) return;
     const user = state.users.find((u) => u.id === userId) || state.userDetailsUser;
     if (!user) return;
+
+    if (action === 'edit-user') {
+      openEditUserModal(userId);
+      return;
+    }
+
+    if (action === 'view-sessions') {
+      openSessionsModal(userId);
+      return;
+    }
+
+    if (action === 'view-library') {
+      const userName = user?.preferredName || user?.fullName || '';
+      const url = `admin-library?userId=${encodeURIComponent(userId)}${userName ? `&userName=${encodeURIComponent(userName)}` : ''}`;
+      window.location.href = url;
+      return;
+    }
+
+    if (action === 'verify-user') {
+      openConfirmAction({
+        title: 'Verify user',
+        actionLabel: 'Verify user',
+        message: 'Mark this user as verified? Provide a short reason.',
+        impact: 'User will be marked as verified and notified by email.',
+        willNotify: true,
+        emailType: 'admin_email_verified',
+        user,
+        userId,
+        url: '/admin/users/verify',
+        method: 'POST',
+        reasonRequired: true,
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        onSuccess: 'users',
+        successMessage: 'User verified successfully.'
+      });
+      return;
+    }
+
+    if (action === 'unverify-user') {
+      openConfirmAction({
+        title: 'Unverify user',
+        actionLabel: 'Unverify user',
+        message: 'Unverify this user? Provide a reason for audit.',
+        impact: 'User will be marked as unverified and notified by email.',
+        willNotify: true,
+        emailType: 'admin_email_unverified',
+        user,
+        userId,
+        url: '/admin/users/unverify',
+        method: 'POST',
+        reasonRequired: true,
+        emailRequired: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        onSuccess: 'users',
+        successMessage: 'User unverified successfully.'
+      });
+      return;
+    }
+
+    if (action === 'send-verification') {
+      const cooldownKey = `send-verification-${userId}`;
+      if (isCoolingDown(cooldownKey)) {
+        showAlert(dom.userDetailsAlert, 'Please wait before sending another verification email.');
+        return;
+      }
+      openConfirmAction({
+        title: 'Send verification email',
+        actionLabel: 'Send verification email',
+        message: 'Send a new verification email to this user?',
+        impact: 'This user will remain unverified until they verify via the link in the email.',
+        willNotify: true,
+        emailType: 'verification',
+        user,
+        userId,
+        url: '/admin/users/send-verification',
+        method: 'POST',
+        onSuccess: 'users',
+        cooldownKey,
+        emailRequired: true,
+        emailReadOnly: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        expiryEnabled: true,
+        expiryDefaultMinutes: 30,
+        summaryItems: [
+          { label: 'Recipient', value: user?.email || '—' },
+          { label: 'Verification status', value: 'Set to unverified until confirmed' }
+        ],
+        successMessage: 'Verification email sent successfully.'
+      });
+      return;
+    }
+
+    if (action === 'reset-password') {
+      const cooldownKey = `reset-password-${userId}`;
+      if (isCoolingDown(cooldownKey)) {
+        showAlert(dom.userDetailsAlert, 'Password reset email already sent recently.');
+        return;
+      }
+      openConfirmAction({
+        title: 'Send password reset',
+        actionLabel: 'Send password reset',
+        message: 'Send a password reset email to this user?',
+        impact: 'User will receive a password reset link via email (default 30 minutes expiry).',
+        willNotify: true,
+        emailType: 'password_reset',
+        user,
+        userId,
+        url: '/admin/users/reset-password',
+        method: 'POST',
+        onSuccess: 'users',
+        cooldownKey,
+        emailRequired: true,
+        emailReadOnly: true,
+        emailFieldName: 'email',
+        prefillEmail: user?.email || '',
+        expiryEnabled: true,
+        expiryDefaultMinutes: 30,
+        successMessage: 'Password reset email sent successfully.'
+      });
+      return;
+    }
+
+    if (action === 'disable-user' || action === 'enable-user') {
+      if (state.currentUserId && userId === state.currentUserId) {
+        showAlert(dom.userDetailsAlert, 'You cannot disable your own account.');
+        return;
+      }
+      const isDisabled = action === 'enable-user';
+      openConfirmAction({
+        title: `${isDisabled ? 'Enable' : 'Disable'} user`,
+        actionLabel: isDisabled ? 'Enable user' : 'Disable user',
+        message: isDisabled ? 'Re-enable this account and allow logins?' : 'Disable this account and revoke active sessions?',
+        impact: isDisabled ? 'Account will be restored and login allowed. A notification email will be sent.' : 'Account will be disabled and active sessions revoked. A notification email will be sent.',
+        willNotify: true,
+        emailType: isDisabled ? 'admin_account_enabled' : 'admin_account_disabled',
+        destructive: !isDisabled,
+        confirmText: isDisabled ? '' : 'DISABLE',
+        user,
+        userId,
+        url: isDisabled ? '/admin/users/enable' : '/admin/users',
+        method: isDisabled ? 'POST' : 'DELETE',
+        reasonRequired: false,
+        emailRequired: false,
+        onSuccess: 'users',
+        successMessage: isDisabled ? 'User enabled successfully.' : 'User disabled and sessions revoked.'
+      });
+      return;
+    }
+
+    if (action === 'force-logout') {
+      openConfirmAction({
+        title: 'Force logout',
+        actionLabel: 'Force logout',
+        message: 'Revoke all sessions for this user?',
+        impact: 'All refresh tokens will be revoked. The user must sign in again on every device.',
+        destructive: true,
+        confirmText: 'LOGOUT',
+        user,
+        userId,
+        url: '/admin/users/force-logout',
+        method: 'POST',
+        onSuccess: 'users',
+        successMessage: 'All sessions revoked successfully.'
+      });
+      return;
+    }
 
     if (action === 'revoke-api-keys') {
       openConfirmAction({
@@ -3233,6 +3560,12 @@
   const scheduleDevEmailPreview = debounce((body) => {
     updateDevEmailPreview(body).catch(() => {});
   }, 400);
+
+  async function fetchDevFeaturesRecipientCount() {
+    const response = await apiFetch('/admin/emails/dev-features/recipients', { method: 'POST', body: {} });
+    const data = await parseResponse(response);
+    return Number.isFinite(data?.count) ? data.count : 0;
+  }
 
   function handleEmailSendTest() {
     const validation = validateEmailTestForm();
@@ -3318,12 +3651,24 @@
     const { valid, subject, body } = validateDevEmailForm();
     if (!valid) return;
 
+    let recipientCount = 0;
+    try {
+      recipientCount = await fetchDevFeaturesRecipientCount();
+    } catch (err) {
+      errorLog('[Admin][Emails] Failed to load recipient count', err);
+      showAlert(dom.emailsAlert, 'Unable to load recipient count. Try again.');
+      return;
+    }
+
     openConfirmAction({
       title: 'Send development update',
       actionLabel: 'Send update',
       message: 'Send this update to all users who opted in? This cannot be undone.',
-      impact: 'Only users who opted in will receive the update.',
+      impact: 'Only users who opted in will receive the update. An email will be sent to each recipient.',
       willNotify: true,
+      destructive: true,
+      confirmText: 'CONFIRM',
+      confirmFlag: true,
       user: { id: '—', fullName: 'Development updates', email: 'Opted-in users' },
       baseBody: {
         subject,
@@ -3332,6 +3677,7 @@
       url: '/admin/emails/dev-features/send',
       method: 'POST',
       summaryItems: [
+        { label: 'Recipients', value: recipientCount.toLocaleString() },
         { label: 'Subject', value: subject }
       ],
       successTarget: 'emails',
@@ -3464,11 +3810,17 @@
     if (dom.dataViewerSummary) dom.dataViewerSummary.textContent = message;
   }
 
+  function resetDataViewerPagination(page = 1) {
+    if (dom.dataViewerPagination) dom.dataViewerPagination.innerHTML = '';
+    if (dom.dataViewerPaginationInfo) dom.dataViewerPaginationInfo.textContent = page ? `Page ${page}` : '';
+  }
+
   function resetDataViewerTable(message = 'No data loaded.') {
     if (dom.dataViewerThead) dom.dataViewerThead.innerHTML = '';
     if (dom.dataViewerTbody) {
       dom.dataViewerTbody.innerHTML = `<tr><td class="text-center text-muted py-3">${message}</td></tr>`;
     }
+    resetDataViewerPagination(1);
   }
 
   function setDataViewerLoading(isLoading) {
@@ -3596,6 +3948,15 @@
     const end = offset + count;
     const totalLabel = Number.isFinite(total) ? ` of ${total}` : '';
     setDataViewerSummary(count ? `Showing ${start}–${end}${totalLabel}` : 'No results to show');
+    state.dataViewerPage = Number.isFinite(currentPage) ? currentPage : 1;
+    state.dataViewerHasNext = payload?.hasNext === true || (offset + count < total);
+    state.dataViewerTotal = total;
+    if (dom.dataViewerPaginationInfo) dom.dataViewerPaginationInfo.textContent = `Page ${state.dataViewerPage}`;
+    renderPaginationNav(dom.dataViewerPagination, state.dataViewerPage, state.dataViewerHasNext, (nextPage) => {
+      state.dataViewerPage = nextPage;
+      if (dom.dataViewerPage) dom.dataViewerPage.value = String(nextPage);
+      fetchDataViewerRows().catch(() => {});
+    });
   }
 
   async function fetchDataViewerTables({ force = false } = {}) {
@@ -3723,6 +4084,7 @@
     if (dom.dataViewerUserId) dom.dataViewerUserId.value = '';
     if (dom.dataViewerEmail) dom.dataViewerEmail.value = '';
     if (dom.dataViewerPage) dom.dataViewerPage.value = '1';
+    state.dataViewerPage = 1;
   }
 
   function bindEvents() {
