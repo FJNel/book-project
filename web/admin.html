@@ -707,10 +707,6 @@
 
     <section class="mb-4 admin-section d-none usage-panel" id="logsSection" data-section-content="usage-logs" data-usage-panel="logs">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <p class="mb-1 text-uppercase text-muted small fw-semibold">Logs</p>
-          <h2 class="h5 mb-0">Audit and HTTP logs</h2>
-        </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button class="btn btn-outline-secondary btn-sm" type="button" id="logsRefreshBtn">Refresh</button>
         </div>
@@ -738,6 +734,9 @@
           <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
             <div class="text-muted small" id="logsSummary">Showing logs</div>
             <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="logsExportBtn" aria-label="Export logs" title="Export logs">
+                <i class="bi bi-download" aria-hidden="true"></i>
+              </button>
               <label class="form-label mb-0 text-muted small" for="logsPageSize">Per page</label>
               <input class="form-control form-control-sm" type="number" id="logsPageSize" aria-label="Logs page size" value="25" min="5" max="200" step="5" style="width: 90px" />
             </div>

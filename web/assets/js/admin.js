@@ -75,6 +75,7 @@
     logsClearSearchBtn: document.getElementById('logsClearSearchBtn'),
     logsApplyFiltersBtn: document.getElementById('logsApplyFiltersBtn'),
     logsResetFiltersBtn: document.getElementById('logsResetFiltersBtn'),
+    logsExportBtn: document.getElementById('logsExportBtn'),
     logsDetailModal: document.getElementById('logsDetailModal'),
     logsDetailContent: document.getElementById('logsDetailContent'),
     logsDetailAlert: document.getElementById('logsDetailAlert'),
@@ -298,6 +299,7 @@
     emailHistoryHasNext: false,
     emailHistoryTotal: 0,
     emailHistoryLoaded: false,
+    devFeaturesTestSignature: null,
     siteStatsLoaded: false,
     dataViewerTables: [],
     dataViewerLoaded: false,
@@ -1221,7 +1223,7 @@
     }
   }
 
-  function openEditUserModal(userId) {
+  function openEditUserModal(userId, { fromUserDetails = false } = {}) {
     const user = state.users.find((u) => u.id === userId);
     if (!user) return;
     state.currentEditingUser = user;
@@ -1241,6 +1243,10 @@
     dom.editEmailHelp.textContent = '';
     toggleSubmit(dom.editUserSubmit, false);
     validateEditUserForm();
+    if (fromUserDetails && window.modalStack && dom.userDetailsModal?.classList.contains('show')) {
+      window.modalStack.push('userDetailsModal', 'editUserModal');
+      return;
+    }
     const instance = bootstrap.Modal.getOrCreateInstance(dom.editUserModal);
     instance.show();
   }
@@ -1504,8 +1510,12 @@
     dom.confirmActionEmailHelp.textContent = '';
     dom.confirmActionInputHelp.textContent = '';
     toggleSubmit(dom.confirmActionSubmit, !state.confirmActionConfig.confirmText && !state.confirmActionConfig.reasonRequired && !state.confirmActionConfig.emailRequired);
-    const instance = bootstrap.Modal.getOrCreateInstance(dom.confirmActionModal);
-    instance.show();
+    if (state.confirmActionConfig.fromUserDetails && window.modalStack && dom.userDetailsModal?.classList.contains('show')) {
+      window.modalStack.push('userDetailsModal', 'confirmActionModal');
+    } else {
+      const instance = bootstrap.Modal.getOrCreateInstance(dom.confirmActionModal);
+      instance.show();
+    }
     validateConfirmAction();
     checkConfirmEmailPreferences();
   }
@@ -1639,14 +1649,18 @@
     }
   }
 
-  async function openSessionsModal(userId) {
+  async function openSessionsModal(userId, { fromUserDetails = false } = {}) {
     const user = state.users.find((u) => u.id === userId);
     if (!user) return;
     state.sessionsUser = user;
     dom.sessionsModalTitle.textContent = `Sessions · ${user.email || user.fullName || user.id}`;
     dom.sessionsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading sessions…</td></tr>';
     hideAlert(dom.sessionsAlert);
-    bootstrap.Modal.getOrCreateInstance(dom.sessionsModal).show();
+    if (fromUserDetails && window.modalStack && dom.userDetailsModal?.classList.contains('show')) {
+      window.modalStack.push('userDetailsModal', 'sessionsModal');
+    } else {
+      bootstrap.Modal.getOrCreateInstance(dom.sessionsModal).show();
+    }
     await loadSessions(userId);
   }
 
@@ -2069,6 +2083,28 @@
     };
   }
 
+  function hasActiveLogFilters(filters) {
+    if (!filters) return false;
+    const hasStatusRange = Number.isFinite(filters.statusMin) || Number.isFinite(filters.statusMax);
+    return Boolean(
+      filters.search
+      || filters.type
+      || filters.level
+      || filters.status
+      || filters.method
+      || filters.actorType
+      || filters.path
+      || Number.isFinite(filters.userId)
+      || filters.userEmail
+      || Number.isFinite(filters.apiKeyId)
+      || filters.apiKeyLabel
+      || filters.apiKeyPrefix
+      || hasStatusRange
+      || filters.startDate
+      || filters.endDate
+    );
+  }
+
   function renderLogBadge(value, type) {
     if (!value) return '—';
     const normalized = String(value).toUpperCase();
@@ -2170,7 +2206,8 @@
     const limit = state.logsLimit;
 
     try {
-      log('[Admin][Logs] Fetch logs', { page: state.logsPage, limit, filters, mode: 'search' });
+      const useSearch = hasActiveLogFilters(filters);
+      log('[Admin][Logs] Fetch logs', { page: state.logsPage, limit, filters, mode: useSearch ? 'search' : 'list' });
       const body = {
         search: filters.search || undefined,
         category: filters.type || undefined,
@@ -2192,7 +2229,10 @@
         limit,
         offset
       };
-      const response = await apiFetch('/logs/search', { method: 'POST', body });
+      const endpoint = useSearch
+        ? '/logs/search'
+        : `/logs?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}&sortBy=${encodeURIComponent(filters.sortBy || 'logged_at')}&order=${encodeURIComponent(filters.order || 'desc')}`;
+      const response = await apiFetch(endpoint, useSearch ? { method: 'POST', body } : { method: 'GET' });
       const payload = await parseResponse(response);
 
       const logs = Array.isArray(payload?.logs) ? payload.logs : [];
@@ -2222,6 +2262,70 @@
       }
       dom.logsTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Unable to load logs.</td></tr>';
       throw err;
+    }
+  }
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportLogs() {
+    hideAlert(dom.logsAlert);
+    const filters = getLogFilters();
+    const body = {
+      search: filters.search || undefined,
+      category: filters.type || undefined,
+      level: filters.level || undefined,
+      sortBy: filters.sortBy || undefined,
+      order: filters.order || undefined,
+      method: filters.method || undefined,
+      actorType: filters.actorType || undefined,
+      path: filters.path || undefined,
+      userId: Number.isFinite(filters.userId) ? filters.userId : undefined,
+      userEmail: filters.userEmail || undefined,
+      apiKeyId: Number.isFinite(filters.apiKeyId) ? filters.apiKeyId : undefined,
+      apiKeyLabel: filters.apiKeyLabel || undefined,
+      apiKeyPrefix: filters.apiKeyPrefix || undefined,
+      statusCodeMin: Number.isFinite(filters.statusMin) ? filters.statusMin : (filters.status || undefined),
+      statusCodeMax: Number.isFinite(filters.statusMax) ? filters.statusMax : (filters.status || undefined),
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      format: 'csv'
+    };
+    try {
+      const response = await apiFetch('/logs/export', { method: 'POST', body });
+      if (!response.ok) {
+        await parseResponse(response);
+        return;
+      }
+      const contentType = response.headers.get('content-type') || '';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      if (contentType.includes('text/csv')) {
+        const csvBlob = await response.blob();
+        triggerDownload(csvBlob, `logs-export-${timestamp}.csv`);
+        return;
+      }
+      const data = await response.json().catch(() => ({}));
+      if (data?.configured === false) {
+        showAlert(dom.logsAlert, data?.message || 'Logs are not configured for this environment.');
+        return;
+      }
+      const jsonBlob = new Blob([JSON.stringify(data?.logs || [], null, 2)], { type: 'application/json' });
+      triggerDownload(jsonBlob, `logs-export-${timestamp}.json`);
+    } catch (err) {
+      errorLog('[Admin][Logs] Export failed', err);
+      if (err?.isNetworkError) {
+        showAlert(dom.logsAlert, 'Network or CORS error. Unable to export logs.');
+      } else {
+        showApiError(dom.logsAlert, err);
+      }
     }
   }
 
@@ -2301,10 +2405,8 @@
     if (dom.logsDateTo) dom.logsDateTo.value = '';
   }
 
-  function openLogDetail(index) {
-    const logEntry = state.logs[index];
-    if (!logEntry || !dom.logsDetailContent) return;
-    state.currentLogDetail = logEntry;
+  function renderLogDetailContent(logEntry) {
+    if (!dom.logsDetailContent) return;
     dom.logsDetailAlert?.classList.add('d-none');
     dom.logsDetailContent.innerHTML = '';
     dom.logsDetailTitle.textContent = `Log · ${formatDateTime(logEntry.logged_at)}`;
@@ -2352,6 +2454,26 @@
 
     dom.logsDetailContent.innerHTML = fragments;
     bootstrap.Modal.getOrCreateInstance(dom.logsDetailModal).show();
+  }
+
+  async function openLogDetail(index) {
+    const logEntry = state.logs[index];
+    if (!logEntry || !dom.logsDetailContent) return;
+    state.currentLogDetail = logEntry;
+    if (Number.isInteger(logEntry.id)) {
+      try {
+        const response = await apiFetch(`/logs/${logEntry.id}`, { method: 'GET' });
+        const data = await parseResponse(response);
+        if (data?.log) {
+          state.currentLogDetail = data.log;
+          renderLogDetailContent(data.log);
+          return;
+        }
+      } catch (err) {
+        showApiError(dom.logsDetailAlert, err);
+      }
+    }
+    renderLogDetailContent(logEntry);
   }
 
   async function copyLogRequest() {
@@ -3323,12 +3445,12 @@
     if (!user) return;
 
     if (action === 'edit-user') {
-      openEditUserModal(userId);
+      openEditUserModal(userId, { fromUserDetails: true });
       return;
     }
 
     if (action === 'view-sessions') {
-      openSessionsModal(userId);
+      openSessionsModal(userId, { fromUserDetails: true });
       return;
     }
 
@@ -3347,6 +3469,7 @@
         impact: 'User will be marked as verified and notified by email.',
         willNotify: true,
         emailType: 'admin_email_verified',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/verify',
@@ -3369,6 +3492,7 @@
         impact: 'User will be marked as unverified and notified by email.',
         willNotify: true,
         emailType: 'admin_email_unverified',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/unverify',
@@ -3396,6 +3520,7 @@
         impact: 'This user will remain unverified until they verify via the link in the email.',
         willNotify: true,
         emailType: 'verification',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/send-verification',
@@ -3430,6 +3555,7 @@
         impact: 'User will receive a password reset link via email (default 30 minutes expiry).',
         willNotify: true,
         emailType: 'password_reset',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/reset-password',
@@ -3460,6 +3586,7 @@
         impact: isDisabled ? 'Account will be restored and login allowed. A notification email will be sent.' : 'Account will be disabled and active sessions revoked. A notification email will be sent.',
         willNotify: true,
         emailType: isDisabled ? 'admin_account_enabled' : 'admin_account_disabled',
+        fromUserDetails: true,
         destructive: !isDisabled,
         confirmText: isDisabled ? '' : 'DISABLE',
         user,
@@ -3482,6 +3609,7 @@
         impact: 'All refresh tokens will be revoked. The user must sign in again on every device.',
         destructive: true,
         confirmText: 'LOGOUT',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/force-logout',
@@ -3500,6 +3628,7 @@
         impact: 'All API keys for this user will be revoked. A notification email will be sent.',
         willNotify: true,
         emailType: 'api_key_revoked',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/api-keys/revoke',
@@ -3522,6 +3651,7 @@
         impact: 'API key creation will be allowed again. A notification email will be sent.',
         willNotify: true,
         emailType: 'api_key_ban_removed',
+        fromUserDetails: true,
         user,
         userId,
         url: '/admin/users/api-key-unban',
@@ -3543,6 +3673,7 @@
         impact: 'An email will be sent to the recipient. No profile fields will change.',
         willNotify: true,
         emailType: 'usage_warning_api_key',
+        fromUserDetails: true,
         user,
         userId,
         url: `/admin/users/${userId}/usage-warning-api-key`,
@@ -3597,6 +3728,10 @@
     });
   }
 
+  function buildDevFeaturesSignature(subject, body) {
+    return `${String(subject || '').trim()}::${String(body || '').trim()}`;
+  }
+
   function validateDevEmailForm({ requireRecipient = false } = {}) {
     const subject = dom.devEmailSubject?.value.trim() || '';
     const body = dom.devEmailBody?.value.trim() || '';
@@ -3612,7 +3747,12 @@
     const validBase = !subjectError && !bodyError;
     const recipientOk = !recipientError && !!recipient;
     if (dom.devEmailTestBtn) dom.devEmailTestBtn.disabled = !validBase || !recipientOk;
-    if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase;
+    const signature = buildDevFeaturesSignature(subject, body);
+    const hasTest = Boolean(state.devFeaturesTestSignature) && state.devFeaturesTestSignature === signature;
+    if (dom.devEmailSendBtn) dom.devEmailSendBtn.disabled = !validBase || !hasTest;
+    if (dom.devEmailStatus && validBase) {
+      dom.devEmailStatus.textContent = hasTest ? 'Test queued' : 'Send a test email to enable bulk send.';
+    }
     scheduleDevEmailPreview(body);
     return { valid: validBase && (!requireRecipient || recipientOk), subject, body, recipient };
   }
@@ -3641,8 +3781,10 @@
       successTarget: 'emails',
       successMessage: `Test email queued for ${recipient}.`,
       afterSuccess: () => {
+        state.devFeaturesTestSignature = buildDevFeaturesSignature(subject, body);
         if (dom.devEmailSummary) dom.devEmailSummary.textContent = `Last test queued for ${recipient}.`;
         if (dom.devEmailStatus) dom.devEmailStatus.textContent = 'Test queued';
+        validateDevEmailForm();
       }
     });
   }
@@ -4187,6 +4329,15 @@
     dom.editEmail?.addEventListener('input', handleEditUserInput);
     dom.editRole?.addEventListener('change', handleEditUserInput);
     dom.editUserSubmit?.addEventListener('click', submitEditUser);
+    dom.editUserModal?.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('editUserModal');
+    });
+    dom.sessionsModal?.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('sessionsModal');
+    });
+    dom.confirmActionModal?.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('confirmActionModal');
+    });
 
     dom.openCreateLanguageBtn?.addEventListener('click', () => openLanguageModal('create'));
     dom.openCreateLanguageBtnSecondary?.addEventListener('click', () => openLanguageModal('create'));
@@ -4243,6 +4394,9 @@
     });
     dom.logsRefreshBtn?.addEventListener('click', () => {
       runLogsFetch();
+    });
+    dom.logsExportBtn?.addEventListener('click', () => {
+      exportLogs().catch(() => {});
     });
     dom.logsPageSize?.addEventListener('change', () => {
       const next = Number.parseInt(dom.logsPageSize.value, 10);

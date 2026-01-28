@@ -52,6 +52,7 @@ Applies to any modal that accepts user input, performs a server action, or confi
   - When invalid: add "is-invalid" to the input/select/textarea; show error help text.
   - When valid and non-empty: add "is-valid" (optional if the UI already avoids green validation); clear error help.
   - When empty and optional: no validation classes, neutral guidance only.
+- Never include green fields or checkmarks for valid fields in modals. If the field is valid, no visual indication is needed, and the help text should absent (empty).
 
 2) Primary action enable/disable rules
 - Primary action is disabled until:

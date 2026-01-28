@@ -350,7 +350,7 @@ const adminUsageUsersHandler = async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	const windowStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+	const windowStart = startDate || new Date(Date.now() - USAGE_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 	const windowEnd = endDate || new Date().toISOString();
 	const sortBy = normalizeText(params.sortBy) || "usageScore";
 	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
@@ -420,10 +420,8 @@ const adminUsageUsersHandler = async (req, res) => {
 			return successResponse(res, 200, "User usage retrieved successfully.", cached.data);
 		}
 
-		// Usage score: capped 0-100 for the selected window (cost_units weight; fallback to request count).
-		const usageScoreSelect = hasCostUnits
-			? "LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int AS usage_score"
-			: "LEAST(100, COUNT(*))::int AS usage_score";
+		// Usage score: capped 0-100 with log10 scaling over the 30-day window (cost_units preferred; fallback to request count).
+		const usageScoreSelect = `${buildUsageScoreExpression(hasCostUnits)} AS usage_score`;
 
 		const usageResult = await pool.query(
 			`SELECT l.user_id,
@@ -520,7 +518,7 @@ const adminUsageApiKeysHandler = async (req, res) => {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	const windowStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+	const windowStart = startDate || new Date(Date.now() - USAGE_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 	const windowEnd = endDate || new Date().toISOString();
 	const sortBy = normalizeText(params.sortBy) || "usageScore";
 	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
@@ -600,10 +598,8 @@ const adminUsageApiKeysHandler = async (req, res) => {
 			return successResponse(res, 200, "API key usage retrieved successfully.", cached.data);
 		}
 
-		// Usage score: capped 0-100 for the selected window (cost_units weight; fallback to request count).
-		const usageScoreSelect = hasCostUnits
-			? "LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int AS usage_score"
-			: "LEAST(100, COUNT(*))::int AS usage_score";
+		// Usage score: capped 0-100 with log10 scaling over the 30-day window (cost_units preferred; fallback to request count).
+		const usageScoreSelect = `${buildUsageScoreExpression(hasCostUnits)} AS usage_score`;
 
 		const usageResult = await pool.query(
 			`SELECT l.api_key_id,
@@ -701,6 +697,13 @@ const USAGE_LEVEL_THRESHOLDS = [
 	{ label: "High", min: 70, max: 89 },
 	{ label: "Very High", min: 90, max: 100 }
 ];
+const USAGE_SCORE_REFERENCE = 5000;
+const USAGE_SCORE_WINDOW_DAYS = 30;
+
+function buildUsageScoreExpression(hasCostUnits, reference = USAGE_SCORE_REFERENCE) {
+	const metric = hasCostUnits ? "COALESCE(SUM(l.cost_units), COUNT(*))" : "COUNT(*)";
+	return `LEAST(100, ROUND(100 * LOG(10, 1 + ${metric}) / LOG(10, 1 + ${reference})))::int`;
+}
 // This list should mirror api/database-tables.txt (sanitized, read-only).
 const DATA_VIEWER_TABLES = [
 	{
@@ -2505,11 +2508,9 @@ const adminUsersListHandler = async (req, res) => {
 	const usageLastSeenSelect = hasTable
 		? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen"
 		: "NULL AS usage_last_seen";
-	// Usage score (0-100) uses 30-day request_logs activity. cost_units are computed per request (endpoint/duration/size).
+	// Usage score (0-100) uses 30-day request_logs activity with log scaling; cost_units preferred when available.
 	const usageScoreSelect = hasTable
-		? (hasCostUnits
-			? "(SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
-			: "(SELECT LEAST(100, COUNT(*)::int) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score")
+		? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
 		: "0::int AS usage_score";
 	const apiKeyActiveSelect = hasUserApiKeys
 		? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
@@ -2609,9 +2610,7 @@ router.get("/users", adminAuth, async (req, res) => {
 				? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen"
 				: "NULL AS usage_last_seen";
 			const usageScoreSelect = hasTable
-				? (hasCostUnits
-					? "(SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score"
-					: "(SELECT LEAST(100, COUNT(*)::int) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score")
+				? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
 				: "0::int AS usage_score";
 			const apiKeyActiveSelect = hasUserApiKeys
 				? "(SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count"
@@ -2826,6 +2825,14 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 	const nameOnly = parseBooleanFlag(req.query.nameOnly ?? req.body?.nameOnly) ?? false;
 
 	try {
+		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+		const usageLastSeenSelect = hasTable
+			? "(SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen"
+			: "NULL AS usage_last_seen";
+		const usageScoreSelect = hasTable
+			? `(SELECT ${buildUsageScoreExpression(hasCostUnits)} FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '${USAGE_SCORE_WINDOW_DAYS} days') AS usage_score`
+			: "0::int AS usage_score";
+
 		const result = await pool.query(
 			`SELECT u.id, u.email, u.full_name, u.preferred_name, u.role, u.is_verified, u.is_disabled,
 			        u.password_updated, u.last_login, u.created_at, u.updated_at,
@@ -2833,8 +2840,8 @@ router.get("/users/:id", adminAuth, async (req, res) => {
 			        u.email_pref_account_updates, u.email_pref_dev_features,
 			        (SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl WHERE bl.user_id = u.id) AS language_count,
 			        (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.deleted_at IS NULL) AS library_size,
-			        (SELECT MAX(l.logged_at) FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key')) AS usage_last_seen,
-			        (SELECT LEAST(100, COALESCE(SUM(l.cost_units), COUNT(*)))::int FROM request_logs l WHERE l.user_id = u.id AND l.actor_type IN ('user', 'api_key') AND l.logged_at >= NOW() - INTERVAL '30 days') AS usage_score,
+			        ${usageLastSeenSelect},
+			        ${usageScoreSelect},
 			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > NOW())) AS api_key_active_count,
 			        (SELECT COUNT(*)::int FROM user_api_keys k WHERE k.user_id = u.id AND k.revoked_at IS NOT NULL) AS api_key_revoked_count,
 			        COALESCE((SELECT json_agg(provider) FROM oauth_accounts WHERE user_id = u.id), '[]'::json) AS oauth_providers
