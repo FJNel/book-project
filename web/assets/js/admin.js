@@ -469,6 +469,18 @@
     el.classList.remove('d-none');
   }
 
+  function showUsersError(message) {
+    if (!dom.usersAlert) return;
+    const safeMessage = escapeHtml(message || 'Unable to load users.');
+    dom.usersAlert.innerHTML = `
+      <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-2">
+        <div>${safeMessage}</div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-users-retry>Retry loading users</button>
+      </div>
+    `;
+    dom.usersAlert.classList.remove('d-none');
+  }
+
   function hideAlert(el) {
     if (!el) return;
     el.classList.add('d-none');
@@ -527,7 +539,7 @@
     }
 
     if (response.status === 401) {
-      if (typeof window.showSessionExpiredModal === 'function') {
+      if (!response._authRetry && typeof window.showSessionExpiredModal === 'function') {
         window.showSessionExpiredModal();
       }
       const authErr = new Error('Not authorized');
@@ -1013,9 +1025,9 @@
     } catch (err) {
       errorLog('Failed to fetch users', err);
       if (err?.isNetworkError) {
-        showAlert(dom.usersAlert, 'Network or CORS error. Unable to load users.');
+        showUsersError('Network or CORS error. Unable to load users.');
       } else {
-        showAlert(dom.usersAlert, err.message || 'Unable to load users.');
+        showUsersError(err.message || 'Unable to load users.');
       }
       if (dom.usersTbody) {
         dom.usersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Unable to load users.</td></tr>';
@@ -4713,6 +4725,13 @@
     });
     dom.confirmActionModal?.addEventListener('hidden.bs.modal', () => {
       window.modalStack?.pop('confirmActionModal');
+    });
+
+    dom.usersAlert?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-users-retry]');
+      if (!btn) return;
+      hideAlert(dom.usersAlert);
+      fetchUsers(getUserFilters()).catch(() => {});
     });
 
     dom.openCreateLanguageBtn?.addEventListener('click', () => openLanguageModal('create'));

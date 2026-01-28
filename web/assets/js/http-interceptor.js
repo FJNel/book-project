@@ -358,7 +358,7 @@ async function apiFetch(path, options = {}) {
 		//Retry the original request with the new access token
 		try {
 			response = await fetch(url.href, {
-				...options,
+				...prepared,
 				headers,
 			});
 		} catch (error) {
@@ -368,6 +368,7 @@ async function apiFetch(path, options = {}) {
 		}
 
 		console.log('[HTTP Interceptor] Retried request response:', response);
+		response._authRetry = true;
 		if (response.status === 401) {
 			console.warn('[HTTP Interceptor] Retried request still unauthorized. Returning response.');
 		}

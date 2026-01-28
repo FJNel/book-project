@@ -61,6 +61,7 @@ const corsOptions = {
 	optionsSuccessStatus: config.cors.optionsSuccessStatus,
 };
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 //Serve static documentation in the "public" folder
 app.use(express.static("public"));
