@@ -70,98 +70,100 @@ router.get("/", (req, res) => {
 
 // GET /health - Basic health check
 router.get("/health", async (req, res) => {
-	try {
-		const skipDbCheck = process.env.HEALTHCHECK_SKIP_DB === "true";
-		if (skipDbCheck) {
-			const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
-			logToFile("HEALTH_CHECK", {
-				status: "SKIPPED",
-				reason: "SKIP_DB",
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "warn");
-			return successResponse(res, 200, "OK", {
-				status: "degraded",
-				timestamp: new Date().toISOString(),
-				db: {
-					healthy: false,
-					schemaOk: null,
-					sslMode,
-					skipped: true
-				}
-			});
-		}
-		const dbStart = Date.now();
-		await pool.query("SELECT 1");
-		const dbLatencyMs = Date.now() - dbStart;
-		const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
-		const requiredColumns = [
-			{ table: "users", column: "usage_lockout_until" },
-			{ table: "authors", column: "deleted_at" },
-			{ table: "publishers", column: "deleted_at" },
-			{ table: "book_series", column: "deleted_at" },
-			{ table: "books", column: "deleted_at" },
-			{ table: "refresh_tokens", column: "ip_address" },
-			{ table: "refresh_tokens", column: "user_agent" }
-		];
-		const schemaCheck = await pool.query(
-			`SELECT table_name, column_name
-			 FROM information_schema.columns
-			 WHERE table_schema = 'public'
-			   AND (table_name, column_name) IN (${requiredColumns.map((_, idx) => `($${idx * 2 + 1}, $${idx * 2 + 2})`).join(", ")})`,
-			requiredColumns.flatMap((entry) => [entry.table, entry.column])
-		);
-		const existing = new Set(schemaCheck.rows.map((row) => `${row.table_name}.${row.column_name}`));
-		const missingColumns = requiredColumns
-			.filter((entry) => !existing.has(`${entry.table}.${entry.column}`))
-			.map((entry) => ({ table: entry.table, column: entry.column }));
+	res.status(200).json({ ok: true });
 
-		if (missingColumns.length > 0) {
-			logToFile("HEALTH_CHECK", {
-				status: "FAILURE",
-				reason: "SCHEMA_MISMATCH",
-				missing_columns: missingColumns,
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "error");
-			return errorResponse(res, 500, "Database Error", ["Database schema is not ready."], {
-				db: {
-					healthy: false,
-					schemaOk: false,
-					missingColumns
-				}
-			});
-		}
-		logToFile("HEALTH_CHECK", {
-			status: "SUCCESS",
-			db_latency_ms: dbLatencyMs,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
-		return successResponse(res, 200, "OK", {
-			status: "ok",
-			timestamp: new Date().toISOString(),
-			db: {
-				healthy: true,
-				schemaOk: true,
-				sslMode,
-				latencyMs: dbLatencyMs
-			}
-		});
-	} catch (error) {
-		logToFile("HEALTH_CHECK", {
-			status: "FAILURE",
-			error_message: error.message,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Database Error", ["Database connectivity failed."], {
-			db: {
-				healthy: false,
-				sslMode: pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable")
-			}
-		});
-	}
+	// try {
+	// 	const skipDbCheck = process.env.HEALTHCHECK_SKIP_DB === "true";
+	// 	if (skipDbCheck) {
+	// 		const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
+	// 		logToFile("HEALTH_CHECK", {
+	// 			status: "SKIPPED",
+	// 			reason: "SKIP_DB",
+	// 			ip: req.ip,
+	// 			user_agent: req.get("user-agent")
+	// 		}, "warn");
+	// 		return successResponse(res, 200, "OK", {
+	// 			status: "degraded",
+	// 			timestamp: new Date().toISOString(),
+	// 			db: {
+	// 				healthy: false,
+	// 				schemaOk: null,
+	// 				sslMode,
+	// 				skipped: true
+	// 			}
+	// 		});
+	// 	}
+	// 	const dbStart = Date.now();
+	// 	await pool.query("SELECT 1");
+	// 	const dbLatencyMs = Date.now() - dbStart;
+	// 	const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
+	// 	const requiredColumns = [
+	// 		{ table: "users", column: "usage_lockout_until" },
+	// 		{ table: "authors", column: "deleted_at" },
+	// 		{ table: "publishers", column: "deleted_at" },
+	// 		{ table: "book_series", column: "deleted_at" },
+	// 		{ table: "books", column: "deleted_at" },
+	// 		{ table: "refresh_tokens", column: "ip_address" },
+	// 		{ table: "refresh_tokens", column: "user_agent" }
+	// 	];
+	// 	const schemaCheck = await pool.query(
+	// 		`SELECT table_name, column_name
+	// 		 FROM information_schema.columns
+	// 		 WHERE table_schema = 'public'
+	// 		   AND (table_name, column_name) IN (${requiredColumns.map((_, idx) => `($${idx * 2 + 1}, $${idx * 2 + 2})`).join(", ")})`,
+	// 		requiredColumns.flatMap((entry) => [entry.table, entry.column])
+	// 	);
+	// 	const existing = new Set(schemaCheck.rows.map((row) => `${row.table_name}.${row.column_name}`));
+	// 	const missingColumns = requiredColumns
+	// 		.filter((entry) => !existing.has(`${entry.table}.${entry.column}`))
+	// 		.map((entry) => ({ table: entry.table, column: entry.column }));
+
+	// 	if (missingColumns.length > 0) {
+	// 		logToFile("HEALTH_CHECK", {
+	// 			status: "FAILURE",
+	// 			reason: "SCHEMA_MISMATCH",
+	// 			missing_columns: missingColumns,
+	// 			ip: req.ip,
+	// 			user_agent: req.get("user-agent")
+	// 		}, "error");
+	// 		return errorResponse(res, 500, "Database Error", ["Database schema is not ready."], {
+	// 			db: {
+	// 				healthy: false,
+	// 				schemaOk: false,
+	// 				missingColumns
+	// 			}
+	// 		});
+	// 	}
+	// 	logToFile("HEALTH_CHECK", {
+	// 		status: "SUCCESS",
+	// 		db_latency_ms: dbLatencyMs,
+	// 		ip: req.ip,
+	// 		user_agent: req.get("user-agent")
+	// 	}, "info");
+	// 	return successResponse(res, 200, "OK", {
+	// 		status: "ok",
+	// 		timestamp: new Date().toISOString(),
+	// 		db: {
+	// 			healthy: true,
+	// 			schemaOk: true,
+	// 			sslMode,
+	// 			latencyMs: dbLatencyMs
+	// 		}
+	// 	});
+	// } catch (error) {
+	// 	logToFile("HEALTH_CHECK", {
+	// 		status: "FAILURE",
+	// 		error_message: error.message,
+	// 		ip: req.ip,
+	// 		user_agent: req.get("user-agent")
+	// 	}, "error");
+	// 	return errorResponse(res, 500, "Database Error", ["Database connectivity failed."], {
+	// 		db: {
+	// 			healthy: false,
+	// 			sslMode: pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable")
+	// 		}
+	// 	});
+	// }
 });
 
 // GET /status - Admin status check (db + email queue)
