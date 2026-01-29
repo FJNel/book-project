@@ -78,59 +78,59 @@ router.get("/health", async (req, res) => {
 		res.status(status).json(payload);
 	};
 	const t = setTimeout(() => {
-		logToFile("HEALTH_CHECK", {
-			status: "TIMEOUT",
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "warn");
+		// logToFile("HEALTH_CHECK", {
+		// 	status: "TIMEOUT",
+		// 	ip: req.ip,
+		// 	user_agent: req.get("user-agent")
+		// }, "warn");
 		respondOnce(503, { ok: false, error: "Health check timed out" });
 	}, timeoutMs);
 
 	try {
-		logToFile("HEALTH_CHECK", {
-			status: "START",
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
+		// logToFile("HEALTH_CHECK", {
+		// 	status: "START",
+		// 	ip: req.ip,
+		// 	user_agent: req.get("user-agent")
+		// }, "info");
 		const skipDbCheck = process.env.HEALTHCHECK_SKIP_DB === "true";
 		if (!skipDbCheck) {
-			logToFile("HEALTH_CHECK", {
-				status: "DB_START",
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "info");
+			// logToFile("HEALTH_CHECK", {
+			// 	status: "DB_START",
+			// 	ip: req.ip,
+			// 	user_agent: req.get("user-agent")
+			// }, "info");
 			const dbStart = Date.now();
 			await Promise.race([
 				pool.query("SELECT 1"),
 				new Promise((_, reject) => setTimeout(() => reject(new Error("DB timeout")), 1500))
 			]);
-			logToFile("HEALTH_CHECK", {
-				status: "DB_END",
-				db_latency_ms: Date.now() - dbStart,
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "info");
+			// logToFile("HEALTH_CHECK", {
+			// 	status: "DB_END",
+			// 	db_latency_ms: Date.now() - dbStart,
+			// 	ip: req.ip,
+			// 	user_agent: req.get("user-agent")
+			// }, "info");
 		} else {
-			logToFile("HEALTH_CHECK", {
-				status: "DB_SKIPPED",
-				reason: "SKIP_DB",
-				ip: req.ip,
-				user_agent: req.get("user-agent")
-			}, "warn");
+			// logToFile("HEALTH_CHECK", {
+			// 	status: "DB_SKIPPED",
+			// 	reason: "SKIP_DB",
+			// 	ip: req.ip,
+			// 	user_agent: req.get("user-agent")
+			// }, "warn");
 		}
-		logToFile("HEALTH_CHECK", {
-			status: "SUCCESS",
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "info");
+		// logToFile("HEALTH_CHECK", {
+		// 	status: "SUCCESS",
+		// 	ip: req.ip,
+		// 	user_agent: req.get("user-agent")
+		// }, "info");
 		respondOnce(200, { ok: true });
 	} catch (error) {
-		logToFile("HEALTH_CHECK", {
-			status: "FAILURE",
-			error_message: error.message,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
+		// logToFile("HEALTH_CHECK", {
+		// 	status: "FAILURE",
+		// 	error_message: error.message,
+		// 	ip: req.ip,
+		// 	user_agent: req.get("user-agent")
+		// }, "error");
 		respondOnce(500, { ok: false, error: "Health check failed" });
 	} finally {
 		clearTimeout(t);
