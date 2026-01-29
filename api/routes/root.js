@@ -71,21 +71,16 @@ router.get("/", (req, res) => {
 // GET /health - Basic health check
 router.get("/health", async (req, res) => {
 	req._debugStage = 'health:start';
-	res.setHeader("content-type", "application/json");
-	const stamp = (label) => {
-		req._debugStage = label;
-		console.error("[HEALTH_STAGE]", label);
-	};
 	const timeoutMs = 2500;
 	let responded = false;
 	const respondOnce = (status, payload) => {
 		if (responded) return;
 		responded = true;
 		req._debugStage = 'health:respond';
-		return res.status(status).end(JSON.stringify(payload));
+		return res.status(status).json(payload);
 	};
 	const t = setTimeout(() => {
-		stamp('health:timeout');
+		req._debugStage = 'health:timeout';
 		// logToFile("HEALTH_CHECK", {
 		// 	status: "TIMEOUT",
 		// 	ip: req.ip,
@@ -95,16 +90,16 @@ router.get("/health", async (req, res) => {
 	}, timeoutMs);
 
 	try {
-		stamp('health:log:start');
+		req._debugStage = 'health:log:start';
 		// logToFile("HEALTH_CHECK", {
 		// 	status: "START",
 		// 	ip: req.ip,
 		// 	user_agent: req.get("user-agent")
 		// }, "info");
-		stamp('health:log:end');
+		req._debugStage = 'health:log:end';
 		const skipDbCheck = process.env.HEALTHCHECK_SKIP_DB === "true";
 		if (!skipDbCheck) {
-			stamp('health:db:start');
+			req._debugStage = 'health:db:start';
 			// logToFile("HEALTH_CHECK", {
 			// 	status: "DB_START",
 			// 	ip: req.ip,
@@ -115,7 +110,7 @@ router.get("/health", async (req, res) => {
 				pool.query("SELECT 1"),
 				new Promise((_, reject) => setTimeout(() => reject(new Error("DB timeout")), 1500))
 			]);
-			stamp('health:db:end');
+			req._debugStage = 'health:db:end';
 			// logToFile("HEALTH_CHECK", {
 			// 	status: "DB_END",
 			// 	db_latency_ms: Date.now() - dbStart,
@@ -123,7 +118,7 @@ router.get("/health", async (req, res) => {
 			// 	user_agent: req.get("user-agent")
 			// }, "info");
 		} else {
-			stamp('health:db:skipped');
+			req._debugStage = 'health:db:skipped';
 			// logToFile("HEALTH_CHECK", {
 			// 	status: "DB_SKIPPED",
 			// 	reason: "SKIP_DB",
@@ -131,7 +126,7 @@ router.get("/health", async (req, res) => {
 			// 	user_agent: req.get("user-agent")
 			// }, "warn");
 		}
-		stamp('health:success');
+		req._debugStage = 'health:success';
 		// logToFile("HEALTH_CHECK", {
 		// 	status: "SUCCESS",
 		// 	ip: req.ip,
@@ -139,8 +134,7 @@ router.get("/health", async (req, res) => {
 		// }, "info");
 		respondOnce(200, { ok: true });
 	} catch (error) {
-		stamp('health:error');
-		console.error(error);
+		req._debugStage = 'health:error';
 		// logToFile("HEALTH_CHECK", {
 		// 	status: "FAILURE",
 		// 	error_message: error.message,
@@ -149,7 +143,6 @@ router.get("/health", async (req, res) => {
 		// }, "error");
 		respondOnce(500, { ok: false, error: "Health check failed" });
 	} finally {
-		stamp('health:finally');
 		clearTimeout(t);
 	}
 });
