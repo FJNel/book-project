@@ -192,7 +192,7 @@
 
 const API_BASE_URL = 'https://api.fjnel.co.za/';
 const DEBUG_HTTP = Boolean(window.DEBUG_HTTP || window.DEBUG_MODAL_LOCKS);
-const ADMIN_VIEW_STORAGE_KEY = 'adminViewContext';
+const ADMIN_VIEW_STORAGE_KEY_LOCAL = window.ADMIN_VIEW_STORAGE_KEY || 'adminViewContext';
 
 // A list of public paths that do not require an Authorization header.
 const PUBLIC_PATHS = [
@@ -245,7 +245,7 @@ const READ_ONLY_POST_SUFFIXES = [
 
 function parseStoredContext() {
 	try {
-		const raw = sessionStorage.getItem(ADMIN_VIEW_STORAGE_KEY);
+		const raw = sessionStorage.getItem(ADMIN_VIEW_STORAGE_KEY_LOCAL);
 		if (!raw) return null;
 		const parsed = JSON.parse(raw);
 		if (!parsed || !Number.isInteger(Number(parsed.userId))) return null;
