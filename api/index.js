@@ -6,9 +6,8 @@ process.exit = (code = 0) => {
 	_exit(code);
 };
 
-const exitCodeDescriptor = Object.getOwnPropertyDescriptor(process, "exitCode");
-const _setExitCode = exitCodeDescriptor?.set;
-if (_setExitCode && exitCodeDescriptor?.configurable) {
+const _setExitCode = Object.getOwnPropertyDescriptor(process, "exitCode")?.set;
+if (_setExitCode) {
 	Object.defineProperty(process, "exitCode", {
 		set(v) {
 			console.error(new Error(`process.exitCode set to ${v}`).stack);
