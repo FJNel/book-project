@@ -129,38 +129,6 @@ const swaggerUiOptions = {
 app.use("/docs", setStage('route:/docs'), swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 //Routes
-app.use((req, res, next) => {
-	req._debugStage = 'routes';
-	next();
-});
-app.use("/", rootRoute);
-app.use("/users", userRoutes);
-app.use("/auth", authRoutes);
-app.use("/temp", tempRoutes);
-app.use("/booktype", bookTypeRoutes);
-app.use("/author", authorRoutes);
-app.use("/publisher", publisherRoutes);
-app.use("/bookseries", bookSeriesRoutes);
-app.use("/bookseriesbooks", bookSeriesBooksRoutes);
-app.use("/bookauthor", bookAuthorRoutes);
-app.use("/languages", languageRoutes);
-app.use("/book", bookRoutes);
-app.use("/books", bookRoutes);
-app.use("/storagelocation", storageLocationRoutes);
-app.use("/bookcopy", bookCopyRoutes);
-app.use("/tags", tagRoutes);
-app.use("/booktags", bookTagRoutes);
-app.use("/timeline", timelineRoutes);
-app.use("/admin", adminRoutes);
-app.use("/search", searchRoutes);
-app.use("/", importExportRoutes);
-app.use("/logs", logRoutes);
-app.use("/authors", authorRoutes);
-app.use("/publishers", publisherRoutes);
-app.use("/bookauthors", bookAuthorRoutes);
-app.use("/seriesbooks", bookSeriesBooksRoutes);
-
-//Routes
 app.use(setStage('routes'));
 app.use("/", setStage('route:/'), rootRoute);
 app.use("/users", setStage('route:/users'), userRoutes);
@@ -188,6 +156,41 @@ app.use("/authors", setStage('route:/authors'), authorRoutes);
 app.use("/publishers", setStage('route:/publishers'), publisherRoutes);
 app.use("/bookauthors", setStage('route:/bookauthors'), bookAuthorRoutes);
 app.use("/seriesbooks", setStage('route:/seriesbooks'), bookSeriesBooksRoutes);
+
+//404 Handler
+app.use((req, res) => {
+	req._debugStage = 'not-found';
+	applyCorsHeaders(req, res);
+	logToFile("ENDPOINT_NOT_FOUND", {
+		method: req.method,
+		path: req.originalUrl || req.url,
+		ip: req.ip,
+		user_agent: req.get("user-agent"),
+		user_id: (req.user && req.user.id) || null
+	}, "warn");
+	return errorResponse(
+		res,
+		404,
+		"Endpoint Not Found",
+		[
+			"Endpoint not found!",
+			"Make sure that you are also using the correct request type!"
+		]
+	);
+}); // 404 handler
+
+//Global Error Handler
+app.use((err, req, res, next) => {
+	if (res.headersSent) {
+		return next(err);
+	}
+	req._debugStage = 'error-handler';
+	applyCorsHeaders(req, res);
+	console.error(err.stack);
+	// Optionally also log unhandled errors to file
+	logToFile("UNHANDLED_ERROR", {
+		message: err.message,
+		stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
 		method: req.method,
 		path: req.originalUrl || req.url,
 		correlation_id: req.correlationId || null
