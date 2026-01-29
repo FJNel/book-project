@@ -22,8 +22,20 @@ app.get('/__ping', (req, res) => {
 
 // Simple request logger for debugging
 app.use((req, res, next) => {
-console.log('[REQ]', req.method, req.url);
-next();
+	console.log('[REQ]', req.method, req.url);
+	next();
+});
+
+// Request hang watchdog for diagnostics
+app.use((req, res, next) => {
+	req._debugStage = 'entry';
+	const timeoutMs = Number(process.env.REQUEST_HANG_TIMEOUT_MS || 3000);
+	const timer = setTimeout(() => {
+		console.error('[HANG]', req.method, req.originalUrl || req.url, 'stage=', req._debugStage);
+	}, timeoutMs);
+	res.on('finish', () => clearTimeout(timer));
+	res.on('close', () => clearTimeout(timer));
+	next();
 });
 
   
@@ -55,21 +67,45 @@ const logRoutes = require("./routes/logs");
 app.set("trust proxy", 1);
 
 // Allow requests from other domains (CORS)
+app.use((req, res, next) => {
+	req._debugStage = 'cors';
+	next();
+});
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
 //Middleware: Security and Parsing
+app.use((req, res, next) => {
+	req._debugStage = 'helmet';
+	next();
+});
 app.use(helmet()); // Set HTTP headers for security
 
 // Attach correlation id early for request tracing
+app.use((req, res, next) => {
+	req._debugStage = 'correlation';
+	next();
+});
 app.use(attachCorrelationId);
 
 // Log all API requests to the database (sanitized + truncated)
+app.use((req, res, next) => {
+	req._debugStage = 'request-logger';
+	next();
+});
 app.use(createRequestLogger);
 
+app.use((req, res, next) => {
+	req._debugStage = 'json';
+	next();
+});
 app.use(express.json()); // Parse JSON request bodies
 
 //Serve static documentation in the "public" folder
+app.use((req, res, next) => {
+	req._debugStage = 'static';
+	next();
+});
 app.use(express.static("public"));
 
 // OpenAPI single source of truth: load YAML once (cached in prod) and serve via /openapi.yaml and /docs
@@ -106,6 +142,10 @@ const swaggerUiOptions = {
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 //Routes
+app.use((req, res, next) => {
+	req._debugStage = 'routes';
+	next();
+});
 app.use("/", rootRoute);
 app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
