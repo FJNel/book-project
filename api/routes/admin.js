@@ -81,10 +81,19 @@ function getCurrentMonthWindow() {
 	};
 }
 
-function mapMailgunAggregates(aggregates = {}) {
+function normalizeMailgunAggregateMetrics(aggregates = {}) {
+	if (!aggregates || typeof aggregates !== "object") return {};
+	if (aggregates.metrics && typeof aggregates.metrics === "object") {
+		return aggregates.metrics;
+	}
+	return aggregates;
+}
+
+function mapMailgunAggregates(rawAggregates = {}) {
+	const metrics = normalizeMailgunAggregateMetrics(rawAggregates);
 	const result = {};
 	Object.entries(MAILGUN_AGGREGATE_MAP).forEach(([key, mapped]) => {
-		const value = aggregates?.[key];
+		const value = metrics?.[key];
 		result[mapped] = Number.isFinite(value) ? Number(value) : null;
 	});
 	return result;
@@ -493,9 +502,9 @@ const mailgunMetricsSummaryHandler = async (req, res) => {
 			include_aggregates: true
 		};
 		const monthlyResponse = await postMailgunMetrics(monthlyPayload);
-		const monthlyAggregates = monthlyResponse?.aggregates || {};
-		const used = Number.isFinite(monthlyAggregates?.[MAILGUN_MONTHLY_METRIC])
-			? Number(monthlyAggregates[MAILGUN_MONTHLY_METRIC])
+		const monthlyMetrics = normalizeMailgunAggregateMetrics(monthlyResponse?.aggregates || {});
+		const used = Number.isFinite(monthlyMetrics?.[MAILGUN_MONTHLY_METRIC])
+			? Number(monthlyMetrics[MAILGUN_MONTHLY_METRIC])
 			: null;
 		const limit = Number.isFinite(config.mail.monthlySendLimit) ? config.mail.monthlySendLimit : null;
 		const limitConfigured = Number.isFinite(limit);
@@ -529,6 +538,7 @@ const mailgunMetricsSummaryHandler = async (req, res) => {
 		logToFile("ADMIN_MAILGUN_METRICS", {
 			status: "FAILURE",
 			error_message: error.message,
+			error_status: error.status || null,
 			admin_id: req.user ? req.user.id : null,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
