@@ -70,13 +70,12 @@ router.get("/", (req, res) => {
 
 // GET /health - Basic health check
 router.get("/health", async (req, res) => {
-	req._debugStage = 'health-handler';
 	const timeoutMs = 2500;
 	let responded = false;
 	const respondOnce = (status, payload) => {
 		if (responded) return;
 		responded = true;
-		return res.status(status).json(payload);
+		res.status(status).json(payload);
 	};
 	const t = setTimeout(() => {
 		// logToFile("HEALTH_CHECK", {
