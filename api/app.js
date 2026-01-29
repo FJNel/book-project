@@ -43,7 +43,7 @@ app.set("trust proxy", 1);
 
 // Allow requests from other domains (CORS)
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 //Middleware: Security and Parsing
 app.use(helmet()); // Set HTTP headers for security
