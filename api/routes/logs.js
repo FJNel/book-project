@@ -5,7 +5,6 @@ const path = require("path");
 
 const router = express.Router();
 
-const config = require("../config");
 const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth, requireRole } = require("../utils/jwt");
 const { authenticatedLimiter } = require("../utils/rate-limiters");
@@ -24,29 +23,6 @@ const LOG_SORT_FIELDS = {
 	level: "level",
 	category: "category"
 };
-
-router.use((req, res, next) => {
-	const origin = req.get("origin");
-	const allowedOrigins = config.cors.allowedOrigins || [];
-	const allowAll = allowedOrigins.includes("*");
-	if (origin && (allowAll || allowedOrigins.includes(origin))) {
-		res.setHeader("Access-Control-Allow-Origin", allowAll ? "*" : origin);
-	}
-	res.setHeader("Vary", "Origin");
-	if (config.cors.credentials) {
-		res.setHeader("Access-Control-Allow-Credentials", "true");
-	}
-	if (config.cors.methods) {
-		res.setHeader("Access-Control-Allow-Methods", config.cors.methods.join(", "));
-	}
-	if (config.cors.allowedHeaders) {
-		res.setHeader("Access-Control-Allow-Headers", config.cors.allowedHeaders.join(", "));
-	}
-	if (req.method === "OPTIONS") {
-		return res.sendStatus(config.cors.optionsSuccessStatus || 204);
-	}
-	next();
-});
 
 function listLogFiles() {
 	try {

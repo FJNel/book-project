@@ -927,7 +927,31 @@ async function showApiErrorModal() {
 	const modalElement = document.getElementById('apiErrorModal');
 	if (!modalElement) {
 		console.error('[Modal] API Error Modal element not found.');
-		return;
+		const fallbackAlert = document.getElementById('apiErrorFallbackAlert');
+		const container = document.querySelector('main') || document.body;
+		let alertElement = fallbackAlert;
+		if (!alertElement) {
+			alertElement = document.createElement('div');
+			alertElement.id = 'apiErrorFallbackAlert';
+			alertElement.className = 'alert alert-danger mt-3';
+			alertElement.setAttribute('role', 'alert');
+			const title = document.createElement('strong');
+			title.setAttribute('data-lang', 'api_error_heading');
+			title.textContent = 'API Connection Error';
+			const message = document.createElement('span');
+			message.setAttribute('data-lang', 'api_error_1');
+			message.textContent = "We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.";
+			alertElement.appendChild(title);
+			alertElement.appendChild(document.createTextNode(' '));
+			alertElement.appendChild(message);
+			if (container.firstChild) {
+				container.insertBefore(alertElement, container.firstChild);
+			} else {
+				container.appendChild(alertElement);
+			}
+		}
+		alertElement.classList.remove('d-none');
+		return Promise.resolve();
 	}
 
 	if (window.modalManager && typeof window.modalManager.showModal === 'function') {

@@ -71,6 +71,26 @@ router.get("/", (req, res) => {
 // GET /health - Basic health check
 router.get("/health", async (req, res) => {
 	try {
+		const skipDbCheck = process.env.HEALTHCHECK_SKIP_DB === "true";
+		if (skipDbCheck) {
+			const sslMode = pool.sslMode || process.env.DB_SSL_MODE || (process.env.DB_SSL === "true" ? "require" : "disable");
+			logToFile("HEALTH_CHECK", {
+				status: "SKIPPED",
+				reason: "SKIP_DB",
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return successResponse(res, 200, "OK", {
+				status: "degraded",
+				timestamp: new Date().toISOString(),
+				db: {
+					healthy: false,
+					schemaOk: null,
+					sslMode,
+					skipped: true
+				}
+			});
+		}
 		const dbStart = Date.now();
 		await pool.query("SELECT 1");
 		const dbLatencyMs = Date.now() - dbStart;
