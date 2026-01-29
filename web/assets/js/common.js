@@ -983,8 +983,7 @@ async function initializeApp() {
 
 document.addEventListener('DOMContentLoaded', initializeApp);
 
-var ADMIN_VIEW_STORAGE_KEY = window.ADMIN_VIEW_STORAGE_KEY || 'adminViewContext';
-window.ADMIN_VIEW_STORAGE_KEY = ADMIN_VIEW_STORAGE_KEY;
+const ADMIN_VIEW_STORAGE_KEY = 'adminViewContext';
 
 function parseUserProfile() {
 	try {
