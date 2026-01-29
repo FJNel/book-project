@@ -3,6 +3,11 @@ const config = require("./config");
 const { logToFile } = require("./utils/logging");
 const app = require("./app");
 
+app.use((req, res, next) => {
+	req._debugStage = 'index:post-app';
+	next();
+});
+
 //Server start
 const PORT = config.port;
 app.listen(PORT, () => {

@@ -15,6 +15,11 @@ const { corsOptions, applyCorsHeaders } = require("./utils/cors-config");
 //Start the Express app
 const app = express();
 
+const setStage = (label) => (req, res, next) => {
+	req._debugStage = label;
+	next();
+};
+
 // Health check endpoint (very top-level, no middleware)
 app.get('/__ping', (req, res) => {
 	res.status(200).send('pong');
@@ -67,45 +72,27 @@ const logRoutes = require("./routes/logs");
 app.set("trust proxy", 1);
 
 // Allow requests from other domains (CORS)
-app.use((req, res, next) => {
-	req._debugStage = 'cors';
-	next();
-});
+app.use(setStage('cors'));
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
 //Middleware: Security and Parsing
-app.use((req, res, next) => {
-	req._debugStage = 'helmet';
-	next();
-});
+app.use(setStage('helmet'));
 app.use(helmet()); // Set HTTP headers for security
 
 // Attach correlation id early for request tracing
-app.use((req, res, next) => {
-	req._debugStage = 'correlation';
-	next();
-});
+app.use(setStage('correlation'));
 app.use(attachCorrelationId);
 
 // Log all API requests to the database (sanitized + truncated)
-app.use((req, res, next) => {
-	req._debugStage = 'request-logger';
-	next();
-});
+app.use(setStage('request-logger'));
 app.use(createRequestLogger);
 
-app.use((req, res, next) => {
-	req._debugStage = 'json';
-	next();
-});
+app.use(setStage('json'));
 app.use(express.json()); // Parse JSON request bodies
 
 //Serve static documentation in the "public" folder
-app.use((req, res, next) => {
-	req._debugStage = 'static';
-	next();
-});
+app.use(setStage('static'));
 app.use(express.static("public"));
 
 // OpenAPI single source of truth: load YAML once (cached in prod) and serve via /openapi.yaml and /docs
@@ -120,7 +107,7 @@ const loadOpenApiSpec = () => {
 // Initial load; in production we keep it cached until restart
 loadOpenApiSpec();
 
-app.get("/openapi.yaml", (req, res, next) => {
+app.get("/openapi.yaml", setStage('route:/openapi.yaml'), (req, res, next) => {
 	try {
 		if (!isProduction) {
 			loadOpenApiSpec(); // keep hot-reloading in development
@@ -139,7 +126,7 @@ const swaggerUiOptions = {
 	customSiteTitle: "Book Project API Docs"
 };
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
+app.use("/docs", setStage('route:/docs'), swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 //Routes
 app.use((req, res, next) => {
@@ -173,38 +160,34 @@ app.use("/publishers", publisherRoutes);
 app.use("/bookauthors", bookAuthorRoutes);
 app.use("/seriesbooks", bookSeriesBooksRoutes);
 
-//404 Handler
-app.use((req, res) => {
-	applyCorsHeaders(req, res);
-	logToFile("ENDPOINT_NOT_FOUND", {
-		method: req.method,
-		path: req.originalUrl || req.url,
-		ip: req.ip,
-		user_agent: req.get("user-agent"),
-		user_id: (req.user && req.user.id) || null
-	}, "warn");
-	return errorResponse(
-		res,
-		404,
-		"Endpoint Not Found",
-		[
-			"Endpoint not found!",
-			"Make sure that you are also using the correct request type!"
-		]
-	);
-}); // 404 handler
-
-//Global Error Handler
-app.use((err, req, res, next) => {
-	if (res.headersSent) {
-		return next(err);
-	}
-	applyCorsHeaders(req, res);
-	console.error(err.stack);
-	// Optionally also log unhandled errors to file
-	logToFile("UNHANDLED_ERROR", {
-		message: err.message,
-		stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
+//Routes
+app.use(setStage('routes'));
+app.use("/", setStage('route:/'), rootRoute);
+app.use("/users", setStage('route:/users'), userRoutes);
+app.use("/auth", setStage('route:/auth'), authRoutes);
+app.use("/temp", setStage('route:/temp'), tempRoutes);
+app.use("/booktype", setStage('route:/booktype'), bookTypeRoutes);
+app.use("/author", setStage('route:/author'), authorRoutes);
+app.use("/publisher", setStage('route:/publisher'), publisherRoutes);
+app.use("/bookseries", setStage('route:/bookseries'), bookSeriesRoutes);
+app.use("/bookseriesbooks", setStage('route:/bookseriesbooks'), bookSeriesBooksRoutes);
+app.use("/bookauthor", setStage('route:/bookauthor'), bookAuthorRoutes);
+app.use("/languages", setStage('route:/languages'), languageRoutes);
+app.use("/book", setStage('route:/book'), bookRoutes);
+app.use("/books", setStage('route:/books'), bookRoutes);
+app.use("/storagelocation", setStage('route:/storagelocation'), storageLocationRoutes);
+app.use("/bookcopy", setStage('route:/bookcopy'), bookCopyRoutes);
+app.use("/tags", setStage('route:/tags'), tagRoutes);
+app.use("/booktags", setStage('route:/booktags'), bookTagRoutes);
+app.use("/timeline", setStage('route:/timeline'), timelineRoutes);
+app.use("/admin", setStage('route:/admin'), adminRoutes);
+app.use("/search", setStage('route:/search'), searchRoutes);
+app.use("/", setStage('route:/import-export'), importExportRoutes);
+app.use("/logs", setStage('route:/logs'), logRoutes);
+app.use("/authors", setStage('route:/authors'), authorRoutes);
+app.use("/publishers", setStage('route:/publishers'), publisherRoutes);
+app.use("/bookauthors", setStage('route:/bookauthors'), bookAuthorRoutes);
+app.use("/seriesbooks", setStage('route:/seriesbooks'), bookSeriesBooksRoutes);
 		method: req.method,
 		path: req.originalUrl || req.url,
 		correlation_id: req.correlationId || null
