@@ -1202,7 +1202,7 @@
   const renderStorageSection = async () => {
     const [storageStats, bookCopyStats] = await Promise.all([
       fetchStatsSafe('/storagelocation/stats', { fields: ['breakdownPerLocation', 'largestLocation', 'totalLocations'] }, 'storage-stats'),
-      fetchStatsSafe('/bookcopy/stats', { fields: ['storageCoverage', 'acquisitionDateCoverage', 'acquisitionMetadataCoverage'] }, 'bookcopy-stats')
+      fetchStatsSafe('/bookcopy/stats', { fields: ['totalCopies', 'storageCoverage', 'acquisitionDateCoverage', 'acquisitionMetadataCoverage'] }, 'bookcopy-stats')
     ]);
     const breakdown = Array.isArray(storageStats?.breakdownPerLocation)
       ? storageStats.breakdownPerLocation
@@ -1266,7 +1266,17 @@
     renderTableRows(dom.storage.breakdownTable, breakdownRows, 4);
 
     if (dom.storage.copyCoverage) {
-      const totalCopies = Number(bookCopyStats?.totalCopies ?? 0);
+      const totalCopies = Number(
+        bookCopyStats?.totalCopies
+        ?? bookCopyStats?.storageCoverage?.totalCopies
+        ?? bookCopyStats?.acquisitionDateCoverage?.totalCopies
+        ?? bookCopyStats?.acquisitionMetadataCoverage?.totalCopies
+        ?? 0
+      );
+      if (totalCopies <= 0) {
+        dom.storage.copyCoverage.innerHTML = '<div class="text-muted small">Not enough data yet.</div>';
+        return Boolean(storageStats || bookCopyStats);
+      }
       const coverageItems = [
         { label: 'Storage location', value: bookCopyStats?.storageCoverage?.withStorageLocation ?? 0, total: totalCopies },
         { label: 'Acquisition date', value: bookCopyStats?.acquisitionDateCoverage?.withAcquisitionDate ?? 0, total: totalCopies },
