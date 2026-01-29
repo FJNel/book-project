@@ -6,7 +6,6 @@ const { successResponse, errorResponse } = require("../utils/response");
 const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
-const { resolveLibraryReadUserId, enforceLibraryWriteScope } = require("../utils/library-permissions");
 const {
 	DEFAULT_USER_TTL_SECONDS,
 	buildCacheKey,
@@ -43,28 +42,6 @@ router.use((req, res, next) => {
 		}, "info");
 	});
 	next();
-});
-
-const READ_ONLY_POST_PATHS = new Set(["/stats"]);
-router.use((req, res, next) => {
-	if (req.method === "GET" || (req.method === "POST" && READ_ONLY_POST_PATHS.has(req.path))) {
-		const resolved = resolveLibraryReadUserId(req);
-		if (resolved.error) {
-			return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
-		}
-		if (resolved.userId !== req.user.id) {
-			req.authUserId = req.user.id;
-			req.user.id = resolved.userId;
-		}
-		return next();
-	}
-	if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-		const writeError = enforceLibraryWriteScope(req);
-		if (writeError) {
-			return errorResponse(res, writeError.status, writeError.message, writeError.errors);
-		}
-	}
-	return next();
 });
 
 function parseOptionalInt(value, fieldLabel, { min = 0, max = null } = {}) {

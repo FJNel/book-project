@@ -545,6 +545,7 @@
       return `
         <div>
           <div class="fw-semibold">${escapeHtml(label)}: ${escapeHtml(summary)}</div>
+          <div class="text-muted small">Correlation only — no causation implied.</div>
           <details class="correlation-details mt-1">
             <summary class="text-muted small">Details</summary>
             <div class="small mt-2 d-flex flex-column gap-1">
@@ -553,7 +554,6 @@
               <div>Rho: ${escapeHtml(rhoText)}</div>
               <div>N: ${escapeHtml(formatNumber(sampleSize))}</div>
               <div>Thresholds: N≥${escapeHtml(String(minSample))}, distinct values ≥${escapeHtml(String(minDistinct))}, variation required.</div>
-              <div>Correlation only — no causation implied.</div>
               <div>Association means these metrics tended to move together in this sample.</div>
               ${reason}
             </div>

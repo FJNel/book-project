@@ -7,7 +7,6 @@ const { requiresAuth } = require("../utils/jwt");
 const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, statsLimiter } = require("../utils/rate-limiters");
 const { logToFile } = require("../utils/logging");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
-const { resolveLibraryReadUserId } = require("../utils/library-permissions");
 const {
 	DEFAULT_USER_TTL_SECONDS,
 	buildCacheKey,
@@ -1217,11 +1216,7 @@ router.delete("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, re
 
 // GET/POST /users/me/stats - Summary statistics for the user's library
 const userStatsHandler = async (req, res) => {
-	const resolvedUser = resolveLibraryReadUserId(req);
-	if (resolvedUser.error) {
-		return errorResponse(res, resolvedUser.error.status, resolvedUser.error.message, resolvedUser.error.errors);
-	}
-	const userId = resolvedUser.userId;
+	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(listParams.fields)
 		? listParams.fields.map((field) => normalizeText(field)).filter(Boolean)

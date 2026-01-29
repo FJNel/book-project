@@ -70,11 +70,10 @@ function getRoutePattern(req) {
 }
 
 function getActorContext(req) {
-	const resolvedUserId = Number.isInteger(req?.authUserId) ? req.authUserId : req?.user?.id ?? null;
 	if (req?.authMethod === 'apiKey' && req.apiKey) {
 		return {
 			actorType: 'api_key',
-			userId: resolvedUserId,
+			userId: req.user?.id ?? null,
 			userEmail: req.user?.email ?? null,
 			userRole: req.user?.role ?? null,
 			apiKeyId: req.apiKey?.id ?? null,
@@ -85,7 +84,7 @@ function getActorContext(req) {
 	if (req?.user) {
 		return {
 			actorType: 'user',
-			userId: resolvedUserId,
+			userId: req.user?.id ?? null,
 			userEmail: req.user?.email ?? null,
 			userRole: req.user?.role ?? null,
 			apiKeyId: null,

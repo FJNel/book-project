@@ -8,7 +8,6 @@ const { authenticatedLimiter, statsLimiter } = require("../utils/rate-limiters")
 const { logToFile } = require("../utils/logging");
 const { validatePartialDateObject } = require("../utils/partial-date");
 const { normalizeTagName, buildTagDisplayName } = require("../utils/tag-normalization");
-const { resolveLibraryReadUserId, enforceLibraryWriteScope } = require("../utils/library-permissions");
 const {
 	DEFAULT_USER_TTL_SECONDS,
 	buildCacheKey,
@@ -61,28 +60,6 @@ router.use((req, res, next) => {
 		}, "info");
 	});
 	next();
-});
-
-const READ_ONLY_POST_PATHS = new Set(["/list", "/stats"]);
-router.use((req, res, next) => {
-	if (req.method === "GET" || (req.method === "POST" && READ_ONLY_POST_PATHS.has(req.path))) {
-		const resolved = resolveLibraryReadUserId(req);
-		if (resolved.error) {
-			return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
-		}
-		if (resolved.userId !== req.user.id) {
-			req.authUserId = req.user.id;
-			req.user.id = resolved.userId;
-		}
-		return next();
-	}
-	if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-		const writeError = enforceLibraryWriteScope(req);
-		if (writeError) {
-			return errorResponse(res, writeError.status, writeError.message, writeError.errors);
-		}
-	}
-	return next();
 });
 
 function normalizeText(value) {
@@ -978,11 +955,7 @@ function parseView(listParams) {
 
 // GET /book - List or fetch a specific book
 async function listBooksHandler(req, res) {
-	const resolvedUser = resolveLibraryReadUserId(req);
-	if (resolvedUser.error) {
-		return errorResponse(res, resolvedUser.error.status, resolvedUser.error.message, resolvedUser.error.errors);
-	}
-	const userId = resolvedUser.userId;
+	const userId = req.user.id;
 	const listParams = { ...req.query, ...(req.body || {}) };
 	const view = parseView(listParams);
 	const includeDeleted = parseBooleanFlag(listParams.includeDeleted) ?? false;
@@ -1438,8 +1411,7 @@ async function listBooksHandler(req, res) {
 
 		logToFile("BOOK_LIST", {
 			status: "SUCCESS",
-			user_id: req.user?.id ?? null,
-			effective_user_id: userId,
+			user_id: userId,
 			count: payload.length,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
@@ -1450,8 +1422,7 @@ async function listBooksHandler(req, res) {
 		logToFile("BOOK_LIST", {
 			status: "FAILURE",
 			error_message: error.message,
-			user_id: req.user?.id ?? null,
-			effective_user_id: userId,
+			user_id: userId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
@@ -2307,11 +2278,7 @@ router.delete("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 // GET /book/trash - List deleted books
 router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
-	const resolvedUser = resolveLibraryReadUserId(req);
-	if (resolvedUser.error) {
-		return errorResponse(res, resolvedUser.error.status, resolvedUser.error.message, resolvedUser.error.errors);
-	}
-	const userId = resolvedUser.userId;
+	const userId = req.user.id;
 	try {
 		const result = await pool.query(
 			`SELECT id, title, subtitle, isbn, deleted_at, created_at, updated_at
@@ -2336,8 +2303,7 @@ router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
 		logToFile("BOOK_TRASH", {
 			status: "FAILURE",
 			error_message: error.message,
-			user_id: req.user?.id ?? null,
-			effective_user_id: userId,
+			user_id: userId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
@@ -2347,11 +2313,7 @@ router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 // GET/POST /book/stats - Book statistics
 const bookStatsHandler = async (req, res) => {
-	const resolvedUser = resolveLibraryReadUserId(req);
-	if (resolvedUser.error) {
-		return errorResponse(res, resolvedUser.error.status, resolvedUser.error.message, resolvedUser.error.errors);
-	}
-	const userId = resolvedUser.userId;
+	const userId = req.user.id;
 	const params = { ...req.query, ...(req.body || {}) };
 	const fields = Array.isArray(params.fields)
 		? params.fields.map((field) => normalizeText(field)).filter(Boolean)

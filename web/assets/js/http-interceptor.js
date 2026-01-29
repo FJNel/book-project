@@ -192,7 +192,6 @@
 
 const API_BASE_URL = 'https://api.fjnel.co.za/';
 const DEBUG_HTTP = Boolean(window.DEBUG_HTTP || window.DEBUG_MODAL_LOCKS);
-const ADMIN_VIEW_STORAGE_KEY = 'adminViewContext';
 
 // A list of public paths that do not require an Authorization header.
 const PUBLIC_PATHS = [
@@ -206,112 +205,6 @@ const PUBLIC_PATHS = [
     '/', // Root health check
 	'/health',
 ];
-
-const LIBRARY_PATH_PREFIXES = [
-	'/book',
-	'/books',
-	'/author',
-	'/authors',
-	'/publisher',
-	'/publishers',
-	'/bookseries',
-	'/series',
-	'/booktype',
-	'/book-types',
-	'/storagelocation',
-	'/storage',
-	'/tags',
-	'/bookcopy',
-	'/bookauthor',
-	'/booktags',
-	'/bookseriesbooks',
-	'/seriesbooks',
-	'/timeline',
-	'/search',
-	'/languages',
-	'/export',
-	'/import',
-	'/users/me/stats'
-];
-
-const READ_ONLY_POST_SUFFIXES = [
-	'/list',
-	'/stats',
-	'/get',
-	'/search',
-	'/buckets',
-	'/timeline'
-];
-
-function parseStoredContext() {
-	try {
-		const raw = sessionStorage.getItem(ADMIN_VIEW_STORAGE_KEY);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw);
-		if (!parsed || !Number.isInteger(Number(parsed.userId))) return null;
-		return parsed;
-	} catch (err) {
-		return null;
-	}
-}
-
-function getAdminViewContext() {
-	if (window.adminViewContext && typeof window.adminViewContext.getContext === 'function') {
-		return window.adminViewContext.getContext();
-	}
-	return parseStoredContext();
-}
-
-function getCurrentUserProfile() {
-	try {
-		const raw = localStorage.getItem('userProfile');
-		return raw ? JSON.parse(raw) : null;
-	} catch (err) {
-		return null;
-	}
-}
-
-function isAdminViewingOtherUser(context, profile) {
-	if (!context || !profile) return false;
-	const targetId = Number(context.userId);
-	const currentId = Number(profile.id);
-	return profile.role === 'admin' && Number.isInteger(targetId) && Number.isInteger(currentId) && targetId !== currentId;
-}
-
-function isLibraryEndpoint(pathname) {
-	if (!pathname) return false;
-	return LIBRARY_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-function isReadOnlyRequest(method, pathname) {
-	if (method === 'GET' || method === 'HEAD') return true;
-	if (method !== 'POST') return false;
-	return READ_ONLY_POST_SUFFIXES.some((suffix) => pathname.endsWith(suffix));
-}
-
-function showReadOnlyModal(context) {
-	if (typeof window.showReadOnlyModeModal === 'function') {
-		window.showReadOnlyModeModal(context);
-		return;
-	}
-	const modalEl = document.getElementById('readOnlyModeModal');
-	if (modalEl && window.modalManager && typeof window.modalManager.showModal === 'function') {
-		window.modalManager.showModal(modalEl);
-	}
-}
-
-function handleReadOnlyBlock(context) {
-	if (window.modalManager && typeof window.modalManager.hideModal === 'function') {
-		window.modalManager.hideModal('pageLoadingModal');
-	}
-	if (window.modalManager && typeof window.modalManager.getActiveModalId === 'function' && window.modalLock) {
-		const activeId = window.modalManager.getActiveModalId();
-		if (activeId && activeId !== 'readOnlyModeModal') {
-			window.modalLock.forceUnlock(activeId, 'admin-readonly');
-		}
-	}
-	showReadOnlyModal(context);
-}
 
 let refreshPromise = null;
 let sessionExpiredNotified = false;
@@ -346,44 +239,6 @@ async function apiFetch(path, options = {}) {
 	const url = new URL(path, API_BASE_URL);
 	console.log('[HTTP Interceptor] Api request initiated. Request URL:', url.href);
 	let hasRetried = false;
-	const method = (options.method || 'GET').toUpperCase();
-	let rawBody = options.body;
-	const adminContext = getAdminViewContext();
-	const profile = getCurrentUserProfile();
-	const adminViewingOther = isAdminViewingOtherUser(adminContext, profile);
-	const isLibraryPath = isLibraryEndpoint(url.pathname);
-	const isReadOnly = isReadOnlyRequest(method, url.pathname);
-
-	if (adminViewingOther && isLibraryPath) {
-		if (!isReadOnly) {
-			handleReadOnlyBlock(adminContext);
-			return Promise.reject(new Error('Read-only mode: write blocked.'));
-		}
-		const targetUserId = Number(adminContext.userId);
-		if (method === 'GET' || method === 'HEAD') {
-			if (!url.searchParams.has('userId')) {
-				url.searchParams.set('userId', String(targetUserId));
-			}
-		} else if (method === 'POST') {
-			let bodyObj = null;
-			if (rawBody && typeof rawBody === 'string') {
-				try {
-					bodyObj = JSON.parse(rawBody);
-				} catch (err) {
-					bodyObj = null;
-				}
-			} else if (rawBody && typeof rawBody === 'object' && !(rawBody instanceof FormData) && !(rawBody instanceof Blob) && !(rawBody instanceof ArrayBuffer)) {
-				bodyObj = rawBody;
-			}
-			if (!bodyObj || typeof bodyObj !== 'object') {
-				bodyObj = {};
-			}
-			if (bodyObj.userId === undefined || bodyObj.userId === null || bodyObj.userId === '') {
-				bodyObj.userId = targetUserId;
-			}
-			rawBody = bodyObj;
-		}
-	}
 
 	const headers = new Headers(options.headers || {});
 	headers.set('Content-Type', 'application/json');
@@ -398,6 +253,7 @@ async function apiFetch(path, options = {}) {
 
 	//Now execute the fetch request
 	const prepared = { ...options };
+	const rawBody = options.body;
 	const shouldStringify = rawBody && typeof rawBody === 'object'
 		&& !(rawBody instanceof FormData)
 		&& !(rawBody instanceof Blob)

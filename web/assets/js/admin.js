@@ -2048,22 +2048,9 @@
     }
 
     if (btn.classList.contains('js-view-library')) {
-      const displayName = user?.preferredName || user?.fullName || user?.email || '';
-      if (window.adminViewContext && typeof window.adminViewContext.setContext === 'function') {
-        window.adminViewContext.setContext({
-          userId,
-          displayName,
-          email: user?.email || null
-        });
-      } else {
-        sessionStorage.setItem('adminViewContext', JSON.stringify({
-          userId,
-          displayName,
-          email: user?.email || null,
-          setAt: new Date().toISOString()
-        }));
-      }
-      window.location.href = 'books';
+      const userName = user?.preferredName || user?.fullName || '';
+      const url = `admin-library?userId=${encodeURIComponent(userId)}${userName ? `&userName=${encodeURIComponent(userName)}` : ''}`;
+      window.location.href = url;
       return;
     }
 
@@ -3884,22 +3871,9 @@
     }
 
     if (action === 'view-library') {
-      const displayName = user?.preferredName || user?.fullName || user?.email || '';
-      if (window.adminViewContext && typeof window.adminViewContext.setContext === 'function') {
-        window.adminViewContext.setContext({
-          userId,
-          displayName,
-          email: user?.email || null
-        });
-      } else {
-        sessionStorage.setItem('adminViewContext', JSON.stringify({
-          userId,
-          displayName,
-          email: user?.email || null,
-          setAt: new Date().toISOString()
-        }));
-      }
-      window.location.href = 'books';
+      const userName = user?.preferredName || user?.fullName || '';
+      const url = `admin-library?userId=${encodeURIComponent(userId)}${userName ? `&userName=${encodeURIComponent(userName)}` : ''}`;
+      window.location.href = url;
       return;
     }
 

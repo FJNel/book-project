@@ -1670,8 +1670,148 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/library/books/list:
+    post:
+      tags: [Admin]
+      summary: List books for a user (read-only)
+      description: Legacy path-based endpoint. Prefer /admin/users/library/books/list with a JSON body.
+      operationId: listAdminUserBooks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                search:
+                  type: string
+                sort:
+                  type: string
+                order:
+                  type: string
+                limit:
+                  type: integer
+                page:
+                  type: integer
+                includeDeleted:
+                  type: boolean
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/{id}/library/books/get:
+    post:
+      tags: [Admin]
+      summary: Get a book for a user (read-only)
+      description: Legacy path-based endpoint. Prefer /admin/users/library/books/get with a JSON body.
+      operationId: getAdminUserBook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/library/books/list:
+    post:
+      tags: [Admin]
+      summary: List books for a user (read-only)
+      description: Provide userId or email in the JSON body.
+      operationId: listAdminUserBooksBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                email:
+                  type: string
+                  format: email
+                search:
+                  type: string
+                sort:
+                  type: string
+                order:
+                  type: string
+                limit:
+                  type: integer
+                page:
+                  type: integer
+                includeDeleted:
+                  type: boolean
+      responses:
+        '200':
+          description: Books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users/library/books/get:
+    post:
+      tags: [Admin]
+      summary: Get a book for a user (read-only)
+      description: Provide userId or email plus the book id in the JSON body.
+      operationId: getAdminUserBookBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                email:
+                  type: string
+                  format: email
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: Book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /rate-limits:
     get:
       tags: [Meta]
@@ -3048,8 +3188,6 @@ paths:
       summary: List or fetch book types
       operationId: listBookTypes
       description: List book types with filtering or fetch a single record by id/name. JSON body and query fields are both accepted; body wins.
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 60
         window: minute
@@ -3643,8 +3781,6 @@ paths:
       summary: List or fetch authors
       operationId: listAuthors
       description: List authors with filtering or fetch single by id/name. Body fields also allowed via query; body wins.
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 60
         window: minute
@@ -4311,8 +4447,6 @@ paths:
       tags: [Authors, Stats]
       summary: Author stats
       operationId: getAuthorStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -5105,8 +5239,6 @@ paths:
       tags: [Publishers, Stats]
       summary: Publisher stats
       operationId: getPublisherStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -5774,8 +5906,6 @@ paths:
       tags: [Series, Stats]
       summary: Series stats
       operationId: getSeriesStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -6134,8 +6264,6 @@ paths:
       summary: List or fetch books
       operationId: listBooks
       description: Retrieve books with filters or fetch single by id/isbn/title. Supports optional JSON body; body wins over query. Use `view` to control projection and `returnStats` for a single record.
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 60
         window: minute
@@ -6575,8 +6703,6 @@ paths:
       tags: [Books]
       summary: List deleted books
       operationId: listDeletedBooks
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 60
         window: minute
@@ -6712,8 +6838,6 @@ paths:
       tags: [Books, Stats]
       summary: Book stats
       operationId: getBookStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -7211,8 +7335,6 @@ paths:
       tags: [StorageLocations, Stats]
       summary: Storage stats
       operationId: getStorageLocationStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -7651,8 +7773,6 @@ paths:
       tags: [BookCopies, Stats]
       summary: Book copy stats
       operationId: getBookCopyStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -7854,8 +7974,6 @@ paths:
       tags: [Tags, Stats]
       summary: Tag stats
       operationId: getTagStats
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 20
         window: minute
@@ -8040,8 +8158,6 @@ paths:
       summary: Export data
       operationId: exportData
       description: Export full dataset as JSON. Auth required.
-      parameters:
-        - $ref: '#/components/parameters/adminUserId'
       x-rateLimit:
         limit: 60
         window: minute
@@ -10005,16 +10121,9 @@ components:
       name: id
       in: path
       required: true
+      schema:
+        type: integer
       description: Numeric identifier.
-      schema:
-        type: integer
-    adminUserId:
-      name: userId
-      in: query
-      required: false
-      description: Admin-only override to read another user's library.
-      schema:
-        type: integer
     fingerprint:
       name: fingerprint
       in: path
@@ -10675,9 +10784,6 @@ components:
     BookTypeListRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         id:
           type: integer
         name:
@@ -10756,9 +10862,6 @@ components:
     BookTypeStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10766,9 +10869,6 @@ components:
     TagStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10780,9 +10880,6 @@ components:
     BookTagStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10794,9 +10891,6 @@ components:
     LanguageStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10808,9 +10902,6 @@ components:
     SeriesBookStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10818,9 +10909,6 @@ components:
     BookAuthorStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -10887,9 +10975,6 @@ components:
     AuthorListRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         id:
           type: integer
         displayName:
@@ -11005,9 +11090,6 @@ components:
     AuthorStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -11074,9 +11156,6 @@ components:
       description: Filters and options for listing or fetching publishers; body overrides query params.
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         id:
           type: integer
         name:
@@ -11215,9 +11294,6 @@ components:
       description: Selectable fields for publisher statistics.
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -11432,9 +11508,6 @@ components:
     SeriesStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -11711,9 +11784,6 @@ components:
       description: Filters and lookup options for listing or fetching books; body values take precedence over query params.
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         id:
           type: integer
         isbn:
@@ -11901,6 +11971,8 @@ components:
                 properties:
                   authorId:
                     type: integer
+                  id:
+                    type: integer
                   authorRole:
                     oneOf:
                       - type: string
@@ -11970,9 +12042,6 @@ components:
     BookStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -12034,9 +12103,6 @@ components:
       description: Filters and pagination for storage locations.
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         filterId:
           oneOf:
             - type: integer
@@ -12119,9 +12185,6 @@ components:
     StorageLocationStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -12137,9 +12200,6 @@ components:
     TimelineBucketsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         recordType:
           type: string
           enum: [books, authors, bookCopies, publishers]
@@ -12421,9 +12481,6 @@ components:
     BookCopyStatsRequest:
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         fields:
           type: array
           items:
@@ -12442,9 +12499,6 @@ components:
       description: Multi-record search request body.
       type: object
       properties:
-        userId:
-          type: integer
-          description: Admin-only override to read another user's library.
         query:
           description: Search string.
           type: string
