@@ -305,6 +305,11 @@ document.addEventListener('DOMContentLoaded', () => {
             role: data.data.user.role,
             themePreference: data.data.user.themePreference || 'device'
         }));
+        try {
+            sessionStorage.removeItem('adminViewContext');
+        } catch (error) {
+            console.warn('[Login] Unable to clear admin view context.', error);
+        }
 
         if (window.themeManager) {
             window.themeManager.setPreference(data.data.user.themePreference || 'device', { persist: true });
