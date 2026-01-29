@@ -694,6 +694,8 @@ const bookCopyStatsHandler = async (req, res) => {
 		"uniqueVsDuplicate",
 		"mostDuplicatedBook",
 		"storageCoverage",
+		"acquisitionDateCoverage",
+		"acquisitionMetadataCoverage",
 		"acquisitionTimeline",
 		"acquiredFromBreakdown",
 		"topAcquisitionType",
@@ -738,6 +740,13 @@ const bookCopyStatsHandler = async (req, res) => {
 			`SELECT COUNT(*)::int AS total_copies,
 			        COUNT(DISTINCT bc.book_id)::int AS unique_books,
 			        COUNT(*) FILTER (WHERE bc.storage_location_id IS NOT NULL)::int AS with_storage,
+			        COUNT(*) FILTER (WHERE bc.acquisition_date_id IS NOT NULL)::int AS with_acquisition_date,
+			        COUNT(*) FILTER (
+			          WHERE (bc.acquired_from IS NOT NULL AND TRIM(bc.acquired_from) <> '')
+			             OR (bc.acquisition_type IS NOT NULL AND TRIM(bc.acquisition_type) <> '')
+			             OR (bc.acquisition_location IS NOT NULL AND TRIM(bc.acquisition_location) <> '')
+			             OR (bc.acquisition_story IS NOT NULL AND TRIM(bc.acquisition_story) <> '')
+			        )::int AS with_acquisition_metadata,
 			        COUNT(*) FILTER (WHERE bc.acquisition_story IS NOT NULL AND TRIM(bc.acquisition_story) <> '')::int AS with_story,
 			        COUNT(*) FILTER (
 			          WHERE bc.acquisition_date_id IS NULL
@@ -772,6 +781,22 @@ const bookCopyStatsHandler = async (req, res) => {
 				withStorageLocation: totals.with_storage ?? 0,
 				totalCopies,
 				percentage: totalCopies > 0 ? Number(((totals.with_storage ?? 0) / totalCopies * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("acquisitionDateCoverage")) {
+			payload.acquisitionDateCoverage = {
+				withAcquisitionDate: totals.with_acquisition_date ?? 0,
+				totalCopies,
+				percentage: totalCopies > 0 ? Number(((totals.with_acquisition_date ?? 0) / totalCopies * 100).toFixed(1)) : 0
+			};
+		}
+
+		if (selected.includes("acquisitionMetadataCoverage")) {
+			payload.acquisitionMetadataCoverage = {
+				withMetadata: totals.with_acquisition_metadata ?? 0,
+				totalCopies,
+				percentage: totalCopies > 0 ? Number(((totals.with_acquisition_metadata ?? 0) / totalCopies * 100).toFixed(1)) : 0
 			};
 		}
 

@@ -881,6 +881,7 @@ const authorStatsHandler = async (req, res) => {
 		alive: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = false) AS alive",
 		withBirthDate: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.birth_date_id IS NOT NULL) AS with_birth_date",
 		withDeathDate: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.death_date_id IS NOT NULL) AS with_death_date",
+		deceasedWithDeathDate: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.deceased = true AND a.death_date_id IS NOT NULL) AS deceased_with_death_date",
 		withBio: "COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.bio IS NOT NULL AND a.bio <> '') AS with_bio",
 		earliestBirthYear: "MIN(bd.year) FILTER (WHERE a.deleted_at IS NULL) AS earliest_birth_year",
 		latestBirthYear: "MAX(bd.year) FILTER (WHERE a.deleted_at IS NULL) AS latest_birth_year",

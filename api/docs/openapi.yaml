@@ -349,6 +349,11 @@ paths:
                         properties:
                           stats:
                             type: object
+                            properties:
+                              correlations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/CorrelationInsight'
                           cache:
                             $ref: '#/components/schemas/CacheMetadata'
                           warnings:
@@ -3168,9 +3173,12 @@ paths:
                         bookTypes: 5
                         tags: 12
                         languages: 4
+                        distinctLanguagesUsed: 3
                         storageLocations: 6
                         bookCopies: 70
                         apiKeys: 2
+                        apiKeysActiveCount: 2
+                        apiKeysRevokedCount: 1
                     errors: []
         '429':
           $ref: '#/components/responses/RateLimit'
@@ -4487,6 +4495,7 @@ paths:
                         alive: 5
                         withBirthDate: 10
                         withDeathDate: 6
+                        deceasedWithDeathDate: 5
                         withBio: 9
                         earliestBirthYear: 1819
                         latestBirthYear: 1995
@@ -6878,6 +6887,25 @@ paths:
                         withPublisher: 70
                         withSeries: 35
                         totalCopies: 145
+                        correlations:
+                          - key: booksAuthors
+                            label: Books and Authors
+                            unitLabel: authors
+                            xLabel: Books per author
+                            yLabel: Copies per author
+                            method: spearman
+                            status: ok
+                            strength: Moderate
+                            direction: Positive
+                            rho: 0.52
+                            sampleSize: 18
+                            distinctX: 7
+                            distinctY: 8
+                            thresholds:
+                              minSampleSize: 15
+                              minDistinct: 4
+                              requiresVariance: true
+                            reason: null
                         publicationYearHistogram:
                           - year: 1954
                             bookCount: 3
@@ -7789,6 +7817,14 @@ paths:
                           withStorageLocation: 110
                           totalCopies: 145
                           percentage: 75.9
+                        acquisitionDateCoverage:
+                          withAcquisitionDate: 90
+                          totalCopies: 145
+                          percentage: 62.1
+                        acquisitionMetadataCoverage:
+                          withMetadata: 80
+                          totalCopies: 145
+                          percentage: 55.2
                         acquiredFromBreakdown:
                           - value: Purchased New
                             count: 60
@@ -10284,6 +10320,54 @@ components:
           items:
             type: string
       required: [status, httpCode, responseTime, message, data, errors]
+    CorrelationInsight:
+      description: Correlation summary using Spearman rho, correlation only (no causation implied).
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        unitLabel:
+          type: string
+          nullable: true
+        xLabel:
+          type: string
+          nullable: true
+        yLabel:
+          type: string
+          nullable: true
+        method:
+          type: string
+        status:
+          type: string
+        strength:
+          type: string
+          nullable: true
+        direction:
+          type: string
+          nullable: true
+        rho:
+          type: number
+          nullable: true
+        sampleSize:
+          type: integer
+        distinctX:
+          type: integer
+        distinctY:
+          type: integer
+        thresholds:
+          type: object
+          properties:
+            minSampleSize:
+              type: integer
+            minDistinct:
+              type: integer
+            requiresVariance:
+              type: boolean
+        reason:
+          type: string
+          nullable: true
     MailgunMetricsSummary:
       description: Aggregated Mailgun metrics for admin overview.
       type: object
@@ -11962,6 +12046,7 @@ components:
           type: array
           items:
             type: string
+          description: Requested stats fields (e.g., total, withIsbn, withAuthors, withTags, correlations).
     StorageLocation:
       description: Storage container for book copies, supporting nesting and optional notes.
       type: object

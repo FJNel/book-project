@@ -143,6 +143,9 @@
     .clickable-card { cursor: pointer; transition: box-shadow 0.15s ease; }
     .clickable-card:hover { box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08); }
     .clickable-card:focus-visible { outline: none; box-shadow: var(--bs-focus-ring-box-shadow); }
+
+    .progress-thin { height: 8px; }
+    .correlation-details summary { cursor: pointer; }
   </style>
 </head>
 
@@ -355,13 +358,32 @@
         </div>
 
         <div class="row g-3 mt-1">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Coverage across key metadata fields.">Library completeness</span></div>
+                <div class="d-flex flex-column gap-3" id="booksCoverageList"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Top tags ranked by number of books.">Top tags</span></div>
+                <div class="d-flex flex-column gap-3" id="booksTopTagsList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1">
           <div class="col-12">
             <div class="card shadow-sm h-100">
               <div class="card-body">
                 <div class="fw-semibold mb-2">
                   <span data-bs-toggle="tooltip" data-bs-title="These insights describe associations in your data only. They do not imply causation.">Correlation insights</span>
                 </div>
-                <ul class="list-unstyled mb-0" id="booksCorrelationList"></ul>
+                <div class="d-flex flex-column gap-3" id="booksCorrelationList"></div>
               </div>
             </div>
           </div>
@@ -701,6 +723,17 @@
               <div class="card-body">
                 <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="The storage location with the most copies.">Most used location</span></div>
                 <div id="storageHighlights"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="fw-semibold mb-2"><span data-bs-toggle="tooltip" data-bs-title="Coverage across key copy details.">Copy completeness</span></div>
+                <div class="d-flex flex-column gap-3" id="storageCopyCoverage"></div>
               </div>
             </div>
           </div>

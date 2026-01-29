@@ -1240,9 +1240,12 @@ const userStatsHandler = async (req, res) => {
 		bookTypes: "(SELECT COUNT(*) FROM book_types WHERE user_id = $1) AS book_types",
 		tags: "(SELECT COUNT(*) FROM tags WHERE user_id = $1) AS tags",
 		languages: "(SELECT COUNT(*) FROM languages) AS languages",
+		distinctLanguagesUsed: "(SELECT COUNT(DISTINCT bl.language_id) FROM book_languages bl JOIN books b ON b.id = bl.book_id AND b.deleted_at IS NULL WHERE bl.user_id = $1) AS distinct_languages_used",
 		storageLocations: "(SELECT COUNT(*) FROM storage_locations WHERE user_id = $1) AS storage_locations",
 		bookCopies: "(SELECT COUNT(*) FROM book_copies WHERE user_id = $1) AS book_copies",
-		apiKeys: "(SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NULL) AS api_keys"
+		apiKeys: "(SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())) AS api_keys",
+		apiKeysActiveCount: "(SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())) AS api_keys_active",
+		apiKeysRevokedCount: "(SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NOT NULL) AS api_keys_revoked"
 	};
 
 	const selected = fields.length > 0 ? fields : Object.keys(fieldMap);

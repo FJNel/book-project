@@ -39,7 +39,9 @@
       tagHint: document.getElementById('booksTagEmptyHint'),
       qualityGrid: document.getElementById('booksQualityGrid'),
       highlights: document.getElementById('booksHighlightsList'),
-      correlationList: document.getElementById('booksCorrelationList')
+      correlationList: document.getElementById('booksCorrelationList'),
+      coverageList: document.getElementById('booksCoverageList'),
+      topTagsList: document.getElementById('booksTopTagsList')
     },
     authors: {
       loading: document.getElementById('authorsLoading'),
@@ -84,7 +86,8 @@
       locationChart: document.getElementById('storageLocationChart'),
       locationEmpty: document.getElementById('storageLocationEmpty'),
       highlights: document.getElementById('storageHighlights'),
-      breakdownTable: document.getElementById('storageBreakdownTable')
+      breakdownTable: document.getElementById('storageBreakdownTable'),
+      copyCoverage: document.getElementById('storageCopyCoverage')
     },
     timeline: {
       loading: document.getElementById('timelineLoading'),
@@ -188,6 +191,20 @@
     ['Untagged books', 'Books that do not have any tags assigned.'],
     ['Most used tag', 'The tag applied to the most books in your library.'],
     ['Most tagged book', 'The single book with the most tags assigned.'],
+    ['ISBN', 'Books with an ISBN recorded.'],
+    ['Published date', 'Books with a published date recorded.'],
+    ['Page count', 'Books with a page count recorded.'],
+    ['Cover image', 'Books with a cover image recorded.'],
+    ['Description', 'Books with a description recorded.'],
+    ['Book type', 'Books with a book type assigned.'],
+    ['Publisher', 'Books linked to a publisher.'],
+    ['Authors linked', 'Books linked to at least one author.'],
+    ['Tags linked', 'Books linked to at least one tag.'],
+    ['Languages linked', 'Books linked to at least one language.'],
+    ['Series linked', 'Books linked to a series.'],
+    ['Storage location', 'Copies linked to a storage location.'],
+    ['Acquisition date', 'Copies with an acquisition date recorded.'],
+    ['Acquisition details', 'Copies with acquisition details such as source, type, location, or story.'],
     ['Publisher and pages', 'Compares page counts between books with and without publishers. This is an association only and does not imply causation.'],
     ['Tags and pages', 'Compares page counts between tagged and untagged books. This is an association only and does not imply causation.'],
     ['With death date', 'Authors with a recorded death date.'],
@@ -450,6 +467,102 @@
     initTooltips(container);
   };
 
+  const renderCoverageList = (container, items) => {
+    if (!container) return;
+    if (!items.length) {
+      container.innerHTML = '<div class="text-muted">No coverage data yet.</div>';
+      return;
+    }
+    container.innerHTML = items.map((item) => {
+      const value = Number.isFinite(item.value) ? item.value : 0;
+      const total = Number.isFinite(item.total) ? item.total : 0;
+      const percentage = total > 0 ? Math.max(0, Math.min(100, (value / total) * 100)) : 0;
+      return `
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold">${renderTooltipLabel(item.label)}</span>
+            <span class="small text-muted">${escapeHtml(formatNumber(value))} / ${escapeHtml(formatNumber(total))}</span>
+          </div>
+          <div class="progress progress-thin" role="progressbar" aria-label="${escapeHtml(item.label)} coverage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage.toFixed(1)}">
+            <div class="progress-bar" style="width: ${percentage.toFixed(1)}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    initTooltips(container);
+  };
+
+  const renderRankedBars = (container, items, { max = 6, emptyText = 'No data available.' } = {}) => {
+    if (!container) return;
+    if (!items.length) {
+      container.innerHTML = `<div class="text-muted">${escapeHtml(emptyText)}</div>`;
+      return;
+    }
+    const topItems = items.slice(0, max);
+    const maxValue = Math.max(...topItems.map((item) => Number(item.value) || 0), 0);
+    container.innerHTML = topItems.map((item) => {
+      const value = Number(item.value) || 0;
+      const width = maxValue > 0 ? (value / maxValue) * 100 : 0;
+      return `
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold">${escapeHtml(item.label)}</span>
+            <span class="small text-muted">${escapeHtml(formatNumber(value))}</span>
+          </div>
+          <div class="progress progress-thin" role="progressbar" aria-label="${escapeHtml(item.label)} share" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${width.toFixed(1)}">
+            <div class="progress-bar bg-info" style="width: ${width.toFixed(1)}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  const renderCorrelationItems = (container, items) => {
+    if (!container) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      container.innerHTML = '<div class="text-muted">No correlation data yet.</div>';
+      return;
+    }
+    container.innerHTML = items.map((item) => {
+      const label = item.label || 'Correlation';
+      const status = item.status || 'insufficient';
+      const direction = item.direction || '';
+      const strength = item.strength || '';
+      const summary = status === 'ok'
+        ? (direction === 'Near-zero' ? 'Near-zero association' : `${strength} ${direction.toLowerCase()} association`)
+        : 'Not enough data yet';
+      const rhoText = Number.isFinite(item.rho) ? item.rho.toFixed(2) : '—';
+      const sampleSize = Number.isFinite(item.sampleSize) ? item.sampleSize : 0;
+      const threshold = item.thresholds || {};
+      const minSample = Number.isFinite(threshold.minSampleSize) ? threshold.minSampleSize : '—';
+      const minDistinct = Number.isFinite(threshold.minDistinct) ? threshold.minDistinct : '—';
+      const reason = item.reason ? `<div class="text-muted">${escapeHtml(item.reason)}</div>` : '';
+      const unitLine = item.unitLabel ? `Samples: ${escapeHtml(item.unitLabel)}.` : '';
+      const metricLine = item.xLabel && item.yLabel
+        ? `${escapeHtml(item.xLabel)} vs ${escapeHtml(item.yLabel)}`
+        : escapeHtml(item.xLabel || item.yLabel || '');
+      const summaryLine = [unitLine, metricLine].filter(Boolean).join(' ');
+      return `
+        <div>
+          <div class="fw-semibold">${escapeHtml(label)}: ${escapeHtml(summary)}</div>
+          <div class="text-muted small">Correlation only — no causation implied.</div>
+          <details class="correlation-details mt-1">
+            <summary class="text-muted small">Details</summary>
+            <div class="small mt-2 d-flex flex-column gap-1">
+              <div>${summaryLine}</div>
+              <div>Method: Spearman rho</div>
+              <div>Rho: ${escapeHtml(rhoText)}</div>
+              <div>N: ${escapeHtml(formatNumber(sampleSize))}</div>
+              <div>Thresholds: N≥${escapeHtml(String(minSample))}, distinct values ≥${escapeHtml(String(minDistinct))}, variation required.</div>
+              <div>Association means these metrics tended to move together in this sample.</div>
+              ${reason}
+            </div>
+          </details>
+        </div>
+      `;
+    }).join('');
+  };
+
   const setHint = (el, text) => {
     if (!el) return;
     if (!text) {
@@ -575,20 +688,23 @@
       fetchStatsSafe('/book/stats', {
         fields: [
           'total',
+          'withIsbn',
           'withPublicationDate',
           'withCoverImage',
+          'withDescription',
           'withPageCount',
           'withBookType',
           'withLanguages',
+          'withAuthors',
           'withPublisher',
           'withTags',
+          'withSeries',
           'publicationYearHistogram',
           'oldestPublicationYear',
           'newestPublicationYear',
           'longestBook',
           'shortestBook',
-          'publisherPageCountAssociation',
-          'taggedPageCountAssociation'
+          'correlations'
         ]
       }, 'book-stats'),
       fetchStatsSafe('/booktype/stats', { fields: ['bookTypeBreakdown'] }, 'booktype-stats'),
@@ -741,6 +857,21 @@
       initTooltips(dom.books.qualityGrid);
     }
 
+    const coverageItems = [
+      { label: 'ISBN', value: bookStats?.withIsbn ?? 0, total: totalBooks },
+      { label: 'Published date', value: bookStats?.withPublicationDate ?? 0, total: totalBooks },
+      { label: 'Page count', value: bookStats?.withPageCount ?? 0, total: totalBooks },
+      { label: 'Cover image', value: bookStats?.withCoverImage ?? 0, total: totalBooks },
+      { label: 'Description', value: bookStats?.withDescription ?? 0, total: totalBooks },
+      { label: 'Book type', value: bookStats?.withBookType ?? 0, total: totalBooks },
+      { label: 'Publisher', value: bookStats?.withPublisher ?? 0, total: totalBooks },
+      { label: 'Authors linked', value: bookStats?.withAuthors ?? 0, total: totalBooks },
+      { label: 'Tags linked', value: bookStats?.withTags ?? 0, total: totalBooks },
+      { label: 'Languages linked', value: bookStats?.withLanguages ?? 0, total: totalBooks },
+      { label: 'Series linked', value: bookStats?.withSeries ?? 0, total: totalBooks }
+    ];
+    renderCoverageList(dom.books.coverageList, coverageItems);
+
     const highlights = [];
     if (bookStats?.oldestPublicationYear) {
       highlights.push({
@@ -786,21 +917,13 @@
     }
     renderListItems(dom.books.highlights, highlights);
 
-    const correlationItems = [];
-    const pushAssociation = (association, label, withLabel, withoutLabel) => {
-      if (!association) return;
-      const sampleSize = Number(association.sampleSize || 0);
-      const minGroup = Number(association.minimumGroupSize || 0);
-      const withCount = Number(association.withGroup?.count || 0);
-      const withoutCount = Number(association.withoutGroup?.count || 0);
-      const insight = association.insight || 'Not enough data yet.';
-      const detail = `${insight} (N=${formatNumber(sampleSize)}; min per group ${formatNumber(minGroup)}; ${formatNumber(withCount)} ${withLabel}, ${formatNumber(withoutCount)} ${withoutLabel}). Association only; not causation.`;
-      correlationItems.push({ label, detail });
-    };
+    const topTagItems = tagBreakdown.map((entry) => ({
+      label: entry.name,
+      value: Number(entry.bookCount) || 0
+    }));
+    renderRankedBars(dom.books.topTagsList, topTagItems, { max: 6, emptyText: 'No tag data yet.' });
 
-    pushAssociation(bookStats?.publisherPageCountAssociation, 'Publisher and pages', 'with publishers', 'without publishers');
-    pushAssociation(bookStats?.taggedPageCountAssociation, 'Tags and pages', 'tagged', 'untagged');
-    renderListItems(dom.books.correlationList, correlationItems);
+    renderCorrelationItems(dom.books.correlationList, Array.isArray(bookStats?.correlations) ? bookStats.correlations : []);
 
     return Boolean(bookStats || bookTypeStats || languageStats || bookTagStats);
   };
@@ -1077,7 +1200,10 @@
   };
 
   const renderStorageSection = async () => {
-    const storageStats = await fetchStatsSafe('/storagelocation/stats', { fields: ['breakdownPerLocation', 'largestLocation', 'totalLocations'] }, 'storage-stats');
+    const [storageStats, bookCopyStats] = await Promise.all([
+      fetchStatsSafe('/storagelocation/stats', { fields: ['breakdownPerLocation', 'largestLocation', 'totalLocations'] }, 'storage-stats'),
+      fetchStatsSafe('/bookcopy/stats', { fields: ['storageCoverage', 'acquisitionDateCoverage', 'acquisitionMetadataCoverage'] }, 'bookcopy-stats')
+    ]);
     const breakdown = Array.isArray(storageStats?.breakdownPerLocation)
       ? storageStats.breakdownPerLocation
       : [];
@@ -1139,7 +1265,17 @@
     });
     renderTableRows(dom.storage.breakdownTable, breakdownRows, 4);
 
-    return Boolean(storageStats);
+    if (dom.storage.copyCoverage) {
+      const totalCopies = Number(bookCopyStats?.totalCopies ?? 0);
+      const coverageItems = [
+        { label: 'Storage location', value: bookCopyStats?.storageCoverage?.withStorageLocation ?? 0, total: totalCopies },
+        { label: 'Acquisition date', value: bookCopyStats?.acquisitionDateCoverage?.withAcquisitionDate ?? 0, total: totalCopies },
+        { label: 'Acquisition details', value: bookCopyStats?.acquisitionMetadataCoverage?.withMetadata ?? 0, total: totalCopies }
+      ];
+      renderCoverageList(dom.storage.copyCoverage, coverageItems);
+    }
+
+    return Boolean(storageStats || bookCopyStats);
   };
 
   const timelineRecordTypes = [

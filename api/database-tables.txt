@@ -59,12 +59,6 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
   UNIQUE(provider, provider_user_id)
 );
 
-bookdb=> SELECT * FROM oauth_accounts;
- id | user_id | provider | provider_user_id | access_token | refresh_token | scopes | created_at | updated_at
-----+---------+----------+------------------+--------------+---------------+--------+------------+------------
-(0 rows)
-
----
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id                SERIAL PRIMARY KEY,

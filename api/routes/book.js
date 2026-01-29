@@ -28,6 +28,8 @@ const MAX_COPY_NOTES_LENGTH = 2000;
 const MAX_AUTHOR_ROLE_LENGTH = 100;
 const MIN_ASSOCIATION_SAMPLE = 20;
 const ASSOCIATION_DIFF_THRESHOLD = 10;
+const MIN_CORRELATION_SAMPLES = 15;
+const MIN_CORRELATION_DISTINCT = 4;
 
 router.use((req, res, next) => {
 	logToFile("BOOK_REQUEST", {
@@ -63,6 +65,121 @@ router.use((req, res, next) => {
 function normalizeText(value) {
 	if (typeof value !== "string") return "";
 	return value.trim();
+}
+
+function toNumber(value) {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function computeRanks(values) {
+	const indexed = values.map((value, index) => ({ value, index }));
+	indexed.sort((a, b) => {
+		if (a.value < b.value) return -1;
+		if (a.value > b.value) return 1;
+		return 0;
+	});
+	const ranks = new Array(values.length);
+	let i = 0;
+	while (i < indexed.length) {
+		let j = i + 1;
+		while (j < indexed.length && indexed[j].value === indexed[i].value) j += 1;
+		const avgRank = (i + j - 1) / 2 + 1;
+		for (let k = i; k < j; k += 1) {
+			ranks[indexed[k].index] = avgRank;
+		}
+		i = j;
+	}
+	return ranks;
+}
+
+function computeSpearman(xs, ys) {
+	if (!Array.isArray(xs) || !Array.isArray(ys) || xs.length !== ys.length || xs.length < 2) return null;
+	const xRanks = computeRanks(xs);
+	const yRanks = computeRanks(ys);
+	const n = xRanks.length;
+	const meanX = xRanks.reduce((sum, v) => sum + v, 0) / n;
+	const meanY = yRanks.reduce((sum, v) => sum + v, 0) / n;
+	let num = 0;
+	let denomX = 0;
+	let denomY = 0;
+	for (let i = 0; i < n; i += 1) {
+		const dx = xRanks[i] - meanX;
+		const dy = yRanks[i] - meanY;
+		num += dx * dy;
+		denomX += dx * dx;
+		denomY += dy * dy;
+	}
+	const denom = Math.sqrt(denomX * denomY);
+	if (!Number.isFinite(denom) || denom === 0) return null;
+	return num / denom;
+}
+
+function getCorrelationStrength(absRho) {
+	if (absRho < 0.2) return "Very weak";
+	if (absRho < 0.4) return "Weak";
+	if (absRho < 0.6) return "Moderate";
+	if (absRho < 0.8) return "Strong";
+	return "Very strong";
+}
+
+function buildCorrelationPayload({ key, label, unitLabel, xLabel, yLabel, rows }) {
+	const cleanRows = rows
+		.map((row) => ({ x: toNumber(row.x), y: toNumber(row.y) }))
+		.filter((row) => Number.isFinite(row.x) && Number.isFinite(row.y));
+	const sampleSize = cleanRows.length;
+	const xValues = cleanRows.map((row) => row.x);
+	const yValues = cleanRows.map((row) => row.y);
+	const distinctX = new Set(xValues).size;
+	const distinctY = new Set(yValues).size;
+	const reasons = [];
+	if (sampleSize < MIN_CORRELATION_SAMPLES) {
+		reasons.push(`Need at least N=${MIN_CORRELATION_SAMPLES}; currently N=${sampleSize}.`);
+	}
+	if (distinctX < MIN_CORRELATION_DISTINCT || distinctY < MIN_CORRELATION_DISTINCT) {
+		reasons.push(`Need at least ${MIN_CORRELATION_DISTINCT} distinct values in both metrics.`);
+	}
+	if (distinctX <= 1 || distinctY <= 1) {
+		reasons.push("Not enough variation in one or both metrics.");
+	}
+
+	let rho = null;
+	let strength = null;
+	let direction = null;
+	let status = "insufficient";
+	if (reasons.length === 0) {
+		rho = computeSpearman(xValues, yValues);
+		if (rho === null) {
+			reasons.push("Not enough variation in one or both metrics.");
+		} else {
+			const absRho = Math.abs(rho);
+			strength = getCorrelationStrength(absRho);
+			direction = absRho < 0.2 ? "Near-zero" : rho >= 0 ? "Positive" : "Negative";
+			status = "ok";
+		}
+	}
+
+	return {
+		key,
+		label,
+		unitLabel,
+		xLabel,
+		yLabel,
+		method: "spearman",
+		status,
+		strength,
+		direction,
+		rho: rho === null ? null : Number(rho.toFixed(3)),
+		sampleSize,
+		distinctX,
+		distinctY,
+		thresholds: {
+			minSampleSize: MIN_CORRELATION_SAMPLES,
+			minDistinct: MIN_CORRELATION_DISTINCT,
+			requiresVariance: true
+		},
+		reason: reasons.join(" ") || null
+	};
 }
 
 function normalizeOptionalText(value) {
@@ -2232,7 +2349,8 @@ const bookStatsHandler = async (req, res) => {
 		"recentlyAdded",
 		"recentlyEdited",
 		"publisherPageCountAssociation",
-		"taggedPageCountAssociation"
+		"taggedPageCountAssociation",
+		"correlations"
 	]);
 
 	const selected = fields.length > 0 ? fields : Array.from(availableFields);
@@ -2465,6 +2583,140 @@ const bookStatsHandler = async (req, res) => {
 				withAvg: row.with_tags_avg,
 				withoutAvg: row.without_tags_avg
 			});
+		}
+
+		if (selected.includes("correlations")) {
+			const correlationSpecs = [
+				{
+					key: "booksAuthors",
+					label: "Books and Authors",
+					unitLabel: "authors",
+					xLabel: "Books per author",
+					yLabel: "Copies per author",
+					query: `SELECT a.id,
+							COUNT(DISTINCT b.id)::int AS book_count,
+							COUNT(DISTINCT bc.id)::int AS copy_count
+						FROM authors a
+						JOIN book_authors ba ON ba.author_id = a.id
+						JOIN books b ON b.id = ba.book_id AND b.deleted_at IS NULL
+						LEFT JOIN book_copies bc ON bc.book_id = b.id AND bc.user_id = a.user_id
+						WHERE a.user_id = $1 AND a.deleted_at IS NULL
+						GROUP BY a.id
+						HAVING COUNT(DISTINCT b.id) > 0`,
+					xField: "book_count",
+					yField: "copy_count"
+				},
+				{
+					key: "booksPublishers",
+					label: "Books and Publishers",
+					unitLabel: "publishers",
+					xLabel: "Books per publisher",
+					yLabel: "Copies per publisher",
+					query: `SELECT p.id,
+							COUNT(DISTINCT b.id)::int AS book_count,
+							COUNT(DISTINCT bc.id)::int AS copy_count
+						FROM publishers p
+						JOIN books b ON b.publisher_id = p.id AND b.deleted_at IS NULL
+						LEFT JOIN book_copies bc ON bc.book_id = b.id AND bc.user_id = p.user_id
+						WHERE p.user_id = $1 AND p.deleted_at IS NULL
+						GROUP BY p.id
+						HAVING COUNT(DISTINCT b.id) > 0`,
+					xField: "book_count",
+					yField: "copy_count"
+				},
+				{
+					key: "booksSeries",
+					label: "Books and Series",
+					unitLabel: "series",
+					xLabel: "Books per series",
+					yLabel: "Copies per series",
+					query: `SELECT s.id,
+							COUNT(DISTINCT b.id)::int AS book_count,
+							COUNT(DISTINCT bc.id)::int AS copy_count
+						FROM book_series s
+						JOIN book_series_books sb ON sb.series_id = s.id
+						JOIN books b ON b.id = sb.book_id AND b.deleted_at IS NULL
+						LEFT JOIN book_copies bc ON bc.book_id = b.id AND bc.user_id = s.user_id
+						WHERE s.user_id = $1 AND s.deleted_at IS NULL
+						GROUP BY s.id
+						HAVING COUNT(DISTINCT b.id) > 0`,
+					xField: "book_count",
+					yField: "copy_count"
+				},
+				{
+					key: "booksTags",
+					label: "Books and Tags",
+					unitLabel: "tags",
+					xLabel: "Books per tag",
+					yLabel: "Copies per tag",
+					query: `SELECT t.id,
+							COUNT(DISTINCT b.id)::int AS book_count,
+							COUNT(DISTINCT bc.id)::int AS copy_count
+						FROM tags t
+						JOIN book_tags bt ON bt.tag_id = t.id
+						JOIN books b ON b.id = bt.book_id AND b.deleted_at IS NULL
+						LEFT JOIN book_copies bc ON bc.book_id = b.id AND bc.user_id = t.user_id
+						WHERE t.user_id = $1
+						GROUP BY t.id
+						HAVING COUNT(DISTINCT b.id) > 0`,
+					xField: "book_count",
+					yField: "copy_count"
+				},
+				{
+					key: "booksLanguages",
+					label: "Books and Languages",
+					unitLabel: "languages",
+					xLabel: "Books per language",
+					yLabel: "Copies per language",
+					query: `SELECT bl.language_id AS id,
+							COUNT(DISTINCT b.id)::int AS book_count,
+							COUNT(DISTINCT bc.id)::int AS copy_count
+						FROM book_languages bl
+						JOIN books b ON b.id = bl.book_id AND b.deleted_at IS NULL
+						LEFT JOIN book_copies bc ON bc.book_id = b.id AND bc.user_id = bl.user_id
+						WHERE bl.user_id = $1
+						GROUP BY bl.language_id
+						HAVING COUNT(DISTINCT b.id) > 0`,
+					xField: "book_count",
+					yField: "copy_count"
+				},
+				{
+					key: "copiesStorageLocations",
+					label: "Copies and Storage locations",
+					unitLabel: "storage locations",
+					xLabel: "Copies per location",
+					yLabel: "Books per location",
+					query: `SELECT sl.id,
+							COUNT(*) FILTER (WHERE b.id IS NOT NULL)::int AS copy_count,
+							COUNT(DISTINCT b.id)::int AS book_count
+						FROM storage_locations sl
+						LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = sl.user_id
+						LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
+						WHERE sl.user_id = $1
+						GROUP BY sl.id
+						HAVING COUNT(*) FILTER (WHERE b.id IS NOT NULL) > 0`,
+					xField: "copy_count",
+					yField: "book_count"
+				}
+			];
+
+			const correlationResults = await Promise.all(correlationSpecs.map(async (spec) => {
+				const result = await pool.query(spec.query, [userId]);
+				const rows = result.rows.map((row) => ({
+					x: toNumber(row[spec.xField]),
+					y: toNumber(row[spec.yField])
+				}));
+				return buildCorrelationPayload({
+					key: spec.key,
+					label: spec.label,
+					unitLabel: spec.unitLabel,
+					xLabel: spec.xLabel,
+					yLabel: spec.yLabel,
+					rows
+				});
+			}));
+
+			payload.correlations = correlationResults;
 		}
 
 		if (selected.includes("metadataCompleteness")) {
