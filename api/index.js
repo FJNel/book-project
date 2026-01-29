@@ -51,7 +51,6 @@ app.set("trust proxy", 1);
 //Middleware: Security and Parsing
 app.use(helmet()); // Set HTTP headers for security
 
-app.use(express.json()); // Parse JSON request bodies
 // Allow requests from other domains (CORS)
 const corsOptions = {
 	origin: config.cors.allowedOrigins,
@@ -62,6 +61,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions)); //Use regex path to prevent looping crashes
+
+app.use(express.json()); // Parse JSON request bodies
 
 //Serve static documentation in the "public" folder
 app.use(express.static("public"));
