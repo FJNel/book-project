@@ -15,19 +15,6 @@ const { corsOptions, applyCorsHeaders } = require("./utils/cors-config");
 //Start the Express app
 const app = express();
 
-// Health check endpoint (very top-level, no middleware)
-app.get('/__ping', (req, res) => {
-	res.status(200).send('pong');
-  });
-
-// Simple request logger for debugging
-app.use((req, res, next) => {
-console.log('[REQ]', req.method, req.url);
-next();
-});
-
-  
-
 //Import route handlers
 const rootRoute = require("./routes/root");
 const userRoutes = require("./routes/users");
