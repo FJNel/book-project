@@ -419,6 +419,103 @@ const adminStatsSummaryHandler = async (req, res) => {
 		}
 		setCacheEntry(cacheKey, responseData, DEFAULT_ADMIN_TTL_SECONDS);
 		// Admin library viewer endpoints retired in Phase 8.
+		return successResponse(res, 200, "Site statistics retrieved successfully.", responseData);
+	} catch (error) {
+		logToFile("ADMIN_STATS_SUMMARY", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user.id,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["Unable to retrieve site statistics at this time."]);
+	}
+};
+
+router.get("/stats/summary", adminAuth, adminStatsSummaryHandler);
+router.post("/stats/summary", adminAuth, adminStatsSummaryHandler);
+
+// GET/POST /admin/usage/users - Usage dashboard for users
+const adminUsageUsersHandler = async (req, res) => {
+	const params = { ...req.query, ...(req.body || {}) };
+	const { value: startDate, error: startError } = parseDateFilter(params.startDate, "startDate");
+	const { value: endDate, error: endError } = parseDateFilter(params.endDate, "endDate");
+	const { value: limit, error: limitError } = parseOptionalInt(params.limit, "limit", { min: 1, max: 500 });
+	const { value: offset, error: offsetError } = parseOptionalInt(params.offset, "offset", { min: 0, max: null });
+
+	const errors = [];
+	if (startError) errors.push(startError);
+	if (endError) errors.push(endError);
+	if (limitError) errors.push(limitError);
+	if (offsetError) errors.push(offsetError);
+	if (errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", errors);
+	}
+
+	const windowStart = startDate || new Date(Date.now() - USAGE_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+	const windowEnd = endDate || new Date().toISOString();
+	const sortBy = normalizeText(params.sortBy) || "usageScore";
+	const sortOrder = (parseSortOrder(params.order) || "desc").toUpperCase();
+	const topLimit = Math.min(Number.parseInt(params.topLimit || "5", 10) || 5, 15);
+
+	const clauses = ["l.actor_type IN ('user', 'api_key')", "l.logged_at BETWEEN $1 AND $2"];
+	const values = [windowStart, windowEnd];
+	let idx = 3;
+
+	if (Number.isInteger(parseId(params.userId))) {
+		clauses.push(`l.user_id = $${idx++}`);
+		values.push(parseId(params.userId));
+	}
+	if (normalizeText(params.email)) {
+		clauses.push(`l.user_email ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.email)}%`);
+	}
+	if (normalizeText(params.method)) {
+		clauses.push(`UPPER(l.method) = $${idx++}`);
+		values.push(normalizeText(params.method).toUpperCase());
+	}
+	if (normalizeText(params.path)) {
+		clauses.push(`COALESCE(l.route_pattern, l.path) ILIKE $${idx++}`);
+		values.push(`%${normalizeText(params.path)}%`);
+	}
+
+	const sortColumnMap = {
+		usageScore: "usage_score",
+		requests: "request_count",
+		lastSeen: "last_seen"
+	};
+	const sortColumn = sortColumnMap[sortBy] || "usage_score";
+
+	try {
+		const { hasTable, hasCostUnits } = await getRequestLogsAvailability();
+		if (!hasTable) {
+			return successResponse(res, 200, "User usage retrieved successfully.", {
+				configured: false,
+				message: LOGS_NOT_CONFIGURED_MESSAGE,
+				window: { startDate: windowStart, endDate: windowEnd },
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				usageLevels: USAGE_LEVEL_THRESHOLDS,
+				users: [],
+				warnings: ["Request logs are unavailable, so usage data cannot be generated."]
+			});
+		}
+		const cacheKey = buildCacheKey({
+			scope: "admin",
+			endpoint: "admin/usage/users",
+			params: {
+				windowStart,
+				windowEnd,
+				sortBy,
+				order: sortOrder,
+				topLimit,
+				limit: limit ?? 25,
+				offset: offset ?? 0,
+				userId: parseId(params.userId),
+				email: normalizeText(params.email),
+				method: normalizeText(params.method),
+				path: normalizeText(params.path)
+			}
 		});
 		const cached = getCacheEntry(cacheKey);
 		if (cached) {
