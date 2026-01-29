@@ -39,6 +39,12 @@ const searchRoutes = require("./routes/search");
 const importExportRoutes = require("./routes/import-export");
 const logRoutes = require("./routes/logs");
 
+// Attach correlation id early for request tracing
+app.use(attachCorrelationId);
+
+// Log all API requests to the database (sanitized + truncated)
+app.use(createRequestLogger());
+
 //Trust proxy headers for rate-limiting
 app.set("trust proxy", 1);
 
@@ -54,13 +60,7 @@ const corsOptions = {
 	optionsSuccessStatus: config.cors.optionsSuccessStatus,
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
-
-// Attach correlation id early for request tracing
-app.use(attachCorrelationId);
-
-// Log all API requests to the database (sanitized + truncated)
-app.use(createRequestLogger);
+app.options(/.*/, cors(corsOptions)); //Use regex path to prevent looping crashes
 
 app.use(express.json()); // Parse JSON request bodies
 

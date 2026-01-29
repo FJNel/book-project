@@ -386,6 +386,7 @@ async function apiFetch(path, options = {}) {
 	}
 
 	const headers = new Headers(options.headers || {});
+	headers.set('Content-Type', 'application/json');
 
 	// If the path is not public, attach the Authorization header
 	const accessToken = localStorage.getItem('accessToken');
@@ -404,9 +405,6 @@ async function apiFetch(path, options = {}) {
 		&& !(rawBody instanceof URLSearchParams)
 		&& !(typeof ReadableStream !== 'undefined' && rawBody instanceof ReadableStream);
 	const finalBody = shouldStringify ? JSON.stringify(rawBody) : rawBody;
-	if (finalBody !== undefined && !headers.has('Content-Type') && method !== 'GET' && method !== 'HEAD') {
-		headers.set('Content-Type', 'application/json');
-	}
 	if (finalBody !== undefined) {
 		prepared.body = finalBody;
 	}
