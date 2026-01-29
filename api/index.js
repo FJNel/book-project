@@ -34,50 +34,6 @@ process.on("exit", (code) => {
 	console.error(`exit(${code})`);
 });
 
-// ===================== ACTIVE_HANDLES_DEBUG =====================
-(() => {
-	try {
-		const net = require("net");
-		const http = require("http");
-
-		// Trap server.close() calls (net.Server + http.Server)
-		const trapClose = (Proto, label) => {
-			if (!Proto || !Proto.close || Proto.close.__trapped) return;
-			const orig = Proto.close;
-			function wrappedClose(...args) {
-				console.error(new Error(`[TRAP] ${label}.close() called`).stack);
-				return orig.apply(this, args);
-			}
-			wrappedClose.__trapped = true;
-			Proto.close = wrappedClose;
-		};
-
-		trapClose(net.Server && net.Server.prototype, "net.Server");
-		trapClose(http.Server && http.Server.prototype, "http.Server");
-
-		// Dump active handles/requests right before exit
-		const dump = (tag) => {
-			try {
-				const handles = process._getActiveHandles ? process._getActiveHandles() : [];
-				const requests = process._getActiveRequests ? process._getActiveRequests() : [];
-				console.error(`[${tag}] activeHandles=${handles.length} activeRequests=${requests.length}`);
-				for (const h of handles) {
-					const name = (h && h.constructor && h.constructor.name) ? h.constructor.name : typeof h;
-					console.error(`  - handle: ${name}`);
-				}
-			} catch (e) {
-				console.error(`[${tag}] dump failed`, e);
-			}
-		};
-
-		process.on("beforeExit", () => dump("beforeExit"));
-		process.on("exit", () => dump("exit"));
-	} catch (e) {
-		console.error("[ACTIVE_HANDLES_DEBUG] init failed", e);
-	}
-})();
-// =================== /ACTIVE_HANDLES_DEBUG ======================
-
 const cp = require("child_process");
 for (const fn of ["exec", "execFile", "spawn", "fork"]) {
 	const orig = cp[fn];
