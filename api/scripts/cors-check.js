@@ -1,3 +1,10 @@
+console.error(new Error("cors-check.js LOADED").stack);
+
+if (require.main !== module) {
+	module.exports = {};
+	return;
+}
+
 process.env.HEALTHCHECK_SKIP_DB = "true";
 
 const http = require("http");
