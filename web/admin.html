@@ -330,6 +330,70 @@
           </div>
         </div>
       </div>
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-lg-6">
+          <div class="card admin-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <p class="mb-1 text-uppercase text-muted small fw-semibold">Email Metrics</p>
+                  <h2 class="h5 mb-0">Mailgun (last 30 days)</h2>
+                </div>
+                <span class="badge text-bg-primary">Mailgun</span>
+              </div>
+              <div class="d-flex flex-column gap-2">
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Processed (30d)</span>
+                  <span class="fw-semibold" id="mailgunProcessedText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Sent (30d)</span>
+                  <span class="fw-semibold" id="mailgunSentText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Delivered (30d)</span>
+                  <span class="fw-semibold" id="mailgunDeliveredText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Failed (30d)</span>
+                  <span class="fw-semibold" id="mailgunFailedText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Opened (30d)</span>
+                  <span class="fw-semibold" id="mailgunOpenedText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Clicked (30d)</span>
+                  <span class="fw-semibold" id="mailgunClickedText">—</span>
+                </div>
+              </div>
+              <hr class="my-3" />
+              <div class="d-flex flex-column gap-2">
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Monthly limit</span>
+                  <span class="fw-semibold" id="mailgunMonthlyLimitText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Used this month</span>
+                  <span class="fw-semibold" id="mailgunMonthlyUsedText">—</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="muted-label">Remaining</span>
+                  <span class="fw-semibold" id="mailgunMonthlyRemainingText">—</span>
+                </div>
+              </div>
+              <div class="text-muted small mt-2 d-none" id="mailgunLimitHint"></div>
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted small" id="mailgunUpdatedAt">Last checked just now</div>
+                <div class="btn-group">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" id="refreshMailgunMetricsBtn">Refresh</button>
+                </div>
+              </div>
+              <div class="alert alert-warning d-none mt-3" id="mailgunMetricsAlert"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="mb-4 admin-section d-none" id="statisticsSection" data-section-content="statistics">

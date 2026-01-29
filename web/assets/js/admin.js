@@ -21,6 +21,19 @@
     queueText: document.getElementById('queueText'),
     statusUpdatedAt: document.getElementById('statusUpdatedAt'),
     refreshStatusBtn: document.getElementById('refreshStatusBtn'),
+    mailgunMetricsAlert: document.getElementById('mailgunMetricsAlert'),
+    mailgunProcessedText: document.getElementById('mailgunProcessedText'),
+    mailgunSentText: document.getElementById('mailgunSentText'),
+    mailgunDeliveredText: document.getElementById('mailgunDeliveredText'),
+    mailgunFailedText: document.getElementById('mailgunFailedText'),
+    mailgunOpenedText: document.getElementById('mailgunOpenedText'),
+    mailgunClickedText: document.getElementById('mailgunClickedText'),
+    mailgunMonthlyLimitText: document.getElementById('mailgunMonthlyLimitText'),
+    mailgunMonthlyUsedText: document.getElementById('mailgunMonthlyUsedText'),
+    mailgunMonthlyRemainingText: document.getElementById('mailgunMonthlyRemainingText'),
+    mailgunLimitHint: document.getElementById('mailgunLimitHint'),
+    mailgunUpdatedAt: document.getElementById('mailgunUpdatedAt'),
+    refreshMailgunMetricsBtn: document.getElementById('refreshMailgunMetricsBtn'),
     adminSectionNav: document.getElementById('adminSectionNav'),
     sections: document.querySelectorAll('.admin-section'),
     userSearchInput: document.getElementById('userSearchInput'),
@@ -721,6 +734,87 @@
     }
     if (lastError) {
       throw lastError;
+    }
+  }
+
+  function formatMailgunCount(value) {
+    return Number.isFinite(value) ? Number(value).toLocaleString() : 'Unavailable';
+  }
+
+  function setMailgunText(el, value) {
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  function resetMailgunMetrics() {
+    setMailgunText(dom.mailgunProcessedText, 'Unavailable');
+    setMailgunText(dom.mailgunSentText, 'Unavailable');
+    setMailgunText(dom.mailgunDeliveredText, 'Unavailable');
+    setMailgunText(dom.mailgunFailedText, 'Unavailable');
+    setMailgunText(dom.mailgunOpenedText, 'Unavailable');
+    setMailgunText(dom.mailgunClickedText, 'Unavailable');
+    setMailgunText(dom.mailgunMonthlyLimitText, '—');
+    setMailgunText(dom.mailgunMonthlyUsedText, '—');
+    setMailgunText(dom.mailgunMonthlyRemainingText, '—');
+    if (dom.mailgunLimitHint) {
+      dom.mailgunLimitHint.textContent = '';
+      dom.mailgunLimitHint.classList.add('d-none');
+    }
+    if (dom.mailgunUpdatedAt) dom.mailgunUpdatedAt.textContent = 'Last checked just now';
+  }
+
+  function renderMailgunMetrics(data) {
+    const aggregates = data?.aggregates || {};
+    const monthly = data?.monthly || {};
+    setMailgunText(dom.mailgunProcessedText, formatMailgunCount(aggregates.processedCount));
+    setMailgunText(dom.mailgunSentText, formatMailgunCount(aggregates.sentCount));
+    setMailgunText(dom.mailgunDeliveredText, formatMailgunCount(aggregates.deliveredCount));
+    setMailgunText(dom.mailgunFailedText, formatMailgunCount(aggregates.failedCount));
+    setMailgunText(dom.mailgunOpenedText, formatMailgunCount(aggregates.openedCount));
+    setMailgunText(dom.mailgunClickedText, formatMailgunCount(aggregates.clickedCount));
+
+    const limitConfigured = monthly?.limitConfigured === true;
+    setMailgunText(dom.mailgunMonthlyLimitText, limitConfigured ? formatMailgunCount(monthly.limit) : '—');
+    setMailgunText(dom.mailgunMonthlyUsedText, formatMailgunCount(monthly.used));
+    setMailgunText(dom.mailgunMonthlyRemainingText, limitConfigured ? formatMailgunCount(monthly.remaining) : '—');
+
+    if (dom.mailgunLimitHint) {
+      if (!limitConfigured) {
+        dom.mailgunLimitHint.textContent = 'Monthly limit not configured.';
+        dom.mailgunLimitHint.classList.remove('d-none');
+      } else {
+        dom.mailgunLimitHint.textContent = '';
+        dom.mailgunLimitHint.classList.add('d-none');
+      }
+    }
+
+    if (dom.mailgunUpdatedAt) {
+      const updatedAt = data?.lastUpdatedAt ? formatDateTime(data.lastUpdatedAt) : formatDateTime(Date.now());
+      dom.mailgunUpdatedAt.textContent = `Last checked ${updatedAt}`;
+    }
+  }
+
+  async function fetchMailgunMetrics() {
+    hideAlert(dom.mailgunMetricsAlert);
+    if (dom.mailgunUpdatedAt) dom.mailgunUpdatedAt.textContent = 'Checking…';
+    try {
+      const response = await apiFetch('/admin/mailgun/metrics/summary', { method: 'POST', body: {} });
+      const data = await parseResponse(response);
+      if (data?.configured === false) {
+        resetMailgunMetrics();
+        showAlert(dom.mailgunMetricsAlert, data?.message || 'Mailgun metrics are not configured.');
+        return false;
+      }
+      renderMailgunMetrics(data);
+      if (Array.isArray(data?.warnings) && data.warnings.length) {
+        showAlert(dom.mailgunMetricsAlert, data.warnings.join(' '));
+      }
+      return true;
+    } catch (err) {
+      errorLog('Failed to load Mailgun metrics', err);
+      resetMailgunMetrics();
+      showAlert(dom.mailgunMetricsAlert, err.message || 'Email metrics unavailable.');
+      return false;
     }
   }
 
@@ -4618,6 +4712,9 @@
   function bindEvents() {
     dom.refreshStatusBtn?.addEventListener('click', () => fetchStatus().catch(() => {}));
     dom.refreshSiteStatsBtn?.addEventListener('click', () => fetchSiteStats());
+    dom.refreshMailgunMetricsBtn?.addEventListener('click', () => {
+      fetchMailgunMetrics().catch(() => {});
+    });
 
     dom.adminSectionNav?.addEventListener('click', (event) => {
       const btn = event.target.closest('button[data-section]');
@@ -5002,7 +5099,8 @@
       await Promise.all([
         fetchStatus(),
         fetchUsers(getUserFilters()),
-        fetchLanguages()
+        fetchLanguages(),
+        fetchMailgunMetrics()
       ]);
       if (state.currentSection === 'emails') {
         ensureEmailTypesLoaded().catch(() => {});

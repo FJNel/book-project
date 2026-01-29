@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <script>
+    (function () {
+      try {
+        const pref = localStorage.getItem('themePreference');
+        const resolved = (pref === 'light' || pref === 'dark')
+          ? pref
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', resolved);
+      } catch (e) {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+      }
+    })();
+  </script>
+  <title>The Book Project · Health</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <style>
+    .admin-card {
+      border: 1px solid var(--bs-border-color);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+      background: var(--bs-body-bg);
+    }
+    .muted-label { font-size: 0.9rem; color: var(--bs-secondary-color); }
+    .status-icon {
+      width: 1.1rem;
+      height: 1.1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-7">
+        <div class="card admin-card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <p class="mb-1 text-uppercase text-muted small fw-semibold">System Status</p>
+                <h1 class="h5 mb-0">API &amp; Services</h1>
+              </div>
+              <span class="badge text-bg-secondary" id="healthBadge">
+                <span class="status-icon"><i class="bi bi-cloud-check" aria-hidden="true"></i></span>
+                <span id="healthBadgeText">Checking…</span>
+              </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between">
+                <span class="muted-label">API</span>
+                <span id="healthApiStatus" class="fw-semibold">—</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="muted-label">Database latency</span>
+                <span class="fw-semibold" id="healthDbLatency">—</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="muted-label">Schema readiness</span>
+                <span class="fw-semibold" id="healthSchemaStatus">—</span>
+              </div>
+              <div class="text-muted small d-none" id="healthSchemaDetails"></div>
+              <div class="d-flex justify-content-between">
+                <span class="muted-label">DB SSL mode</span>
+                <span class="fw-semibold" id="healthDbSslMode">—</span>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div class="text-muted small" id="healthUpdatedAt">Last checked just now</div>
+              <div class="btn-group">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="healthRetryBtn">Retry</button>
+              </div>
+            </div>
+            <div class="alert alert-warning d-none mt-3" id="healthAlert"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/health.js"></script>
+</body>
+</html>

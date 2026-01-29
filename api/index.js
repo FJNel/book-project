@@ -61,7 +61,7 @@ const corsOptions = {
 	optionsSuccessStatus: config.cors.optionsSuccessStatus,
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.options(/.*/, cors(corsOptions)); //Use regex path to prevent looping crashes
 
 //Serve static documentation in the "public" folder
 app.use(express.static("public"));

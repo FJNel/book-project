@@ -203,6 +203,7 @@ const PUBLIC_PATHS = [
     '/auth/request-password-reset',
     '/auth/reset-password',
     '/', // Root health check
+	'/health',
 ];
 
 let refreshPromise = null;

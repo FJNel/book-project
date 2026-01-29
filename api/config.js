@@ -68,10 +68,12 @@ const google = {
 };
 
 // Mail / Notifications
+const mailgunMonthlySendLimit = envNumber('MAILGUN_MONTHLY_SEND_LIMIT', 3000);
 const mail = {
 	mailgunApiKey: env('MAILGUN_API_KEY'),
 	mailgunDomain: env('MAILGUN_DOMAIN'),
 	mailgunRegion: env('MAILGUN_REGION', 'US'), // 'EU' for EU domains
+	monthlySendLimit: Number.isFinite(mailgunMonthlySendLimit) ? mailgunMonthlySendLimit : null,
 	fromEmail: env('FROM_EMAIL', 'noreply@fjnel.co.za'),
 	supportEmail: env('SUPPORT_EMAIL', 'support@fjnel.co.za'),
 };

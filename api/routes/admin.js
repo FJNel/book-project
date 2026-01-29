@@ -29,6 +29,98 @@ const config = require("../config");
 const pool = require("../db");
 const fetch = (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
 
+const MAILGUN_METRICS_TTL_SECONDS = 300;
+const MAILGUN_DEFAULT_DURATION = "30d";
+const MAILGUN_DEFAULT_RESOLUTION = "day";
+const MAILGUN_MONTHLY_METRIC = "processed_count";
+const MAILGUN_AGGREGATE_METRICS = [
+	"processed_count",
+	"sent_count",
+	"delivered_count",
+	"failed_count",
+	"opened_count",
+	"clicked_count",
+	"complained_count",
+	"unsubscribed_count"
+];
+const MAILGUN_AGGREGATE_MAP = {
+	processed_count: "processedCount",
+	sent_count: "sentCount",
+	delivered_count: "deliveredCount",
+	failed_count: "failedCount",
+	opened_count: "openedCount",
+	clicked_count: "clickedCount",
+	complained_count: "complainedCount",
+	unsubscribed_count: "unsubscribedCount"
+};
+
+function getMailgunBaseUrl() {
+	return config.mail.mailgunRegion === "EU" ? "https://api.eu.mailgun.net" : "https://api.mailgun.net";
+}
+
+function buildMailgunAuthHeader() {
+	if (!config.mail.mailgunApiKey) return null;
+	const token = Buffer.from(`api:${config.mail.mailgunApiKey}`).toString("base64");
+	return `Basic ${token}`;
+}
+
+function toRfc2822(date) {
+	return date instanceof Date ? date.toUTCString() : new Date(date).toUTCString();
+}
+
+function getCurrentMonthWindow() {
+	const now = new Date();
+	const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+	return {
+		start,
+		end: now,
+		startIso: start.toISOString(),
+		endIso: now.toISOString(),
+		startRfc2822: toRfc2822(start),
+		endRfc2822: toRfc2822(now)
+	};
+}
+
+function mapMailgunAggregates(aggregates = {}) {
+	const result = {};
+	Object.entries(MAILGUN_AGGREGATE_MAP).forEach(([key, mapped]) => {
+		const value = aggregates?.[key];
+		result[mapped] = Number.isFinite(value) ? Number(value) : null;
+	});
+	return result;
+}
+
+async function postMailgunMetrics(payload) {
+	const authHeader = buildMailgunAuthHeader();
+	if (!authHeader) {
+		const err = new Error("Mailgun API key not configured.");
+		err.code = "MAILGUN_NOT_CONFIGURED";
+		throw err;
+	}
+	const response = await fetch(`${getMailgunBaseUrl()}/v1/analytics/metrics`, {
+		method: "POST",
+		headers: {
+			Authorization: authHeader,
+			"Content-Type": "application/json",
+			Accept: "application/json"
+		},
+		body: JSON.stringify(payload)
+	});
+	let data = null;
+	try {
+		data = await response.json();
+	} catch (_) {
+		data = null;
+	}
+	if (!response.ok) {
+		const message = data?.message || data?.error || `Mailgun metrics request failed (status ${response.status}).`;
+		const err = new Error(message);
+		err.status = response.status;
+		throw err;
+	}
+	return data || {};
+}
+
 router.use((req, res, next) => {
 	const start = process.hrtime();
 	res.on("finish", () => {
@@ -332,6 +424,121 @@ const adminStatsSummaryHandler = async (req, res) => {
 
 router.get("/stats/summary", adminAuth, adminStatsSummaryHandler);
 router.post("/stats/summary", adminAuth, adminStatsSummaryHandler);
+
+// GET/POST /admin/mailgun/metrics/summary - Mailgun metrics summary (admin only)
+// Uses Mailgun Analytics Metrics API with processed_count as the monthly usage metric.
+const mailgunMetricsSummaryHandler = async (req, res) => {
+	const cacheKey = buildCacheKey({
+		scope: "admin",
+		endpoint: "admin/mailgun/metrics/summary",
+		params: { duration: MAILGUN_DEFAULT_DURATION }
+	});
+	const cached = getCacheEntry(cacheKey);
+	if (cached) {
+		return successResponse(res, 200, "Mailgun metrics retrieved successfully.", cached.data);
+	}
+
+	if (!config.mail.mailgunApiKey) {
+		const monthWindow = getCurrentMonthWindow();
+		return successResponse(res, 200, "Mailgun metrics unavailable.", {
+			configured: false,
+			message: "Mailgun is not configured.",
+			period: {
+				duration: MAILGUN_DEFAULT_DURATION,
+				resolution: MAILGUN_DEFAULT_RESOLUTION,
+				start: null,
+				end: null
+			},
+			aggregates: mapMailgunAggregates({}),
+			monthly: {
+				metric: MAILGUN_MONTHLY_METRIC,
+				limit: null,
+				limitConfigured: false,
+				used: null,
+				remaining: null,
+				window: {
+					start: monthWindow.startIso,
+					end: monthWindow.endIso
+				}
+			},
+			lastUpdatedAt: new Date().toISOString(),
+			warnings: ["Mailgun is not configured."]
+		});
+	}
+
+	try {
+		const metricsPayload = {
+			duration: MAILGUN_DEFAULT_DURATION,
+			resolution: MAILGUN_DEFAULT_RESOLUTION,
+			dimensions: ["time"],
+			metrics: MAILGUN_AGGREGATE_METRICS,
+			include_aggregates: true
+		};
+		const metricsResponse = await postMailgunMetrics(metricsPayload);
+		const aggregates = mapMailgunAggregates(metricsResponse?.aggregates || {});
+		const period = {
+			duration: MAILGUN_DEFAULT_DURATION,
+			resolution: MAILGUN_DEFAULT_RESOLUTION,
+			start: metricsResponse?.start || null,
+			end: metricsResponse?.end || null
+		};
+
+		const monthWindow = getCurrentMonthWindow();
+		const monthlyPayload = {
+			start: monthWindow.startRfc2822,
+			end: monthWindow.endRfc2822,
+			resolution: "month",
+			dimensions: ["time"],
+			metrics: [MAILGUN_MONTHLY_METRIC],
+			include_aggregates: true
+		};
+		const monthlyResponse = await postMailgunMetrics(monthlyPayload);
+		const monthlyAggregates = monthlyResponse?.aggregates || {};
+		const used = Number.isFinite(monthlyAggregates?.[MAILGUN_MONTHLY_METRIC])
+			? Number(monthlyAggregates[MAILGUN_MONTHLY_METRIC])
+			: null;
+		const limit = Number.isFinite(config.mail.monthlySendLimit) ? config.mail.monthlySendLimit : null;
+		const limitConfigured = Number.isFinite(limit);
+		const remaining = limitConfigured && Number.isFinite(used)
+			? Math.max(0, limit - used)
+			: null;
+		const warnings = [];
+		if (!limitConfigured) warnings.push("Monthly limit not configured.");
+
+		const responseData = {
+			configured: true,
+			period,
+			aggregates,
+			monthly: {
+				metric: MAILGUN_MONTHLY_METRIC,
+				limit: limitConfigured ? limit : null,
+				limitConfigured,
+				used,
+				remaining,
+				window: {
+					start: monthWindow.startIso,
+					end: monthWindow.endIso
+				}
+			},
+			lastUpdatedAt: new Date().toISOString()
+		};
+		if (warnings.length) responseData.warnings = warnings;
+		setCacheEntry(cacheKey, responseData, MAILGUN_METRICS_TTL_SECONDS);
+		return successResponse(res, 200, "Mailgun metrics retrieved successfully.", responseData);
+	} catch (error) {
+		logToFile("ADMIN_MAILGUN_METRICS", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: req.user ? req.user.id : null,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 502, "Mailgun metrics unavailable.", ["Unable to retrieve Mailgun metrics at this time."]);
+	}
+};
+
+router.get("/mailgun/metrics/summary", adminAuth, mailgunMetricsSummaryHandler);
+router.post("/mailgun/metrics/summary", adminAuth, mailgunMetricsSummaryHandler);
 
 // GET/POST /admin/usage/users - Usage dashboard (user sessions only)
 const adminUsageUsersHandler = async (req, res) => {

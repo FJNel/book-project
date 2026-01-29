@@ -184,6 +184,7 @@ MAILGUN_API_KEY=key-xxx
 MAILGUN_DOMAIN=mg.example.com
 FROM_EMAIL=noreply@example.com
 MAILGUN_REGION=US
+MAILGUN_MONTHLY_SEND_LIMIT=10000
 
 # Frontend URL used in email links
 FRONTEND_URL=http://127.0.0.1:8000

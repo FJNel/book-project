@@ -1909,6 +1909,66 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/ServerError'
+  /admin/mailgun/metrics/summary:
+    get:
+      tags: [Admin]
+      summary: Mailgun metrics summary
+      operationId: getAdminMailgunMetricsSummary
+      description: Retrieve Mailgun metrics aggregates for admin overview. Server-side only.
+      responses:
+        '200':
+          description: Mailgun metrics summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MailgunMetricsSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Admin]
+      summary: Mailgun metrics summary
+      operationId: postAdminMailgunMetricsSummary
+      description: Retrieve Mailgun metrics aggregates for admin overview. Server-side only.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+            examples:
+              empty:
+                value: {}
+      responses:
+        '200':
+          description: Mailgun metrics summary
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MailgunMetricsSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /auth/resend-verification:
     post:
       tags: [Auth]
@@ -10224,6 +10284,90 @@ components:
           items:
             type: string
       required: [status, httpCode, responseTime, message, data, errors]
+    MailgunMetricsSummary:
+      description: Aggregated Mailgun metrics for admin overview.
+      type: object
+      properties:
+        configured:
+          description: Whether Mailgun metrics are configured and available.
+          type: boolean
+        message:
+          description: Optional message when metrics are unavailable.
+          type: string
+          nullable: true
+        period:
+          description: Time window for the aggregate metrics.
+          type: object
+          properties:
+            duration:
+              type: string
+            resolution:
+              type: string
+            start:
+              type: string
+              nullable: true
+            end:
+              type: string
+              nullable: true
+        aggregates:
+          description: Aggregate metric counts for the last 30 days.
+          type: object
+          properties:
+            processedCount:
+              type: number
+              nullable: true
+            sentCount:
+              type: number
+              nullable: true
+            deliveredCount:
+              type: number
+              nullable: true
+            failedCount:
+              type: number
+              nullable: true
+            openedCount:
+              type: number
+              nullable: true
+            clickedCount:
+              type: number
+              nullable: true
+            complainedCount:
+              type: number
+              nullable: true
+            unsubscribedCount:
+              type: number
+              nullable: true
+        monthly:
+          description: Monthly usage summary based on processed_count.
+          type: object
+          properties:
+            metric:
+              type: string
+            limit:
+              type: number
+              nullable: true
+            limitConfigured:
+              type: boolean
+            used:
+              type: number
+              nullable: true
+            remaining:
+              type: number
+              nullable: true
+            window:
+              type: object
+              properties:
+                start:
+                  type: string
+                end:
+                  type: string
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        warnings:
+          type: array
+          items:
+            type: string
     RateLimitStatus:
       description: Details about the current rate-limit bucket for the caller.
       type: object
