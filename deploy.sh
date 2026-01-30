@@ -87,9 +87,22 @@ if [ "$LOCAL" != "$REMOTE" ]; then
   echo "[$(timestamp)] New changes detected: $LOCAL_SHORT -> $REMOTE_SHORT. Deploying..." >> "$LOG_FILE"
 
   # Determine changed folders/files (non-fatal if diff/stat fails for any reason)
-  CHANGED_FOLDERS="$(git diff --name-only "$LOCAL" "$REMOTE" | cut -d/ -f1 | sort -u || true)"
-  CHANGED_FILES_COUNT="$(git diff --name-only "$LOCAL" "$REMOTE" | wc -l | tr -d ' ' || echo 0)"
+  CHANGED_FILES="$(git diff --name-only "$LOCAL" "$REMOTE" || true)"
+  CHANGED_FOLDERS="$(echo "$CHANGED_FILES" | cut -d/ -f1 | sort -u || true)"
+  CHANGED_FILES_COUNT="$(echo "$CHANGED_FILES" | sed '/^\s*$/d' | wc -l | tr -d ' ' || echo 0)"
   DIFFSTAT="$(git diff --stat "$LOCAL" "$REMOTE" || true)"
+
+  # Docs build should only run when docs source changes
+  DOCS_CHANGED=0
+  if echo "$CHANGED_FILES" | grep -qE '^web/docs-site/'; then
+    DOCS_CHANGED=1
+  fi
+
+  # If docs dependencies changed, we need npm ci, otherwise we can skip it
+  DOCS_DEPS_CHANGED=0
+  if echo "$CHANGED_FILES" | grep -qE '^web/docs-site/package(-lock)?\.json$'; then
+    DOCS_DEPS_CHANGED=1
+  fi
 
   COMMIT_COUNT="$(git rev-list --count "$LOCAL..$REMOTE" 2>/dev/null || echo "unknown")"
   # True push time isn't available from plain git here; this is the closest practical signal.
@@ -120,24 +133,33 @@ if [ "$LOCAL" != "$REMOTE" ]; then
   # If web folder changed
   if echo "$CHANGED_FOLDERS" | grep -qx "web"; then
 
-    # Build VitePress docs (if present)
-    if [ -f "$PROJECT_DIR/web/docs-site/package.json" ]; then
-      CURRENT_STEP="web: docs-site npm ci"
-      (cd "$PROJECT_DIR/web/docs-site" && npm ci) >> "$LOG_FILE" 2>&1
+    # Build VitePress docs ONLY when docs-site changes
+    if [ "$DOCS_CHANGED" -eq 1 ]; then
+      if [ -f "$PROJECT_DIR/web/docs-site/package.json" ]; then
 
-      CURRENT_STEP="web: docs-site build"
-      (cd "$PROJECT_DIR/web/docs-site" && npm run build) >> "$LOG_FILE" 2>&1
+        if [ "$DOCS_DEPS_CHANGED" -eq 1 ]; then
+          CURRENT_STEP="web: docs-site npm ci"
+          (cd "$PROJECT_DIR/web/docs-site" && npm ci) >> "$LOG_FILE" 2>&1
+          ACTIONS_TAKEN+=("Docs deps changed: npm ci in web/docs-site")
+        else
+          ACTIONS_TAKEN+=("Docs deps unchanged: skipped npm ci")
+        fi
 
-      ACTIONS_TAKEN+=("Web changed: built VitePress docs -> web/docs/")
+        CURRENT_STEP="web: docs-site build"
+        (cd "$PROJECT_DIR/web/docs-site" && npm run build) >> "$LOG_FILE" 2>&1
+        ACTIONS_TAKEN+=("Docs changed: built VitePress docs -> web/docs/")
+      else
+        ACTIONS_TAKEN+=("Docs changed: docs-site not found; skipped docs build")
+      fi
     else
-      ACTIONS_TAKEN+=("Web changed: docs-site not found; skipped docs build")
+      ACTIONS_TAKEN+=("Docs unchanged: skipped VitePress build")
     fi
 
     CURRENT_STEP="web: reload nginx"
     sudo systemctl reload nginx >> "$LOG_FILE" 2>&1
-
     ACTIONS_TAKEN+=("Web changed: reloaded nginx")
   fi
+
 
 
   if [ ${#ACTIONS_TAKEN[@]} -eq 0 ]; then
