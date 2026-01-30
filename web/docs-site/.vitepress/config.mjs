@@ -38,12 +38,12 @@
       ]
     },
 
-    search: { provider: "local" }
+    search: { provider: "local" },
 
     footer: {
       message: "The Book Project Documentation",
       copyright: "© 2026 The Book Project"
-    }
+    },
 
     lastUpdated: {
       text: "Last Updated"
