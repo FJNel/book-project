@@ -119,11 +119,26 @@ if [ "$LOCAL" != "$REMOTE" ]; then
 
   # If web folder changed
   if echo "$CHANGED_FOLDERS" | grep -qx "web"; then
+
+    # Build VitePress docs (if present)
+    if [ -f "$PROJECT_DIR/web/docs-site/package.json" ]; then
+      CURRENT_STEP="web: docs-site npm ci"
+      (cd "$PROJECT_DIR/web/docs-site" && npm ci) >> "$LOG_FILE" 2>&1
+
+      CURRENT_STEP="web: docs-site build"
+      (cd "$PROJECT_DIR/web/docs-site" && npm run build) >> "$LOG_FILE" 2>&1
+
+      ACTIONS_TAKEN+=("Web changed: built VitePress docs -> web/docs/")
+    else
+      ACTIONS_TAKEN+=("Web changed: docs-site not found; skipped docs build")
+    fi
+
     CURRENT_STEP="web: reload nginx"
     sudo systemctl reload nginx >> "$LOG_FILE" 2>&1
 
     ACTIONS_TAKEN+=("Web changed: reloaded nginx")
   fi
+
 
   if [ ${#ACTIONS_TAKEN[@]} -eq 0 ]; then
     ACTIONS_TAKEN+=("No api/ or web/ changes detected: code updated only")
@@ -135,7 +150,7 @@ if [ "$LOCAL" != "$REMOTE" ]; then
 
   echo "[$(timestamp)] Deployment complete. Duration: ${DURATION}s" >> "$LOG_FILE"
 
-  SUBJECT="Book Project deploy SUCCESS [$DEPLOY_ID] on $HOST"
+  SUBJECT="Book Project deploy SUCCESS on $HOST"
   BODY=""
   BODY+="Deployment succeeded on $HOST\n"
   BODY+="Deploy ID: $DEPLOY_ID\n\n"
