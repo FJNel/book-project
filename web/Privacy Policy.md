@@ -1,85 +1,137 @@
 # The Book Project Privacy Policy
 
-Effective Date: June 2024
-Last Updated: January 2026
+**Effective Date:** June 2024  
+**Last Updated:** 30 January 2026
 
-The Book Project ("we," "us," or "our") is committed to protecting your privacy and personal information. This Privacy Policy explains how we collect, use, disclose, and share your information when you visit and use our website [bookproject.fjnel.co.za](https://bookproject.fjnel.co.za) and the API at [api.fjnel.co.za](https://api.fjnel.co.za) (collectively, the "Services"). Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.
+This Privacy Policy explains how The Book Project collects, uses, stores, and shares information when you use our website and API (the “Services”). This policy is intentionally grounded in the functionality of the current codebase and the infrastructure we operate.
 
-## Information We Collect
+## Who We Are
 
-We collect several types of information from and about users of our Services, including:
+The Book Project is a self-hosted personal library management application.  
+The website is available at https://bookproject.fjnel.co.za and the API at https://api.fjnel.co.za.
 
-- Personal Information: This may include your name, email address, and any other information you provide when you register for an account or contact us.
-- Usage Data: We may collect information about how you use our Services, including your IP address, browser type, operating system, device identifiers, referring URLs, pages visited, and other similar data.
-- Local Storage Data: We may use local storage technologies (like cookies or browser storage) to maintain sessions, security settings, and preferences.
-- User-Generated Content: Any content you create or submit through our Services, such as when you create or edit books, authors, publishers, series, tags, and related notes.
+## What Information We Collect
 
-## How We Use Your Information
+### Account Data
 
-We use your information to:
+We collect and store information required to create and manage your account, including:
 
-- Provide and maintain the Services, including account creation, authentication, and session management.
-- Save and display your library data, including books, authors, publishers, series, tags, storage locations, and related metadata you provide.
-- Send service-related emails such as verification, password reset, account security notifications, and administrative updates.
-- Prevent abuse, enforce rate limits, detect fraud, and maintain the security and integrity of the Services.
-- Monitor performance, troubleshoot issues, and improve features and user experience.
-- Comply with legal obligations and enforce our terms.
+- Full name and preferred name  
+- Email address  
+- Password hash (we never store raw passwords)  
+- Role (user or admin), verification status, and account status  
+- Theme preference and email preference settings  
+- Login timestamps  
+- Account metadata used for security and account-change workflows  
+- API keys you create (stored as hashed key material with a label/prefix and usage timestamps)
 
+If you sign in using Google, we store a linked OAuth record containing the provider name and provider user ID. Google sign-in exists in the system but is currently disabled.
 
-## Sharing Your Information
+### Library and Content Data You Provide
 
-We do not sell or rent your personal information to third parties. Your information will be kept confidential, except in the following circumstances:
-- With your consent or at your direction.
-- To comply with legal obligations, such as a subpoena or court order.
-- To protect and defend our rights and property.
-- To prevent fraud or other illegal activities.
-- With service providers who perform services on our behalf, such as email delivery or spam prevention.
+The Services store the library data you choose to add, including:
 
-## Third-Party Services
+- Books (title, subtitle, ISBN, page count, description)  
+- Authors (names, biography, birth and death dates)  
+- Publishers (name, website, notes)  
+- Series, book types, tags, and languages  
+- Storage locations and book copies (including acquisition stories, notes, and locations)
 
-### Google reCAPTCHA
+Cover images are stored as external URLs. Image files are not uploaded or stored by the Services.
 
-We use Google reCAPTCHA to protect our website from spam and abuse. Google reCAPTCHA is embedded on our site and may collect information about your use of the site, including your IP address, interactions (mouse movements, clicks, keystrokes, etc.) to determine whether you are human. This information is processed in accordance with Google's Privacy Policy and Terms of Service. For more information, please visit [Google's Privacy Policy](https://policies.google.com/privacy) and [Google's Terms of Service](https://policies.google.com/terms).
+### Technical and Usage Data (Logs)
 
-### Mailgun
+To ensure reliability, security, and operational insight, we log API activity. Logged data may include:
 
-We use Mailgun for email services. Mailgun may collect and process your email address and other information you provide when you register an account, request to reset your password or for other email-related purposes. They may also collect information about your usage of their services, like email delivery and engagement metrics. This information is used to send you emails and manage our email communications. For more information, please visit [Mailgun's Privacy Policy](https://www.mailgun.com/privacy).
+- IP address and user agent  
+- Request method, path, query parameters, headers, and request body (sanitized and truncated)  
+- Response status, response body (sanitized and truncated), timing, and size metrics  
+- Actor context (user ID/email or API key metadata)
 
-## Data Storage and Security
+We also maintain application log files for system events and troubleshooting. Sensitive fields such as passwords, tokens, and secrets are redacted.
 
-We take reasonable measures to protect your information from unauthorized access, use, or disclosure. However, no method of transmission over the internet or method of electronic storage is 100% secure. Therefore, we cannot guarantee its absolute security.
+### Browser Storage (Local or Session Storage)
 
-Your data is stored on a local server in South Africa. Access to production systems is restricted, and we use administrative and technical safeguards to reduce risk.
+The web client uses browser storage to support authentication and user experience, including:
 
+- Access and refresh tokens  
+- A cached user profile summary  
+- Theme preference  
+- Session-only UI state (for example redirects, alerts, or rate-limit timing)
 
-## Your Rights
+The application does not set its own cookies for session management. Third-party services (such as Google reCAPTCHA) may set cookies as part of their own functionality.
 
-Depending on your location, you may have the right to:
+## How We Use Information
 
-- Access the personal information we hold about you.
-- Correct or update inaccurate or incomplete information.
-- Request deletion of your account and associated data, subject to legal requirements.
-- Object to or restrict certain processing.
-- Withdraw consent where processing is based on consent.
+We use the collected information to:
 
-To exercise these rights, contact us using the details below.
+- Provide and maintain the Services (account management, authentication, library features)  
+- Send service-related emails (verification, password reset, security notifications), and development updates if you opt in  
+- Enforce rate limits and protect the Services from abuse  
+- Monitor reliability, troubleshoot issues, and improve performance  
+- Provide admin views and aggregated statistics for operational support and maintenance  
+
+## How We Store and Secure Data
+
+- Primary application data is stored in a PostgreSQL database on the server running the API (self-managed Raspberry Pi hosting).  
+- Passwords are hashed using bcrypt before storage.  
+- Refresh tokens are stored with a fingerprint and associated IP and user-agent data for session tracking and security.  
+- Logs are stored in the database and in local log files with redaction and size-based rotation.  
+- Encrypted backups are created daily and stored off-site, with limited retention (see Data Retention).
+
+## Admin Access
+
+Admin users have access to administrative views that may include user listings, library summaries, usage statistics, and system logs. These tools exist for support, auditing, and system maintenance, and may expose library data and aggregated usage information as part of those functions.
+
+## Sharing and Third Parties
+
+We use third-party services only where necessary to operate specific features:
+
+- Cloudflare Tunnel (public access and reverse proxy)  
+- Google reCAPTCHA (bot protection for sensitive authentication actions)  
+- Google OAuth (optional sign-in method)  
+- Mailgun (email delivery)  
+- GitHub Markdown API (rendering developer announcement emails)  
+- Google Drive (storage of encrypted daily backups)
+
+These services receive only the minimum data required to perform their function, and process data according to their own privacy policies.
 
 ## Data Retention
 
-We keep your information for as long as your account is active or as needed to provide the Services. If you request account deletion, we will remove or anonymize your data unless we are required to retain it for legal, security, or operational purposes. Security logs and audit trails may be retained for a limited period.
+- Account and library data is retained while your account remains active.  
+- Many library records use soft deletion, meaning they may be marked as deleted and moved to a recycle bin until permanently removed.
+- Verification and reset tokens are automatically cleaned up after expiration.  
+- Request logs and email send history are retained without a fixed time-based limit under the current implementation.  
+- Log files are rotated by size (up to five files of approximately 5 MB each).  
+- Encrypted backups are retained for up to 28 days.
 
-## Cookies and Tracking
+If you request account deletion, the current process involves confirmation and manual follow-up before final removal.
 
-We use cookies and browser storage for authentication, security, and basic preferences. We do not use third-party advertising cookies. Google reCAPTCHA may collect device and interaction data for abuse prevention, as described above.
+## Your Rights and Choices
 
-## Children's Privacy
+Depending on available features and your account status, you may be able to:
 
-Our Services are not directed to children under 13, and we do not knowingly collect personal information from children. If you believe a child has provided personal information, please contact us and we will take appropriate steps.
+- View and update your profile and preferences  
+- Change your email address or password (with verification)  
+- Disable your account  
+- Request account deletion (subject to confirmation and follow-up)  
+- Export your library data using the import/export tools (limited support; not a primary backup method)  
 
-## Changes to This Privacy Policy
+For assistance with account access, data export, or deletion requests, contact us using the details below.
 
-We may update this Privacy Policy from time to time. We will update the "Last Updated" date at the top of this page and may provide additional notice where appropriate.
+## Children’s Privacy
 
-## Contact Us
+The Services are not intended for use by children under the age of 13. We do not knowingly collect personal information from children.
 
-If you have questions about this Privacy Policy or your data, please contact us at [support@fjnel.co.za](mailto:support@fjnel.co.za).
+## International Data Processing
+
+Some third-party services used by the Services may process data outside South Africa, including Cloudflare, Google, Mailgun, GitHub, and Google Drive. These providers handle data in accordance with their own terms and privacy practices.
+
+## Changes to This Policy
+
+We may update this Privacy Policy from time to time. When we do, the “Last Updated” date above will be revised.
+
+## Contact
+
+For privacy-related questions or requests, please contact  
+[support@fjnel.co.za](mailto:support@fjnel.co.za)
