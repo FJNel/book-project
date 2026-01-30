@@ -33,6 +33,11 @@ The password reset email contains a link that you will need to click to reset yo
 
 > To enhance security and prevent abuse, password reset requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again.
 
+### If you get redirected to your dashboard and cannot access the login page
+If you are already logged in to your Book Project account and try to access the login page, you will be redirected to your dashboard. To request a password reset while logged in, you will need to log out of your account first. Follow [this](/guides/logging-out) guide to log out, and then return to the [login page](https://bookproject.fjnel.co.za/) to request a password reset. 
+
+Logging out while not knowing your password could prevent you from logging back in, so make sure you have access to your email to complete the password reset process. 
+
 ## Reset Your Password
 
 To reset your password using the link sent to your email, follow these steps:
@@ -43,6 +48,10 @@ To reset your password using the link sent to your email, follow these steps:
 4. Enter your new password in the "Password" field. Make sure to choose a strong and secure password.
 5. Click the "Reset Password" button to submit your new password.
 6. After a few moments, you should see a confirmation message indicating that your password has been successfully reset. You can now log in to your account using your email address and the new password you just set.
+
+When you reset your password, you will be logged out of all devices and sessions. You will need to log in again with your new password on all devices.
+
+For security reasons, resetting your password will send a confirmation email to your registered email address.
 
 ## Questions
 
@@ -65,7 +74,7 @@ When this happens, it could be due to several reasons:
 - **The email address you entered is not associated with any account:** In this case, you will not receive a password reset email. Instead, try requesting a password reset using a different email address that you may have used to register your account. If you are unsure, you may consider creating a new account.
 - Your Book Project account may have been disabled (or deleted). This will prevent you from receiving password reset emails. If you believe this is the case, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Account%20Access). 
 
-## I reset my password, but I still can't log in. What should I do?
+### I reset my password, but I still can't log in. What should I do?
 If you reset your password but are still unable to log in, please ensure that you are entering the correct email address and the new password you just set. Passwords are case-sensitive, so make sure that your Caps Lock key is not enabled and that you are typing the password exactly as you set it. If you continue to experience issues, you can try resetting your password again by following the steps in this guide. If you are still unable to log in after multiple attempts, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Account%20Access).
 
 ### Can I use Google sign-in to reset my password?
@@ -90,6 +99,21 @@ If you forgot which email address you used to register your Book Project account
 
 ### Can I request multiple password reset emails?
 Yes, you can request multiple password reset emails if needed. However, for security reasons, password reset requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again. It is recommended to be patient and wait a few minutes before requesting another password reset email.
+
+### Will resetting my password affect my books or data?
+No, resetting your password will not affect your books or any other data in your Book Project account. Your library data, including books, authors, publishers, and other related information, remains intact and accessible after you change your password. The password reset only affects the authentication credentials used to access your account; it does not modify or delete any of your library data.
+
+### Will I be logged out of my account after changing my password?
+Yes, when you reset your password, you will be logged out of all devices and sessions, including the device you are currently using. This is a security measure to ensure that any active sessions using your old password are terminated. You will need to log in again with your new password on all devices.
+
+### I didn't receive the password reset notification email. What should I do?
+The password reset notification email should be sent automatically after you successfully reset your password. If you did not receive the email, it is not a cause for immediate concern, but you may want to check your spam or junk folder to ensure it was not filtered there. If you continue to experience issues with receiving notification emails, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20password%20reset%20notification%20email) for further assistance.
+
+### Is the password reset immediate?
+Yes, the password reset is immediate. Once you successfully reset your password and receive the confirmation message in the browser, your new password takes effect right away. You can use your new password to log in to your Book Project account immediately after the reset. Remember that you will be logged out of all devices and sessions, so you will need to log in again using your new password on all devices. Your old password will no longer work after the reset.
+
+### Can I cancel the password change if I made a mistake?
+If you have not clicked the "Reset Password" button yet, you can simply navigate away from the password reset page or close the browser tab to cancel the process. However, if you have already clicked the "Reset Password" button and received confirmation that your password has been reset, the reset is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to reset your password again by following the steps in this guide.
 
 ### How can I create a strong password?
 By default, The Book Project enforces the following password requirements:
