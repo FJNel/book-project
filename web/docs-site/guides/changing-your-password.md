@@ -26,7 +26,7 @@ To change your password, follow these steps:
 9. After a few seconds, if your current and new passwords are valid, you should see a confirmation message indicating that your password has been successfully changed.
 10. You can now use your new password to log in to your Book Project account in the future.
 
-When you change your password, you will be logged out of all devices and sessions, except the one you are currently using. You will need to log in again with your new password on all other devices.
+When you change your password, you will be logged out of all devices and sessions, including the one you are currently using. You will need to log in again with your new password on all devices.
 
 For security reasons, changing your password will send a notification email to your registered email address.
 
@@ -59,7 +59,7 @@ Yes, you need to enter your current password when changing your password. This i
 If you have forgotten your current password, you will not be able to change it using this guide. Instead, you will need to reset your password by following the steps in the [Reset Your Password guide](/guides/reset-your-password). This process will allow you to set a new password without needing to know your current one.
 
 ### Will I be logged out of my account after changing my password?
-Yes, when you change your password, you will be logged out of all devices and sessions, except the device you are currently using. This is a security measure to ensure that any active sessions using your old password are terminated. You will need to log in again with your new password on all devices.
+Yes, when you change your password, you will be logged out of all devices and sessions, including the one you are currently using. This is a security measure to ensure that any active sessions using your old password are terminated. You will need to log in again with your new password on all devices.
 
 ### Can I change my password multiple times?
 Yes, you can change your password as many times as you like. There are no restrictions on how often you can change your password. However, for security reasons, it is recommended to choose a strong and unique password each time you change it. It is also a good practice to avoid changing your password too frequently without a valid reason, as this may lead to weaker password choices over time.
