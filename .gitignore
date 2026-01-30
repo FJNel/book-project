@@ -73,3 +73,9 @@ bootstrap/
 .tmp.driveupload
 
 AGENTS.md
+
+# VitePress build output (served by nginx, generated on Pi)
+web/docs/
+
+# Node build artifacts
+web/docs-site/node_modules/
