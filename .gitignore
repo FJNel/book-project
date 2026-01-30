@@ -79,3 +79,6 @@ web/docs/
 
 # Node build artifacts
 web/docs-site/node_modules/
+
+# Allow lockfile for VitePress docs-site (needed for deterministic deploy builds)
+!web/docs-site/package-lock.json
