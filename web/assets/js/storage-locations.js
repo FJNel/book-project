@@ -6,6 +6,9 @@
   const debugLog = (...args) => console.log('[StorageLocations][debug]', ...args);
 
   const STORAGE_EXPANDED_KEY = 'storageLocationsExpanded';
+  const MIN_LOCATION_NAME_LENGTH = 2;
+  const MAX_LOCATION_NAME_LENGTH = 120;
+  const LOCATION_NAME_PATTERN = /^[A-Za-z0-9\s\-.'’&/]+$/;
 
   const state = {
     locations: [],
@@ -152,6 +155,12 @@
       alertEl.classList.remove('d-none');
     }
     alertEl.classList.remove('d-none');
+  };
+
+  const clearInlineError = (alertEl) => {
+    if (!alertEl) return;
+    alertEl.classList.add('d-none');
+    alertEl.textContent = '';
   };
 
   const extractAuthorNames = (book) => {
@@ -798,14 +807,18 @@
   const validateName = (input, helpEl) => {
     if (!input) return false;
     const value = input.value.trim();
-    const errors = [];
-    if (!window.validators?.isValidName(value)) {
-      errors.push('Name must be at least 2 characters.');
+    let error = '';
+    if (!value) {
+      error = 'Name is required.';
+    } else if (value.length < MIN_LOCATION_NAME_LENGTH || value.length > MAX_LOCATION_NAME_LENGTH) {
+      error = `Name must be between ${MIN_LOCATION_NAME_LENGTH} and ${MAX_LOCATION_NAME_LENGTH} characters.`;
+    } else if (!LOCATION_NAME_PATTERN.test(value)) {
+      error = 'Name contains unsupported characters.';
     }
-    if (errors.length) {
+    if (error) {
       helpEl?.classList.remove('text-muted');
       helpEl?.classList.add('text-danger');
-      helpEl.textContent = errors[0];
+      helpEl.textContent = error;
       return false;
     }
     helpEl?.classList.remove('text-danger');
@@ -830,12 +843,14 @@
   };
 
   const updateAddSaveState = () => {
+    clearInlineError(dom.addLocationError);
     const nameValid = validateName(dom.addNameInput, dom.addNameHelp);
     const notesValid = validateNotes(dom.addNotesInput, dom.addNotesHelp);
     if (dom.addLocationSaveBtn) dom.addLocationSaveBtn.disabled = !(nameValid && notesValid);
   };
 
   const updateEditState = () => {
+    clearInlineError(dom.editLocationError);
     const nameValid = validateName(dom.editNameInput, dom.editNameHelp);
     const notesValid = validateNotes(dom.editNotesInput, dom.editNotesHelp);
     const changes = [];

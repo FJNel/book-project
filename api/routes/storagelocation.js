@@ -182,7 +182,7 @@ function buildLocationPayload(row, nameOnly) {
 
 async function fetchStorageLocationStats(userId, locationId) {
 	const totalResult = await pool.query(
-		`SELECT COUNT(b.id)::int AS count
+		`SELECT COUNT(DISTINCT b.id)::int AS count
 		 FROM book_copies bc
 		 JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
 		 WHERE bc.user_id = $1`,
@@ -211,14 +211,14 @@ async function fetchStorageLocationStats(userId, locationId) {
 			WHERE sl.user_id = $1
 		),
 		copy_counts AS (
-			SELECT lt.ancestor_id, COUNT(b.id)::int AS nested_copy_count
+			SELECT lt.ancestor_id, COUNT(DISTINCT b.id)::int AS nested_copy_count
 			FROM location_tree lt
 			LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
 			LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
 			GROUP BY lt.ancestor_id
 		),
 		direct_counts AS (
-			SELECT sl.id, COUNT(b.id)::int AS direct_copy_count
+			SELECT sl.id, COUNT(DISTINCT b.id)::int AS direct_copy_count
 			FROM storage_locations sl
 			LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = $1
 			LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
@@ -381,7 +381,7 @@ async function listStorageLocationsHandler(req, res) {
 				WHERE sl.user_id = $1
 			),
 			direct_counts AS (
-				SELECT sl.id, COUNT(b.id)::int AS direct_copy_count
+				SELECT sl.id, COUNT(DISTINCT b.id)::int AS direct_copy_count
 				FROM storage_locations sl
 				LEFT JOIN book_copies bc ON bc.storage_location_id = sl.id AND bc.user_id = sl.user_id
 				LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
@@ -389,7 +389,7 @@ async function listStorageLocationsHandler(req, res) {
 				GROUP BY sl.id
 			),
 			nested_counts AS (
-				SELECT lt.ancestor_id, COUNT(b.id)::int AS nested_copy_count
+				SELECT lt.ancestor_id, COUNT(DISTINCT b.id)::int AS nested_copy_count
 				FROM location_tree lt
 				LEFT JOIN book_copies bc ON bc.storage_location_id = lt.descendant_id AND bc.user_id = $1
 				LEFT JOIN books b ON b.id = bc.book_id AND b.deleted_at IS NULL
