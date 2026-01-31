@@ -180,18 +180,15 @@ async function fetchBookTypeStats(userId, bookTypeId) {
 	);
 	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
 	const result = await pool.query(
-		const userId = req.user.id;
-		try {
-			const result = await pool.query(
 		`SELECT COUNT(b.id)::int AS book_count,
-		        AVG(b.page_count) AS avg_page_count
-		 FROM book_types bt
-		 LEFT JOIN books b
-		   ON b.book_type_id = bt.id
-		  AND b.user_id = bt.user_id
-		  AND b.deleted_at IS NULL
-		 WHERE bt.user_id = $1 AND bt.id = $2
-		 GROUP BY bt.id`,
+	        AVG(b.page_count) AS avg_page_count
+	 FROM book_types bt
+	 LEFT JOIN books b
+	   ON b.book_type_id = bt.id
+	  AND b.user_id = bt.user_id
+	  AND b.deleted_at IS NULL
+	 WHERE bt.user_id = $1 AND bt.id = $2
+	 GROUP BY bt.id`,
 		[userId, bookTypeId]
 	);
 	const row = result.rows[0] || { book_count: 0, avg_page_count: null };
