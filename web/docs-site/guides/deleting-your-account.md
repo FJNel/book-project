@@ -84,7 +84,7 @@ An administrator reviews account deletion requests to prevent accidental or unau
 ### How long does it take for my account to be deleted after I confirm the deletion request?
 The system administrator endeavors to review and process account deletion requests as quickly as possible. While there is no fixed timeframe for this process, it typically takes a single business days for the administrator to review your request and finalize the deletion. You will receive a final confirmation email once your account has been permanently deleted. If you have any concerns about the status of your deletion request, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Account%20Deletion%20Request%20Status) for further assistance.
 
-### I didn't receive the conirm account deletion email. What should I do?
+### I didn't receive the confirm account deletion email. What should I do?
 If you did not receive the confirmation email for your account deletion request, please check your spam or junk folder to ensure it was not filtered there. If you still cannot find the email, you can try submitting the account deletion request again from your account settings. If you continue to experience issues with receiving the confirmation email, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20account%20deletion%20confirmation%20email) for further assistance.
 
 ### Can I use Google sign-in to delete my account?
