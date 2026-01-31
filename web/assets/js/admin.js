@@ -1761,11 +1761,11 @@
     }
 
     const showReason = state.confirmActionConfig.reasonRequired || state.confirmActionConfig.reasonEnabled;
-    dom.confirmActionReasonWrap.classList.toggle('d-none', !showReason);
-    dom.confirmActionEmailWrap.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
-    dom.confirmActionUserIdWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmUserIdRequired);
+    dom.confirmActionReasonWrap?.classList.toggle('d-none', !showReason);
+    dom.confirmActionEmailWrap?.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
+    dom.confirmActionUserIdWrap?.classList.toggle('d-none', !state.confirmActionConfig.confirmUserIdRequired);
     configureConfirmExpiry(state.confirmActionConfig);
-    dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
+    dom.confirmActionInputWrap?.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
     resetConfirmWarningFields();
     if (state.confirmActionConfig.warningTypeEnabled) {
       dom.confirmActionWarningTypeWrap?.classList.remove('d-none');
