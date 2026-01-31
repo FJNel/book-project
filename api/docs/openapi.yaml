@@ -2239,6 +2239,8 @@ paths:
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /auth/request-password-reset:
     post:
       tags: [Auth]
@@ -8635,6 +8637,8 @@ paths:
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/Conflict'
     post:
       tags: [Admin]
       summary: Admin create user
@@ -8688,6 +8692,8 @@ paths:
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /admin/users/list:
     post:
       tags: [Admin]
@@ -9583,7 +9589,7 @@ paths:
       tags: [Admin]
       summary: List email send history (JSON body)
       operationId: adminEmailHistoryListJson
-      description: Retrieve recent email send history with a JSON body.
+      description: Retrieve recent email send history with a JSON body. When userId is supplied, results include matches on stored recipient email as well as target user id.
       requestBody:
         required: false
         content:
@@ -9899,6 +9905,68 @@ paths:
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /admin/users/force-account-deletion:
+    post:
+      tags: [Admin]
+      summary: Force delete account (flexible)
+      operationId: adminForceAccountDeletion
+      description: Permanently delete a user without a user-initiated deletion request.
+      x-rateLimit:
+        limit: 60
+        window: minute
+        note: adminDeletionLimiter + sensitiveActionLimiter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminForcedDeletionRequest'
+            examples:
+              forceDelete:
+                value:
+                  id: 9
+                  reason: Admin-initiated deletion after access loss.
+                  confirmUserId: 9
+                  confirmEmail: gollum@ring.me
+                  confirmText: DELETE
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.88"
+                    message: User account deleted permanently.
+                    data:
+                      id: 9
+                      deletedCounts:
+                        verification_tokens: 1
+                        refresh_tokens: 2
+                        oauth_accounts: 0
+                        book_types: 2
+                        authors: 0
+                        publishers: 0
+                        book_authors: 0
+                        book_series: 0
+                        book_series_books: 0
+                        storage_locations: 1
+                        books: 0
+                        book_copies: 0
+                        book_languages: 0
+                        tags: 0
+                        book_tags: 0
+                      datesCleaned: 1
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /admin/users/{id}/handle-account-deletion:
     post:
       tags: [Admin]
@@ -9922,6 +9990,51 @@ paths:
                   confirm: true
                   reason: Account deletion confirmed by user.
                   userToBeDeletedEmail: gollum@ring.me
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.88"
+                    message: User account deleted permanently.
+                    data:
+                      id: 9
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /admin/users/{id}/force-account-deletion:
+    post:
+      tags: [Admin]
+      summary: Force delete account by id
+      description: Legacy path-based endpoint. Prefer /admin/users/force-account-deletion with a JSON body.
+      operationId: adminForceAccountDeletionById
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminForcedDeletionRequest'
+            examples:
+              forceDeleteById:
+                value:
+                  reason: Admin-initiated deletion after access loss.
+                  confirmUserId: 9
+                  confirmEmail: gollum@ring.me
+                  confirmText: DELETE
       responses:
         '200':
           description: Deleted
@@ -13349,4 +13462,25 @@ components:
         reason:
           type: string
         userToBeDeletedEmail:
+          type: string
+    AdminForcedDeletionRequest:
+      type: object
+      required:
+        - reason
+        - confirmUserId
+        - confirmEmail
+        - confirmText
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        reason:
+          type: string
+        confirmUserId:
+          type: integer
+        confirmEmail:
+          type: string
+          format: email
+        confirmText:
           type: string

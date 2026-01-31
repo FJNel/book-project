@@ -180,6 +180,9 @@ async function fetchBookTypeStats(userId, bookTypeId) {
 	);
 	const totalBooks = totalBooksResult.rows[0]?.count ?? 0;
 	const result = await pool.query(
+		const userId = req.user.id;
+		try {
+			const result = await pool.query(
 		`SELECT COUNT(b.id)::int AS book_count,
 		        AVG(b.page_count) AS avg_page_count
 		 FROM book_types bt
@@ -892,6 +895,40 @@ router.get("/by-name", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
+// GET /booktype/trash - List deleted book types
+router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const result = await pool.query(
+			`SELECT id, name, description, created_at, updated_at, deleted_at
+			 FROM book_types
+			 WHERE user_id = $1 AND deleted_at IS NOT NULL
+			 ORDER BY deleted_at DESC`,
+			[userId]
+		);
+
+		const payload = result.rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			description: row.description,
+			createdAt: row.created_at,
+			updatedAt: row.updated_at,
+			deletedAt: row.deleted_at
+		}));
+
+		return successResponse(res, 200, "Deleted book types retrieved successfully.", { bookTypes: payload });
+	} catch (error) {
+		logToFile("BOOK_TYPE_TRASH", {
+			status: "FAILURE",
+			error_message: error.message,
+			user_id: userId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted book types."]);
+	}
+});
+
 // GET /booktype/:id - Fetch a specific book type by ID
 router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
@@ -939,40 +976,51 @@ router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 });
 
-// GET /booktype/trash - List deleted book types
-router.get("/trash", requiresAuth, authenticatedLimiter, async (req, res) => {
+router.get("/:id", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;
+	const id = parseId(req.params.id);
+	const returnStats = parseBooleanFlag(req.query.returnStats ?? req.body?.returnStats);
+	if (!Number.isInteger(id)) {
+		return errorResponse(res, 400, "Validation Error", ["Book type id must be a valid integer."]);
+	}
+
 	try {
+		const includeDeleted = parseBooleanFlag(req.query?.includeDeleted);
 		const result = await pool.query(
 			`SELECT id, name, description, created_at, updated_at, deleted_at
 			 FROM book_types
-			 WHERE user_id = $1 AND deleted_at IS NOT NULL
-			 ORDER BY deleted_at DESC`,
-			[userId]
+			 WHERE user_id = $1 AND id = $2${includeDeleted ? "" : " AND deleted_at IS NULL"}`,
+			[userId, id]
 		);
 
-		const payload = result.rows.map((row) => ({
+		if (result.rows.length === 0) {
+			return errorResponse(res, 404, "Book type not found.", ["The requested book type could not be located."]);
+		}
+
+		const row = result.rows[0];
+		const payload = {
 			id: row.id,
 			name: row.name,
 			description: row.description,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 			deletedAt: row.deleted_at
-		}));
-
-		return successResponse(res, 200, "Deleted book types retrieved successfully.", { bookTypes: payload });
+		};
+		if (returnStats) {
+			payload.stats = await fetchBookTypeStats(userId, row.id);
+		}
+		return successResponse(res, 200, "Book type retrieved successfully.", payload);
 	} catch (error) {
-		logToFile("BOOK_TYPE_TRASH", {
+		logToFile("BOOK_TYPE_GET", {
 			status: "FAILURE",
 			error_message: error.message,
 			user_id: userId,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving deleted book types."]);
+		return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving the book type."]);
 	}
 });
-
 // POST /booktype - Create a new book type
 router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const userId = req.user.id;

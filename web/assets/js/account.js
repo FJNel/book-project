@@ -434,23 +434,74 @@
     return errors;
   }
 
+  function applyProfileFieldValidation({ input, help, errors, neutralText, required }) {
+    if (!input || !help) return;
+    const value = (input.value || '').trim();
+    if (errors.length > 0) {
+      setHelpText(help, errors[0], true);
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      return;
+    }
+
+    input.classList.remove('is-invalid');
+    input.classList.remove('is-valid');
+
+    if (!value && !required) {
+      setHelpText(help, neutralText, false);
+      return;
+    }
+
+    if (value) {
+      setHelpText(help, '', false);
+      return;
+    }
+
+    setHelpText(help, neutralText, false);
+  }
+
   function updateProfileValidationState() {
     if (!controls.editFullName || !controls.editPreferredName) {
       warn('Profile inputs missing');
       return { fullName: '', preferredName: '', hasErrors: true };
     }
+    if (controls.editProfileError) controls.editProfileError.classList.add('d-none');
     const fullName = controls.editFullName.value;
     const preferredName = controls.editPreferredName.value;
     if (!state.profile) {
       if (controls.editProfileSaveBtn) controls.editProfileSaveBtn.disabled = true;
-      safeText(controls.editFullNameHelp, 'Enter your full name (2-255 characters).', 'editFullNameHelp');
-      safeText(controls.editPreferredNameHelp, 'Optional; 2-100 letters, no spaces.', 'editPreferredNameHelp');
+      applyProfileFieldValidation({
+        input: controls.editFullName,
+        help: controls.editFullNameHelp,
+        errors: ['Full Name must be provided.'],
+        neutralText: 'Enter your full name (2-255 characters).',
+        required: true
+      });
+      applyProfileFieldValidation({
+        input: controls.editPreferredName,
+        help: controls.editPreferredNameHelp,
+        errors: [],
+        neutralText: 'Optional; 2-100 letters, no spaces.',
+        required: false
+      });
       return { fullName, preferredName, hasErrors: true };
     }
     const fullNameErrors = validateFullNameInput(fullName);
     const preferredErrors = validatePreferredNameInput(preferredName);
-    setHelpText(controls.editFullNameHelp, fullNameErrors[0] || 'Enter your full name (2-255 characters).', fullNameErrors.length > 0);
-    setHelpText(controls.editPreferredNameHelp, preferredErrors[0] || 'Optional; 2-100 letters, no spaces.', preferredErrors.length > 0);
+    applyProfileFieldValidation({
+      input: controls.editFullName,
+      help: controls.editFullNameHelp,
+      errors: fullNameErrors,
+      neutralText: 'Enter your full name (2-255 characters).',
+      required: true
+    });
+    applyProfileFieldValidation({
+      input: controls.editPreferredName,
+      help: controls.editPreferredNameHelp,
+      errors: preferredErrors,
+      neutralText: 'Optional; 2-100 letters, no spaces.',
+      required: false
+    });
 
     const changes = [];
     const fullNameChange = describeChange('full name', state.profile?.fullName || '', fullName);
@@ -1618,6 +1669,8 @@
     controls.editProfileResetBtn?.addEventListener('click', resetEditProfile);
     controls.editFullName?.addEventListener('input', updateProfileValidationState);
     controls.editPreferredName?.addEventListener('input', updateProfileValidationState);
+    controls.editFullName?.addEventListener('blur', updateProfileValidationState);
+    controls.editPreferredName?.addEventListener('blur', updateProfileValidationState);
 
     elements.changePasswordBtn?.addEventListener('click', () => {
       validatePasswordInputs();

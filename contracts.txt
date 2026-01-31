@@ -63,6 +63,10 @@ Applies to any modal that accepts user input, performs a server action, or confi
   - Required phrase is shown in the modal (e.g., DELETE).
   - Input is trimmed and compared case-insensitively.
   - The primary button is enabled only when the phrase matches.
+- High-risk admin deletion confirmations must use multi-field confirmation:
+  - typed user email
+  - typed user ID
+  - typed confirmation phrase
 
 3) Request locking
 - When a request is in flight:

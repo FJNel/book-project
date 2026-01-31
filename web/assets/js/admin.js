@@ -241,6 +241,9 @@
     confirmActionEmailWrap: document.getElementById('confirmActionEmailWrap'),
     confirmActionEmail: document.getElementById('confirmActionEmail'),
     confirmActionEmailHelp: document.getElementById('confirmActionEmailHelp'),
+    confirmActionUserIdWrap: document.getElementById('confirmActionUserIdWrap'),
+    confirmActionUserId: document.getElementById('confirmActionUserId'),
+    confirmActionUserIdHelp: document.getElementById('confirmActionUserIdHelp'),
     confirmActionExpiryWrap: document.getElementById('confirmActionExpiryWrap'),
     confirmActionExpirySelect: document.getElementById('confirmActionExpirySelect'),
     confirmActionExpiryCustom: document.getElementById('confirmActionExpiryCustom'),
@@ -1556,7 +1559,7 @@
   }
 
   function setConfirmModalBusy(isBusy) {
-    [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionInput, dom.confirmActionWarningType, dom.confirmActionApiKeySelect].forEach((input) => {
+    [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionUserId, dom.confirmActionInput, dom.confirmActionWarningType, dom.confirmActionApiKeySelect].forEach((input) => {
       if (input) input.disabled = isBusy;
     });
     if (dom.confirmActionCloseBtn) dom.confirmActionCloseBtn.disabled = isBusy;
@@ -1760,6 +1763,7 @@
     const showReason = state.confirmActionConfig.reasonRequired || state.confirmActionConfig.reasonEnabled;
     dom.confirmActionReasonWrap.classList.toggle('d-none', !showReason);
     dom.confirmActionEmailWrap.classList.toggle('d-none', !state.confirmActionConfig.emailRequired);
+    dom.confirmActionUserIdWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmUserIdRequired);
     configureConfirmExpiry(state.confirmActionConfig);
     dom.confirmActionInputWrap.classList.toggle('d-none', !state.confirmActionConfig.confirmText);
     resetConfirmWarningFields();
@@ -1777,6 +1781,10 @@
     }
     dom.confirmActionReason.value = '';
     dom.confirmActionEmail.value = state.confirmActionConfig.prefillEmail || '';
+    if (dom.confirmActionUserId) {
+      dom.confirmActionUserId.value = '';
+      dom.confirmActionUserId.placeholder = state.confirmActionConfig.confirmUserIdPlaceholder || '';
+    }
     if (dom.confirmActionReason) {
       dom.confirmActionReason.placeholder = state.confirmActionConfig.reasonPlaceholder || '';
     }
@@ -1788,6 +1796,7 @@
     dom.confirmActionInput.placeholder = state.confirmActionConfig.confirmText || '';
     dom.confirmActionReasonHelp.textContent = '';
     dom.confirmActionEmailHelp.textContent = '';
+    if (dom.confirmActionUserIdHelp) dom.confirmActionUserIdHelp.textContent = '';
     dom.confirmActionInputHelp.textContent = '';
     toggleSubmit(dom.confirmActionSubmit, !state.confirmActionConfig.confirmText && !state.confirmActionConfig.reasonRequired && !state.confirmActionConfig.emailRequired);
     if (state.confirmActionConfig.fromUserDetails && window.modalStack && dom.userDetailsModal?.classList.contains('show')) {
@@ -1865,6 +1874,15 @@
       dom.confirmActionEmailHelp.textContent = emailError;
       valid = valid && !emailError;
     }
+    if (cfg.confirmUserIdRequired) {
+      const expectedId = cfg.confirmUserIdValue ?? cfg.userId;
+      const inputValue = dom.confirmActionUserId?.value.trim() || '';
+      const match = String(expectedId ?? '') === inputValue;
+      if (dom.confirmActionUserIdHelp) {
+        dom.confirmActionUserIdHelp.textContent = match ? '' : 'Enter the user ID to continue.';
+      }
+      valid = valid && match;
+    }
     if (cfg.warningTypeEnabled) {
       const warningType = getSelectedWarningType();
       const isValidType = warningType === 'website' || warningType === 'api';
@@ -1935,6 +1953,15 @@
       } else {
         body.userToBeDeletedEmail = emailValue;
       }
+    }
+    if (cfg.confirmUserIdRequired) {
+      const confirmUserIdValue = dom.confirmActionUserId?.value.trim();
+      const fieldName = cfg.confirmUserIdFieldName || 'confirmUserId';
+      body[fieldName] = confirmUserIdValue;
+    }
+    if (cfg.includeConfirmText && cfg.confirmText) {
+      const fieldName = cfg.confirmTextFieldName || 'confirmText';
+      body[fieldName] = dom.confirmActionInput.value.trim();
     }
     if (cfg.confirmFlag) body.confirm = true;
     const expirySelection = cfg.expirySelection;
@@ -3773,6 +3800,14 @@
         <i class="bi bi-person-check-fill" aria-hidden="true"></i>
         Reinstate API keys
       </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="handle-deletion" data-user-id="${user.id}" aria-label="Handle deletion request" title="Handle deletion request">
+        <i class="bi bi-trash-fill" aria-hidden="true"></i>
+        Handle deletion request
+      </button>
+      <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="force-account-deletion" data-user-id="${user.id}" aria-label="Force account deletion" title="Force account deletion">
+        <i class="bi bi-trash-fill" aria-hidden="true"></i>
+        Force account deletion
+      </button>
       <button class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" type="button" data-user-detail-action="send-usage-warning" data-user-id="${user.id}" aria-label="Send usage warning email" title="Send usage warning email">
         <i class="bi bi-envelope" aria-hidden="true"></i>
         Send usage warning email
@@ -4032,6 +4067,66 @@
         method: 'POST',
         onSuccess: 'users',
         successMessage: 'All sessions revoked successfully.'
+      });
+      return;
+    }
+
+    if (action === 'handle-deletion') {
+      openConfirmAction({
+        title: 'Handle account deletion',
+        actionLabel: 'Delete account',
+        message: 'Delete this account after the user has confirmed deletion? Provide a reason and re-enter the user email to continue.',
+        impact: 'The user account and related data will be permanently removed.',
+        destructive: true,
+        confirmText: 'DELETE',
+        confirmFlag: true,
+        reasonRequired: true,
+        emailRequired: true,
+        emailFieldName: 'userToBeDeletedEmail',
+        fromUserDetails: true,
+        user,
+        userId,
+        url: '/admin/users/handle-account-deletion',
+        method: 'POST',
+        summaryItems: [
+          { label: 'User email', value: user.email || '—' },
+          { label: 'User ID', value: String(user.id) }
+        ],
+        onSuccess: 'users',
+        successMessage: 'Account deletion completed.'
+      });
+      return;
+    }
+
+    if (action === 'force-account-deletion') {
+      openConfirmAction({
+        title: 'Force account deletion',
+        actionLabel: 'Force delete account',
+        message: 'Delete this account without a user deletion request? This permanently removes all data for the account.',
+        impact: 'The user account and related data will be permanently removed. This cannot be undone.',
+        destructive: true,
+        confirmText: 'DELETE',
+        confirmTextFieldName: 'confirmText',
+        includeConfirmText: true,
+        confirmUserIdRequired: true,
+        confirmUserIdFieldName: 'confirmUserId',
+        confirmUserIdValue: user.id,
+        confirmUserIdPlaceholder: 'Type the user ID shown above',
+        reasonRequired: true,
+        emailRequired: true,
+        emailFieldName: 'confirmEmail',
+        fromUserDetails: true,
+        user,
+        userId,
+        url: '/admin/users/force-account-deletion',
+        method: 'POST',
+        summaryItems: [
+          { label: 'User email', value: user.email || '—' },
+          { label: 'User ID', value: String(user.id) },
+          { label: 'Request', value: 'Admin-initiated deletion (no user request)' }
+        ],
+        onSuccess: 'users',
+        successMessage: 'Account deleted successfully.'
       });
       return;
     }
@@ -4790,6 +4885,7 @@
 
     dom.confirmActionReason?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionEmail?.addEventListener('input', handleConfirmActionModalInput);
+    dom.confirmActionUserId?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionInput?.addEventListener('input', handleConfirmActionModalInput);
     dom.confirmActionWarningType?.addEventListener('change', handleConfirmWarningTypeChange);
     dom.confirmActionApiKeySelect?.addEventListener('change', handleConfirmApiKeyChange);

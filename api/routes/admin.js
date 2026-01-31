@@ -10,6 +10,7 @@ const { authenticatedLimiter, emailCostLimiter, sensitiveActionLimiter, adminDel
 const { logToFile, sanitizeInput } = require("../utils/logging");
 const { successResponse, errorResponse } = require("../utils/response");
 const { validateFullName, validatePreferredName, validateEmail, validatePassword } = require("../utils/validators");
+const { validateForceDeleteConfirmations } = require("../utils/admin-force-delete");
 const { enqueueEmail } = require("../utils/email-queue");
 const { recordEmailHistory, updateEmailHistory, wasEmailSentRecently, wasTemplateSentRecently } = require("../utils/email-history");
 const email = require("../utils/email");
@@ -4937,7 +4938,7 @@ const adminEmailHistoryHandler = async (req, res) => {
 				warnings: ["This user does not have an email address on file."]
 			});
 		}
-		resolvedRecipient = String(userEmail).trim();
+		resolvedRecipient = normalizeEmail(userEmail);
 	}
 
 	const filters = [];
@@ -4952,8 +4953,13 @@ const adminEmailHistoryHandler = async (req, res) => {
 		values.push(status);
 	}
 	if (Number.isInteger(userId)) {
-		filters.push(`target_user_id = $${idx++}`);
-		values.push(userId);
+		if (resolvedRecipient) {
+			filters.push(`(target_user_id = $${idx++} OR recipient_email = $${idx++})`);
+			values.push(userId, resolvedRecipient);
+		} else {
+			filters.push(`target_user_id = $${idx++}`);
+			values.push(userId);
+		}
 	} else if (resolvedRecipient) {
 		filters.push(`recipient_email ILIKE $${idx++}`);
 		values.push(`%${resolvedRecipient}%`);
@@ -5826,6 +5832,98 @@ async function handleForceLogout(req, res, targetId) {
 	}
 }
 
+async function ensureNotLastAdmin(client, user) {
+	if (!user || user.role !== "admin") {
+		return null;
+	}
+	const result = await client.query(
+		"SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND is_disabled = false AND id <> $1",
+		[user.id]
+	);
+	const remaining = result.rows[0]?.count ?? 0;
+	if (remaining <= 0) {
+		return "Cannot delete the last admin account.";
+	}
+	return null;
+}
+
+async function performAccountDeletion(client, targetId) {
+	const tableCounts = {};
+	const countQueries = [
+		{ name: "verification_tokens", sql: "SELECT COUNT(*)::int AS count FROM verification_tokens WHERE user_id = $1" },
+		{ name: "refresh_tokens", sql: "SELECT COUNT(*)::int AS count FROM refresh_tokens WHERE user_id = $1" },
+		{ name: "oauth_accounts", sql: "SELECT COUNT(*)::int AS count FROM oauth_accounts WHERE user_id = $1" },
+		{ name: "book_types", sql: "SELECT COUNT(*)::int AS count FROM book_types WHERE user_id = $1" },
+		{ name: "authors", sql: "SELECT COUNT(*)::int AS count FROM authors WHERE user_id = $1" },
+		{ name: "publishers", sql: "SELECT COUNT(*)::int AS count FROM publishers WHERE user_id = $1" },
+		{ name: "book_authors", sql: "SELECT COUNT(*)::int AS count FROM book_authors WHERE user_id = $1" },
+		{ name: "book_series", sql: "SELECT COUNT(*)::int AS count FROM book_series WHERE user_id = $1" },
+		{ name: "book_series_books", sql: "SELECT COUNT(*)::int AS count FROM book_series_books WHERE user_id = $1" },
+		{ name: "storage_locations", sql: "SELECT COUNT(*)::int AS count FROM storage_locations WHERE user_id = $1" },
+		{ name: "books", sql: "SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1" },
+		{ name: "book_copies", sql: "SELECT COUNT(*)::int AS count FROM book_copies WHERE user_id = $1" },
+		{ name: "book_languages", sql: "SELECT COUNT(*)::int AS count FROM book_languages WHERE user_id = $1" },
+		{ name: "tags", sql: "SELECT COUNT(*)::int AS count FROM tags WHERE user_id = $1" },
+		{ name: "book_tags", sql: "SELECT COUNT(*)::int AS count FROM book_tags WHERE user_id = $1" }
+	];
+
+	for (const query of countQueries) {
+		const countRes = await client.query(query.sql, [targetId]);
+		tableCounts[query.name] = countRes.rows[0]?.count ?? 0;
+	}
+
+	const dateIds = new Set();
+	const authorDates = await client.query(
+		`SELECT birth_date_id, death_date_id FROM authors WHERE user_id = $1`,
+		[targetId]
+	);
+	for (const row of authorDates.rows) {
+		if (row.birth_date_id) dateIds.add(row.birth_date_id);
+		if (row.death_date_id) dateIds.add(row.death_date_id);
+	}
+
+	const publisherDates = await client.query(
+		`SELECT founded_date_id FROM publishers WHERE user_id = $1`,
+		[targetId]
+	);
+	for (const row of publisherDates.rows) {
+		if (row.founded_date_id) dateIds.add(row.founded_date_id);
+	}
+
+	const bookDates = await client.query(
+		`SELECT publication_date_id FROM books WHERE user_id = $1`,
+		[targetId]
+	);
+	for (const row of bookDates.rows) {
+		if (row.publication_date_id) dateIds.add(row.publication_date_id);
+	}
+
+	const copyDates = await client.query(
+		`SELECT acquisition_date_id FROM book_copies WHERE user_id = $1`,
+		[targetId]
+	);
+	for (const row of copyDates.rows) {
+		if (row.acquisition_date_id) dateIds.add(row.acquisition_date_id);
+	}
+
+	await client.query(`DELETE FROM users WHERE id = $1`, [targetId]);
+
+	if (dateIds.size > 0) {
+		const ids = Array.from(dateIds);
+		await client.query(
+			`DELETE FROM dates d
+			 WHERE d.id = ANY($1)
+			   AND NOT EXISTS (SELECT 1 FROM authors a WHERE a.birth_date_id = d.id OR a.death_date_id = d.id)
+			   AND NOT EXISTS (SELECT 1 FROM publishers p WHERE p.founded_date_id = d.id)
+			   AND NOT EXISTS (SELECT 1 FROM books b WHERE b.publication_date_id = d.id)
+			   AND NOT EXISTS (SELECT 1 FROM book_copies bc WHERE bc.acquisition_date_id = d.id)`,
+			[ids]
+		);
+	}
+
+	return { tableCounts, datesCleaned: dateIds.size };
+}
+
 async function handleAccountDeletion(req, res, targetId) {
 	const adminId = req.user.id;
 	if (targetId === adminId) {
@@ -5854,7 +5952,7 @@ async function handleAccountDeletion(req, res, targetId) {
 	try {
 		await client.query("BEGIN");
 		const userRes = await client.query(
-			`SELECT id, email, metadata
+			`SELECT id, email, metadata, role, is_disabled
 			 FROM users WHERE id = $1`,
 			[targetId]
 		);
@@ -5876,78 +5974,13 @@ async function handleAccountDeletion(req, res, targetId) {
 			return errorResponse(res, 409, "Deletion not confirmed.", ["The user has not completed the account deletion confirmation flow."]);
 		}
 
-		const tableCounts = {};
-		const countQueries = [
-			{ name: "verification_tokens", sql: "SELECT COUNT(*)::int AS count FROM verification_tokens WHERE user_id = $1" },
-			{ name: "refresh_tokens", sql: "SELECT COUNT(*)::int AS count FROM refresh_tokens WHERE user_id = $1" },
-			{ name: "oauth_accounts", sql: "SELECT COUNT(*)::int AS count FROM oauth_accounts WHERE user_id = $1" },
-			{ name: "book_types", sql: "SELECT COUNT(*)::int AS count FROM book_types WHERE user_id = $1" },
-			{ name: "authors", sql: "SELECT COUNT(*)::int AS count FROM authors WHERE user_id = $1" },
-			{ name: "publishers", sql: "SELECT COUNT(*)::int AS count FROM publishers WHERE user_id = $1" },
-			{ name: "book_authors", sql: "SELECT COUNT(*)::int AS count FROM book_authors WHERE user_id = $1" },
-			{ name: "book_series", sql: "SELECT COUNT(*)::int AS count FROM book_series WHERE user_id = $1" },
-			{ name: "book_series_books", sql: "SELECT COUNT(*)::int AS count FROM book_series_books WHERE user_id = $1" },
-			{ name: "storage_locations", sql: "SELECT COUNT(*)::int AS count FROM storage_locations WHERE user_id = $1" },
-			{ name: "books", sql: "SELECT COUNT(*)::int AS count FROM books WHERE user_id = $1" },
-			{ name: "book_copies", sql: "SELECT COUNT(*)::int AS count FROM book_copies WHERE user_id = $1" },
-			{ name: "book_languages", sql: "SELECT COUNT(*)::int AS count FROM book_languages WHERE user_id = $1" },
-			{ name: "tags", sql: "SELECT COUNT(*)::int AS count FROM tags WHERE user_id = $1" },
-			{ name: "book_tags", sql: "SELECT COUNT(*)::int AS count FROM book_tags WHERE user_id = $1" }
-		];
-
-		for (const query of countQueries) {
-			const countRes = await client.query(query.sql, [targetId]);
-			tableCounts[query.name] = countRes.rows[0]?.count ?? 0;
+		const lastAdminError = await ensureNotLastAdmin(client, user);
+		if (lastAdminError) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 409, "Deletion blocked", [lastAdminError]);
 		}
 
-		const dateIds = new Set();
-		const authorDates = await client.query(
-			`SELECT birth_date_id, death_date_id FROM authors WHERE user_id = $1`,
-			[targetId]
-		);
-		for (const row of authorDates.rows) {
-			if (row.birth_date_id) dateIds.add(row.birth_date_id);
-			if (row.death_date_id) dateIds.add(row.death_date_id);
-		}
-
-		const publisherDates = await client.query(
-			`SELECT founded_date_id FROM publishers WHERE user_id = $1`,
-			[targetId]
-		);
-		for (const row of publisherDates.rows) {
-			if (row.founded_date_id) dateIds.add(row.founded_date_id);
-		}
-
-		const bookDates = await client.query(
-			`SELECT publication_date_id FROM books WHERE user_id = $1`,
-			[targetId]
-		);
-		for (const row of bookDates.rows) {
-			if (row.publication_date_id) dateIds.add(row.publication_date_id);
-		}
-
-		const copyDates = await client.query(
-			`SELECT acquisition_date_id FROM book_copies WHERE user_id = $1`,
-			[targetId]
-		);
-		for (const row of copyDates.rows) {
-			if (row.acquisition_date_id) dateIds.add(row.acquisition_date_id);
-		}
-
-		await client.query(`DELETE FROM users WHERE id = $1`, [targetId]);
-
-		if (dateIds.size > 0) {
-			const ids = Array.from(dateIds);
-			await client.query(
-				`DELETE FROM dates d
-				 WHERE d.id = ANY($1)
-				   AND NOT EXISTS (SELECT 1 FROM authors a WHERE a.birth_date_id = d.id OR a.death_date_id = d.id)
-				   AND NOT EXISTS (SELECT 1 FROM publishers p WHERE p.founded_date_id = d.id)
-				   AND NOT EXISTS (SELECT 1 FROM books b WHERE b.publication_date_id = d.id)
-				   AND NOT EXISTS (SELECT 1 FROM book_copies bc WHERE bc.acquisition_date_id = d.id)`,
-				[ids]
-			);
-		}
+		const deletionResult = await performAccountDeletion(client, targetId);
 
 		await client.query("COMMIT");
 
@@ -5956,20 +5989,104 @@ async function handleAccountDeletion(req, res, targetId) {
 			admin_id: adminId,
 			user_id: targetId,
 			reason,
-			deleted_counts: tableCounts,
-			date_cleanup_count: dateIds.size,
+			deleted_counts: deletionResult.tableCounts,
+			date_cleanup_count: deletionResult.datesCleaned,
 			ip: req.ip,
 			user_agent: req.get("user-agent")
 		}, "info");
 
 		return successResponse(res, 200, "User account deleted permanently.", {
 			id: targetId,
-			deletedCounts: tableCounts,
-			datesCleaned: dateIds.size
+			deletedCounts: deletionResult.tableCounts,
+			datesCleaned: deletionResult.datesCleaned
 		});
 	} catch (error) {
 		await client.query("ROLLBACK");
 		logToFile("ADMIN_ACCOUNT_DELETE", {
+			status: "FAILURE",
+			error_message: error.message,
+			admin_id: adminId,
+			user_id: targetId,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Database Error", ["An error occurred while deleting the user."]);
+	} finally {
+		client.release();
+	}
+}
+
+async function handleForcedAccountDeletion(req, res, targetId) {
+	const adminId = req.user.id;
+	if (targetId === adminId) {
+		return errorResponse(res, 403, "Forbidden", ["Admins cannot delete their own account."]);
+	}
+
+	const reasonErrors = validateReason(req.body?.reason);
+	if (reasonErrors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", reasonErrors);
+	}
+	const reason = req.body.reason.trim();
+
+	const confirmation = validateForceDeleteConfirmations({
+		targetId,
+		confirmUserId: req.body?.confirmUserId,
+		confirmEmail: req.body?.confirmEmail,
+		confirmText: req.body?.confirmText,
+		expectedConfirmText: "DELETE"
+	});
+
+	if (confirmation.errors.length > 0) {
+		return errorResponse(res, 400, "Validation Error", confirmation.errors);
+	}
+
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const userRes = await client.query(
+			`SELECT id, email, role, is_disabled
+			 FROM users WHERE id = $1`,
+			[targetId]
+		);
+		if (userRes.rows.length === 0) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 404, "User not found.", ["The requested user could not be located."]);
+		}
+
+		const user = userRes.rows[0];
+		if (normalizeEmail(user.email) !== confirmation.confirmEmail) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 400, "Validation Error", ["confirmEmail does not match the user's email."]);
+		}
+
+		const lastAdminError = await ensureNotLastAdmin(client, user);
+		if (lastAdminError) {
+			await client.query("ROLLBACK");
+			return errorResponse(res, 409, "Deletion blocked", [lastAdminError]);
+		}
+
+		const deletionResult = await performAccountDeletion(client, targetId);
+		await client.query("COMMIT");
+
+		logToFile("ADMIN_FORCE_ACCOUNT_DELETE", {
+			status: "SUCCESS",
+			admin_id: adminId,
+			user_id: targetId,
+			reason,
+			deleted_counts: deletionResult.tableCounts,
+			date_cleanup_count: deletionResult.datesCleaned,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "info");
+
+		return successResponse(res, 200, "User account deleted permanently.", {
+			id: targetId,
+			deletedCounts: deletionResult.tableCounts,
+			datesCleaned: deletionResult.datesCleaned
+		});
+	} catch (error) {
+		await client.query("ROLLBACK");
+		logToFile("ADMIN_FORCE_ACCOUNT_DELETE", {
 			status: "FAILURE",
 			error_message: error.message,
 			admin_id: adminId,
@@ -6033,6 +6150,28 @@ router.post("/users/handle-account-deletion", [...adminAuth, sensitiveActionLimi
 		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
 	}
 	return handleAccountDeletion(req, res, resolved.id);
+});
+
+// `POST /admin/users/:id/force-account-deletion` - Permanently delete a user without a user deletion request (admin only)
+router.post("/users/:id/force-account-deletion", [...adminAuth, sensitiveActionLimiter, adminDeletionLimiter], async (req, res) => {
+	const targetId = parseId(req.params.id);
+	if (!Number.isInteger(targetId)) {
+		return errorResponse(res, 400, "Validation Error", ["User id must be a valid integer."]);
+	}
+	const bodyId = parseId(req.body?.id);
+	if (Number.isInteger(bodyId) && bodyId !== targetId) {
+		return errorResponse(res, 400, "Validation Error", ["User id in body does not match the URL path."]);
+	}
+	return handleForcedAccountDeletion(req, res, targetId);
+});
+
+// `POST /admin/users/force-account-deletion` with JSON body containing { id: userId } is also supported
+router.post("/users/force-account-deletion", [...adminAuth, sensitiveActionLimiter, adminDeletionLimiter], async (req, res) => {
+	const resolved = await resolveTargetUserId({ idValue: req.body?.id, emailValue: req.body?.email });
+	if (resolved.error) {
+		return errorResponse(res, resolved.error.status, resolved.error.message, resolved.error.errors);
+	}
+	return handleForcedAccountDeletion(req, res, resolved.id);
 });
 
 // `POST /admin/languages` - Add a new language (admin only)
