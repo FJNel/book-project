@@ -34,7 +34,7 @@ The password reset email contains a link that you will need to click to reset yo
 > To enhance security and prevent abuse, password reset requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again.
 
 ### If you get redirected to your dashboard and cannot access the login page
-If you are already logged in to your Book Project account and try to access the login page, you will be redirected to your dashboard. To request a password reset while logged in, you will need to log out of your account first. Follow [this](/guides/logging-out) guide to log out, and then return to the [login page](https://bookproject.fjnel.co.za/) to request a password reset. 
+If you are already logged in to your Book Project account and try to access the login page, you will be redirected to your dashboard. To request a password reset while logged in, you will need to log out of your account first. Follow [this](/guides/devices-and-sessions.html#logging-out-of-your-current-session) guide to log out, and then return to the [login page](https://bookproject.fjnel.co.za/) to request a password reset. 
 
 Logging out while not knowing your password could prevent you from logging back in, so make sure you have access to your email to complete the password reset process. 
 
