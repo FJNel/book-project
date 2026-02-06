@@ -1028,15 +1028,27 @@ router.post("/me/api-keys", requiresAuth, authenticatedLimiter, async (req, res)
 			return errorResponse(res, 403, "API key creation blocked.", ["You are currently prevented from creating new API keys.", reason]);
 		}
 	} catch (error) {
-		logToFile("API_KEY_CREATE", {
-			status: "FAILURE",
-			reason: "BAN_CHECK_FAILED",
-			error_message: error.message,
-			user_id: userId,
-			ip: req.ip,
-			user_agent: req.get("user-agent")
-		}, "error");
-		return errorResponse(res, 500, "Internal Server Error", ["Unable to verify API key permissions at this time."]);
+		// Backward compatibility: older databases may not yet have API key ban columns.
+		if (error && error.code === "42703") {
+			logToFile("API_KEY_CREATE", {
+				status: "WARN",
+				reason: "BAN_COLUMNS_UNAVAILABLE",
+				error_message: error.message,
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+		} else {
+			logToFile("API_KEY_CREATE", {
+				status: "FAILURE",
+				reason: "BAN_CHECK_FAILED",
+				error_message: error.message,
+				user_id: userId,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "error");
+			return errorResponse(res, 500, "Internal Server Error", ["Unable to verify API key permissions at this time."]);
+		}
 	}
 
 	const { token, prefix, hash } = generateApiKey();
