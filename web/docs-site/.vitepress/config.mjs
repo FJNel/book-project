@@ -9,7 +9,7 @@
     logo: "../../assets/img/Icon.png",
 
     nav: [
-      { text: "Guides", link: "/guides/getting-started" },
+      { text: "Guides", link: "/guides/setup/getting-started" },
       { text: "FAQ", link: "/faq" },
       { text: "Privacy", link: "/legal/privacy-policy" },
       { text: "Terms", link: "/legal/terms-of-use" },
@@ -21,9 +21,9 @@
         {
           text: "Guides",
           items: [
-            { text: "Getting Started", link: "/guides/getting-started" },
-            { text: "Managing Books", link: "/guides/managing-books" },
-            { text: "Managing Authors", link: "/guides/managing-authors" }
+            { text: "Getting Started", link: "/guides/setup/getting-started" },
+            { text: "Managing Books", link: "/guides/library/managing-books" },
+            { text: "Managing Authors", link: "/guides/library/managing-authors" }
           ]
         }
       ],

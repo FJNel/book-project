@@ -14,7 +14,7 @@ You may need to reset your password if:
 - You want to create a password for your account after signing up with Sign in with Google.
 - You want to change your password for security reasons, without being logged in.
 
-If you are able to log in to your account and simply want to change your password, you can do so from your account settings without needing to go through the reset process. You can find instructions for changing your password in the [Changing Your Password guide](/guides/changing-your-password).
+If you are able to log in to your account and simply want to change your password, you can do so from your account settings without needing to go through the reset process. You can find instructions for changing your password in the [Changing Your Password guide](/guides/account/changing-your-password).
 
 ## Request a Password Reset
 
@@ -34,7 +34,7 @@ The password reset email contains a link that you will need to click to reset yo
 > To enhance security and prevent abuse, password reset requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again.
 
 ### If you get redirected to your dashboard and cannot access the login page
-If you are already logged in to your Book Project account and try to access the login page, you will be redirected to your dashboard. To request a password reset while logged in, you will need to log out of your account first. Follow [this](/guides/devices-and-sessions.html#logging-out-of-your-current-session) guide to log out, and then return to the [login page](https://bookproject.fjnel.co.za/) to request a password reset. 
+If you are already logged in to your Book Project account and try to access the login page, you will be redirected to your dashboard. To request a password reset while logged in, you will need to log out of your account first. Follow [this](/guides/account/devices-and-sessions#logging-out-of-your-current-session) guide to log out, and then return to the [login page](https://bookproject.fjnel.co.za/) to request a password reset. 
 
 Logging out while not knowing your password could prevent you from logging back in, so make sure you have access to your email to complete the password reset process. 
 
@@ -86,10 +86,10 @@ Yes, you can reuse an old password when resetting your password. However, for se
 ### Can someone else reset my password?
 No, only the person who has access to the email address associated with the Book Project account can reset the password. The password reset process requires clicking a link sent to that email address, so if you do not have access to the email account, you will not be able to reset the password. If you believe someone else is trying to reset your password without your permission, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Unauthorized%20Password%20Reset%20Attempt).
 
-> If your email address is compromised, an attacker could potentially request a password reset and gain access to your Book Project account. To protect your account, ensure that your email account is secure. If you suspect that your email account has been compromised, you can disable your Book Project account (see the [Disabling Your Account guide](/guides/disabling-your-account)) to prevent unauthorized access until you can regain control of your email. 
+> If your email address is compromised, an attacker could potentially request a password reset and gain access to your Book Project account. To protect your account, ensure that your email account is secure. If you suspect that your email account has been compromised, you can disable your Book Project account (see the [Disabling Your Account guide](/guides/account/disabling-your-account)) to prevent unauthorized access until you can regain control of your email. 
 
 ### I received a password reset email, but I didn't request it. What should I do?
-If you received a password reset email that you did not request, it is possible that someone else mistakenly entered your email address when trying to reset their own password. In this case, you can simply ignore the email, and no changes will be made to your account. However, if you are concerned that someone may be attempting to gain unauthorized access to your account, it is recommended to change your password as a precautionary measure. You can do this by following the steps in this guide to request a password reset and set a new password for your account. If you are really concerned about the security of your account, you can disable your account temporarily by following the steps in the [Disabling Your Account guide](/guides/disabling-your-account) until you can ensure that your account is secure. If you continue to receive unsolicited password reset emails, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Unsolicited%20Password%20Reset%20Emails).
+If you received a password reset email that you did not request, it is possible that someone else mistakenly entered your email address when trying to reset their own password. In this case, you can simply ignore the email, and no changes will be made to your account. However, if you are concerned that someone may be attempting to gain unauthorized access to your account, it is recommended to change your password as a precautionary measure. You can do this by following the steps in this guide to request a password reset and set a new password for your account. If you are really concerned about the security of your account, you can disable your account temporarily by following the steps in the [Disabling Your Account guide](/guides/account/disabling-your-account) until you can ensure that your account is secure. If you continue to receive unsolicited password reset emails, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Unsolicited%20Password%20Reset%20Emails).
 
 ### I no longer have access to the email address associated with my account. What should I do?
 If you no longer have access to the email address associated with your Book Project account, you will not be able to receive the password reset email. In this case, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Account%20Access). 
@@ -135,10 +135,10 @@ This however is not an exhaustive list of best practices for creating strong pas
 
 ## What's Next?
 
-Well, now that you've reset your password, you can log in to your Book Project account using your email address and the new password you just set. Once logged in, you can start managing your personal library, adding books, authors, publishers, and other related information. 
+Now that your password is updated, you can get back to your library and tighten up your account settings.
 
 Some useful guides to get you started:
-- [Getting Started Guide](/guides/getting-started): Learn the basics of using The Book Project.
-- [Changing Your Password](/guides/changing-your-password): Instructions on how to change your password when logged in.
-- [Your Dashboard](/guides/your-dashboard): An overview of your dashboard and its features.
-- [Adding Books](/guides/adding-books): Instructions on how to add books to your library.
+- [Getting Started Guide](/guides/setup/getting-started): Learn the basics of using The Book Project.
+- [Changing Your Password](/guides/account/changing-your-password): Update your password while logged in.
+- [Devices and Sessions](/guides/account/devices-and-sessions): Review and log out devices as needed.
+- [Managing Books](/guides/library/managing-books): Start building your library.

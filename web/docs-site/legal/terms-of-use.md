@@ -84,3 +84,13 @@ We may update these Terms from time to time. Changes become effective when poste
 ## Contact Information
 
 For questions about these Terms, contact [support@fjnel.co.za](mailto:support@fjnel.co.za).
+
+---
+
+## What's Next?
+
+For related policies and usage details, see the following pages.
+
+- [Privacy Policy](/legal/privacy-policy)
+- [FAQ](/faq)
+- [Getting Started](/guides/setup/getting-started)

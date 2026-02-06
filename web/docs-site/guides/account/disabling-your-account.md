@@ -10,7 +10,7 @@ When you disable your account, the following will occur:
 - You will not receive any further communications from The Book Project unless you choose to reactivate your account.
 - You will be able to re-enable your account and continue using The Book Project as before.\
 
-To permanently delete your account and all associated data, please refer to the [deleting your account guide](./deleting-your-account).
+To permanently delete your account and all associated data, please refer to the [deleting your account guide](/guides/account/deleting-your-account).
 
 ## Why Disable Your Account?
 You might choose to disable your account for various reasons, such as taking a break from The Book Project, concerns about account security, or other personal reasons. Disabling your account allows you to retain your data without permanently deleting it.
@@ -113,4 +113,10 @@ Yes. When you reactivate your account, all your data, including your library and
 Well... not much. Until you decide to reactivate your account, your data will remain safely stored but inaccessible. 
 
 Your next step is probably to take a break, reflect, or focus on other things. If you ever decide to return to The Book Project, you can reactivate your account by following the steps under the "How to Reactivate Your Account" section above.
+
+If you are still deciding between options, these guides might help:
+
+- [Deleting Your Account](/guides/account/deleting-your-account): Permanently remove your data if you're sure.
+- [Changing Your Password](/guides/account/changing-your-password): Secure your account before taking a break.
+- [Devices and Sessions](/guides/account/devices-and-sessions): Log out of other devices.
 

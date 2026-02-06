@@ -135,3 +135,13 @@ We may update this Privacy Policy from time to time. When we do, the “Last Upd
 
 For privacy-related questions or requests, please contact  
 [support@fjnel.co.za](mailto:support@fjnel.co.za)
+
+---
+
+## What's Next?
+
+If you need more context about using the service, these pages may help.
+
+- [Terms of Use](/legal/terms-of-use)
+- [FAQ](/faq)
+- [Getting Started](/guides/setup/getting-started)

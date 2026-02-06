@@ -13,11 +13,11 @@ The Book Project is designed for private use, not as a public or social platform
 Below are links to the main sections of the documentation:
 
 ## Logins and Accounts
-- [Creating an Account](/guides/creating-an-account)
-- [Resetting Your Password](/guides/reset-your-password)
+- [Creating an Account](/guides/setup/creating-an-account)
+- [Resetting Your Password](/guides/setup/reset-your-password)
 
 ## Guides
-- [Getting Started](/guides/getting-started)
+- [Getting Started](/guides/setup/getting-started)
 
 ## Help
 - [FAQ](/faq)
@@ -25,3 +25,14 @@ Below are links to the main sections of the documentation:
 ## Legal
 - [Privacy Policy](/legal/privacy-policy)
 - [Terms of Use](/legal/terms-of-use)
+
+---
+
+## What's Next?
+
+If you're new here, start with the core setup guides. If you're already using the app, jump into the library and account topics below.
+
+- [Getting Started](/guides/setup/getting-started)
+- [Managing Books](/guides/library/managing-books)
+- [Managing Authors](/guides/library/managing-authors)
+- [FAQ](/faq)

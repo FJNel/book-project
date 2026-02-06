@@ -65,4 +65,8 @@ Yes, you can switch themes at any time by following the steps outlined above. Th
 
 ## What's Next?
 
-...
+If you are personalizing your account, these guides can help you finish the setup.
+
+- [Updating Your Profile Information](/guides/account/updating-your-profile): Keep your name and details current.
+- [Email Preferences](/guides/account/changing-email-preferences): Control the emails you receive.
+- [Devices and Sessions](/guides/account/devices-and-sessions): Review where you're logged in.

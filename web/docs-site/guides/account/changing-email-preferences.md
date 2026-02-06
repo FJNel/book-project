@@ -95,4 +95,9 @@ Yes, you can opt in to receive "Development and features" emails at any time by 
 
 ## What's Next?
 
-...
+If you are refining your account settings, these guides are the natural follow-up.
+
+- [Changing Your Email Address](/guides/account/changing-your-email): Update the email on your account.
+- [Changing Your Password](/guides/account/changing-your-password): Keep your login secure.
+- [Updating Your Profile Information](/guides/account/updating-your-profile): Adjust your profile details.
+- [Privacy Policy](/legal/privacy-policy): Review how we handle account data.

@@ -4,7 +4,7 @@ If you wish to permanently delete your Book Project account and all associated d
 
 Account deletion is a multi-step process to ensure that it is intentional and secure. Please read through the entire guide before proceeding. 
 
-To temporarily disable your account instead of deleting it, please refer to the [Disabling Your Account guide](/guides/disabling-your-account).
+To temporarily disable your account instead of deleting it, please refer to the [Disabling Your Account guide](/guides/account/disabling-your-account).
 
 ## Why Delete Your Account?
 
@@ -61,7 +61,7 @@ No, once your account has been deleted, it cannot be recovered. All your data wi
 Disabling your account temporarily deactivates it, allowing you to reactivate it later with all your data intact. Deleting your account permanently removes all your data from The Book Project system and cannot be undone. If you think you may want to use The Book Project again in the future, consider disabling your account instead of deleting it.
 
 ### Can I disable my account instead of deleting it?
-Yes, if you do not want to permanently delete your account, you can choose to disable it instead. Disabling your account will temporarily deactivate it, allowing you to reactivate it later with all your data intact. For more information, please refer to the [Disabling Your Account guide](/guides/disabling-your-account).
+Yes, if you do not want to permanently delete your account, you can choose to disable it instead. Disabling your account will temporarily deactivate it, allowing you to reactivate it later with all your data intact. For more information, please refer to the [Disabling Your Account guide](/guides/account/disabling-your-account).
 
 ### When should I choose deletion over disabling my account?
 You should choose to delete your account if you want to permanently remove all your data from The Book Project system and do not plan to use the service again in the future. Deletion is appropriate if you are concerned about privacy, no longer need the service, or want to start fresh with a new account. If you think you may want to use The Book Project again later, consider disabling your account instead, as this option allows you to retain your data for future use.
@@ -88,7 +88,7 @@ The system administrator endeavors to review and process account deletion reques
 If you did not receive the confirmation email for your account deletion request, please check your spam or junk folder to ensure it was not filtered there. If you still cannot find the email, you can try submitting the account deletion request again from your account settings. If you continue to experience issues with receiving the confirmation email, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20account%20deletion%20confirmation%20email) for further assistance.
 
 ### Can I use Google sign-in to delete my account?
-No, Sign in with Google is a separate authentication method and does not involve passwords. If you signed up using Sign in with Google and have not set a password for your Book Project account, you can use the password reset process described [here](/guides/reset-your-password) to set a password. This will enable you to log in using your email address and password in the future, while still allowing you to use Sign in with Google if you prefer. *Sign in with Google is currently disabled, so you will need to set a password to access your account and proceed with account deletion.* Once you have set a password, you can follow the steps in this guide to request account deletion.
+No, Sign in with Google is a separate authentication method and does not involve passwords. If you signed up using Sign in with Google and have not set a password for your Book Project account, you can use the password reset process described [here](/guides/setup/reset-your-password) to set a password. This will enable you to log in using your email address and password in the future, while still allowing you to use Sign in with Google if you prefer. *Sign in with Google is currently disabled, so you will need to set a password to access your account and proceed with account deletion.* Once you have set a password, you can follow the steps in this guide to request account deletion.
 
 ### Will deleting my account affect my books or data?
 Yes, deleting your account will permanently remove all your books and data from The Book Project system. This includes all your library data, such as books, authors, publishers, series, tags, languages, storage locations, and individual copies of books. Additionally, any notes, descriptions, and acquisition stories associated with your books and copies will also be deleted. Please ensure that you have backed up any important data before proceeding with account deletion, as this action cannot be undone.
@@ -98,7 +98,7 @@ This depends on the stage of the deletion process. If you have only submitted th
 
 ### What should I do if I receive a notification email about account deletion, but I didn't request it?
 If you receive a notification email about account deletion but did not request it, it is possible that someone else accessed your account and initiated the deletion process. For your security, we recommend that you take the following steps:
-1. Change your password immediately by following the [Change Your Password guide](/guides/changing-your-password).
+1. Change your password immediately by following the [Change Your Password guide](/guides/account/changing-your-password).
 2. Review your account activity and ensure that no other unauthorized changes have been made.
 3. Contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Unauthorized%20Account%20Deletion%20Notification) to report the issue and seek further assistance.
 
@@ -118,6 +118,9 @@ If you encounter any issues or have questions regarding account deletion, you ca
 
 ## What's Next?
 
-Well... your account will be deleted, so there isn't much "next" after that! If you change your mind, you can always create a new account and start fresh with The Book Project:
-- [Creating a New Account guide](/guides/creating-an-account)
+If you reconsider before deletion is finalized, these pages may help you decide.
+
+- [Disabling Your Account](/guides/account/disabling-your-account): A reversible alternative.
+- [Changing Your Password](/guides/account/changing-your-password): Secure your account instead.
+- [Creating an Account](/guides/setup/creating-an-account): Start fresh later if you choose.
 

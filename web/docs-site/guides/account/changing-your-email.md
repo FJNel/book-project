@@ -100,13 +100,13 @@ When this happens, it could be due to several reasons:
 ### The new email address I want to use is already registered. What should I do?
 If you have access to both email addresses and accounts, you have a few options:
 1. **Option 1: Change the email address on the existing account:** Log in to the account associated with the new email address and change its email address to a different one using the steps outlined in this guide. Once that account's email address has been changed successfully, you can then proceed to change your original account's email address to the desired new email address.
-2. **Option 2: Request account deletion:** If you no longer need the account associated with the new email address, you can use the [account deletion guide](/guides/deleting-your-account) to delete that account. After the account has been deleted, you can then proceed to change your original account's email address to the desired new email address.
+2. **Option 2: Request account deletion:** If you no longer need the account associated with the new email address, you can use the [account deletion guide](/guides/account/deleting-your-account) to delete that account. After the account has been deleted, you can then proceed to change your original account's email address to the desired new email address.
 3. **Option 3: Contact the System Administrator:** The System Administrator has the ability to assist with email address conflicts. You can contact them at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Email%20Address%20Conflict) for further assistance.
 
 If you do not have access to the account associated with the new email address, you will not be able to change your email address to that one. You will need to choose a different email address that is not already in use. 
 
 ### Can I change my email address if I used Sign in with Google?
-Yes, you can change your email address even if you used Sign in with Google to create your account. However, you will need to set a password for your Book Project account first, as changing your email address requires you to enter your account password. To set a password, follow the steps outlined in the [Resetting Your Password guide](/guides/reset-your-password). Once you have set a password, you can proceed to change your email address by following the steps in this guide. After changing your email address, you will need to re-link your Google account (associated with your new email address) to your Book Project account if you wish to use Sign in with Google in the future. Linking happens automatically when you Sign in with Google using the new email address for the first time after the change. *Sign in with Google is currently disabled*
+Yes, you can change your email address even if you used Sign in with Google to create your account. However, you will need to set a password for your Book Project account first, as changing your email address requires you to enter your account password. To set a password, follow the steps outlined in the [Resetting Your Password guide](/guides/setup/reset-your-password). Once you have set a password, you can proceed to change your email address by following the steps in this guide. After changing your email address, you will need to re-link your Google account (associated with your new email address) to your Book Project account if you wish to use Sign in with Google in the future. Linking happens automatically when you Sign in with Google using the new email address for the first time after the change. *Sign in with Google is currently disabled*
 
 ### I changed my email address, but did not receive the notification emails. What should I do?
 The email change notification emails should be sent automatically to both your old and new email addresses after you successfully change your email address. If you did not receive the emails, it is not a cause for immediate concern, but you may want to check your spam or junk folder to ensure they were not filtered there. If you continue to experience issues with receiving notification emails, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20email%20change%20notification%20emails) for further assistance.
@@ -124,10 +124,11 @@ If you try to change your email address to the same one you already have, the sy
 
 ## What's Next?
 
-Now that you know how to change your email address, you can keep your account information up to date. If you need to change your password, check out the [Changing Your Password guide](/guides/changing-your-password) for detailed instructions. Here are some other useful guides to help you manage your Book Project account:
+Now that your email address is up to date, you may want to review other account settings as well.
 
-- [Updating Your Profile Information](/guides/updating-your-profile): Instructions on how to update your personal profile information.
-- [Deleting Your Account](/guides/deleting-your-account): Learn how to permanently delete your Book Project account.
-- [Devices and Sessions](/guides/devices-and-sessions): Learn how to manage your active devices and sessions for added security.
+- [Changing Your Password](/guides/account/changing-your-password): Update your password while logged in.
+- [Updating Your Profile Information](/guides/account/updating-your-profile): Keep your profile details current.
+- [Email Preferences](/guides/account/changing-email-preferences): Control what emails you receive.
+- [Devices and Sessions](/guides/account/devices-and-sessions): Review active sessions for security.
 
 

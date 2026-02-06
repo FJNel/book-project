@@ -75,12 +75,12 @@ If the verification link has expired, you can request a new verification email b
 When this happens, it could be due to several reasons:
 - There may be a delay in email delivery. Wait a few minutes and check your inbox again.
 - Double-check that you entered the correct email address when requesting the verification email.
-- **The email address you entered is already associated with an existing account:** In this case, you will not receive a new verification email. Instead, try logging in with your existing account credentials. If you have forgotten your password, you can [reset your password](/guides/reset-your-password).
+- **The email address you entered is already associated with an existing account:** In this case, you will not receive a new verification email. Instead, try logging in with your existing account credentials. If you have forgotten your password, you can [reset your password](/guides/setup/reset-your-password).
   
 > To prevent malicious actors from identifying which email addresses are registered, the system does not indicate whether an email address is already in use when requesting a new verification email: You will simply not receive a new email if the address is already registered.
 
 ### I think my email address is already registered. What should I do?
-If you believe your email address is already registered, try logging in with your existing account credentials. If you have forgotten your password, you can [reset your password](/guides/reset-your-password). If you are still having trouble accessing your account, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Account%20Access) for further assistance.
+If you believe your email address is already registered, try logging in with your existing account credentials. If you have forgotten your password, you can [reset your password](/guides/setup/reset-your-password). If you are still having trouble accessing your account, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Assistance%20with%20Book%20Project%20Account%20Access) for further assistance.
 
 ### I entered the wrong email address during registration. How can I fix this?
 If you entered the wrong email address during registration, you will need to create a new account using the correct email address: Follow the steps outlined in this guide to register again with the correct email. To keep The Book Project accessible and easy to use, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Delete%20Unverified%20Account) with the incorrect email address and request deletion of the unverified account.
@@ -89,21 +89,22 @@ If you entered the wrong email address during registration, you will need to cre
 No, Google sign-in is currently disabled in The Book Project. You will need to create an account using your email address and a password as described in this guide. Sign in with Google may be re-enabled in the future, but for now, please use the email/password method to create and access your account.
 
 ### Can I change my email address after creating an account?
-Yes, you can change your email address after creating an account. Find a detailed guide on [changing your email address here](/guides/changing-your-email).
+Yes, you can change your email address after creating an account. Find a detailed guide on [changing your email address here](/guides/account/changing-your-email).
 
 ### What if I forget my password?
-If you forget your password, you can reset it by following the instructions in the [password reset guide](/guides/reset-your-password).
+If you forget your password, you can reset it by following the instructions in the [password reset guide](/guides/setup/reset-your-password).
 
 ### Can I delete my account?
-Yes, you can delete your account. Please refer to the [account deletion guide](/guides/deleting-your-account) for detailed instructions.
+Yes, you can delete your account. Please refer to the [account deletion guide](/guides/account/deleting-your-account) for detailed instructions.
 
 ---
 
 ## What's Next?
 
-Now that you have created your account and logged in for the first time, you can start adding books and managing your library. 
+Now that your account is ready, the guides below will help you get comfortable with your library and core settings.
 
 Some useful next steps include:
-- [Getting Started Guide](/guides/getting-started): Learn the basics of using The Book Project.
-- [Your Dashboard](/guides/your-dashboard): An overview of your dashboard and its features.
-- [Adding Books](/guides/adding-books): Instructions on how to add books to your library.
+- [Getting Started Guide](/guides/setup/getting-started): Learn the basics of using The Book Project.
+- [Managing Books](/guides/library/managing-books): Add and edit books in your library.
+- [Managing Authors](/guides/library/managing-authors): Link authors to books and update author details.
+- [Changing Your Email Address](/guides/account/changing-your-email): Keep your account contact details up to date.

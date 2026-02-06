@@ -2,7 +2,7 @@
 
 If you want to change your password for The Book Project, you can follow the steps in this guide.
 
-If you have forgotten your password and cannot log in, please refer to the [Reset Your Password guide](/guides/reset-your-password) instead. This guide is for changing your password when you are already logged in to your account (i.e. You know your current password).
+If you have forgotten your password and cannot log in, please refer to the [Reset Your Password guide](/guides/setup/reset-your-password) instead. This guide is for changing your password when you are already logged in to your account (i.e. You know your current password).
 
 ## When to Change Your Password
 
@@ -46,6 +46,7 @@ This however is not an exhaustive list of best practices for creating strong pas
 - Use a password manager to generate and store complex passwords securely.
 - Change your passwords regularly and avoid reusing passwords across different accounts.
 - Do not share your passwords with anyone.
+- Do not use the same password for multiple different accounts, especially for important accounts like email or financial services: When one account is compromised, it can lead to a domino effect where other accounts using the same password are also at risk.
 
 ## Questions
 
@@ -53,10 +54,10 @@ This however is not an exhaustive list of best practices for creating strong pas
 Changing your password regularly is a good security practice. It helps protect your account from unauthorized access, especially if you suspect that your password may have been compromised or shared with someone else. We also recommend changing your password if you want to improve the security of your account by using a stronger password. 
 
 ### Do I need to enter my current password to change it?
-Yes, you need to enter your current password when changing your password. This is to verify your identity and ensure that only you can change your password. If you have forgotten your current password, please refer to the [Reset Your Password guide](/guides/reset-your-password) to reset it instead.
+Yes, you need to enter your current password when changing your password. This is to verify your identity and ensure that only you can change your password. If you have forgotten your current password, please refer to the [Reset Your Password guide](/guides/setup/reset-your-password) to reset it instead.
 
 ### What happens if I forgot my current password or if my current password is incorrect?
-If you have forgotten your current password, you will not be able to change it using this guide. Instead, you will need to reset your password by following the steps in the [Reset Your Password guide](/guides/reset-your-password). This process will allow you to set a new password without needing to know your current one.
+If you have forgotten your current password, you will not be able to change it using this guide. Instead, you will need to reset your password by following the steps in the [Reset Your Password guide](/guides/setup/reset-your-password). This process will allow you to set a new password without needing to know your current one.
 
 ### Will I be logged out of my account after changing my password?
 Yes, when you change your password, you will be logged out of all devices and sessions, including the one you are currently using. This is a security measure to ensure that any active sessions using your old password are terminated. You will need to log in again with your new password on all devices.
@@ -71,7 +72,7 @@ After you change your password, you will receive a confirmation message on the w
 The password change notification email should be sent automatically after you successfully change your password. If you did not receive the email, it is not a cause for immediate concern, but you may want to check your spam or junk folder to ensure it was not filtered there. If you still cannot find the email, you can try changing your password again to see if the notification email is sent this time. If you continue to experience issues with receiving notification emails, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20password%20change%20notification%20email) for further assistance.
 
 ### Can I use Google sign-in to change my password?
-No, Sign in with Google is a separate authentication method and does not involve passwords. If you signed up using Sign in with Google and have not set a password for your Book Project account, you can use the password reset process described [here](/guides/reset-your-password) to set a password. This will enable you to log in using your email address and password in the future, while still allowing you to use Sign in with Google if you prefer. *Sign in with Google is currently disabled, so you will need to set a password to access your account.*
+No, Sign in with Google is a separate authentication method and does not involve passwords. If you signed up using Sign in with Google and have not set a password for your Book Project account, you can use the password reset process described [here](/guides/setup/reset-your-password) to set a password. This will enable you to log in using your email address and password in the future, while still allowing you to use Sign in with Google if you prefer. *Sign in with Google is currently disabled, so you will need to set a password to access your account.*
 
 ### Is the password change immediate?
 Yes, the password change is immediate. Once you successfully change your password and receive the confirmation message in the browser, your new password takes effect right away. You can use your new password to log in to your Book Project account immediately after the change. Remember that you will be logged out of all devices and sessions, so you will need to log in again using your new password on all devices. Your old password will no longer work after the change.
@@ -80,15 +81,15 @@ Yes, the password change is immediate. Once you successfully change your passwor
 No, changing your password will not affect your books or any other data in your Book Project account. Your library data, including books, authors, publishers, and other related information, remains intact and accessible after you change your password. The password change only affects the authentication credentials used to access your account; it does not modify or delete any of your library data.
 
 ### Can I cancel the password change if I made a mistake?
-If you have not clicked the "Update Password" button yet, you can simply navigate away from the password change form or close the browser tab to cancel the process. However, if you have already clicked the "Update Password" button and received confirmation that your password has been changed, the change is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to change your password again by following the steps in this guide. If you have forgotten your new password, you can use the [Reset Your Password guide](/guides/reset-your-password) to reset it.
+If you have not clicked the "Update Password" button yet, you can simply navigate away from the password change form or close the browser tab to cancel the process. However, if you have already clicked the "Update Password" button and received confirmation that your password has been changed, the change is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to change your password again by following the steps in this guide. If you have forgotten your new password, you can use the [Reset Your Password guide](/guides/setup/reset-your-password) to reset it.
 
 ---
 
 ## What's Next?
 
-Congratulations for keeping your account secure by changing your password! You can continue using The Book Project to manage your personal library as usual, or you can explore other guides:
-- [Getting Started Guide](/guides/getting-started): Learn the basics of using The Book Project.
-- [Your Dashboard](/guides/your-dashboard): An overview of your dashboard and its features.
-- [Changing Your Email Address](/guides/changing-your-email): A guide on how to change the email address associated with your account.
-- [Updating Your Profile Information](/guides/updating-your-profile): Instructions on how to update your personal profile information.
-- [Devices and Sessions](/guides/devices-and-sessions): Learn how to manage your active devices and sessions for added security.
+Nice work keeping your account secure. These guides cover the most common follow-up steps.
+
+- [Getting Started Guide](/guides/setup/getting-started): Learn the basics of using The Book Project.
+- [Changing Your Email Address](/guides/account/changing-your-email): Update the email address on your account.
+- [Updating Your Profile Information](/guides/account/updating-your-profile): Keep your profile details current.
+- [Devices and Sessions](/guides/account/devices-and-sessions): Manage where you're logged in.

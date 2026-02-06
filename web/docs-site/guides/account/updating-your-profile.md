@@ -26,7 +26,7 @@ When you update your profile information, a notification email will be sent to y
 ## Questions
 
 ### What information can I update in my profile?
-You can update your full name and preferred name in your profile. Your email address cannot be changed here; to change your email address, please refer to the [Changing Your Email Address guide](/guides/changing-your-email). To change your password, please refer to the [Change Your Password guide](/guides/changing-your-password).
+You can update your full name and preferred name in your profile. Your email address cannot be changed here; to change your email address, please refer to the [Changing Your Email Address guide](/guides/account/changing-your-email). To change your password, please refer to the [Change Your Password guide](/guides/account/changing-your-password).
 
 ### What is the difference between full name and preferred name?
 Your full name is your complete legal name, which may be used for official purposes and communications. Your preferred name is the name you would like to be addressed by in informal contexts, such as notifications and user interface elements. It allows for a more personalized experience.
@@ -45,9 +45,11 @@ Your "Full Name" field cannot be left blank; it is a required field. If you atte
 
 ### I received a notification email about changing my profile, but I didn't make any changes. What should I do?
 If you received a notification email about changing your profile but did not make any changes, it is possible that someone else accessed your account and updated your profile information. For your security, we recommend that you take the following steps:
-1. Change your password immediately by following the [Change Your Password guide](/guides/changing-your-password).
+1. Change your password immediately by following the [Change Your Password guide](/guides/account/changing-your-password).
 2. Review your account activity and ensure that no other unauthorized changes have been made.
-3. Contact the System Administrator at [support@fjnel.com](mailto:support@fjnel.com?subject=%20Unauthorised%20Profile%20Change%20Notification) for further assistance.
+3. Contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=%20Unauthorised%20Profile%20Change%20Notification) for further assistance.
+
+> Administrators can also change your profile information. This is normally done in exceptional cases or for administrative purposes. If an administrator changes your profile information, you will receive a notification email about the change. This email will indicate that the change was made by an administrator and will include contact information for the administrator in case you have any questions or concerns about the change. If you receive such a notification and did not expect it, please contact the System Administrator for clarification at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=%20Profile%20Change%20Notification%20from%20Administrator).
 
 ### My old profile information is still showing on some pages. What should I do?
 If your old profile information is still showing on some pages after you have updated it, try the following steps:
@@ -63,8 +65,9 @@ Yes, you can use special characters in both the "Full Name" and "Preferred Name"
 
 ## What's Next?
 
-You have successfully updated your profile information! You can now continue to explore The Book Project and manage your library. If you need to change your email address or password, please refer to the respective guides:
-- [Changing Your Email Address](/guides/changing-your-email)
-- [Changing Your Password](/guides/changing-your-password)
-- [Your Dashboard](/guides/getting-started)
+You have successfully updated your profile information. If you want to adjust other account settings, start here.
+
+- [Changing Your Email Address](/guides/account/changing-your-email)
+- [Changing Your Password](/guides/account/changing-your-password)
+- [Devices and Sessions](/guides/account/devices-and-sessions)
 

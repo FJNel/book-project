@@ -136,7 +136,7 @@ Sessions can disappear from the list for a few reasons:
 
 ## What's Next?
 
-Understanding how to manage your devices and sessions is an important part of keeping your Book Project account secure. Now that you know how to view and manage your sessions, consider exploring other security features available in your account:
-- [Updating Your Profile](/guides/updating-your-profile)
-- [Changing Your Password](/guides/changing-your-password)
-- [Changing Your Email Address](/guides/changing-your-email)
+Now that you know how to manage sessions, these account guides help you lock down the rest of your settings:
+- [Updating Your Profile](/guides/account/updating-your-profile)
+- [Changing Your Password](/guides/account/changing-your-password)
+- [Changing Your Email Address](/guides/account/changing-your-email)
