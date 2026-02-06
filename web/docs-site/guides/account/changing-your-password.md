@@ -2,7 +2,7 @@
 
 If you want to change your password for The Book Project, you can follow the steps in this guide.
 
-If you have forgotten your password and cannot log in, please refer to the [Reset Your Password guide](/guides/setup/reset-your-password) instead. This guide is for changing your password when you are already logged in to your account (i.e. You know your current password).
+If you have forgotten your password and cannot log in, please refer to the [Reset Your Password guide](/guides/setup/reset-your-password) instead. This guide is for changing your password when you are already logged in to your account (i.e., you know your current password).
 
 ## When to Change Your Password
 
@@ -39,7 +39,7 @@ By default, The Book Project enforces the following password requirements:
 - At least one number (0-9).
 - At least one special character (e.g. !@#$%^&*).
 
-This however is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
+This, however, is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
 - Avoid using common words, phrases, or easily guessable information (like "password", "123456", or your name).
 - Use a mix of different character types (letters, numbers, special characters).
 - Consider using a passphrase made up of multiple random words.

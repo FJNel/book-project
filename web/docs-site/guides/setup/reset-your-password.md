@@ -123,7 +123,7 @@ By default, The Book Project enforces the following password requirements:
 - At least one number (0-9).
 - At least one special character (e.g. !@#$%^&*).
 
-This however is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
+This, however, is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
 - Avoid using common words, phrases, or easily guessable information (like "password", "123456", or your name).
 - Use a mix of different character types (letters, numbers, special characters).
 - Consider using a passphrase made up of multiple random words.

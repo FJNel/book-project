@@ -31,7 +31,7 @@ After submitting your account deletion request, you will receive an email with a
 3. On the confirmation page, enter your email address and current password to verify your identity.
 4. Check the "I understand this will delete my account." checkbox to acknowledge that you understand the consequences of account deletion.
 5. Click on the "Confirm Deletion" button to start the deletion process.
-6. After a few moments, you should see a confirmation message that says that an administrator will review your deletion request and get into contact with you.
+6. After a few moments, you should see a confirmation message that says an administrator will review your deletion request and get in contact with you.
 
 ## Finalizing Account Deletion
 
@@ -82,7 +82,7 @@ Entering your email and password to finalize account deletion is a security meas
 An administrator reviews account deletion requests to prevent accidental or unauthorized deletions. This review process ensures that the deletion request is legitimate and that the account owner fully understands the consequences of their action. The administrator may contact you via email to confirm your request or ask for additional information, providing an extra layer of security. This helps protect your data and maintain the integrity of The Book Project system by ensuring that only valid deletion requests are processed.
 
 ### How long does it take for my account to be deleted after I confirm the deletion request?
-The system administrator endeavors to review and process account deletion requests as quickly as possible. While there is no fixed timeframe for this process, it typically takes a single business days for the administrator to review your request and finalize the deletion. You will receive a final confirmation email once your account has been permanently deleted. If you have any concerns about the status of your deletion request, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Account%20Deletion%20Request%20Status) for further assistance.
+The system administrator endeavors to review and process account deletion requests as quickly as possible. While there is no fixed timeframe for this process, it typically takes a single business day for the administrator to review your request and finalize the deletion. You will receive a final confirmation email once your account has been permanently deleted. If you have any concerns about the status of your deletion request, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Account%20Deletion%20Request%20Status) for further assistance.
 
 ### I didn't receive the confirm account deletion email. What should I do?
 If you did not receive the confirmation email for your account deletion request, please check your spam or junk folder to ensure it was not filtered there. If you still cannot find the email, you can try submitting the account deletion request again from your account settings. If you continue to experience issues with receiving the confirmation email, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Did%20not%20receive%20account%20deletion%20confirmation%20email) for further assistance.

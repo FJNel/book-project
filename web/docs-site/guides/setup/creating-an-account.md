@@ -11,7 +11,7 @@ You should create an account if you want to:
 - Access your library data from any device with internet access.
 - Keep your library data private and secure.
 
-Without an account, you will not be able to view, or save any library data. You will only have access to the registration and login pages, and limited informational content like the documentation site.
+Without an account, you will not be able to view or save any library data. You will only have access to the registration and login pages, and limited informational content like the documentation site.
 
 ## What You Need to Create an Account
 

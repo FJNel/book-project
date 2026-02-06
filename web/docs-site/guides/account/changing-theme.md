@@ -41,7 +41,7 @@ No, the theme change should take effect automatically without needing to refresh
 Yes, The Book Project saves your theme preference to your account settings, so your chosen theme will be applied automatically the next time you log in.
 
 ### Does the theme apply to all pages within The Book Project?
-Yes, the selected theme will be applied consistently across all pages and sections of The Book Project, providing a uniform experience throughout the application. Your theme will also be applied to pages that do not required you to be logged in, such as the login and registration pages; however, you will not be able to change the theme on those pages.
+Yes, the selected theme will be applied consistently across all pages and sections of The Book Project, providing a uniform experience throughout the application. Your theme will also be applied to pages that do not require you to be logged in, such as the login and registration pages; however, you will not be able to change the theme on those pages.
 
 ### Does changing the theme affect the functionality of The Book Project?
 No, changing the theme only affects the visual appearance of the interface. All features and functionalities of The Book Project remain unchanged regardless of the selected theme.

@@ -35,7 +35,7 @@ For example, you will receive emails for:
 These emails include notifications about changes to your account, such as profile updates, changes made by administrators, or important announcements related to your account.
 
 ### Development and features
-These emails provide information about new features, updates, and improvements to The Book Project. They may also include annoucements about maintenance, bug fixes, and other development-related news.
+These emails provide information about new features, updates, and improvements to The Book Project. They may also include announcements about maintenance, bug fixes, and other development-related news.
 > Development and features emails are **opt-in**, and you can choose to receive them if you are interested in staying informed about the latest developments. You will not receive these emails unless you explicitly opt in.
 
 ## Questions

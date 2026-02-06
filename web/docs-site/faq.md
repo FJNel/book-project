@@ -2,7 +2,7 @@
 
 Common questions and answers.
 
-Halloo!
+Hello!
 
 ---
 

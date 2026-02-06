@@ -8,7 +8,7 @@ When you disable your account, the following will occur:
 - You will no longer be able to log in or access your library.
 - Your personal data and library information will be retained in the system but will be inaccessible.
 - You will not receive any further communications from The Book Project unless you choose to reactivate your account.
-- You will be able to re-enable your account and continue using The Book Project as before.\
+- You will be able to re-enable your account and continue using The Book Project as before.
 
 To permanently delete your account and all associated data, please refer to the [deleting your account guide](/guides/account/deleting-your-account).
 

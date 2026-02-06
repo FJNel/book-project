@@ -25,7 +25,7 @@ The "Issued" date and time indicate when the session was created (when you logge
 
 ## Logging Out of your Current Session
 
-To log out of your current session, follow these steps
+To log out of your current session, follow these steps:
 1. Click on the "Log Out" button in the navigation menu at the top right corner of the page.
 2. Click on the "This device only" button in the confirmation dialog that appears.
 3. You will be logged out from your current device or browser and will be redirected to the login page.
@@ -35,7 +35,7 @@ To log out of your current session, follow these steps
 To log out of a specific session, follow these steps:
 1. In the "Devices and Sessions" section, locate the session you want to log out from.
 2. Click the "Log Out" button next to that session.
-3. On the "Log out of this device" comfirmation that appears, click the "Log Out" button to confirm.
+3. On the "Log out of this device" confirmation that appears, click the "Log Out" button to confirm.
 4. The selected session will be terminated, and you will be logged out from that device or browser.
 
 ## Logging out of All Sessions
@@ -66,7 +66,7 @@ No, opening a new tab or window in the same browser does not create a new sessio
 ### Why does my phone and laptop show different sessions?
 Each device, such as your phone and laptop, is considered a separate device or session. When you log in from your phone, a session is created for that specific device. Similarly, when you log in from your laptop, another session is created for that device. Each session is unique to the device and browser you are using, which is why they appear as separate sessions in the "Devices and Sessions" section.
 
-### What dos the "Issued" date and time mean?
+### What does the "Issued" date and time mean?
 The "Issued" date and time indicate when the session was created, which is when you logged in on that specific device or browser. This timestamp helps you identify when each session started, allowing you to track your login activity across different devices and browsers.
 
 ### What does the "Expires" date and time mean?
@@ -107,7 +107,7 @@ No, logging out of another session will not affect your current session. When yo
 ### Does logging out immediately end access to my account on that device or browser?
 Yes, logging out of a session immediately ends access to your Book Project account on that specific device or browser. Once you confirm the logout action, the session is terminated, and you will no longer be able to access your account from that device or browser until you log in again. This immediate termination helps ensure the security of your account, especially when logging out from public or shared devices.
 
-### Can I log out of a sessions, even if it's currently active on another device?
+### Can I log out of a session, even if it's currently active on another device?
 Yes, you can log out of sessions that are currently active on other devices or browsers. In the "Devices and Sessions" section of your Account page, you will see a list of all active sessions associated with your account. You can select any session from that list and click the "Log Out" button next to it to terminate that specific session, regardless of whether it is currently active on another device or browser. Access to your account from that device or browser will end immediately upon logging out.
 
 ### When should I log out of all sessions?
