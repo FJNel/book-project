@@ -702,10 +702,14 @@
       throw new Error('Rate limited');
     }
     if (!res.ok) {
-      if (res.status >= 500 && modalManager) await modalManager.showModal(apiErrorModal);
       const data = await res.json().catch(() => ({}));
-      const message = data.message || 'Request failed';
-      const errors = data.errors || [];
+      const payloadMessage = typeof data.message === 'string' ? data.message : '';
+      const message = payloadMessage || 'Request failed';
+      const errors = Array.isArray(data.errors) ? data.errors : [];
+      const hasPayload = Boolean(payloadMessage) || errors.length > 0;
+      if (res.status >= 500 && modalManager && !hasPayload) {
+        await modalManager.showModal(apiErrorModal);
+      }
       const combined = errors.length ? `${message}: ${errors.join(', ')}` : message;
       throw new Error(combined);
     }
@@ -1549,8 +1553,7 @@
       }
       await loadApiKeys();
     }).catch((err) => {
-      controls.createApiKeyError.innerHTML = `<strong>Unable to create key</strong>: ${err.message}`;
-      controls.createApiKeyError.classList.remove('d-none');
+      renderInlineError(controls.createApiKeyError, 'Unable to create key', [err.message]);
     }).finally(() => {
       setButtonLoading(controls.createApiKeySaveBtn, false);
       setModalDisabled(modals.createApiKey, false);
