@@ -24,13 +24,13 @@ To create an account on The Book Project, you will need the following:
 To create an account on The Book Project, follow these steps:
 
 1. Open your web browser and go to [bookproject.fjnel.co.za](https://bookproject.fjnel.co.za). 
-2. Click on the "Register" button on the homepage. A registration form will appear.
+2. Click on the Register button on the homepage. A registration form will appear.
 3. Fill in the registration form with the following details:
    - Full Name: Enter your full name.
    - Preferred Name: Enter the name you would like to be addressed by (optional). This is used for personalising communications.
    - Email Address: Enter a valid email address. You will need to verify this email to activate your account, so make sure it is correct and belongs to you.
    - Password: Create a secure password. The password should be at least 8 characters long and include a mix of letters, numbers, and special characters.
-4. Click the "Register" button to submit your registration. After a few seconds, a message will appear informing you that a verification email has been sent to the email address you provided, as long as your email is not already associated with an existing account.
+4. Click the Register button to submit your registration. After a few seconds, a message will appear informing you that a verification email has been sent to the email address you provided, as long as your email is not already associated with an existing account.
 
 The verification email contains a link that you will need to click to verify your email address and activate your account. This link is valid for a limited time, so be sure to check your email and complete the verification process promptly. You must use the link in the email to verify your email address; you cannot go to verification pages directly on the website without it.
 
@@ -38,9 +38,9 @@ The verification email contains a link that you will need to click to verify you
 
 To ensure that your email address is valid and belongs to you, you will need to verify it:
 
-1. Open your email inbox and look for an email from The Book Project with the subject "Verify your email address for the Book Project".
-2. Open the email and click on the blue "Verify Email" button. This will take you back to The Book Project website and confirm your email address.
-3. On this page, you will need to enter your email address again to complete the verification process. After clicking "Verify Email", you should see a confirmation message indicating that your email has been successfully verified. You should be redirected to a page with the login form already visible.
+1. Open your email inbox and look for an email from The Book Project with the subject Verify your email address for the Book Project.
+2. Open the email and click on the blue Verify Email button. This will take you back to The Book Project website and confirm your email address.
+3. On this page, you will need to enter your email address again to complete the verification process. After clicking Verify Email, you should see a confirmation message indicating that your email has been successfully verified. You should be redirected to a page with the login form already visible.
 
 If you do not verify your email address, you will not be able to log in to your account or use The Book Project's features. 
    
@@ -49,7 +49,7 @@ If you do not verify your email address, you will not be able to log in to your 
 Once your email is verified, you can log in to your new account:
 
 1. On the login page, enter your registered email address and password.
-2. Click the "Log In" button to access your account. If your credentials are correct, you will be logged in and redirected to your dashboard, where you can start adding books and managing your library.
+2. Click the Log In button to access your account. If your credentials are correct, you will be logged in and redirected to your dashboard, where you can start adding books and managing your library.
 
 ## Passwords and Security
 
@@ -63,13 +63,13 @@ To keep your Book Project account safe and secure, and to prevent unauthorized a
 ## Questions
 
 ### I didn't receive the verification email. What should I do?
-If you did not receive the verification email, please check your spam or junk folder. If you still cannot find it, you can request a new verification email by going to the [login page](https://bookproject.fjnel.co.za/), clicking on the "Login" button, typing in your email address and a random password, clicking "Log In", and then clicking the "Resend Verification Email" link in the yellow alert box. You will be taken to another form where you can enter your email address again to request a new verification email. 
+If you did not receive the verification email, please check your spam or junk folder. If you still cannot find it, you can request a new verification email by going to the [login page](https://bookproject.fjnel.co.za/), clicking on the Login button, typing in your email address and a random password, clicking Log In, and then clicking the Resend Verification Email link in the yellow alert box. You will be taken to another form where you can enter your email address again to request a new verification email. 
 
 ### What happens if I click an expired verification link?
 If you click an expired verification link, you will still be able to enter your email address to verify your email, but your verification will not be successful. You will need to request a new verification email by following the steps outlined below.
 
 ### The verification link has expired. What should I do?
-If the verification link has expired, you can request a new verification email by following the same steps as above: go to the [login page](https://bookproject.fjnel.co.za/), click on the "Login" button, type in your email address and a random password, click "Log In", and then click the "Resend Verification Email" link in the yellow alert box. You will be taken to another form where you can enter your email address again to request a new verification email. Be sure to complete the verification process promptly once you receive the new email, as the new link will also have a limited validity period.
+If the verification link has expired, you can request a new verification email by following the same steps as above: go to the [login page](https://bookproject.fjnel.co.za/), click on the Login button, type in your email address and a random password, click Log In, and then click the Resend Verification Email link in the yellow alert box. You will be taken to another form where you can enter your email address again to request a new verification email. Be sure to complete the verification process promptly once you receive the new email, as the new link will also have a limited validity period.
 
 ### I did not receive the verification email after requesting a new one. What should I do?
 When this happens, it could be due to several reasons:

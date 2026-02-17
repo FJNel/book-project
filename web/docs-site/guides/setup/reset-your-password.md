@@ -21,10 +21,10 @@ If you are able to log in to your account and simply want to change your passwor
 To request a password reset, follow these steps:
 
 1. Open your web browser and go to the [Book Project login page](https://bookproject.fjnel.co.za/).
-2. Click on the "Login" button to open the login form.
-3. Below the login form, click on the "Forgot Password?" link. This will take you to the password reset request form.
+2. Click on the Login button to open the login form.
+3. Below the login form, click on the Forgot Password? link. This will take you to the password reset request form.
 4. Enter the email address associated with your Book Project account in the provided field.
-5. Click the "Request Password Reset" button to submit your request.
+5. Click the Request Password Reset button to submit your request.
 6. After a few moments, a message will appear informing you that if an account with that email address exists, a password reset email has been sent. 
 
 The password reset email contains a link that you will need to click to reset your password. This link is valid for a limited time, so be sure to check your email and complete the reset process promptly. You must use the link in the email to reset your password; you cannot go to reset your password page directly on the website without it.
@@ -42,11 +42,11 @@ Logging out while not knowing your password could prevent you from logging back 
 
 To reset your password using the link sent to your email, follow these steps:
 
-1. Open your email inbox and look for an email from The Book Project with the subject "Reset your password for the Book Project".
-2. Open the email and click on the red "Reset Password" button. This will take you to the password reset page on The Book Project website.
+1. Open your email inbox and look for an email from The Book Project with the subject Reset your password for the Book Project.
+2. Open the email and click on the red Reset Password button. This will take you to the password reset page on The Book Project website.
 3. On the password reset page, enter your email address again in the provided field.
-4. Enter your new password in the "Password" field. Make sure to choose a strong and secure password.
-5. Click the "Reset Password" button to submit your new password.
+4. Enter your new password in the Password field. Make sure to choose a strong and secure password.
+5. Click the Reset Password button to submit your new password.
 6. After a few moments, you should see a confirmation message indicating that your password has been successfully reset. You can now log in to your account using your email address and the new password you just set.
 
 When you reset your password, you will be logged out of all devices and sessions. You will need to log in again with your new password on all devices.
@@ -59,13 +59,13 @@ For security reasons, resetting your password will send a confirmation email to 
 If you forgot your password, you can reset it by following the instructions in this guide.
 
 ### I didn't receive the password reset email. What should I do?
-If you did not receive the password reset email, please check your spam or junk folder. If you still cannot find it, you can request a new password reset email by going to the [login page](https://bookproject.fjnel.co.za/), clicking on the "Login" button and then clicking the "Forgot Password?" link below the login form. You will be taken to another form where you can enter your email address again to request a new password reset email. For security reasons, password reset requests are limited: Try to be patient and wait a few minutes before requesting another email. 
+If you did not receive the password reset email, please check your spam or junk folder. If you still cannot find it, you can request a new password reset email by going to the [login page](https://bookproject.fjnel.co.za/), clicking on the Login button and then clicking the Forgot Password? link below the login form. You will be taken to another form where you can enter your email address again to request a new password reset email. For security reasons, password reset requests are limited: Try to be patient and wait a few minutes before requesting another email. 
 
 ### What happens if I click an expired password reset link?
 If you click an expired password reset link, you will still be able to enter your email address and a new password to reset your password, but your reset will not be successful. You will need to request a new password reset email by following the steps outlined below.
 
 ### The password reset link has expired. What should I do?
-If the password reset link has expired, you can request a new password reset email by following the same steps as above: go to the [login page](https://bookproject.fjnel.co.za/), click on the "Login" button and then click the "Forgot Password?" link below the login form. You will be taken to another form where you can enter your email address again to request a new password reset email. Be sure to complete the reset process promptly once you receive the new email, as the new link will also have a limited validity period. It is recommended to complete the password reset process as soon as possible, since you can only make a limited number of password reset requests in a given time period. After exceeding this limit, you may need to wait before being able to request another password reset email.
+If the password reset link has expired, you can request a new password reset email by following the same steps as above: go to the [login page](https://bookproject.fjnel.co.za/), click on the Login button and then click the Forgot Password? link below the login form. You will be taken to another form where you can enter your email address again to request a new password reset email. Be sure to complete the reset process promptly once you receive the new email, as the new link will also have a limited validity period. It is recommended to complete the password reset process as soon as possible, since you can only make a limited number of password reset requests in a given time period. After exceeding this limit, you may need to wait before being able to request another password reset email.
 
 ### I did not receive the password reset email after requesting a new one. What should I do?
 When this happens, it could be due to several reasons:
@@ -113,7 +113,7 @@ The password reset notification email should be sent automatically after you suc
 Yes, the password reset is immediate. Once you successfully reset your password and receive the confirmation message in the browser, your new password takes effect right away. You can use your new password to log in to your Book Project account immediately after the reset. Remember that you will be logged out of all devices and sessions, so you will need to log in again using your new password on all devices. Your old password will no longer work after the reset.
 
 ### Can I cancel the password change if I made a mistake?
-If you have not clicked the "Reset Password" button yet, you can simply navigate away from the password reset page or close the browser tab to cancel the process. However, if you have already clicked the "Reset Password" button and received confirmation that your password has been reset, the reset is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to reset your password again by following the steps in this guide.
+If you have not clicked the Reset Password button yet, you can simply navigate away from the password reset page or close the browser tab to cancel the process. However, if you have already clicked the Reset Password button and received confirmation that your password has been reset, the reset is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to reset your password again by following the steps in this guide.
 
 ### How can I create a strong password?
 By default, The Book Project enforces the following password requirements:
@@ -124,7 +124,7 @@ By default, The Book Project enforces the following password requirements:
 - At least one special character (e.g. !@#$%^&*).
 
 This, however, is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
-- Avoid using common words, phrases, or easily guessable information (like "password", "123456", or your name).
+- Avoid using common words, phrases, or easily guessable information (like password, "123456", or your name).
 - Use a mix of different character types (letters, numbers, special characters).
 - Consider using a passphrase made up of multiple random words.
 - Use a password manager to generate and store complex passwords securely.

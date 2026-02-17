@@ -16,13 +16,13 @@ You may want to change your password in the following situations:
 To change your password, follow these steps:
 
 1. Log in to your Book Project account on the [login page](https://bookproject.fjnel.co.za/).
-2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the "Account" button in the navigation menu.
-3. On the Account page, navigate to the "Security" tab. 
-4. There you will see a "Password" section with a "Change Password" button. Click on this button to open the password change form. 
-5. Enter your current password in the "Current Password" field.
-6. Enter your new password in the "New Password" field. Make sure your new password is strong and secure.
-7. Re-enter your new password in the "Confirm New Password" field.
-8. Click on the "Update Password" button to save your changes.
+2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the Account button in the navigation menu.
+3. On the Account page, navigate to the Security tab. 
+4. There you will see a Password section with a Change Password button. Click on this button to open the password change form. 
+5. Enter your current password in the Current Password field.
+6. Enter your new password in the New Password field. Make sure your new password is strong and secure.
+7. Re-enter your new password in the Confirm New Password field.
+8. Click on the Update Password button to save your changes.
 9. After a few seconds, if your current and new passwords are valid, you should see a confirmation message indicating that your password has been successfully changed.
 10. You can now use your new password to log in to your Book Project account in the future.
 
@@ -40,7 +40,7 @@ By default, The Book Project enforces the following password requirements:
 - At least one special character (e.g. !@#$%^&*).
 
 This, however, is not an exhaustive list of best practices for creating strong passwords. Here are some additional tips:
-- Avoid using common words, phrases, or easily guessable information (like "password", "123456", or your name).
+- Avoid using common words, phrases, or easily guessable information (like password, "123456", or your name).
 - Use a mix of different character types (letters, numbers, special characters).
 - Consider using a passphrase made up of multiple random words.
 - Use a password manager to generate and store complex passwords securely.
@@ -81,7 +81,7 @@ Yes, the password change is immediate. Once you successfully change your passwor
 No, changing your password will not affect your books or any other data in your Book Project account. Your library data, including books, authors, publishers, and other related information, remains intact and accessible after you change your password. The password change only affects the authentication credentials used to access your account; it does not modify or delete any of your library data.
 
 ### Can I cancel the password change if I made a mistake?
-If you have not clicked the "Update Password" button yet, you can simply navigate away from the password change form or close the browser tab to cancel the process. However, if you have already clicked the "Update Password" button and received confirmation that your password has been changed, the change is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to change your password again by following the steps in this guide. If you have forgotten your new password, you can use the [Reset Your Password guide](/guides/setup/reset-your-password) to reset it.
+If you have not clicked the Update Password button yet, you can simply navigate away from the password change form or close the browser tab to cancel the process. However, if you have already clicked the Update Password button and received confirmation that your password has been changed, the change is immediate and cannot be undone. In that case, if you made a mistake and want to revert to your previous password, you will need to change your password again by following the steps in this guide. If you have forgotten your new password, you can use the [Reset Your Password guide](/guides/setup/reset-your-password) to reset it.
 
 ---
 

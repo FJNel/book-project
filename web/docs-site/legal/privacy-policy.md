@@ -22,7 +22,7 @@ We collect and store information required to create and manage your account, inc
 - Role (user or admin), verification status, and account status  
 - Theme preference and email preference settings  
 - Login timestamps  
-- Account metadata used for security and account-change workflows  
+- Account details used for security and account-change workflows  
 - API keys you create (stored as hashed key material with a label/prefix and usage timestamps)
 
 If you sign in using Google, we store a linked OAuth record containing the provider name and provider user ID. Google sign-in exists in the system but is currently disabled.
@@ -46,7 +46,7 @@ To ensure reliability, security, and operational insight, we log API activity. L
 - IP address and user agent  
 - Request method, path, query parameters, headers, and request body (sanitized and truncated)  
 - Response status, response body (sanitized and truncated), timing, and size metrics  
-- Actor context (user ID/email or API key metadata)
+- Actor context (user ID/email or API key details)
 
 We also maintain application log files for system events and troubleshooting. Sensitive fields such as passwords, tokens, and secrets are redacted.
 
@@ -57,7 +57,7 @@ The web client uses browser storage to support authentication and user experienc
 - Access and refresh tokens  
 - A cached user profile summary  
 - Theme preference  
-- Session-only UI state (for example redirects, alerts, or rate-limit timing)
+- Session-only on-screen state (for example redirects, alerts, or rate-limit timing)
 
 The application does not set its own cookies for session management. Third-party services (such as Google reCAPTCHA) may set cookies as part of their own functionality.
 

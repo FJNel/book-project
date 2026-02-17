@@ -14,11 +14,11 @@ Deleting your account may be necessary if you no longer wish to use The Book Pro
 
 To start the account deletion process, follow these steps:
 1. Log in to your Book Project account on the [login page](https://bookproject.fjnel.co.za/).
-2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the "Account" button in the navigation menu.
-3. On the Account page, navigate to the "Danger zone" tab.
-4. In the "Request account deletion" section, click on the "Request Account Deletion" button. This will open the account deletion confirmation modal.
-5. In the confirmation modal, carefully read the information about account deletion and its consequences, and then type "DELETE" (in uppercase) into the confirmation input field to confirm your intention to delete your account.
-6. Click on the "Send Request" button to submit your deletion request.
+2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the Account button in the navigation menu.
+3. On the Account page, navigate to the Danger zone tab.
+4. In the Request account deletion section, click on the Request Account Deletion button. This opens a confirmation pop-up.
+5. In the confirmation pop-up, carefully read the information about account deletion and its consequences, and then type `DELETE` (in uppercase) into the confirmation input field to confirm your intention to delete your account.
+6. Click on the Send Request button to submit your deletion request.
 7. After a few moments, a message will appear indicating that an email has been sent to your registered email address with further instructions.
 
 > To enhance security and prevent abuse, account deletion requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again.
@@ -26,11 +26,11 @@ To start the account deletion process, follow these steps:
 ## Confirm Account Deletion via Email
 
 After submitting your account deletion request, you will receive an email with a confirmation link. To complete the account deletion process, follow these steps:
-1. Open the email from The Book Project with the subject "Confirm your Book Project account deletion request".
-2. Click on the "Confirm Deletion Request" button in the email. This will take you to the account deletion confirmation page on The Book Project website. 
+1. Open the email from The Book Project with the subject Confirm your Book Project account deletion request.
+2. Click on the Confirm Deletion Request button in the email. This will take you to the account deletion confirmation page on The Book Project website. 
 3. On the confirmation page, enter your email address and current password to verify your identity.
-4. Check the "I understand this will delete my account." checkbox to acknowledge that you understand the consequences of account deletion.
-5. Click on the "Confirm Deletion" button to start the deletion process.
+4. Check the I understand this will delete my account. checkbox to acknowledge that you understand the consequences of account deletion.
+5. Click on the Confirm Deletion button to start the deletion process.
 6. After a few moments, you should see a confirmation message that says an administrator will review your deletion request and get in contact with you.
 
 ## Finalizing Account Deletion
@@ -69,8 +69,8 @@ You should choose to delete your account if you want to permanently remove all y
 ### Why is account deletion a multi-step process?
 Account deletion is a multi-step process to ensure that it is intentional and secure. This process helps prevent accidental deletions and unauthorized access to your account. By requiring you to confirm your deletion request via email and verify your identity, we can ensure that only the account owner can initiate and complete the deletion process. This added layer of security protects your data and helps maintain the integrity of The Book Project system.
 
-### Why do I need to type "DELETE" to confirm my account deletion request?
-Typing "DELETE" in uppercase serves as an additional confirmation step to ensure that you fully understand the consequences of account deletion. This requirement helps prevent accidental deletions by making you consciously acknowledge that you are requesting a permanent and irreversible action. It acts as a safeguard to ensure that account deletion is intentional and that you have carefully considered the implications before proceeding.
+### Why do I need to type `DELETE` to confirm my account deletion request?
+Typing `DELETE` in uppercase serves as an additional confirmation step to ensure that you fully understand the consequences of account deletion. This requirement helps prevent accidental deletions by making you consciously acknowledge that you are requesting a permanent and irreversible action. It acts as a safeguard to ensure that account deletion is intentional and that you have carefully considered the implications before proceeding.
 
 ### Why do I need to confirm my account deletion via email?
 Confirming your account deletion via email is an important security measure to verify your identity and ensure that the deletion request is legitimate. This step helps prevent unauthorized deletions by requiring you to access your registered email address and confirm the request. It also provides an opportunity for you to reconsider the deletion before it is finalized. By using email confirmation, we can better protect your data and maintain the integrity of The Book Project system.

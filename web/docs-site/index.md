@@ -1,28 +1,43 @@
-﻿# The Book Project Docs
+# The Book Project Docs
 
-Welcome to The Book Project Documentation.
+Welcome to The Book Project documentation. These guides use the same labels you see in the live website.
 
-## Introduction
+## Setup and Access
 
-The Book Project is a self-hosted personal library management application. This documentation site provides guides, FAQs, and legal information to help you use the application effectively. 
-
-The Book Project allows you to create and manage your personal library data, including books, authors, publishers, series, tags, storage locations, and related notes. It allows you to keep track of your book collection in a structured and detailed way, over a long period of time. 
-
-The Book Project is designed for private use, not as a public or social platform. This means that only you can access the data in your library, and you cannot share it with others. Admins may access user data for support or maintenance reasons.
-
-Below are links to the main sections of the documentation:
-
-## Logins and Accounts
-- [Creating an Account](/guides/setup/creating-an-account)
-- [Resetting Your Password](/guides/setup/reset-your-password)
-
-## Guides
 - [Getting Started](/guides/setup/getting-started)
+- [Creating an Account](/guides/setup/creating-an-account)
+- [Reset Your Password](/guides/setup/reset-your-password)
 
-## Help
+## Library Guides
+
+- [Managing Books](/guides/library/managing-books)
+- [Adding a Book](/guides/library/books-adding-a-book)
+- [Editing a Book](/guides/library/books-editing-a-book)
+- [Browsing Books](/guides/library/books-browsing-books)
+- [Book Details](/guides/library/books-book-details)
+- [Managing Book Copies](/guides/library/books-managing-copies)
+- [Managing Authors](/guides/library/managing-authors)
+- [Managing Authors (Full Guide)](/guides/library/authors-managing-authors)
+- [Managing Publishers](/guides/library/publishers-managing-publishers)
+- [Managing Series](/guides/library/series-managing-series)
+- [Managing Book Types](/guides/library/book-types-managing-book-types)
+- [Managing Tags](/guides/library/tags-managing-tags)
+- [Languages in Books](/guides/library/languages-in-books)
+- [Managing Storage Locations](/guides/library/storage-locations)
+- [Using Partial Dates](/guides/library/partial-dates)
+- [Using the Recycle Bin](/guides/library/recycle-bin)
+
+## Account Guides
+
+- [Updating Your Profile](/guides/account/updating-your-profile)
+- [Changing Your Password](/guides/account/changing-your-password)
+- [Changing Your Email Address](/guides/account/changing-your-email)
+- [Devices and Sessions](/guides/account/devices-and-sessions)
+- [API Keys](/guides/account/api-keys)
+
+## Help and Legal
+
 - [FAQ](/faq)
-
-## Legal
 - [Privacy Policy](/legal/privacy-policy)
 - [Terms of Use](/legal/terms-of-use)
 
@@ -30,9 +45,10 @@ Below are links to the main sections of the documentation:
 
 ## What's Next?
 
-If you're new here, start with the core setup guides. If you're already using the app, jump into the library and account topics below.
+If you are starting fresh, begin with books, then location setup, then recycle-bin safety checks.
 
-- [Getting Started](/guides/setup/getting-started)
 - [Managing Books](/guides/library/managing-books)
-- [Managing Authors](/guides/library/managing-authors)
+- [Managing Storage Locations](/guides/library/storage-locations)
+- [Using Partial Dates](/guides/library/partial-dates)
+- [Using the Recycle Bin](/guides/library/recycle-bin)
 - [FAQ](/faq)

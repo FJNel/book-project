@@ -19,10 +19,10 @@ You might choose to disable your account for various reasons, such as taking a b
 
 To start the process of disabling your account, please follow these steps:
 1. Log in to your Book Project account on the [login page](https://bookproject.fjnel.co.za/).
-2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the "Account" button in the navigation menu.
-3. On the Account page, navigate to the "Danger zone" tab.
-4. In the "Request account disable" section, click the "Request account disable" button.
-5. In the confirmation modal that appears, read the information carefully. If you wish to proceed, click the "Send Email" button to send a confirmation email to your registered email address.
+2. Once you're on your [dashboard](https://bookproject.fjnel.co.za/dashboard), click on the Account button in the navigation menu.
+3. On the Account page, navigate to the Danger zone tab.
+4. In the Request account disable section, click the Request account disable button.
+5. In the confirmation pop-up that appears, read the information carefully. If you wish to proceed, click the Send Email button to send a confirmation email to your registered email address.
 6. After a few moments, a message will appear indicating that a confirmation email has been sent to your registered email address with further instructions.
 
 > To enhance security and prevent abuse, account disable requests are limited. If you exceed the allowed number of requests in a given time period, you may need to wait before trying again.
@@ -30,10 +30,10 @@ To start the process of disabling your account, please follow these steps:
 ## Confirm Account Disabling via Email
 
 After submitting the disable request, please check your email inbox for a message from The Book Project. Follow these steps to confirm the disabling of your account:
-1. Open the email from The Book Project with the subject "Confirm your Book Project account disable request".
-2. Click the "Confirm Disable" button in the email. This will take you to a confirmation page on The Book Project website.
+1. Open the email from The Book Project with the subject Confirm your Book Project account disable request.
+2. Click the Confirm Disable button in the email. This will take you to a confirmation page on The Book Project website.
 3. On the confirmation page, enter your email address in the provided field. 
-4. Click on the "Disable Account" button to finalize the process.
+4. Click on the Disable Account button to finalize the process.
 5. After a few moments, you will see a message confirming that your account has been successfully disabled.
 
 Once your account is disabled, you will no longer be able to log in or access your library. If you wish to reactivate your account in the future, please contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=Account%20Reactivation%20Request).
@@ -112,7 +112,7 @@ Yes. When you reactivate your account, all your data, including your library and
 
 Well... not much. Until you decide to reactivate your account, your data will remain safely stored but inaccessible. 
 
-Your next step is probably to take a break, reflect, or focus on other things. If you ever decide to return to The Book Project, you can reactivate your account by following the steps under the "How to Reactivate Your Account" section above.
+Your next step is probably to take a break, reflect, or focus on other things. If you ever decide to return to The Book Project, you can reactivate your account by following the steps under the How to Reactivate Your Account section above.
 
 If you are still deciding between options, these guides might help:
 
