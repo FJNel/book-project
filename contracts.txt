@@ -299,6 +299,11 @@ Purpose: standardize list/table interactions across the app to ensure consistent
 - Loading states must not leave rows clickable.
 - Empty/error states must follow existing page patterns; do not add ad-hoc refresh buttons.
 - Page loading modals/spinners must always close on success and error paths.
+- Use global page loading modal only when the whole page is blocked (auth/session bootstrap, hard-gated multi-step startup, or blocking transitions).
+- For list/lookup pages that can render in-place, use a standard in-page loading block in the results region:
+  - spinner (`spinner-border text-secondary`)
+  - loading message (for example, "Loading books…")
+  - hide the block on both success and error paths.
 
 E) Dark Mode Styling Rules
 --------------------------
@@ -387,3 +392,142 @@ Table columns: Location | Context | User-facing? | Proposed replacement | Notes/
 OpenAPI/SwaggerUI audit notes:
 - api/docs/openapi.yaml: no occurrences found in summary/description/examples/tags.
 - SwaggerUI assets: LICENSE contains the term but does not render into the UI.
+
+## I) Application Documentation Contract (VitePress docs-site)
+
+Purpose: standardize all user-facing documentation under `web/docs-site/**` (Markdown compiled externally via VitePress) so guides remain consistent, accurate, and implementation-grounded. This contract follows the same “single source of truth” philosophy as other Book Project contracts. 
+
+### 1) Scope + audience
+
+* Applies to **all** `.md` files in `web/docs-site/`, including:
+
+  * Guides (`/guides/**`)
+  * Help pages (e.g., `/faq`)
+  * Legal pages (e.g., `/legal/privacy-policy`)
+  * The docs landing page (`/index`)
+* Audience: **end users of the Book Project website** (not developers). Pages must describe how to use the **actual user-facing web app**, using exact UI language and flows. 
+
+### 2) Grounding rule (no made-up behaviour)
+
+* Documentation must be sourced from the **current implementation**:
+
+  * Actual UI labels (button text, tab names, section headings)
+  * Actual navigation paths
+  * Actual modal titles/confirmations
+  * Actual security/session behaviour and expiry
+  * Actual limits (rate limits, request limits, token validity)
+* If behaviour is not confirmed by the implementation, **do not document it**.
+* If a doc needs a fact (e.g., expiry duration), the agent must confirm it in code/config first (frontend + backend where relevant), then document it. (Example of implementation-grounded approach already used in privacy/security docs.) 
+
+### 3) Required writing style
+
+* Tone: clear, neutral, instructional.
+* Avoid: marketing language, speculation, roadmap statements, internal engineering detail.
+* Prefer short paragraphs, concrete steps, and explicit outcomes.
+* Use consistent product naming: “The Book Project”, “Book Project account”, “System Administrator”.
+* No emojis.
+
+### 4) Canonical page layout patterns
+
+Documentation pages follow one of these standard patterns. Pick the **closest** matching existing pattern and keep structure consistent.
+
+#### A) Standard “How-to” guide pattern (most guides)
+
+Required order:
+
+1. `# Title` (H1)
+2. 1–3 sentence intro describing what the feature is and what the guide will help the user do. (See account/security guides.) 
+3. One or more context sections as needed (H2):
+
+   * `## When to ...` / `## Why ...` / `## What you need ...` (common in setup/security flows). 
+4. `## Steps to ...` / `## How to ...` (H2)
+
+   * Numbered steps (1., 2., 3.) with **exact** UI labels and navigation destinations.
+   * Use full URLs only when pointing to public pages; otherwise prefer internal doc links for doc navigation.
+5. Optional “Important notes” section(s) for security/limits/edge-cases:
+
+   * Use blockquotes (`> ...`) for high-signal policies (expiry, rate limits, important warnings). 
+6. `## Questions` (H2)
+
+   * Each question is `### Question text` (H3) followed by a direct answer. (Used heavily in setup/security guides.) 
+   * Questions are used extensively and must be used extensively in all relevant guides to address common confusions and edge cases, and rare questions that arise during implementation.
+7. Horizontal rule line: `---`
+8. `## What's Next?` (H2)
+
+   * Short bridging paragraph (optional) + bullet list of related internal links.
+
+#### B) Index / hub pages
+
+* Provide a short intro and grouped link lists by category.
+* End with `---` and a `## What's Next?` section with curated links. 
+
+#### C) Placeholder/incomplete pages rule
+
+* Placeholder pages may exist temporarily (e.g., “Managing Books/Authors”), but:
+
+  * They must still follow the same headings and “What’s Next?” pattern.
+  * They must not pretend to describe functionality that has not been verified.
+  * They must be explicitly treated as incomplete until implemented and verified. 
+
+### 5) Formatting rules
+
+* Headings:
+
+  * Exactly one H1 per page.
+  * Use H2 for major sections; H3 for questions.
+* Lists:
+
+  * Use numbered lists for procedures.
+  * Use bullet lists for reasons/options/definitions.
+* Links:
+
+  * Use internal doc links like `/guides/...` and `/legal/...` (as existing docs do). 
+  * Prefer doc links over raw website URLs when referencing other documentation.
+  * When linking to the product website (login/dashboard), use explicit URLs where it helps the user follow along. (Existing guides do this.) 
+* Email links:
+
+  * Use `mailto:` with a meaningful, prefilled subject in the query string (pattern used across account guides). 
+
+### 6) UI-label fidelity (mandatory)
+
+* Every step must reflect the UI as the user sees it:
+
+  * Button text in quotes: `"Log Out"`, `"Request Password Reset"`, etc.
+  * Tab names and section names exactly: `"Security"`, `"Danger zone"`, etc. 
+* Do not paraphrase UI labels in procedural steps.
+
+### 7) Behaviour and edge-case documentation
+
+When a workflow has security or user-impacting edge cases, docs must include them:
+
+* Redirect behaviour, session expiry, “already logged in” restrictions, etc. (Example: reset-password guide includes “already logged in” caveat.) 
+* Rate limiting / abuse prevention notes must be included when implemented. 
+* “We do not disclose whether an email exists” style privacy/security behaviour must be documented where relevant. 
+
+### 8) Security and privacy statements (guardrails)
+
+* Only state what is true in implementation.
+* Avoid revealing sensitive internals (exact detection heuristics, secret values, internal admin tooling).
+* Legal pages must remain grounded in real infrastructure and real data handling (see privacy policy style). 
+
+### 9) “What’s Next?” section rules
+
+* Must exist on every guide/help/legal page (unless explicitly exempted by this contract in the future).
+* Must follow a horizontal rule `---` before it. (Consistent across docs.)
+* Must include 3–6 relevant internal links, prioritizing:
+
+  * The guide most likely needed after completing the current one
+  * Security-related follow-ups for account actions
+  * Closely related library management topics
+
+### 10) Maintenance + drift prevention
+
+* Documentation changes are treated like UI contract changes:
+
+  * If UI copy/flow changes, docs must be updated in the same PR/commit set (or immediately after).
+* Any new doc page must:
+
+  * Follow the canonical layout patterns above
+  * Reuse existing terminology and link conventions
+  * Be verified against the current implementation before merge
+* If docs conflict with implementation, the docs must be corrected (or the implementation updated if the docs represent the intended contract—explicitly decided and tracked). 

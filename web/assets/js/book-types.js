@@ -1,5 +1,7 @@
 // Book Types page logic: fetch, filter, render list view, add/edit/delete.
 (function () {
+  window.pageLoadingMode = 'inline';
+
   const log = (...args) => console.log('[BookTypes]', ...args);
   const warn = (...args) => console.warn('[BookTypes]', ...args);
   const errorLog = (...args) => console.error('[BookTypes]', ...args);
@@ -50,6 +52,7 @@
     resultsSummary: document.getElementById('resultsSummary'),
     resultsMeta: document.getElementById('resultsMeta'),
     listTableBody: document.getElementById('listTableBody'),
+    resultsPlaceholder: document.getElementById('resultsPlaceholder'),
     listCount: document.getElementById('listCount'),
     paginationInfo: document.getElementById('paginationInfo'),
     paginationNav: document.getElementById('paginationNav')
@@ -351,7 +354,11 @@
     let resolvedOk = false;
     let resolvedError = null;
     clearAlerts();
-    dom.listTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Loading…</td></tr>';
+    window.inPageLoading?.show({
+      target: dom.resultsPlaceholder,
+      message: 'Loading book types…',
+      clearTargets: [dom.listTableBody]
+    });
     dom.resultsSummary.textContent = 'Loading book types…';
     dom.resultsMeta.textContent = '';
 
@@ -382,6 +389,7 @@
       showAlert({ message: 'Unable to load book types right now. Please try again.' });
       resolvedError = err.message || 'Unable to load book types.';
     } finally {
+      window.inPageLoading?.hide(dom.resultsPlaceholder);
       if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
         window.pageContentReady.resolve({ success: resolvedOk, error: resolvedError });
       }

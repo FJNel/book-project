@@ -1,5 +1,7 @@
 // Publishers page logic: fetch, filter, render list view, and sync URL state.
 (function () {
+  window.pageLoadingMode = 'inline';
+
   const log = (...args) => console.log('[Publishers]', ...args);
   const warn = (...args) => console.warn('[Publishers]', ...args);
   const errorLog = (...args) => console.error('[Publishers]', ...args);
@@ -320,12 +322,15 @@
   };
 
   const showLoading = () => {
-    if (dom.resultsPlaceholder) dom.resultsPlaceholder.classList.remove('d-none');
-    if (dom.listTableBody) dom.listTableBody.innerHTML = '';
+    window.inPageLoading?.show({
+      target: dom.resultsPlaceholder,
+      message: 'Loading publishers…',
+      clearTargets: [dom.listTableBody]
+    });
   };
 
   const hideLoading = () => {
-    if (dom.resultsPlaceholder) dom.resultsPlaceholder.classList.add('d-none');
+    window.inPageLoading?.hide(dom.resultsPlaceholder);
   };
 
   const handleRateLimit = async (response) => {

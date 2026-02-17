@@ -1248,7 +1248,56 @@ window.attachLogoutHandlers = attachLogoutHandlers;
 
 document.addEventListener('DOMContentLoaded', attachLogoutHandlers);
 
+// Standard in-page loading pattern for list/lookup pages.
+window.inPageLoading = window.inPageLoading || (function createInPageLoadingHelper() {
+	function resolveElement(target) {
+		if (!target) return null;
+		if (typeof target === 'string') return document.getElementById(target);
+		return target instanceof Element ? target : null;
+	}
+
+	function ensureMarkup(container) {
+		if (!container) return;
+		if (container.dataset.loadingTemplate === 'true') return;
+		container.dataset.loadingTemplate = 'true';
+		container.innerHTML = `
+			<div class="spinner-border text-secondary mb-2" role="status" aria-hidden="true"></div>
+			<div data-loading-message>Loading…</div>
+		`;
+	}
+
+	function show({ target, message = 'Loading…', clearTargets = [] } = {}) {
+		const container = resolveElement(target);
+		if (!container) return;
+		ensureMarkup(container);
+		const messageEl = container.querySelector('[data-loading-message]');
+		if (messageEl) messageEl.textContent = message;
+		container.classList.remove('d-none');
+		clearTargets.forEach((clearTarget) => {
+			const el = resolveElement(clearTarget);
+			if (el) el.innerHTML = '';
+		});
+	}
+
+	function hide(target) {
+		const container = resolveElement(target);
+		if (!container) return;
+		container.classList.add('d-none');
+	}
+
+	return { show, hide };
+})();
+
 let legacyPageLoadingModalInstance;
+
+// Use global modal loading only for page-blocking startup flows.
+function getPageLoadingMode() {
+	const explicitMode = typeof window.pageLoadingMode === 'string' ? window.pageLoadingMode : '';
+	if (explicitMode === 'inline') return 'inline';
+	const bodyMode = document.body?.dataset?.pageLoadingMode;
+	if (bodyMode === 'inline') return 'inline';
+	return 'global';
+}
 
 function showPageLoadingModal() {
     console.log('[Modal] Showing Page Loading Modal');
@@ -1343,8 +1392,11 @@ async function showApiErrorModal() {
 async function initializeApp() {
 	let apiHealthy = false;
 	let authState = null;
+	const useGlobalLoading = getPageLoadingMode() !== 'inline';
 	try {
-		showPageLoadingModal();
+		if (useGlobalLoading) {
+			showPageLoadingModal();
+		}
 		console.log('[Initialization] Waiting for API health check...');
 		apiHealthy = await checkApiHealth();
 		if (apiHealthy) {
@@ -1365,9 +1417,11 @@ async function initializeApp() {
 	} catch (error) {
 		console.error('[Initialization] An unexpected error occurred:', error);
 	} finally {
-		console.log('[Initialization] Hiding page loading modal...');
-		await hidePageLoadingModal();
-		console.log('[Initialization] Page loading modal hidden.');
+		if (useGlobalLoading) {
+			console.log('[Initialization] Hiding page loading modal...');
+			await hidePageLoadingModal();
+			console.log('[Initialization] Page loading modal hidden.');
+		}
 	}
 
 	if (!apiHealthy) {

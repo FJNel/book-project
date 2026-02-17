@@ -111,6 +111,31 @@
         }
     }
 
+    async function waitForModalManagerIdle({ timeoutMs = 15000 } = {}) {
+        const modalManager = window.modalManager;
+        if (!modalManager || typeof modalManager.getActiveModalId !== 'function') return null;
+        const activeId = modalManager.getActiveModalId();
+        if (!activeId || activeId === 'maintenanceModal') return null;
+        return new Promise((resolve) => {
+            let settled = false;
+            const done = (value) => {
+                if (settled) return;
+                settled = true;
+                document.removeEventListener('hidden.bs.modal', onHidden, true);
+                clearTimeout(timer);
+                resolve(value);
+            };
+            const onHidden = () => {
+                const nextActiveId = modalManager.getActiveModalId();
+                if (!nextActiveId || nextActiveId === 'maintenanceModal') {
+                    done(null);
+                }
+            };
+            const timer = setTimeout(() => done(activeId), timeoutMs);
+            document.addEventListener('hidden.bs.modal', onHidden, true);
+        });
+    }
+
     async function showMaintenanceModal() {
         console.log('[Maintenance] Checking maintenance status.');
         if (window.location.pathname.includes('404')) {
@@ -147,8 +172,16 @@
         };
 
         if (window.modalManager && typeof window.modalManager.showModal === 'function') {
+            const stackedParentId = await waitForModalManagerIdle();
             modalElement.addEventListener('hidden.bs.modal', onDismiss, { once: true });
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                window.modalStack?.pop('maintenanceModal');
+            }, { once: true });
             console.log('[Maintenance] Showing modal via modalManager.');
+            if (stackedParentId && window.modalStack?.push) {
+                await window.modalStack.push(stackedParentId, 'maintenanceModal', { backdrop: true, keyboard: true });
+                return;
+            }
             window.modalManager.showModal(modalElement, { backdrop: true, keyboard: true });
             return;
         }
