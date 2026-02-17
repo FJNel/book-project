@@ -330,52 +330,451 @@ window.modalStack = window.modalStack || (function createModalStack() {
 })();
 
 window.authGuard = window.authGuard || {};
-window.authRedirect = window.authRedirect || {};
-window.authRedirect.storageKey = window.authRedirect.storageKey || 'returnToUrl';
-window.authRedirect.buildReturnTo = function buildReturnTo() {
-	try {
-		return `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
-	} catch (error) {
-		return null;
+
+window.authSessionManager = window.authSessionManager || (function createAuthSessionManager() {
+	const RETURN_TO_STORAGE_KEY = 'returnToUrl';
+	const FLASH_STORAGE_KEY = 'authFlashMessage';
+	const listeners = new Set();
+	const state = {
+		status: 'unknown',
+		token: null,
+		refreshToken: null,
+		user: null,
+		lastAttemptedRoute: null,
+		initializationStarted: false,
+		initializationPromise: null,
+		logoutInProgress: false
+	};
+
+	function notify() {
+		const snapshot = { ...state };
+		listeners.forEach((listener) => {
+			try {
+				listener(snapshot);
+			} catch (error) {
+				console.error('[Auth Session] Subscriber failed.', error);
+			}
+		});
 	}
+
+	function setStatus(nextStatus) {
+		if (state.status === nextStatus) return;
+		state.status = nextStatus;
+		notify();
+	}
+
+	function normalizePath(pathname) {
+		if (!pathname) return '';
+		const normalized = pathname.replace(/\/+$/, '');
+		if (!normalized) return '/';
+		return normalized.toLowerCase();
+	}
+
+	function isLoginPath(pathname = window.location.pathname) {
+		const normalized = normalizePath(pathname);
+		return normalized === '/' || normalized === '/index' || normalized === '/index.html';
+	}
+
+	function isPublicPath(pathname = window.location.pathname) {
+		const normalized = normalizePath(pathname);
+		if (isLoginPath(normalized)) return true;
+		const publicPaths = new Set([
+			'/reset-password',
+			'/verify-email',
+			'/verify-delete',
+			'/verify-account-deletion',
+			'/verify-email-change',
+			'/privacy-policy',
+			'/404',
+			'/health'
+		]);
+		return publicPaths.has(normalized);
+	}
+
+	function buildReturnTo() {
+		try {
+			return `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function setLastAttemptedRoute(route, { force = false } = {}) {
+		const target = typeof route === 'string' ? route : buildReturnTo();
+		if (!target) return null;
+		try {
+			const parsed = new URL(target, window.location.origin);
+			const nextRoute = parsed.pathname + parsed.search + parsed.hash;
+			if (isLoginPath(parsed.pathname)) return null;
+			if (!force) {
+				const existing = sessionStorage.getItem(RETURN_TO_STORAGE_KEY);
+				if (existing) {
+					state.lastAttemptedRoute = existing;
+					return existing;
+				}
+			}
+			sessionStorage.setItem(RETURN_TO_STORAGE_KEY, nextRoute);
+			state.lastAttemptedRoute = nextRoute;
+			notify();
+			return nextRoute;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function consumeLastAttemptedRoute() {
+		try {
+			const stored = sessionStorage.getItem(RETURN_TO_STORAGE_KEY);
+			if (!stored) return null;
+			sessionStorage.removeItem(RETURN_TO_STORAGE_KEY);
+			state.lastAttemptedRoute = null;
+			notify();
+			return stored;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function clearLastAttemptedRoute() {
+		try {
+			sessionStorage.removeItem(RETURN_TO_STORAGE_KEY);
+		} catch (error) {
+			// ignore
+		}
+		state.lastAttemptedRoute = null;
+		notify();
+	}
+
+	function setFlashMessage(message, type = 'warning') {
+		if (!message) return;
+		try {
+			sessionStorage.setItem(FLASH_STORAGE_KEY, JSON.stringify({ message, type }));
+		} catch (error) {
+			console.warn('[Auth Session] Unable to persist flash message.', error);
+		}
+	}
+
+	function consumeFlashMessage() {
+		try {
+			const raw = sessionStorage.getItem(FLASH_STORAGE_KEY);
+			if (!raw) return null;
+			sessionStorage.removeItem(FLASH_STORAGE_KEY);
+			const parsed = JSON.parse(raw);
+			if (!parsed || typeof parsed.message !== 'string') return null;
+			return {
+				message: parsed.message,
+				type: typeof parsed.type === 'string' ? parsed.type : 'warning'
+			};
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function upsertSessionMessageBanner(payload) {
+		if (!payload || !payload.message) return;
+		let container = document.getElementById('sessionMessageBanner');
+		if (!container) {
+			container = document.createElement('div');
+			container.id = 'sessionMessageBanner';
+			container.className = 'container mt-3';
+			const target = document.querySelector('body > section') || document.querySelector('main') || document.body.firstElementChild || document.body;
+			if (target && target.parentNode) {
+				target.parentNode.insertBefore(container, target);
+			} else {
+				document.body.prepend(container);
+			}
+		}
+		const type = payload.type || 'warning';
+		container.innerHTML = `
+			<div class="alert alert-${type} alert-dismissible fade show" role="status">
+				${payload.message}
+				<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+			</div>
+		`;
+	}
+
+	function getStoredToken() {
+		return localStorage.getItem('accessToken');
+	}
+
+	function getStoredRefreshToken() {
+		return localStorage.getItem('refreshToken');
+	}
+
+	function parseStoredUser() {
+		const raw = localStorage.getItem('userProfile');
+		if (!raw) return null;
+		try {
+			return JSON.parse(raw);
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function syncStateFromStorage() {
+		state.token = getStoredToken();
+		state.refreshToken = getStoredRefreshToken();
+		state.user = parseStoredUser();
+	}
+
+	function setToken(token) {
+		if (token) {
+			localStorage.setItem('accessToken', token);
+			state.token = token;
+		} else {
+			localStorage.removeItem('accessToken');
+			state.token = null;
+		}
+		notify();
+	}
+
+	function setRefreshToken(token) {
+		if (token) {
+			localStorage.setItem('refreshToken', token);
+			state.refreshToken = token;
+		} else {
+			localStorage.removeItem('refreshToken');
+			state.refreshToken = null;
+		}
+		notify();
+	}
+
+	function setUser(user) {
+		if (user) {
+			localStorage.setItem('userProfile', JSON.stringify(user));
+			state.user = user;
+		} else {
+			localStorage.removeItem('userProfile');
+			state.user = null;
+		}
+		notify();
+	}
+
+	function clearToken() {
+		setToken(null);
+	}
+
+	function clearLocalSession() {
+		localStorage.removeItem('accessToken');
+		localStorage.removeItem('refreshToken');
+		localStorage.removeItem('userProfile');
+		state.token = null;
+		state.refreshToken = null;
+		state.user = null;
+		notify();
+	}
+
+	function setAuthenticatedSession({ accessToken, refreshToken, user }) {
+		if (accessToken) setToken(accessToken);
+		if (refreshToken) setRefreshToken(refreshToken);
+		if (user) setUser(user);
+		setStatus('authenticated');
+	}
+
+	function isAuthenticated() {
+		return state.status === 'authenticated';
+	}
+
+	async function validateSession({ source = 'startup' } = {}) {
+		syncStateFromStorage();
+		if (!state.token && !state.refreshToken) {
+			setStatus('unauthenticated');
+			return { valid: false, reason: 'missing-token' };
+		}
+
+		setStatus('loading');
+		try {
+			const response = await apiFetch('/users/me', { method: 'GET' });
+			if (!response.ok) {
+				if (response.status === 401 || response.status === 403) {
+					clearLocalSession();
+					setStatus('unauthenticated');
+					return { valid: false, reason: `status-${response.status}` };
+				}
+				return { valid: false, reason: `status-${response.status}` };
+			}
+			const payload = await response.json().catch(() => ({}));
+			const profile = payload?.data || null;
+			if (profile) {
+				setUser({
+					id: profile.id,
+					email: profile.email,
+					fullName: profile.fullName,
+					preferredName: profile.preferredName,
+					role: profile.role,
+					themePreference: profile.themePreference || 'device'
+				});
+			}
+			setStatus('authenticated');
+			console.log('[Auth Session] Session validated.', { source });
+			return { valid: true, profile };
+		} catch (error) {
+			console.error('[Auth Session] Session validation failed.', { source, error });
+			if (error?.isNetworkError) {
+				setStatus('unknown');
+				return { valid: false, reason: 'network-error', networkError: true };
+			}
+			setStatus(state.token || state.refreshToken ? 'unknown' : 'unauthenticated');
+			return { valid: false, reason: 'request-failed' };
+		}
+	}
+
+	function redirectToLogin({ reason = 'auth-required', message = 'Please log in to continue.', captureRoute = true } = {}) {
+		if (captureRoute && !isLoginPath()) {
+			setLastAttemptedRoute();
+		}
+		setFlashMessage(message, 'warning');
+		setStatus('unauthenticated');
+		if (isLoginPath()) return;
+		console.warn('[Auth Session] Redirecting to login.', { reason });
+		window.location.href = '/';
+	}
+
+	async function initializeForCurrentRoute() {
+		if (state.initializationPromise) {
+			return state.initializationPromise;
+		}
+		state.initializationStarted = true;
+		state.initializationPromise = (async () => {
+			syncStateFromStorage();
+			if (!state.token && !state.refreshToken) {
+				setStatus('unauthenticated');
+				if (!isPublicPath()) {
+					redirectToLogin({
+						reason: 'missing-session',
+						message: 'Your session expired, please log in again.',
+						captureRoute: true
+					});
+				}
+				return { status: state.status };
+			}
+
+			const validation = await validateSession({ source: 'startup' });
+			if (!validation.valid && !validation.networkError) {
+				if (!isPublicPath()) {
+					redirectToLogin({
+						reason: 'invalid-session',
+						message: 'Your session expired, please log in again.',
+						captureRoute: true
+					});
+				} else {
+					setFlashMessage('Your session expired, please log in again.', 'warning');
+				}
+			}
+			return { status: state.status, validation };
+		})();
+		return state.initializationPromise;
+	}
+
+	async function handleUnauthorized({ reason = 'session-expired', message = 'Your session expired, please log in again.' } = {}) {
+		if (state.logoutInProgress) return;
+		state.logoutInProgress = true;
+		try {
+			if (!isLoginPath()) {
+				setLastAttemptedRoute();
+			}
+			clearLocalSession();
+			setStatus('unauthenticated');
+			setFlashMessage(message, 'warning');
+			if (!isLoginPath()) {
+				window.location.href = '/';
+			} else {
+				upsertSessionMessageBanner({ message, type: 'warning' });
+			}
+		} finally {
+			state.logoutInProgress = false;
+		}
+		console.warn('[Auth Session] Unauthorized flow completed.', { reason });
+	}
+
+	async function logout({ allDevices = false, reason = 'manual-logout', redirect = true } = {}) {
+		const refreshToken = getStoredRefreshToken();
+		const accessToken = getStoredToken();
+		const payload = {
+			refreshToken: refreshToken || undefined,
+			allDevices: Boolean(allDevices)
+		};
+
+		if (refreshToken || allDevices) {
+			try {
+				const response = await fetch(new URL('/auth/logout', 'https://api.fjnel.co.za/').href, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+					},
+					body: JSON.stringify(payload)
+				});
+				if (!response.ok) {
+					console.warn('[Auth Session] Logout request returned non-success.', { status: response.status });
+				}
+			} catch (error) {
+				console.warn('[Auth Session] Logout request failed; clearing local session anyway.', error);
+			}
+		}
+
+		clearLocalSession();
+		setStatus('unauthenticated');
+		setFlashMessage('You have logged out successfully.', 'success');
+
+		if (redirect) {
+			window.location.href = '/';
+		}
+		console.log('[Auth Session] Logout complete.', { reason, allDevices: Boolean(allDevices) });
+		return { success: true };
+	}
+
+	function subscribe(listener) {
+		if (typeof listener !== 'function') return () => {};
+		listeners.add(listener);
+		listener({ ...state });
+		return () => listeners.delete(listener);
+	}
+
+	return {
+		getState: () => ({ ...state }),
+		getStatus: () => state.status,
+		getToken: () => state.token || getStoredToken(),
+		getRefreshToken: () => state.refreshToken || getStoredRefreshToken(),
+		getUser: () => state.user,
+		isAuthenticated,
+		setToken,
+		clearToken,
+		setRefreshToken,
+		clearLocalSession,
+		setUser,
+		setAuthenticatedSession,
+		setLastAttemptedRoute,
+		consumeLastAttemptedRoute,
+		clearLastAttemptedRoute,
+		buildReturnTo,
+		consumeFlashMessage,
+		showMessageBanner: upsertSessionMessageBanner,
+		validateSession,
+		initializeForCurrentRoute,
+		handleUnauthorized,
+		logout,
+		subscribe,
+		isPublicPath,
+		isLoginPath
+	};
+})();
+
+window.authRedirect = window.authRedirect || {};
+window.authRedirect.storageKey = 'returnToUrl';
+window.authRedirect.buildReturnTo = function buildReturnTo() {
+	return window.authSessionManager.buildReturnTo();
 };
 window.authRedirect.capture = function captureReturnTo({ url, force = false } = {}) {
-	const target = typeof url === 'string' ? url : window.authRedirect.buildReturnTo();
-	if (!target) return null;
-	try {
-		const parsed = new URL(target, window.location.origin);
-		const path = parsed.pathname.toLowerCase();
-		const action = parsed.searchParams.get('action');
-		const isLoginLanding = path === '/' || path.endsWith('/index') || path.endsWith('/index.html');
-		if (isLoginLanding && action === 'login') return null;
-		if (!force && sessionStorage.getItem(window.authRedirect.storageKey)) {
-			return sessionStorage.getItem(window.authRedirect.storageKey);
-		}
-		sessionStorage.setItem(window.authRedirect.storageKey, parsed.pathname + parsed.search + parsed.hash);
-		return parsed.pathname + parsed.search + parsed.hash;
-	} catch (error) {
-		return null;
-	}
+	return window.authSessionManager.setLastAttemptedRoute(url, { force });
 };
 window.authRedirect.consume = function consumeReturnTo() {
-	try {
-		const stored = sessionStorage.getItem(window.authRedirect.storageKey);
-		if (stored) {
-			sessionStorage.removeItem(window.authRedirect.storageKey);
-			return stored;
-		}
-		return null;
-	} catch (error) {
-		return null;
-	}
+	return window.authSessionManager.consumeLastAttemptedRoute();
 };
 window.authRedirect.clear = function clearReturnTo() {
-	try {
-		sessionStorage.removeItem(window.authRedirect.storageKey);
-	} catch (error) {
-		// ignore
-	}
+	window.authSessionManager.clearLastAttemptedRoute();
 };
+
 window.authGuard.waitForMaintenance = async function waitForMaintenance() {
 	const maintenancePromise = window.maintenanceModalPromise;
 	if (maintenancePromise && typeof maintenancePromise.then === 'function') {
@@ -388,26 +787,21 @@ window.authGuard.waitForMaintenance = async function waitForMaintenance() {
 };
 
 window.authGuard.checkSessionAndPrompt = async function checkSessionAndPrompt({ waitForMaintenance = true } = {}) {
-	const accessToken = localStorage.getItem('accessToken');
-	const refreshToken = localStorage.getItem('refreshToken');
-	if (accessToken || refreshToken) {
-		return true;
-	}
-	if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
-		window.authRedirect.capture();
-	}
 	if (waitForMaintenance) {
 		await window.authGuard.waitForMaintenance();
 	}
-	if (typeof window.showSessionExpiredModal === 'function') {
-		console.log('[Auth Guard] No tokens found; showing session expired modal.');
-		window.showSessionExpiredModal();
-		return false;
-	}
-	console.warn('[Auth Guard] Session expired modal unavailable; redirecting to login.');
-	window.location.href = typeof window.getLoginRedirectUrl === 'function'
-		? window.getLoginRedirectUrl()
-		: 'index?action=login';
+
+	const manager = window.authSessionManager;
+	if (!manager) return true;
+	await manager.initializeForCurrentRoute();
+	const status = manager.getStatus();
+	if (status === 'authenticated') return true;
+	if (status === 'loading' || status === 'unknown') return false;
+
+	await manager.handleUnauthorized({
+		reason: 'guard-blocked',
+		message: 'Your session expired, please log in again.'
+	});
 	return false;
 };
 
@@ -630,12 +1024,12 @@ async function checkApiHealth() {
 })();
 
 function getLoginRedirectUrl() {
-	const base = 'index?action=login';
-	const returnTo = window.authRedirect && typeof window.authRedirect.buildReturnTo === 'function'
-		? window.authRedirect.buildReturnTo()
+	const base = '/';
+	const returnTo = window.authSessionManager && typeof window.authSessionManager.buildReturnTo === 'function'
+		? window.authSessionManager.buildReturnTo()
 		: null;
 	if (returnTo) {
-		return `${base}&returnTo=${encodeURIComponent(returnTo)}`;
+		return `${base}?returnTo=${encodeURIComponent(returnTo)}`;
 	}
 	return base;
 }
@@ -709,47 +1103,50 @@ window.actionRouter = window.actionRouter || (function createActionRouter() {
 })();
 
 window.authSession = window.authSession || {};
+window.authSession.isAuthenticated = function isAuthenticated() {
+	return window.authSessionManager?.isAuthenticated ? window.authSessionManager.isAuthenticated() : Boolean(localStorage.getItem('accessToken'));
+};
+window.authSession.setToken = function setToken(token) {
+	if (window.authSessionManager?.setToken) {
+		window.authSessionManager.setToken(token);
+		return;
+	}
+	if (token) {
+		localStorage.setItem('accessToken', token);
+	} else {
+		localStorage.removeItem('accessToken');
+	}
+};
+window.authSession.clearToken = function clearToken() {
+	window.authSession.setToken(null);
+};
 window.authSession.clearLocalSession = function clearLocalSession() {
+	if (window.authSessionManager && typeof window.authSessionManager.clearLocalSession === 'function') {
+		window.authSessionManager.clearLocalSession();
+		return;
+	}
 	localStorage.removeItem('accessToken');
 	localStorage.removeItem('refreshToken');
 	localStorage.removeItem('userProfile');
 };
 
 window.authSession.logout = async function logoutSession({ allDevices = false } = {}) {
-	const refreshToken = localStorage.getItem('refreshToken');
-	const payload = {
-		refreshToken: refreshToken || undefined,
-		allDevices: Boolean(allDevices)
-	};
-
-	console.log('[Logout] Requesting logout.', { allDevices: Boolean(allDevices) });
-
-	if (!refreshToken && !allDevices) {
-		console.warn('[Logout] No refresh token found; clearing local session only.');
-		window.authSession.clearLocalSession();
-		window.location.href = getLoginRedirectUrl();
-		return { success: true, localOnly: true };
-	}
-
 	const loadingModal = document.getElementById('pageLoadingModal');
 	if (loadingModal && window.modalManager?.showModal) {
 		await window.modalManager.showModal(loadingModal, { backdrop: 'static', keyboard: false });
 	}
 
 	try {
-		const response = await apiFetch('/auth/logout', {
-			method: 'POST',
-			body: JSON.stringify(payload)
-		});
-		const data = await response.json().catch(() => ({}));
-		if (!response.ok) {
-			console.warn('[Logout] Logout failed.', { status: response.status, data });
-			return { success: false, status: response.status, data };
+		if (window.authSessionManager && typeof window.authSessionManager.logout === 'function') {
+			return await window.authSessionManager.logout({
+				allDevices: Boolean(allDevices),
+				reason: 'manual-logout',
+				redirect: true
+			});
 		}
-		console.log('[Logout] Logout successful.', data);
 		window.authSession.clearLocalSession();
 		window.location.href = getLoginRedirectUrl();
-		return { success: true, data };
+		return { success: true };
 	} catch (error) {
 		console.error('[Logout] Logout request failed.', error);
 		return { success: false, error };
@@ -945,6 +1342,7 @@ async function showApiErrorModal() {
 //Run checks on page load
 async function initializeApp() {
 	let apiHealthy = false;
+	let authState = null;
 	try {
 		showPageLoadingModal();
 		console.log('[Initialization] Waiting for API health check...');
@@ -953,6 +1351,11 @@ async function initializeApp() {
 			console.log('[Initialization] All checks passed.');
 		} else {
 			console.warn('[Initialization] API health check failed. Application may not function correctly.');
+		}
+		if (apiHealthy && window.authSessionManager && typeof window.authSessionManager.initializeForCurrentRoute === 'function') {
+			const authResult = await window.authSessionManager.initializeForCurrentRoute();
+			authState = authResult?.status || window.authSessionManager.getStatus();
+			console.log('[Initialization] Auth state resolved:', authState);
 		}
 		if (window.pageContentReady && window.pageContentReady.promise) {
 			console.log('[Initialization] Waiting for page content readiness...');
@@ -970,9 +1373,15 @@ async function initializeApp() {
 	if (!apiHealthy) {
 		await showApiErrorModal();
 	}
+	if (window.authSessionManager && typeof window.authSessionManager.consumeFlashMessage === 'function') {
+		const flash = window.authSessionManager.consumeFlashMessage();
+		if (flash) {
+			window.authSessionManager.showMessageBanner(flash);
+		}
+	}
 
 	if (appInitializationDeferred.resolve) {
-		appInitializationDeferred.resolve({ apiHealthy });
+		appInitializationDeferred.resolve({ apiHealthy, authState });
 	}
 }
 

@@ -207,7 +207,43 @@ const PUBLIC_PATHS = [
 ];
 
 let refreshPromise = null;
-let sessionExpiredNotified = false;
+let unauthorizedFlowPromise = null;
+
+function getAuthManager() {
+	return window.authSessionManager || null;
+}
+
+async function runUnauthorizedFlow({ reason = 'session-expired', message = 'Your session expired, please log in again.' } = {}) {
+	if (unauthorizedFlowPromise) {
+		return unauthorizedFlowPromise;
+	}
+	const manager = getAuthManager();
+	if (!manager || typeof manager.handleUnauthorized !== 'function') {
+		localStorage.removeItem('accessToken');
+		localStorage.removeItem('refreshToken');
+		window.location.href = '/';
+		return;
+	}
+	unauthorizedFlowPromise = manager.handleUnauthorized({ reason, message })
+		.finally(() => {
+			unauthorizedFlowPromise = null;
+		});
+	return unauthorizedFlowPromise;
+}
+
+async function shouldTreat403AsAuthFailure(response) {
+	try {
+		const cloned = response.clone();
+		const contentType = cloned.headers.get('content-type') || '';
+		if (!contentType.includes('application/json')) return false;
+		const payload = await cloned.json();
+		const message = String(payload?.message || '').toLowerCase();
+		const errors = Array.isArray(payload?.errors) ? payload.errors.join(' ').toLowerCase() : '';
+		return /invalid|expired|unauthor/i.test(message) || /invalid|expired|token|unauthor/i.test(errors);
+	} catch (error) {
+		return false;
+	}
+}
 
 function getSharedRefreshPromise() {
 	if (refreshPromise) {
@@ -244,7 +280,7 @@ async function apiFetch(path, options = {}) {
 	headers.set('Content-Type', 'application/json');
 
 	// If the path is not public, attach the Authorization header
-	const accessToken = localStorage.getItem('accessToken');
+	const accessToken = getAuthManager()?.getToken?.() || localStorage.getItem('accessToken');
 	if (accessToken && !PUBLIC_PATHS.includes(path)) {
 		console.log('[HTTP Interceptor] Private endpoint: Attaching access token to request headers for path:', path);
 		headers.set('Authorization', `Bearer ${accessToken}`);
@@ -299,8 +335,8 @@ async function apiFetch(path, options = {}) {
 		return response;
 	}
 
-	//If the error is not 401, just return the error response
-	if (response.status !== 401) {
+	//If the error is neither 401 nor auth-related 403, pass it to caller.
+	if (response.status !== 401 && response.status !== 403) {
 		let parsedMessage = null;
 		let parsedErrors = null;
 		try {
@@ -325,6 +361,14 @@ async function apiFetch(path, options = {}) {
 			errors: parsedErrors,
 			correlationId
 		});
+		return response;
+	}
+
+	if (response.status === 403) {
+		const isAuthFailure = await shouldTreat403AsAuthFailure(response);
+		if (isAuthFailure && !PUBLIC_PATHS.includes(path)) {
+			await runUnauthorizedFlow({ reason: 'forbidden-auth-failure' });
+		}
 		return response;
 	}
 
@@ -370,8 +414,9 @@ async function apiFetch(path, options = {}) {
 
 		console.log('[HTTP Interceptor] Retried request response:', response);
 		response._authRetry = true;
-		if (response.status === 401) {
-			console.warn('[HTTP Interceptor] Retried request still unauthorized. Returning response.');
+		if (response.status === 401 || response.status === 403) {
+			console.warn('[HTTP Interceptor] Retried request still unauthorized. Starting unauthorized flow.');
+			await runUnauthorizedFlow({ reason: 'retry-unauthorized' });
 		}
 		return response;
 	} catch (error) {
@@ -384,23 +429,13 @@ async function apiFetch(path, options = {}) {
 		if (!authFailure) {
 			throw error;
 		}
-		localStorage.removeItem('accessToken');
-		localStorage.removeItem('refreshToken');
-		if (!sessionExpiredNotified) {
-			sessionExpiredNotified = true;
-			if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
-				window.authRedirect.capture();
-			}
-			showSessionExpiredModal();
-		} else {
-			console.warn('[HTTP Interceptor] Session expired modal already shown.');
-		}
+		await runUnauthorizedFlow({ reason: 'refresh-failed' });
 		throw new Error('Session expired. Please log in again.');
 	}
 }
 
 async function refreshAccessToken() {
-	const refreshToken = localStorage.getItem('refreshToken');
+	const refreshToken = getAuthManager()?.getRefreshToken?.() || localStorage.getItem('refreshToken');
 
 	if (!refreshToken) {
 		console.error('[HTTP Interceptor] No refresh token in local storage');
@@ -439,47 +474,18 @@ async function refreshAccessToken() {
 		console.error('[HTTP Interceptor] Refresh response did not include an access token.', data);
 		throw new Error('Refresh response missing access token.');
 	}
-	localStorage.setItem('accessToken', accessToken);
+	if (getAuthManager()?.setToken) {
+		getAuthManager().setToken(accessToken);
+	} else {
+		localStorage.setItem('accessToken', accessToken);
+	}
 
 	console.log('[HTTP Interceptor] New access token stored in local storage. Returning new access token to refreshAccessToken() caller.');
 	return accessToken;
 }
 
-// Displays a modal informing the user that their session has expired
-	async function showSessionExpiredModal() {
-		//Check if modal  exists
-		console.log('[Session Expired Modal] Displaying session expired modal to user.');
-
-		const modal = document.getElementById('sessionExpiredModal');
-		if (!modal) {
-			console.error('[Session Expired Modal] Modal element not found in DOM.');
-			//Fallback
-			alert('Your session has expired. Please log in again.');
-			window.location.href = typeof window.getLoginRedirectUrl === 'function'
-				? window.getLoginRedirectUrl()
-				: 'index?action=login';
-			return;
-		}
-
-		if (window.authRedirect && typeof window.authRedirect.capture === 'function') {
-			window.authRedirect.capture();
-		}
-
-		if (window.authGuard && typeof window.authGuard.waitForMaintenance === 'function') {
-			await window.authGuard.waitForMaintenance();
-		}
-
-		if (window.modalManager && typeof window.modalManager.showModal === 'function') {
-			window.modalManager.showModal(modal);
-		} else {
-			const sessionExpiredModal = new bootstrap.Modal(modal);
-			sessionExpiredModal.show();
-		}
-
-	//Redirect to homepage on modal close
-	modal.addEventListener('hidden.bs.modal', () => {
-		window.location.href = typeof window.getLoginRedirectUrl === 'function'
-			? window.getLoginRedirectUrl()
-			: 'index?action=login';
-	}, { once: true });
+// Legacy compatibility helper used by a few older page scripts.
+async function showSessionExpiredModal() {
+	await runUnauthorizedFlow({ reason: 'legacy-session-expired' });
 }
+window.showSessionExpiredModal = showSessionExpiredModal;

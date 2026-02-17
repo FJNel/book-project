@@ -294,17 +294,26 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleLoginSuccess(data) {
         console.log('[Login] Login successful for user:', data.data.user.preferredName);
 
-        // Save tokens + user profile
-        localStorage.setItem('accessToken', data.data.accessToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        localStorage.setItem('userProfile', JSON.stringify({
+        const normalizedUser = {
             id: data.data.user.id,
             email: data.data.user.email,
             fullName: data.data.user.fullName,
             preferredName: data.data.user.preferredName,
             role: data.data.user.role,
             themePreference: data.data.user.themePreference || 'device'
-        }));
+        };
+
+        if (window.authSessionManager && typeof window.authSessionManager.setAuthenticatedSession === 'function') {
+            window.authSessionManager.setAuthenticatedSession({
+                accessToken: data.data.accessToken,
+                refreshToken: data.data.refreshToken,
+                user: normalizedUser
+            });
+        } else {
+            localStorage.setItem('accessToken', data.data.accessToken);
+            localStorage.setItem('refreshToken', data.data.refreshToken);
+            localStorage.setItem('userProfile', JSON.stringify(normalizedUser));
+        }
 
         if (window.themeManager) {
             window.themeManager.setPreference(data.data.user.themePreference || 'device', { persist: true });
@@ -354,9 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const storedReturnTo = window.authRedirect && typeof window.authRedirect.consume === 'function'
-            ? window.authRedirect.consume()
-            : null;
+        const storedReturnTo = window.authSessionManager && typeof window.authSessionManager.consumeLastAttemptedRoute === 'function'
+            ? window.authSessionManager.consumeLastAttemptedRoute()
+            : (window.authRedirect && typeof window.authRedirect.consume === 'function' ? window.authRedirect.consume() : null);
         let returnTo = storedReturnTo;
         if (!returnTo) {
             try {
