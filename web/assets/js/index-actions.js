@@ -168,23 +168,6 @@ function attachAlreadyLoggedInHandlers(modalElement) {
 	}, { once: true });
 }
 
-function setCheckingSessionUi(active) {
-	const root = document.querySelector('section.py-4.py-xl-5');
-	if (!root) return;
-	let statusEl = document.getElementById('sessionCheckingStatus');
-	if (!statusEl) {
-		statusEl = document.createElement('div');
-		statusEl.id = 'sessionCheckingStatus';
-		statusEl.className = 'alert alert-info d-none mt-3';
-		statusEl.textContent = 'Checking session...';
-		const container = root.querySelector('.container');
-		if (container) {
-			container.prepend(statusEl);
-		}
-	}
-	statusEl.classList.toggle('d-none', !active);
-}
-
 async function showAlreadyLoggedInModalIfNeeded() {
 	if (!getTokensPresent()) {
 		return false;
@@ -201,11 +184,9 @@ async function showAlreadyLoggedInModalIfNeeded() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 	console.log('[Index Actions] Index modal flow starting.');
-	setCheckingSessionUi(true);
 	const initResult = await waitForAppInitialization();
 	if (!initResult || initResult.apiHealthy === false) {
 		console.warn('[Index Actions] App initialization not healthy; skipping additional modals.');
-		setCheckingSessionUi(false);
 		return;
 	}
 
@@ -216,7 +197,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 		if (status === 'authenticated') {
 			const returnTo = window.authSessionManager.consumeLastAttemptedRoute()
 				|| (window.authRedirect && typeof window.authRedirect.consume === 'function' ? window.authRedirect.consume() : null);
-			setCheckingSessionUi(false);
 			if (returnTo) {
 				console.log('[Index Actions] User authenticated; redirecting to original destination.', { returnTo });
 				window.location.href = returnTo;
@@ -245,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 		window.location.href = 'dashboard';
 		return;
 	}
-	setCheckingSessionUi(false);
 	await handleActionModalFromQuery();
 	console.log('[Index Actions] Index modal flow complete.');
 });

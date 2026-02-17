@@ -159,6 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteCopyText = document.getElementById('deleteCopyText');
   const deleteCopyConfirmBtn = document.getElementById('deleteCopyConfirmBtn');
   const deleteCopyErrorAlert = document.getElementById('deleteCopyErrorAlert');
+  const addAuthorModal = document.getElementById('addAuthorModal');
+  const addSeriesModal = document.getElementById('addSeriesModal');
+  const addPublisherModal = document.getElementById('addPublisherModal');
+  const addBookTypeModal = document.getElementById('addBookTypeModal');
+  const addLocationModal = document.getElementById('addLocationModal');
 
   let bookRecord = null;
   let authorRoleTarget = null;
@@ -619,6 +624,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (invalidModalMessage) invalidModalMessage.textContent = message || defaultInvalidBookMessage;
     await hideModal('pageLoadingModal');
     await showModal(invalidModal, { backdrop: 'static', keyboard: false });
+  };
+
+  // Modal stack contract:
+  // 1) When opening child modal B from modal A, push(A, B) so A is restored when B closes.
+  // 2) On B hidden, pop(B) to return to A.
+  // 3) If no stack context exists, open B normally.
+  const openSharedAddModalWithStack = async ({ type, targetModalId, parentModalId, parentModalEl }) => {
+    const hasStack = window.modalStack && parentModalEl?.classList.contains('show') && targetModalId;
+    if (hasStack) {
+      await window.modalStack.push(parentModalId, targetModalId);
+      window.sharedAddModals?.open(type);
+      return;
+    }
+    window.sharedAddModals?.open(type);
   };
 
   if (invalidModalClose) {
@@ -3050,11 +3069,46 @@ document.addEventListener('DOMContentLoaded', () => {
   if (copyAcquisitionLocation) copyAcquisitionLocation.addEventListener('input', updateCopyChangeSummary);
   if (copyAcquisitionStory) copyAcquisitionStory.addEventListener('input', updateCopyChangeSummary);
   if (copyNotes) copyNotes.addEventListener('input', updateCopyChangeSummary);
-  if (openAddPublisherBtn) openAddPublisherBtn.addEventListener('click', () => window.sharedAddModals?.open('publisher'));
-  if (openAddBookTypeBtn) openAddBookTypeBtn.addEventListener('click', () => window.sharedAddModals?.open('booktype'));
-  if (openAddAuthorBtn) openAddAuthorBtn.addEventListener('click', () => window.sharedAddModals?.open('author'));
-  if (openAddSeriesBtn) openAddSeriesBtn.addEventListener('click', () => window.sharedAddModals?.open('series'));
-  if (openAddLocationBtn) openAddLocationBtn.addEventListener('click', () => window.sharedAddModals?.open('location'));
+  if (openAddPublisherBtn) {
+    openAddPublisherBtn.addEventListener('click', () => openSharedAddModalWithStack({
+      type: 'publisher',
+      targetModalId: 'addPublisherModal',
+      parentModalId: 'editBookModal',
+      parentModalEl: editBookModal
+    }));
+  }
+  if (openAddBookTypeBtn) {
+    openAddBookTypeBtn.addEventListener('click', () => openSharedAddModalWithStack({
+      type: 'booktype',
+      targetModalId: 'addBookTypeModal',
+      parentModalId: 'editBookModal',
+      parentModalEl: editBookModal
+    }));
+  }
+  if (openAddAuthorBtn) {
+    openAddAuthorBtn.addEventListener('click', () => openSharedAddModalWithStack({
+      type: 'author',
+      targetModalId: 'addAuthorModal',
+      parentModalId: 'manageAuthorsModal',
+      parentModalEl: manageAuthorsModal
+    }));
+  }
+  if (openAddSeriesBtn) {
+    openAddSeriesBtn.addEventListener('click', () => openSharedAddModalWithStack({
+      type: 'series',
+      targetModalId: 'addSeriesModal',
+      parentModalId: 'manageSeriesModal',
+      parentModalEl: manageSeriesModal
+    }));
+  }
+  if (openAddLocationBtn) {
+    openAddLocationBtn.addEventListener('click', () => openSharedAddModalWithStack({
+      type: 'location',
+      targetModalId: 'addLocationModal',
+      parentModalId: 'editCopyModal',
+      parentModalEl: editCopyModal
+    }));
+  }
 
   handleSharedModalReady();
 
@@ -3076,6 +3130,31 @@ document.addEventListener('DOMContentLoaded', () => {
   if (removeSeriesModal) {
     removeSeriesModal.addEventListener('hidden.bs.modal', () => {
       window.modalStack?.pop('removeSeriesModal');
+    });
+  }
+  if (addAuthorModal) {
+    addAuthorModal.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('addAuthorModal');
+    });
+  }
+  if (addSeriesModal) {
+    addSeriesModal.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('addSeriesModal');
+    });
+  }
+  if (addPublisherModal) {
+    addPublisherModal.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('addPublisherModal');
+    });
+  }
+  if (addBookTypeModal) {
+    addBookTypeModal.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('addBookTypeModal');
+    });
+  }
+  if (addLocationModal) {
+    addLocationModal.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('addLocationModal');
     });
   }
 

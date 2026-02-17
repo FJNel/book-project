@@ -1305,8 +1305,27 @@
     if (button) button.disabled = !enabled;
   }
 
+  function setModalKeyboardLock(modalEl, isLocked) {
+    if (!modalEl) return;
+    const instance = bootstrap.Modal.getInstance(modalEl);
+    if (!instance || !instance._config) return;
+    if (isLocked) {
+      if (!modalEl.dataset.prevModalKeyboard) {
+        modalEl.dataset.prevModalKeyboard = instance._config.keyboard ? 'true' : 'false';
+      }
+      instance._config.keyboard = false;
+      return;
+    }
+    const previous = modalEl.dataset.prevModalKeyboard;
+    if (previous != null) {
+      instance._config.keyboard = previous === 'true';
+      delete modalEl.dataset.prevModalKeyboard;
+    }
+  }
+
   function setModalInteractivity(modalEl, isDisabled) {
     if (!modalEl) return;
+    setModalKeyboardLock(modalEl, isDisabled);
     modalEl.querySelectorAll('input, select, textarea, button').forEach((node) => {
       node.disabled = isDisabled;
     });
@@ -1454,16 +1473,15 @@
     dom.editEmailHelp.textContent = errors.email;
     if (dom.editFullName) {
       dom.editFullName.classList.toggle('is-invalid', Boolean(errors.fullName));
-      dom.editFullName.classList.toggle('is-valid', !errors.fullName && Boolean(fullName));
+      dom.editFullName.classList.remove('is-valid');
     }
     if (dom.editPreferredName) {
-      const markValid = Boolean(preferredName);
       dom.editPreferredName.classList.remove('is-invalid');
-      dom.editPreferredName.classList.toggle('is-valid', markValid);
+      dom.editPreferredName.classList.remove('is-valid');
     }
     if (dom.editEmail) {
       dom.editEmail.classList.toggle('is-invalid', Boolean(errors.email));
-      dom.editEmail.classList.toggle('is-valid', !errors.email && Boolean(email));
+      dom.editEmail.classList.remove('is-valid');
     }
 
     const changed = fullName !== (state.currentEditingUser?.fullName || '')
@@ -1559,6 +1577,7 @@
   }
 
   function setConfirmModalBusy(isBusy) {
+    setModalKeyboardLock(dom.confirmActionModal, isBusy);
     [dom.confirmActionReason, dom.confirmActionEmail, dom.confirmActionUserId, dom.confirmActionInput, dom.confirmActionWarningType, dom.confirmActionApiKeySelect].forEach((input) => {
       if (input) input.disabled = isBusy;
     });
@@ -4918,6 +4937,9 @@
     });
     dom.confirmActionModal?.addEventListener('hidden.bs.modal', () => {
       window.modalStack?.pop('confirmActionModal');
+    });
+    dom.userEndpointUsageModal?.addEventListener('hidden.bs.modal', () => {
+      window.modalStack?.pop('userEndpointUsageModal');
     });
 
     dom.usersAlert?.addEventListener('click', (event) => {
