@@ -39,6 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const getLangString = (key) => lang[key] || key;
   const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
   const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
+  const getApiErrorInfo = (payload, fallbackMessage = 'Request failed.') => {
+    if (typeof window.normalizeApiErrorPayload === 'function') {
+      const normalized = window.normalizeApiErrorPayload(payload, fallbackMessage);
+      return {
+        message: getLangString(normalized.message),
+        errors: normalized.errors.map(getLangString)
+      };
+    }
+    return {
+      message: getLangString(payload?.message || fallbackMessage),
+      errors: Array.isArray(payload?.errors) ? payload.errors.map(getLangString) : []
+    };
+  };
 
   const getQueryParam = (param) => params.get(param);
 
@@ -179,7 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ token, email: emailInput.value.trim(), captchaToken })
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = typeof window.readApiResponse === 'function'
+        ? await window.readApiResponse(response)
+        : await response.json().catch(() => ({}));
       if (response.ok) {
         const message = getLangString(data.message) || getLangString('DISABLE_SUCCESS');
         showSuccessAlert(message);
@@ -187,12 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setFormDisabledState(true);
         setTimeout(() => { window.location.href = 'https://bookproject.fjnel.co.za?action=login'; }, 5000);
       } else {
-        const rawMessage = getLangString(data.message || getLangString('DISABLE_ERROR'));
-        if (isCaptchaFailureMessage(rawMessage)) {
+        const { message, errors } = getApiErrorInfo(data, getLangString('DISABLE_ERROR'));
+        if (isCaptchaFailureMessage(message)) {
           showErrorAlert(SECURITY_CHECK_ERROR);
         } else {
-          const details = data.errors ? data.errors.map(getLangString).join(' ') : '';
-          showErrorAlert(rawMessage, details ? [details] : []);
+          showErrorAlert(message, errors);
         }
       }
     } catch (error) {

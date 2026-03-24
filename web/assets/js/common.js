@@ -50,8 +50,63 @@ function clearApiAlert(alertEl) {
 	alertEl.innerHTML = '';
 }
 
+function normalizeApiErrorPayload(payload = {}, fallbackMessage = 'Request failed.') {
+	const safePayload = payload && typeof payload === 'object' && !Array.isArray(payload)
+		? payload
+		: {};
+	const rawErrors = Array.isArray(safePayload.errors)
+		? safePayload.errors
+		: (safePayload.errors ? [safePayload.errors] : []);
+	const errors = rawErrors
+		.map((entry) => {
+			if (typeof entry === 'string') return entry.trim();
+			if (entry && typeof entry.message === 'string') return entry.message.trim();
+			return String(entry || '').trim();
+		})
+		.filter(Boolean);
+	const rawMessage = typeof safePayload.message === 'string'
+		? safePayload.message.trim()
+		: (safePayload.message && typeof safePayload.message.message === 'string'
+			? safePayload.message.message.trim()
+			: '');
+	const message = rawMessage || errors[0] || fallbackMessage;
+	const detailErrors = rawMessage && errors[0] === rawMessage ? errors.slice(1) : errors;
+	return { message, errors: detailErrors, payload: safePayload };
+}
+
+async function readApiResponse(response) {
+	if (!response) return {};
+	if (response._parsedPayload && typeof response._parsedPayload === 'object') {
+		return response._parsedPayload;
+	}
+	if (response._errorPayload && typeof response._errorPayload === 'object') {
+		response._parsedPayload = response._errorPayload;
+		return response._parsedPayload;
+	}
+	try {
+		const contentType = (response.headers.get('content-type') || '').toLowerCase();
+		let payload;
+		if (contentType.includes('application/json') || contentType.includes('+json')) {
+			payload = await response.json();
+		} else {
+			const text = await response.text();
+			payload = text ? { message: text.trim() } : {};
+		}
+		if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+			payload = {};
+		}
+		response._parsedPayload = payload;
+		return payload;
+	} catch (error) {
+		response._parsedPayload = {};
+		return response._parsedPayload;
+	}
+}
+
 window.renderApiErrorAlert = renderApiErrorAlert;
 window.clearApiAlert = clearApiAlert;
+window.normalizeApiErrorPayload = normalizeApiErrorPayload;
+window.readApiResponse = readApiResponse;
 
 const THEME_STORAGE_KEY = 'themePreference';
 const THEME_VALUES = new Set(['device', 'light', 'dark']);

@@ -61,6 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     const getLangString = (key) => lang[key] || key;
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
+    const getApiErrorInfo = (payload, fallbackMessage) => {
+        if (typeof window.normalizeApiErrorPayload === 'function') {
+            const normalized = window.normalizeApiErrorPayload(payload, fallbackMessage);
+            return {
+                message: getLangString(normalized.message),
+                errors: normalized.errors.map(getLangString)
+            };
+        }
+        return {
+            message: getLangString(payload?.message || fallbackMessage),
+            errors: Array.isArray(payload?.errors) ? payload.errors.map(getLangString) : []
+        };
+    };
 
     // --- UI Initialization and State Management ---
     /**
@@ -164,7 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ email, password, captchaToken }),
             });
 
-            const data = await response.json();
+            const data = typeof window.readApiResponse === 'function'
+                ? await window.readApiResponse(response)
+                : await response.json().catch(() => ({}));
             console.log('[API] Received response:', { status: response.status, data });
 
             if (response.ok && data?.data?.accessToken && data?.data?.refreshToken) {
@@ -395,28 +410,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLoginError(status, data) {
         console.warn('[Login] Login failed with status:', status);
         loginErrorResendVerificationAlert.style.display = 'none';
-        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
-        if (isCaptchaFailureMessage(rawMessage)) {
+        const { message, errors } = getApiErrorInfo(data, status === 401 ? 'Invalid email or password.' : 'Request failed.');
+        if (isCaptchaFailureMessage(message)) {
             showLoginError('Security Check Failed', ['Please refresh the page and try again.']);
             return;
         }
-        const messageText = rawMessage;
-        const detailErrors = Array.isArray(data?.errors) && data.errors.length
-            ? data.errors.map(getLangString)
-            : [];
 
-        if (status === 401) {
-            showLoginError(messageText, detailErrors);
-            loginErrorResendVerificationAlert.style.display = 'block';
+        if (status === 401 || status === 400 || status === 403 || status === 429) {
+            showLoginError(message, errors);
+            if (status === 401) {
+                loginErrorResendVerificationAlert.style.display = 'block';
+            }
             return;
         }
 
-        if (status === 429 || status === 400) {
-            showLoginError(messageText, detailErrors);
+        if (status >= 500) {
+            showLoginError(message, errors.length ? errors : ['Please try again.']);
             return;
         }
 
-        showLoginError('Unexpected error', ['Please try again.']);
+        showLoginError(message, errors.length ? errors : ['Please try again.']);
     }
 
     loginForm.addEventListener('submit', handleLogin);

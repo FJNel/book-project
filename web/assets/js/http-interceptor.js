@@ -459,11 +459,20 @@ async function refreshAccessToken() {
 		throw error;
 	}
 
-	const data = await response.json();
+	const data = typeof window.readApiResponse === 'function'
+		? await window.readApiResponse(response)
+		: await response.json().catch(() => ({}));
 
 	if (!response.ok) {
 		console.error('[HTTP Interceptor] Refresh token request failed. Response:', data);
-		const err = new Error(`${data.message} Failed to refresh token`);
+		const normalized = typeof window.normalizeApiErrorPayload === 'function'
+			? window.normalizeApiErrorPayload(data, 'Failed to refresh token.')
+			: {
+				message: data?.message || 'Failed to refresh token.',
+				errors: Array.isArray(data?.errors) ? data.errors : []
+			};
+		const detail = normalized.errors.length ? `: ${normalized.errors.join(' ')}` : '';
+		const err = new Error(`${normalized.message}${detail}`);
 		err.status = response.status;
 		throw err;
 	}

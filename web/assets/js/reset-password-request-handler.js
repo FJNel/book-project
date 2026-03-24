@@ -64,6 +64,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const getLangString = (key) => lang[key] || key;
     const SECURITY_CHECK_ERROR = 'Security check failed. Please refresh the page and try again.';
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
+    const getApiErrorInfo = (payload, fallbackMessage = 'Request failed.') => {
+        if (typeof window.normalizeApiErrorPayload === 'function') {
+            const normalized = window.normalizeApiErrorPayload(payload, fallbackMessage);
+            return {
+                message: getLangString(normalized.message),
+                errors: normalized.errors.map(getLangString)
+            };
+        }
+        return {
+            message: getLangString(payload?.message || fallbackMessage),
+            errors: Array.isArray(payload?.errors) ? payload.errors.map(getLangString) : []
+        };
+    };
 
     // --- UI Initialization and State Management ---
     function resetControlsState() {
@@ -258,7 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
 				return;
 			}
 
-			const data = await response.json();
+			const data = typeof window.readApiResponse === 'function'
+                ? await window.readApiResponse(response)
+                : await response.json().catch(() => ({}));
 			console.log('[API] Received password reset response:', { status: response.status, data });
 
 			if (response.ok) {
@@ -296,21 +311,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleError(status, data) {
         console.warn('[Password Reset] API request failed with status:', status);
-        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
-        if (isCaptchaFailureMessage(rawMessage)) {
+        const { message, errors } = getApiErrorInfo(data, 'Password reset request could not be completed.');
+        if (isCaptchaFailureMessage(message)) {
             showErrorAlert(SECURITY_CHECK_ERROR);
             return;
         }
-        const messageText = rawMessage;
-        const detailsText = Array.isArray(data?.errors) && data.errors.length
-            ? data.errors.map(getLangString).join(' ')
-            : '';
-        if (status === 400) {
-            showErrorAlert(messageText, detailsText ? [detailsText] : []);
+        if (status === 400 || status === 429 || status >= 500) {
+            showErrorAlert(message, errors);
             return;
         }
 
-        showErrorAlert('An unexpected error occurred', ['Please try again.']);
+        showErrorAlert(message, errors.length ? errors : ['Please try again.']);
     }
 
     // --- Event Listeners ---

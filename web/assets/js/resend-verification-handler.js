@@ -64,6 +64,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getLangString = (key) => lang[key] || key;
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
+    const getApiErrorInfo = (payload, fallbackMessage = 'Request failed.') => {
+        if (typeof window.normalizeApiErrorPayload === 'function') {
+            const normalized = window.normalizeApiErrorPayload(payload, fallbackMessage);
+            return {
+                message: getLangString(normalized.message),
+                errors: normalized.errors.map(getLangString)
+            };
+        }
+        return {
+            message: getLangString(payload?.message || fallbackMessage),
+            errors: Array.isArray(payload?.errors) ? payload.errors.map(getLangString) : []
+        };
+    };
 
     // --- UI Initialization and State Management ---
     function resetControlsState() {
@@ -243,7 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }),
             });
 
-            const data = await response.json();
+            const data = typeof window.readApiResponse === 'function'
+                ? await window.readApiResponse(response)
+                : await response.json().catch(() => ({}));
             console.log('[API] Received resend verification response:', { status: response.status, data });
 
             if (response.ok) {
@@ -282,22 +297,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleError(status, data) {
         console.warn('[Resend Verification] API request failed with status:', status);
-        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
-        if (isCaptchaFailureMessage(rawMessage)) {
+        const { message, errors } = getApiErrorInfo(data, 'Verification email request could not be completed.');
+        if (isCaptchaFailureMessage(message)) {
             showAlert('error', 'Security Check Failed', { errors: ['Please refresh the page and try again.'] });
             return;
         }
-        const messageText = rawMessage;
-        const detailErrors = Array.isArray(data?.errors) && data.errors.length
-            ? data.errors.map(getLangString)
-            : [];
 
-        if (status === 429 || status === 400) {
-            showAlert('error', messageText, { errors: detailErrors });
+        if (status === 429 || status === 400 || status >= 500) {
+            showAlert('error', message, { errors });
             return;
         }
 
-        showAlert('error', 'Unexpected error', { errors: ['Please try again.'] });
+        showAlert('error', message, { errors: errors.length ? errors : ['Please try again.'] });
     }
 
     // --- Event Listeners ---

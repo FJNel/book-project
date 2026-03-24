@@ -108,9 +108,24 @@ async function createDefaultBookTypes(client, userId) {
 		`INSERT INTO book_types (user_id, name, description, created_at, updated_at)
 		 VALUES ($1, 'Hardcover', 'A durable hardbound edition with rigid boards and a protective jacket or printed cover. Built to last, it resists wear and warping better than paperbacks and is ideal for collectors, frequent readers, and long-term shelving.', NOW(), NOW()),
 		        ($1, 'Softcover', 'A flexible paperback edition with a card cover. Lighter and more portable than hardcover, it''s usually more affordable and easy to handle. Great for everyday reading, travel, and casual collections.', NOW(), NOW())
-		 ON CONFLICT (user_id, name) DO NOTHING`,
+		 ON CONFLICT (user_id, name) WHERE deleted_at IS NULL DO NOTHING`,
 		[userId]
 	);
+}
+
+function getDbErrorDetails(error) {
+	if (!error || typeof error !== "object") {
+		return {};
+	}
+	return {
+		code: error.code || null,
+		constraint: error.constraint || null,
+		table: error.table || null,
+		column: error.column || null,
+		detail: error.detail || null,
+		schema: error.schema || null,
+		routine: error.routine || null
+	};
 }
 
 // Helper: get an active (unexpired, unused) email verification token for a user, or create a new one
@@ -269,13 +284,29 @@ router.post("/register", registerLimiter, async (req, res) => {
 
 					return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
 				} catch (e) {
-					logToFile("EMAIL_VERIFICATION", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent"), user_id: existingUser.id, details: { trigger: "REGISTER_ATTEMPT" } }, "error");
-					return errorResponse(res, 500, "Failed to issue verification token", [e.message]);
+					logToFile("EMAIL_VERIFICATION", {
+						status: "FAILURE",
+						error_message: e.message,
+						db_error: getDbErrorDetails(e),
+						email,
+						ip: req.ip,
+						user_agent: req.get("user-agent"),
+						user_id: existingUser.id,
+						details: { trigger: "REGISTER_ATTEMPT" }
+					}, "error");
+					return errorResponse(res, 500, "Registration could not be completed.", ["Please try again in a few moments."]);
 				}
 			}
 	} catch(e) {
-		logToFile("USER_REGISTERED", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while checking for a duplicate email", e.message]);
+		logToFile("USER_REGISTERED", {
+			status: "FAILURE",
+			error_message: e.message,
+			db_error: getDbErrorDetails(e),
+			email,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		return errorResponse(res, 500, "Registration could not be completed.", ["An error occurred while preparing your registration. Please try again."]);
 	}
 
 
@@ -285,12 +316,13 @@ router.post("/register", registerLimiter, async (req, res) => {
 		await client.query("BEGIN");
 
 		const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+		const passwordUpdated = new Date();
 		const insertUserText = `
-			INSERT INTO users (full_name, preferred_name, email, password_hash, is_verified, password_updated)
-			VALUES ($1, $2, $3, $4, $5, NOW())
+			INSERT INTO users (full_name, preferred_name, email, password_hash, role, is_verified, is_disabled, password_updated)
+			VALUES ($1, $2, $3, $4, 'user', false, false, $5)
 			RETURNING *
 		`;
-		const insertUserValues = [fullName, preferredName, email, passwordHash, false];
+		const insertUserValues = [fullName, preferredName, email, passwordHash, passwordUpdated];
 		const result = await client.query(insertUserText, insertUserValues);
 		const newUser = result.rows[0];
 
@@ -315,8 +347,18 @@ router.post("/register", registerLimiter, async (req, res) => {
 		return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
 	} catch (e) {
 		await client.query("ROLLBACK");
-		logToFile("USER_REGISTERED", { error: e.message, email }, "error");
-		return errorResponse(res, 500, "Database Error", ["An error occurred while creating the user", e.message]);
+		logToFile("USER_REGISTERED", {
+			status: "FAILURE",
+			error_message: e.message,
+			db_error: getDbErrorDetails(e),
+			email,
+			ip: req.ip,
+			user_agent: req.get("user-agent")
+		}, "error");
+		if (e?.code === "23505" && e?.table === "users") {
+			return successResponse(res, 200, genericRegisterMessage.message, { disclaimer: genericRegisterMessage.disclaimer });
+		}
+		return errorResponse(res, 500, "Registration could not be completed.", ["An error occurred while creating your account. Please try again."]);
 	} finally {
 		client.release();
 	}
@@ -496,7 +538,9 @@ router.post("/verify-email", async (req, res) => {
 
 // POST auth/login: Authenticate and log in a user with email and password (returns refreshToken)
 router.post("/login", loginLimiter, async (req, res) => {
-		const { captchaToken, email, password } = req.body || {};
+		const { captchaToken } = req.body || {};
+		const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : null;
+		const password = typeof req.body?.password === "string" ? req.body.password : null;
 
 		// CAPTCHA check
 		const captchaValid = await verifyCaptcha(captchaToken, req.ip, 'login');
@@ -505,13 +549,24 @@ router.post("/login", loginLimiter, async (req, res) => {
 				return errorResponse(res, 400, "CAPTCHA verification failed", ["Please refresh the page and try again.", "Make sure that you provided a captchaToken in your request."]);
 		}
 
-		// Basic input check (do not reveal which field is wrong)
-		if (!email || !password) {
-				return errorResponse(res, 401, "Invalid email or password.", ["The provided email or password is incorrect"]);
+		const validationErrors = [
+			...validateEmail(email),
+			...(typeof password !== "string" || !password.trim() ? ["Password must be provided."] : [])
+		];
+		if (validationErrors.length > 0) {
+			logToFile("LOGIN_ATTEMPT", {
+				status: "FAILURE",
+				reason: "VALIDATION",
+				email,
+				errors: validationErrors,
+				ip: req.ip,
+				user_agent: req.get("user-agent")
+			}, "warn");
+			return errorResponse(res, 400, "Validation Error", validationErrors);
 		}
 
 		try {
-				const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email.trim().toLowerCase()]);
+				const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
 				let user;
 				let passwordMatch = false;
 
@@ -601,7 +656,14 @@ router.post("/login", loginLimiter, async (req, res) => {
 						}
 				});
 		} catch (e) {
-				logToFile("LOGIN_ATTEMPT", { status: "FAILURE", error_message: e.message, email, ip: req.ip, user_agent: req.get("user-agent") }, "error");
+				logToFile("LOGIN_ATTEMPT", {
+					status: "FAILURE",
+					error_message: e.message,
+					db_error: getDbErrorDetails(e),
+					email,
+					ip: req.ip,
+					user_agent: req.get("user-agent")
+				}, "error");
 				return errorResponse(res, 500, "Internal Server Error", ["An error occurred during login. Please try again."]);
 		}
 }); // router.post("/login")

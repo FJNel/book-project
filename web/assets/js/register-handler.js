@@ -59,6 +59,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getLangString = (key) => lang[key] || key;
     const isCaptchaFailureMessage = (message) => typeof message === 'string' && message.toLowerCase().includes('captcha verification failed');
+    const getApiErrorInfo = (payload, fallbackMessage = 'Request failed.') => {
+        if (typeof window.normalizeApiErrorPayload === 'function') {
+            const normalized = window.normalizeApiErrorPayload(payload, fallbackMessage);
+            return {
+                message: getLangString(normalized.message),
+                errors: normalized.errors.map(getLangString)
+            };
+        }
+        return {
+            message: getLangString(payload?.message || fallbackMessage),
+            errors: Array.isArray(payload?.errors) ? payload.errors.map(getLangString) : []
+        };
+    };
 
     // --- UI Initialization and State Management ---
     let registerControlsLocked = false;
@@ -333,7 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }),
             });
 
-            const data = await response.json();
+            const data = typeof window.readApiResponse === 'function'
+                ? await window.readApiResponse(response)
+                : await response.json().catch(() => ({}));
             console.log('[API] Received registration response:', { status: response.status, data });
 
             if (response.status === 201 || response.status === 200) { // 201 for new, 200 for existing unverified
@@ -369,15 +384,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleRegisterError(status, data) {
         console.warn('[Register] Registration failed with status:', status);
-        const rawMessage = getLangString(data?.message || 'An unexpected error occurred.');
-        if (isCaptchaFailureMessage(rawMessage)) {
+        const { message, errors } = getApiErrorInfo(data, 'Registration could not be completed.');
+        if (isCaptchaFailureMessage(message)) {
             showRegisterError('Security Check Failed', ['Please refresh the page and try again.']);
             return;
         }
-        const details = Array.isArray(data?.errors)
-            ? data.errors.map(getLangString)
-            : (data?.errors ? [getLangString(data.errors)] : []);
-        showRegisterError(rawMessage, details);
+        showRegisterError(message, errors);
     }
 
     // --- Event Listeners ---

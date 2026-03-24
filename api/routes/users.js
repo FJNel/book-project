@@ -617,7 +617,7 @@ router.post("/me/request-email-change", requiresAuth, authenticatedLimiter, emai
 		}
 		const user = rows[0];
 		const currentEmail = (user.email || "").toLowerCase();
-		if (currentEmail === newEmail) {
+		if (currentEmail === normalizedNewEmail) {
 			return errorResponse(res, 400, "Validation Error", ["The new email address must be different from your current email."]);
 		}
 
