@@ -1468,6 +1468,8 @@
         let allOk = false;
         let editOverlayShown = false;
         let results = [];
+        let shouldShowRateLimitModal = false;
+        let shouldCheckAuthAfterReady = false;
 
         try {
             if (invalidEditParam) {
@@ -1481,6 +1483,7 @@
             renderAuthors();
             renderSeries();
 
+            log('Starting initial Add Book data loads...');
             results = await Promise.allSettled([
                 loadLanguages(),
                 loadBookTypes(),
@@ -1489,28 +1492,36 @@
                 loadSeries(),
                 loadLocations()
             ]);
+            log('Initial Add Book data loads complete.');
             listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
 
             if (isEditMode()) {
                 log('Showing edit page-loading overlay...');
                 editOverlayShown = true;
                 await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
+                log('Edit page-loading overlay shown.');
             }
 
+            log('Starting edit-book load...');
             editOk = await loadBookForEdit();
+            log('Edit-book load complete.', { editOk });
             allOk = listOk && editOk;
 
+            log('Checking rate-limit guard...');
             if (rateLimitGuard?.hasReset()) {
-                await rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+                shouldShowRateLimitModal = true;
+                log('Rate-limit guard active; deferring modal until after readiness release.');
                 return;
             }
+            log('Rate-limit guard clear.');
 
             if (!allOk) {
                 log('One or more Add Book data loads failed.', { listOk, editOk, results });
             }
 
             if (window.authGuard && typeof window.authGuard.checkSessionAndPrompt === 'function') {
-                await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
+                shouldCheckAuthAfterReady = true;
+                log('Deferring auth guard check until after readiness release.');
             }
 
             log('Initialization complete.', { allOk });
@@ -1521,6 +1532,7 @@
                 showEditLoadError();
             }
         } finally {
+            log('Initialize finally entered.');
             if (editOverlayShown) {
                 try {
                     log('Hiding edit page-loading overlay...');
@@ -1535,11 +1547,35 @@
                 try {
                     log('Resolving page content readiness.', { success: allOk, listOk, editOk });
                     window.pageContentReady.resolve({ success: allOk, listOk, editOk });
+                    log('Page content readiness resolved.');
                 } catch (resolveError) {
                     console.error('[Add Book] Failed to resolve page content readiness.', resolveError);
                 }
             }
         }
+
+        setTimeout(async () => {
+            if (shouldShowRateLimitModal) {
+                try {
+                    log('Showing deferred rate-limit modal...');
+                    await rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+                    log('Deferred rate-limit modal completed.');
+                } catch (rateLimitError) {
+                    console.error('[Add Book] Deferred rate-limit modal failed.', rateLimitError);
+                }
+                return;
+            }
+
+            if (shouldCheckAuthAfterReady) {
+                try {
+                    log('Starting deferred auth guard check...');
+                    await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
+                    log('Deferred auth guard check complete.');
+                } catch (authGuardError) {
+                    console.error('[Add Book] Deferred auth guard check failed.', authGuardError);
+                }
+            }
+        }, 0);
     }
 
     document.addEventListener('DOMContentLoaded', initialize);
