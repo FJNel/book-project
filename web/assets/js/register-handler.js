@@ -77,15 +77,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let registerControlsLocked = false;
     let isSubmitting = false;
 
-    function initializeUI() {
+    function resetRegisterFormState() {
+        registerForm.reset();
         registerControlsLocked = false;
-        console.log('[UI] Initializing register form UI state.');
-        clearRegisterAlerts();
-        registerSpinner.style.display = 'none';
-        registerButtonText.textContent = 'Register';
+        isSubmitting = false;
+        clearRegisterErrors();
         setRegisterInputsDisabled(false);
         setModalLocked(false);
+        registerSpinner.style.display = 'none';
+        registerButtonText.textContent = 'Register';
         refreshRegisterState();
+    }
+
+    function initializeUI() {
+        console.log('[UI] Initializing register form UI state.');
+        resetRegisterFormState();
     }
 
     function setRegisterInputsDisabled(disabled) {
@@ -126,6 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSubmitting && event.isTrusted) {
                 event.preventDefault();
             }
+        });
+
+        registerModal.addEventListener('show.bs.modal', () => {
+            resetRegisterFormState();
+        });
+
+        registerModal.addEventListener('hidden.bs.modal', () => {
+            resetRegisterFormState();
         });
     }
 

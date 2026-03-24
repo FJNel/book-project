@@ -79,15 +79,22 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Sets the initial state of the login form UI elements.
      */
-    function initializeUI() {
-        console.log('[UI] Initializing login form UI state.');
-        clearLoginAlerts();
+    function resetLoginFormState() {
+        loginForm.reset();
+        isSubmitting = false;
+        clearLoginErrors();
+        setLoginInputsDisabled(false);
         loginSpinner.style.display = 'none';
         loginButtonText.textContent = 'Login';
-        loginSuccessAlert.style.display = 'none'; // Explicitly hide loginSuccessAlert
-        loginErrorResendVerificationAlert.style.display = 'none'; // Explicitly hide loginErrorResendVerificationAlert
+        loginSuccessAlert.style.display = 'none';
+        loginErrorResendVerificationAlert.style.display = 'none';
         setModalLocked(false);
         refreshLoginState();
+    }
+
+    function initializeUI() {
+        console.log('[UI] Initializing login form UI state.');
+        resetLoginFormState();
     }
 
     /**
@@ -142,6 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSubmitting && event.isTrusted) {
                 event.preventDefault();
             }
+        });
+
+        loginModalEl.addEventListener('show.bs.modal', () => {
+            resetLoginFormState();
+        });
+
+        loginModalEl.addEventListener('hidden.bs.modal', () => {
+            resetLoginFormState();
         });
     }
 
