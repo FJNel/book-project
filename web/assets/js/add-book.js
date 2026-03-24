@@ -1466,7 +1466,6 @@
         let listOk = false;
         let editOk = true;
         let allOk = false;
-        let editOverlayShown = false;
         let results = [];
         let shouldShowRateLimitModal = false;
         let shouldCheckAuthAfterReady = false;
@@ -1494,13 +1493,6 @@
             ]);
             log('Initial Add Book data loads complete.');
             listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
-
-            if (isEditMode()) {
-                log('Showing edit page-loading overlay...');
-                editOverlayShown = true;
-                await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
-                log('Edit page-loading overlay shown.');
-            }
 
             log('Starting edit-book load...');
             editOk = await loadBookForEdit();
@@ -1533,16 +1525,6 @@
             }
         } finally {
             log('Initialize finally entered.');
-            if (editOverlayShown) {
-                try {
-                    log('Hiding edit page-loading overlay...');
-                    await hideModal('pageLoadingModal');
-                    log('Edit page-loading overlay hide invoked.');
-                } catch (hideError) {
-                    console.error('[Add Book] Failed to hide edit page-loading overlay.', hideError);
-                }
-            }
-
             if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
                 try {
                     log('Resolving page content readiness.', { success: allOk, listOk, editOk });

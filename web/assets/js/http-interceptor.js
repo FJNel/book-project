@@ -31,7 +31,7 @@
 		return;
 	}
 
-	const modalState = { active: null };
+	const modalState = { active: null, queue: Promise.resolve() };
 	const modalPriority = {
 		sessionExpiredModal: 100,
 		rateLimitModal: 90,
@@ -91,61 +91,109 @@
 		}
 	}
 
+	function enqueueModalOperation(operation) {
+		const next = modalState.queue
+			.catch(() => {})
+			.then(operation);
+		modalState.queue = next.catch(() => {});
+		return next;
+	}
+
+	function isModalTransitioning(instance) {
+		return Boolean(instance && typeof instance === 'object' && '_isTransitioning' in instance && instance._isTransitioning);
+	}
+
 	async function hideModal(target) {
-		const element = resolveElement(target) || (modalState.active && modalState.active.element);
-		if (!element) {
-			return;
-		}
-		const instance = Modal.getInstance(element);
-		if (!instance || !element.classList.contains('show')) {
-			if (modalState.active && modalState.active.element === element) {
-				modalState.active = null;
+		return enqueueModalOperation(async () => {
+			const element = resolveElement(target) || (modalState.active && modalState.active.element);
+			if (!element) {
+				return;
 			}
-			cleanupBackdrops();
-			return;
-		}
-		await new Promise((resolve) => {
-			element.addEventListener('hidden.bs.modal', () => {
+			const instance = Modal.getInstance(element);
+			if (!instance || !element.classList.contains('show')) {
+				if (instance && isModalTransitioning(instance)) {
+					await new Promise((resolve) => {
+						let settled = false;
+						const finish = () => {
+							if (settled) return;
+							settled = true;
+							if (modalState.active && modalState.active.element === element) {
+								modalState.active = null;
+							}
+							cleanupBackdrops();
+							resolve();
+						};
+						element.addEventListener('hidden.bs.modal', finish, { once: true });
+						element.addEventListener('shown.bs.modal', () => {
+							const currentInstance = Modal.getInstance(element);
+							if (currentInstance) {
+								element.addEventListener('hidden.bs.modal', finish, { once: true });
+								currentInstance.hide();
+								return;
+							}
+							finish();
+						}, { once: true });
+					});
+					return;
+				}
 				if (modalState.active && modalState.active.element === element) {
 					modalState.active = null;
 				}
 				cleanupBackdrops();
-				resolve();
-			}, { once: true });
-			instance.hide();
+				return;
+			}
+			await new Promise((resolve) => {
+				element.addEventListener('hidden.bs.modal', () => {
+					if (modalState.active && modalState.active.element === element) {
+						modalState.active = null;
+					}
+					cleanupBackdrops();
+					resolve();
+				}, { once: true });
+				instance.hide();
+			});
 		});
 	}
 
 	async function showModal(target, options = {}) {
-		const element = resolveElement(target);
-		if (!element) {
-			console.warn('[Modal Manager] Cannot show modal. Element not found for target:', target);
-			return null;
-		}
+		return enqueueModalOperation(async () => {
+			const element = resolveElement(target);
+			if (!element) {
+				console.warn('[Modal Manager] Cannot show modal. Element not found for target:', target);
+				return null;
+			}
 
-		if (modalState.active && modalState.active.element === element && element.classList.contains('show')) {
-			return modalState.active.instance;
-		}
-
-		if (modalState.active && modalState.active.element !== element) {
-			const activePriority = getPriority(modalState.active.element);
-			const nextPriority = getPriority(element);
-			if (activePriority > nextPriority) {
-				console.log('[Modal Manager] Skipping modal due to higher-priority modal:', modalState.active.element.id, '->', element.id);
+			if (modalState.active && modalState.active.element === element && element.classList.contains('show')) {
 				return modalState.active.instance;
 			}
-			await hideModal(modalState.active.element);
-		}
 
-		const instance = Modal.getOrCreateInstance(element, options);
-		modalState.active = { element, instance };
+			if (modalState.active && modalState.active.element !== element) {
+				const activePriority = getPriority(modalState.active.element);
+				const nextPriority = getPriority(element);
+				if (activePriority > nextPriority) {
+					console.log('[Modal Manager] Skipping modal due to higher-priority modal:', modalState.active.element.id, '->', element.id);
+					return modalState.active.instance;
+				}
+				const activeInstance = Modal.getInstance(modalState.active.element);
+				if (activeInstance && modalState.active.element.classList.contains('show')) {
+					await new Promise((resolve) => {
+						modalState.active.element.addEventListener('hidden.bs.modal', resolve, { once: true });
+						activeInstance.hide();
+					});
+				}
+				modalState.active = null;
+			}
 
-		return new Promise((resolve) => {
-			element.addEventListener('shown.bs.modal', () => {
-				cleanupBackdrops();
-				resolve(instance);
-			}, { once: true });
-			instance.show();
+			const instance = Modal.getOrCreateInstance(element, options);
+			modalState.active = { element, instance };
+
+			return new Promise((resolve) => {
+				element.addEventListener('shown.bs.modal', () => {
+					cleanupBackdrops();
+					resolve(instance);
+				}, { once: true });
+				instance.show();
+			});
 		});
 	}
 
