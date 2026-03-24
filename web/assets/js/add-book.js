@@ -219,6 +219,13 @@
         if (instance) instance.hide();
     };
 
+    const readApiPayload = async (response) => {
+        if (typeof window.readApiResponse === 'function') {
+            return window.readApiResponse(response);
+        }
+        return response.json().catch(() => ({}));
+    };
+
     const showInvalidEditModal = async (message) => {
         if (selectors.invalidEditModalMessage) {
             selectors.invalidEditModalMessage.textContent = message || 'We couldn’t find that book. Please return to your books list and try again.';
@@ -924,14 +931,15 @@
 
     async function loadBookForEdit() {
         if (!isEditMode()) return true;
-        log('Loading book for edit:', editState.bookId);
+        log('Edit-book fetch start:', editState.bookId);
         try {
             const response = await apiFetch(`/book?id=${editState.bookId}`, { method: 'GET' });
+            log('Edit-book fetch response received:', { status: response.status, bookId: editState.bookId });
             if (response.status === 429) {
                 rateLimitGuard?.record(response);
                 return false;
             }
-            const data = await response.json().catch(() => ({}));
+            const data = await readApiPayload(response);
             if (!response.ok) {
                 log('Failed to load book for edit:', response.status, data);
                 if (response.status === 404) {
@@ -947,10 +955,10 @@
                 return false;
             }
             applyBookToForm(book);
-            log('Book loaded for edit:', book.id);
+            log('Edit-book form population complete:', book.id);
             return true;
         } catch (error) {
-            log('Edit load exception:', error);
+            console.error('[Add Book] Edit load error path hit.', error);
             showEditLoadError();
             return false;
         }
@@ -1454,53 +1462,84 @@
     }
 
     async function initialize() {
-        log('Initializing Add Book page...');
-        if (invalidEditParam) {
-            await showInvalidEditModal('We couldn’t find that book. Please return to your books list and try again.');
-            if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-                window.pageContentReady.resolve({ success: false });
-            }
-            return;
-        }
-        attachEvents();
-        applyEditModeUI();
-        renderAuthors();
-        renderSeries();
-        const results = await Promise.allSettled([
-            loadLanguages(),
-            loadBookTypes(),
-            loadPublishers(),
-            loadAuthors(),
-            loadSeries(),
-            loadLocations()
-        ]);
-        const listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+        log('Initializing Add Book page...', { editMode: isEditMode(), bookId: editState.bookId });
+        let listOk = false;
         let editOk = true;
-        if (isEditMode()) {
-            await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
-        }
+        let allOk = false;
+        let editOverlayShown = false;
+        let results = [];
+
         try {
-            editOk = await loadBookForEdit();
-        } finally {
+            if (invalidEditParam) {
+                log('Invalid edit parameter detected.', editParam);
+                await showInvalidEditModal('We couldn’t find that book. Please return to your books list and try again.');
+                return;
+            }
+
+            attachEvents();
+            applyEditModeUI();
+            renderAuthors();
+            renderSeries();
+
+            results = await Promise.allSettled([
+                loadLanguages(),
+                loadBookTypes(),
+                loadPublishers(),
+                loadAuthors(),
+                loadSeries(),
+                loadLocations()
+            ]);
+            listOk = results.every((result) => result.status === 'fulfilled' && result.value === true);
+
             if (isEditMode()) {
-                await hideModal('pageLoadingModal');
+                log('Showing edit page-loading overlay...');
+                editOverlayShown = true;
+                await showModal('pageLoadingModal', { backdrop: 'static', keyboard: false });
+            }
+
+            editOk = await loadBookForEdit();
+            allOk = listOk && editOk;
+
+            if (rateLimitGuard?.hasReset()) {
+                await rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
+                return;
+            }
+
+            if (!allOk) {
+                log('One or more Add Book data loads failed.', { listOk, editOk, results });
+            }
+
+            if (window.authGuard && typeof window.authGuard.checkSessionAndPrompt === 'function') {
+                await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
+            }
+
+            log('Initialization complete.', { allOk });
+        } catch (error) {
+            allOk = false;
+            console.error('[Add Book] Initialization error path hit.', error);
+            if (isEditMode()) {
+                showEditLoadError();
+            }
+        } finally {
+            if (editOverlayShown) {
+                try {
+                    log('Hiding edit page-loading overlay...');
+                    await hideModal('pageLoadingModal');
+                    log('Edit page-loading overlay hide invoked.');
+                } catch (hideError) {
+                    console.error('[Add Book] Failed to hide edit page-loading overlay.', hideError);
+                }
+            }
+
+            if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
+                try {
+                    log('Resolving page content readiness.', { success: allOk, listOk, editOk });
+                    window.pageContentReady.resolve({ success: allOk, listOk, editOk });
+                } catch (resolveError) {
+                    console.error('[Add Book] Failed to resolve page content readiness.', resolveError);
+                }
             }
         }
-        const allOk = listOk && editOk;
-        if (window.pageContentReady && typeof window.pageContentReady.resolve === 'function') {
-            window.pageContentReady.resolve({ success: allOk });
-        }
-        if (rateLimitGuard?.hasReset()) {
-            await rateLimitGuard.showModal({ modalId: 'rateLimitModal' });
-            return;
-        }
-        if (!allOk) {
-            log('One or more data loads failed.', results);
-        }
-        if (window.authGuard && typeof window.authGuard.checkSessionAndPrompt === 'function') {
-            await window.authGuard.checkSessionAndPrompt({ waitForMaintenance: true });
-        }
-        log('Initialization complete.');
     }
 
     document.addEventListener('DOMContentLoaded', initialize);
