@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const authorRoleModalState = { locked: false };
   const seriesOrderModalState = { locked: false };
-  const copyModalState = { locked: false };
+  const copyModalState = { locked: false, loading: false };
   const deleteBookModalState = { locked: false };
   const restoreBookModalState = { locked: false };
   const permanentDeleteBookModalState = { locked: false };
@@ -348,14 +348,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2500);
   };
 
-  const refreshBook = async () => {
+  const refreshBook = async (options = {}) => {
+    const preserveExistingCopies = Boolean(options.preserveExistingCopies);
     try {
       const response = await apiFetch(`/book?id=${bookId}&view=all&returnStats=true&includeDeleted=true`, { method: 'GET' });
       if (!response.ok) return null;
-      const payload = await response.json().catch(() => ({}));
+      const payload = typeof window.readApiResponse === 'function'
+        ? await window.readApiResponse(response)
+        : await response.json().catch(() => ({}));
       if (!payload || payload.status !== 'success' || !payload.data) return null;
-      renderBook(payload.data);
-      return payload.data;
+      let nextBook = payload.data;
+      const existingCopies = Array.isArray(bookRecord?.bookCopies) ? bookRecord.bookCopies : [];
+      const refreshedCopies = Array.isArray(nextBook.bookCopies) ? nextBook.bookCopies : null;
+      if (
+        preserveExistingCopies
+        && existingCopies.length > 0
+        && (!refreshedCopies || refreshedCopies.length === 0)
+      ) {
+        warn('Refresh payload missing copies; preserving existing copy state.', {
+          preserveExistingCopies,
+          existingCount: existingCopies.length,
+          refreshedCount: refreshedCopies ? refreshedCopies.length : null
+        });
+        nextBook = {
+          ...nextBook,
+          bookCopies: existingCopies.map((copy) => ({ ...copy })),
+          stats: {
+            ...(nextBook.stats || {}),
+            copyCount: existingCopies.length
+          }
+        };
+      }
+      renderBook(nextBook);
+      return nextBook;
     } catch (error) {
       errorLog('Silent book refresh failed.', error);
       return null;
@@ -376,6 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!el) return;
     el.textContent = message || '';
     el.classList.toggle('text-danger', Boolean(message) && isError);
+  };
+
+  const setFieldValidity = (inputEl, isInvalid) => {
+    if (!inputEl) return;
+    inputEl.classList.toggle('is-invalid', Boolean(isInvalid));
   };
 
   const clearHelpText = (el) => setHelpText(el, '', false);
@@ -453,16 +483,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       clearHelpText(helpEl);
     }
-  };
-
-  const updateCopyLocationHelp = () => {
-    if (!copyLocationHelp) return;
-    const value = copyLocationSelect?.value ? String(copyLocationSelect.value) : '';
-    if (!value) {
-      setHelpText(copyLocationHelp, 'This field is required.', true);
-      return;
-    }
-    clearHelpText(copyLocationHelp);
   };
 
   const attachButtonSpinner = (button) => {
@@ -2611,6 +2631,55 @@ document.addEventListener('DOMContentLoaded', () => {
       notes: ''
     });
 
+  const hasCopyChanges = () => {
+    if (!copyEditTarget) return false;
+    if (copyEditTarget.mode === 'edit') return buildCopyChangeList().length > 0;
+    const current = getCopyCurrentValues();
+    return Boolean(
+      current.locationId
+      || current.acquisitionDate
+      || current.acquiredFrom
+      || current.acquisitionType
+      || current.acquisitionLocation
+      || current.acquisitionStory
+      || current.notes
+    );
+  };
+
+  const validateCopyForm = ({ showErrors = true } = {}) => {
+    let valid = true;
+    const locationValue = copyLocationSelect?.value ? String(copyLocationSelect.value) : '';
+    const dateRaw = copyAcquisitionDate?.value.trim() || '';
+    const parsedDate = dateRaw ? parsePartialDateInput(dateRaw) : { value: null };
+
+    if (!locationValue) {
+      valid = false;
+      if (showErrors) {
+        setHelpText(copyLocationHelp, 'This field is required.', true);
+        setFieldValidity(copyLocationSelect, true);
+      }
+    } else {
+      clearHelpText(copyLocationHelp);
+      setFieldValidity(copyLocationSelect, false);
+    }
+
+    if (!dateRaw) {
+      clearHelpText(copyAcquisitionDateHelp);
+      setFieldValidity(copyAcquisitionDate, false);
+    } else if (parsedDate.error) {
+      valid = false;
+      if (showErrors) {
+        setHelpText(copyAcquisitionDateHelp, parsedDate.error, true);
+        setFieldValidity(copyAcquisitionDate, true);
+      }
+    } else {
+      setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
+      setFieldValidity(copyAcquisitionDate, false);
+    }
+
+    return valid;
+  };
+
   const buildCopyChangeList = () => {
     if (!copyEditTarget || copyEditTarget.mode !== 'edit') return [];
     const current = getCopyCurrentValues();
@@ -2639,18 +2708,25 @@ document.addEventListener('DOMContentLoaded', () => {
     return changes;
   };
 
-  const updateCopyChangeSummary = () => {
-    if (!copyChangeSummary) return;
+  const updateCopyChangeSummary = ({ showErrors = true } = {}) => {
+    const valid = validateCopyForm({ showErrors });
+    const hasChanges = hasCopyChanges();
+    if (!copyChangeSummary) {
+      return { valid, hasChanges, changes: [] };
+    }
     if (!copyEditTarget || copyEditTarget.mode !== 'edit') {
       copyChangeSummary.textContent = '';
-      if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked;
-      return;
+      if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked || copyModalState.loading || !valid || !hasChanges;
+      if (copyResetBtn) copyResetBtn.disabled = copyModalState.locked || copyModalState.loading || !hasChanges;
+      return { valid, hasChanges, changes: [] };
     }
     const changes = buildCopyChangeList();
     copyChangeSummary.textContent = changes.length
       ? changes.join(' ')
       : 'No changes yet.';
-    if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked || changes.length === 0;
+    if (copySaveBtn) copySaveBtn.disabled = copyModalState.locked || copyModalState.loading || !valid || changes.length === 0;
+    if (copyResetBtn) copyResetBtn.disabled = copyModalState.locked || copyModalState.loading || changes.length === 0;
+    return { valid, hasChanges: changes.length > 0, changes };
   };
 
   const setCopyLocked = (locked) => {
@@ -2671,6 +2747,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const setCopyLoading = (loading, message = 'Loading copy details…') => {
+    copyModalState.loading = loading;
     if (editCopyLoading) {
       editCopyLoading.classList.toggle('d-none', !loading);
     }
@@ -2691,8 +2768,8 @@ document.addEventListener('DOMContentLoaded', () => {
       copyNotes,
       copyResetBtn
     ], loading);
-    if (copySaveBtn) copySaveBtn.disabled = loading || copyModalState.locked;
-    if (copyLocationHelp) copyLocationHelp.textContent = loading ? message : '';
+    if (copyLocationHelp && loading) copyLocationHelp.textContent = message;
+    updateCopyChangeSummary({ showErrors: !loading });
   };
 
   const resetCopyModal = () => {
@@ -2717,6 +2794,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     clearHelpText(copyLocationHelp);
     clearHelpText(copyAcquisitionDateHelp);
+    setFieldValidity(copyLocationSelect, false);
+    setFieldValidity(copyAcquisitionDate, false);
     if (editCopyErrorAlert) clearApiAlert(editCopyErrorAlert);
     setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
     updateCopyChangeSummary();
@@ -2780,8 +2859,6 @@ document.addEventListener('DOMContentLoaded', () => {
       copyNotes.value = '';
       clearHelpText(copyAcquisitionDateHelp);
     }
-    updateCopyLocationHelp();
-    updateCopyChangeSummary();
     setCopyLoading(false);
     copyLog('Opened modal (loading=false).', { mode, copyId: copyId || null });
   };
@@ -2792,15 +2869,21 @@ document.addEventListener('DOMContentLoaded', () => {
       log(`[Copy Save] ${label}`, { mode: copyEditTarget?.mode, copyId: copyEditTarget?.copyId, ...details });
     };
     step('(A) handler start');
-    const locationId = copyLocationSelect?.value ? Number(copyLocationSelect.value) : null;
-    if (!locationId) {
-      setHelpText(copyLocationHelp, 'This field is required.', true);
+    const { valid, hasChanges } = updateCopyChangeSummary({ showErrors: true }) || {};
+    if (!valid) {
+      copyLog('Save blocked by validation.', { mode: copyEditTarget.mode, copyId: copyEditTarget.copyId || null });
       return;
     }
+    if (!hasChanges) {
+      copyLog('Save skipped because no meaningful changes were made.', { mode: copyEditTarget.mode, copyId: copyEditTarget.copyId || null });
+      return;
+    }
+    const locationId = copyLocationSelect?.value ? Number(copyLocationSelect.value) : null;
     const dateRaw = copyAcquisitionDate.value.trim();
     const parsedDate = dateRaw ? parsePartialDateInput(dateRaw) : { value: null };
     if (parsedDate.error) {
-      if (copyAcquisitionDateHelp) copyAcquisitionDateHelp.textContent = parsedDate.error;
+      setHelpText(copyAcquisitionDateHelp, parsedDate.error, true);
+      setFieldValidity(copyAcquisitionDate, true);
       return;
     }
     step('(B) before lock');
@@ -2832,18 +2915,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       step('(E) response received', { status: response?.status, ok: response?.ok });
-      const data = await response.json().catch(() => ({}));
+      const data = typeof window.readApiResponse === 'function'
+        ? await window.readApiResponse(response)
+        : await response.json().catch(() => ({}));
       step('(F) response parsed', { ok: response.ok, status: response.status });
       if (!response.ok) {
         if (editCopyErrorAlert) renderApiErrorAlert(editCopyErrorAlert, data, data.message || 'Unable to save copy.');
         warn('Copy save failed.', { status: response.status, data });
         return;
       }
+      if (editCopyErrorAlert) clearApiAlert(editCopyErrorAlert);
       step('(G) before hideModal');
       await hideModal(editCopyModal);
       step('(H) after hideModal');
       step('(I) before refreshBook');
-      await refreshBook();
+      await refreshBook({ preserveExistingCopies: copyEditTarget.mode === 'edit' });
       step('(J) after refreshBook');
       showInlineSuccess(copyEditTarget.mode === 'edit' ? 'Copy updated.' : 'Copy added.');
     } catch (error) {
@@ -3057,11 +3143,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (copyResetBtn) copyResetBtn.addEventListener('click', resetCopyModal);
   if (deleteCopyConfirmBtn) deleteCopyConfirmBtn.addEventListener('click', confirmDeleteCopy);
   if (copyAcquisitionDate) copyAcquisitionDate.addEventListener('input', () => {
-    setPartialDateHelp(copyAcquisitionDate, copyAcquisitionDateHelp);
     updateCopyChangeSummary();
   });
   if (copyLocationSelect) copyLocationSelect.addEventListener('change', () => {
-    updateCopyLocationHelp();
     updateCopyChangeSummary();
   });
   if (copyAcquiredFrom) copyAcquiredFrom.addEventListener('input', updateCopyChangeSummary);
