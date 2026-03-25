@@ -658,6 +658,14 @@
         return dateValue?.text || emptyFallback;
     }
 
+    function formatLookupLifeStatus(author) {
+        const isDeceased = Boolean(author?.deceased || author?.deathDate);
+        if (isDeceased) {
+            return 'Marked as deceased';
+        }
+        return 'No death information available';
+    }
+
     function createSuggestionButton(label, className, onClick) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -945,7 +953,10 @@
         const newTags = Array.isArray(pending.newEntities?.tags) ? pending.newEntities.tags : [];
 
         if (newBookType?.name && selectors.bookTypeSuggestionAlert) {
-            selectors.bookTypeSuggestionText.textContent = `Based on our analysis, this book appears to be a ${newBookType.name}. This type is not yet in your current list of book types.`;
+            const sourceHint = typeof newBookType.sourceHint === 'string' && newBookType.sourceHint.trim()
+                ? ` based on details such as "${newBookType.sourceHint.trim()}"`
+                : '';
+            selectors.bookTypeSuggestionText.textContent = `This book appears to be a ${newBookType.name}${sourceHint}. This type is not yet in your current list of book types.`;
             const hasDescription = Boolean(newBookType.description);
             selectors.bookTypeSuggestionDescription.textContent = newBookType.description || '';
             selectors.bookTypeSuggestionDescriptionWrap?.classList.toggle('d-none', !hasDescription);
@@ -996,8 +1007,8 @@
                 [
                     ['Author First Names', author.firstNames || 'Unknown'],
                     ['Author Surname', author.lastName || 'Unknown'],
-                    ['Author Date of Birth', formatLookupDate(author.birthDate)],
-                    ['Author Date of Death', author.deceased ? formatLookupDate(author.deathDate) : 'Unknown | This author is still alive.']
+                    ['Author Date of Birth', formatLookupDate(author.birthDate, 'Not provided')],
+                    ['Author Status', formatLookupLifeStatus(author)]
                 ].forEach(([label, value]) => {
                     const col = document.createElement('div');
                     col.className = 'col-12 col-md-6 col-xl-3';
@@ -1005,6 +1016,10 @@
                     infoRow.appendChild(col);
                 });
                 wrapper.appendChild(infoRow);
+
+                if (author.deceased || author.deathDate) {
+                    wrapper.appendChild(createDetailParagraph('Author Date of Death', formatLookupDate(author.deathDate, 'Not provided')));
+                }
 
                 const roleRow = document.createElement('div');
                 roleRow.className = 'row align-items-center mt-2';

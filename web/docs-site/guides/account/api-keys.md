@@ -8,7 +8,7 @@ The Book Project provides API keys that allow you to access your library data pr
 
 If you do not know what an API or API key is, here is a brief explanation:
 - An **API (Application Programming Interface)** is a set of rules and protocols that allows different software applications to communicate with each other. It defines how requests should be made, how data should be formatted, and what responses can be expected. The Book Project website communicates with the server using an API to perform actions like retrieving your library data, adding new books, or updating your account information.
-- An ****API key** is a unique identifier that is used to authenticate requests made to an API. It acts as a secret token that allows you to access your library data securely. When you generate an API key, it is associated with your account and can be used to make authorized requests to the API on your behalf. 
+- An **API key** is a unique identifier that is used to authenticate requests made to an API. It acts as a secret token that allows you to access your library data securely. When you generate an API key, it is associated with your account and can be used to make authorized requests to the API on your behalf. 
 
 
 ## Why Use API Keys?
@@ -62,7 +62,7 @@ The Book Project provides no uptime or performance guarantees for the API, and i
 
 The Book Project is not responsible for any misuse of API keys or unauthorized access resulting from compromised keys. It is the user's responsibility to manage their API keys securely and to follow best practices for API key usage.
 
-The Book Project 's system administrator monitors API usage for security and abuse prevention. If you abuse the API or violate the terms of service, your API access may be revoked, and your account may be subject to review or suspension without prior notice. 
+The Book Project's system administrator monitors API usage for security and abuse prevention. If you abuse the API or violate the terms of service, your API access may be revoked, and your account may be subject to review or suspension without prior notice. 
 
 Contact the System Administrator at [support@fjnel.co.za](mailto:support@fjnel.co.za?subject=API%20Key%20Security%20Concern) if you have any questions or concerns about API key security or usage.
 
