@@ -28,6 +28,7 @@ If you only need one quick relationship change, Book Details actions are usually
 When you open Edit Book from Book Details:
 
 - The ISBN lookup step is hidden.
+- ISBN lookup loading, timeout, and suggestion behaviour do not run here.
 - Steps start at Step 1: Enter Book Details.
 - The copy step is hidden.
 - The review button text is Review and Save Changes.

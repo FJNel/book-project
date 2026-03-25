@@ -12,6 +12,7 @@ Welcome to The Book Project documentation. These guides use the same labels you 
 
 - [Managing Books](/guides/library/managing-books)
 - [Adding a Book](/guides/library/books-adding-a-book)
+- [ISBN Lookup And Suggestions](/guides/library/books-isbn-lookup)
 - [Editing a Book](/guides/library/books-editing-a-book)
 - [Browsing Books](/guides/library/books-browsing-books)
 - [Book Details](/guides/library/books-book-details)

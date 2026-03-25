@@ -6656,7 +6656,12 @@ paths:
       tags: [Books]
       summary: Look up book metadata by ISBN
       operationId: lookupBookByIsbn
-      description: Fetch book metadata from public ISBN sources, merge the results, and match linked entities against the authenticated user's library where confidence is strong.
+      description: |
+        Fetch book metadata from public ISBN sources, merge the usable results, and match linked entities against the authenticated user's library where confidence is strong.
+
+        This endpoint is designed for the Add Book assistive flow. It prepares a prefill object for the existing add-book form, plus strong existing matches and approval-based suggestions for new related entities.
+
+        The endpoint does not create a book, does not create a copy, and does not bypass the normal review/save flow.
       x-rateLimit:
         limit: 60
         window: minute
@@ -6682,6 +6687,71 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/BookIsbnLookupResponse'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.81"
+                    message: ISBN metadata retrieved successfully.
+                    data:
+                      book:
+                        title: The Fellowship of the Ring
+                        subtitle: Being the First Part of The Lord of the Rings
+                        isbn: "9780261102354"
+                        publicationDate:
+                          year: 1954
+                          text: "1954"
+                        pageCount: 423
+                        coverImageUrl: https://example.com/fotr.jpg
+                        description: The first volume of The Lord of the Rings.
+                        bookType: null
+                        publisher:
+                          id: 5
+                          name: Allen & Unwin
+                          website: null
+                          notes: null
+                          foundedDate: null
+                        authors:
+                          - authorId: 1
+                            authorRole: null
+                            authorName: J.R.R. Tolkien
+                        languages:
+                          - id: 2
+                            name: English
+                        tags:
+                          - id: null
+                            name: Fantasy
+                        series: []
+                      existingEntities:
+                        authors:
+                          - id: 1
+                            displayName: J.R.R. Tolkien
+                            firstNames: John Ronald Reuel
+                            lastName: Tolkien
+                            authorRole: null
+                        publisher:
+                          id: 5
+                          name: Allen & Unwin
+                          website: null
+                          notes: null
+                        series: []
+                        bookType: null
+                        languages:
+                          - id: 2
+                            name: English
+                        tags: []
+                      newEntities:
+                        authors: []
+                        publisher: null
+                        series: []
+                        bookType: null
+                        languages: []
+                        tags:
+                          - id: null
+                            name: Fantasy
+                      warnings: []
+                    errors: []
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -12197,6 +12267,7 @@ components:
           type: string
     BookIsbnLookupRequest:
       type: object
+      description: Request body for ISBN lookup in the Add Book assistive flow.
       required: [isbn]
       properties:
         isbn:
@@ -12204,6 +12275,7 @@ components:
           description: ISBN-10 or ISBN-13 using digits with optional hyphens/spaces and optional trailing X for ISBN-10.
     BookIsbnLookupAuthor:
       type: object
+      description: Author entry used in the ISBN lookup prefill contract.
       properties:
         authorId:
           oneOf:
@@ -12217,6 +12289,7 @@ components:
           type: string
     BookIsbnLookupSeries:
       type: object
+      description: Series entry used in the ISBN lookup prefill contract.
       properties:
         seriesId:
           oneOf:
@@ -12230,6 +12303,7 @@ components:
             - type: 'null'
     BookIsbnLookupLanguage:
       type: object
+      description: Language entry used in the ISBN lookup prefill contract.
       properties:
         id:
           oneOf:
@@ -12239,6 +12313,7 @@ components:
           type: string
     BookIsbnLookupTag:
       type: object
+      description: Tag entry used in the ISBN lookup prefill contract.
       properties:
         id:
           oneOf:
@@ -12248,9 +12323,17 @@ components:
           type: string
     BookIsbnLookupResponse:
       type: object
+      description: |
+        ISBN lookup payload returned inside the standard API response envelope.
+
+        `book` is the canonical prefill object for the existing add-book flow.
+        `existingEntities` contains strong existing matches that may be auto-linked immediately.
+        `newEntities` contains approval-based suggestions for related entities that are not yet linked.
+        `warnings` contains non-fatal notes about provider fallbacks, conflicts, or unsupported values.
       properties:
         book:
           type: object
+          description: Canonical prefill object aligned with the existing add/edit book field names.
           properties:
             title:
               type: string
@@ -12304,10 +12387,13 @@ components:
                 $ref: '#/components/schemas/BookIsbnLookupSeries'
         existingEntities:
           type: object
+          description: Strong existing matches that may be linked into the authenticated user's library state immediately.
         newEntities:
           type: object
+          description: Suggested but unmatched related entities that still require user approval before creation/linking.
         warnings:
           type: array
+          description: Non-fatal lookup notes such as provider fallbacks or unsupported metadata values.
           items:
             type: string
     BookStatsRequest:

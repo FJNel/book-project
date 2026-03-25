@@ -8,6 +8,9 @@ A) Contracts Index
 - Modal Contract
   - Location: contracts.txt -> "A) Modal Contract (Book Project standard)"
   - Reference implementations: web/assets/js/shared-add-modals.js, web/assets/js/book-details.js, web/assets/js/common.js (modalLock)
+- ISBN Lookup Contract
+  - Location: contracts.txt -> "A2) ISBN Lookup Contract (Add Book)"
+  - Reference implementations: web/add-book.html, web/assets/js/add-book.js, api/routes/book.js
 - Changes Contract
   - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
   - Reference implementations: web/assets/js/book-details.js, web/assets/js/account.js, web/assets/js/storage-locations.js
@@ -24,11 +27,13 @@ A) Contracts Index
 B) Implementation Order Checklist
 1. Modal Contract baseline
    - Why: modal structure and locking rules determine safe request handling and consistent error flows.
-2. Changes Contract baseline
+2. ISBN Lookup Contract baseline
+   - Why: Add Book now depends on a documented lookup/request/response/suggestion flow that must stay aligned across frontend and backend.
+3. Changes Contract baseline
    - Why: change summaries depend on modal structure and must match modal validation/state rules.
-3. Icon Contract
+4. Icon Contract
    - Why: icons are a visible UX contract; normalizing them avoids UI drift during later sweeps.
-4. Interaction Contract
+5. Interaction Contract
    - Why: interactions and hover rules build on the modal/icon baselines and must align with them.
 
 C) Reference rule
@@ -156,6 +161,139 @@ Purpose: keep shared add/edit modals consistent across pages and prevent one-off
 - `web/book-details.html` + `web/assets/js/book-details.js` (baseline consumer).
 - `web/book-types.html` + `web/assets/js/book-types.js` (Book Type add).
 - `web/book-type-details.html` + `web/assets/js/book-type-details.js` (Book Type edit).
+
+A2) ISBN Lookup Contract (Add Book)
+-----------------------------------
+Purpose: standardize how ISBN lookup behaves on Add Book so backend results, frontend prefilling, progress feedback, and suggestion approval flows remain consistent.
+
+1) Scope + activation
+- Applies only to Add Book mode on `web/add-book.html` + `web/assets/js/add-book.js`.
+- ISBN lookup is not part of Edit Book mode.
+- When the page is opened in edit mode:
+  - the ISBN lookup step is hidden,
+  - no lookup timer/progress logic runs,
+  - no ISBN suggestion alerts are shown.
+
+2) ISBN lookup purpose
+- ISBN lookup is an assistive prefill + linking feature.
+- It does not create a book, create a copy, or bypass the normal review/save path.
+- It may:
+  - prefill core book metadata,
+  - auto-link strong existing entity matches,
+  - surface new suggestions for user approval.
+- It must never silently create new linked entities without approval.
+
+3) Frontend request contract
+- The frontend sends a JSON request to `POST /book/isbn-lookup`.
+- Request body shape:
+  - `{ "isbn": "<raw or formatted isbn>" }`
+- The frontend may accept user-entered hyphens/spaces, but must normalize/validate before sending.
+- Invalid ISBN input must be blocked locally and must show inline help text.
+
+4) Backend response contract
+- Response envelope must follow the standard API response format.
+- Inside `data`, ISBN lookup returns:
+  - `book`
+  - `existingEntities`
+  - `newEntities`
+  - `warnings`
+- `book` is the canonical prefill object and must remain aligned with the existing add/edit book field names.
+- `existingEntities` contains strong existing matches that can be linked immediately.
+- `newEntities` contains suggestions that still require user approval.
+- `bookCopy` must never be returned by ISBN lookup; lookup is edition metadata only.
+
+5) Matching contract
+- Matching must be conservative.
+- Strong matches may be auto-linked when normalization makes the match reliable.
+- Matching should support:
+  - trimmed whitespace,
+  - collapsed whitespace,
+  - case-insensitive comparison,
+  - punctuation-insensitive comparison where appropriate,
+  - dotted-initial variations such as `J.K. Rowling` vs `JK Rowling`.
+- Weak or ambiguous matches must remain in `newEntities`; they must not be auto-linked.
+
+6) Auto-linking contract
+- Existing strong matches are linked automatically into the normal Add Book state.
+- Auto-linked entities must update the same state structures used by manual selection.
+- Auto-linked entities must also update the visible form UI immediately.
+- Auto-linked entities should not also be shown as new-entity suggestions.
+
+7) Suggestion alert contract (per-card design)
+- ISBN suggestions are shown in contextual alert blocks inside the relevant Add Book step cards.
+- Retired pattern: a single consolidated Step 1a suggestion card.
+- Current pattern: per-card suggestion alerts only.
+- Canonical alert ids:
+  - `bookTypeSuggestionAlert`
+  - `bookAuthorsSuggestionAlert`
+  - `bookPublisherSuggestionAlert`
+  - `bookSeriesSuggestionAlert`
+  - `tagsSuggestionAlert`
+- Shared Step 1 status alerts remain valid for:
+  - existing-entity auto-link summaries,
+  - warnings,
+  - suggestion action errors.
+
+8) Entity-specific suggestion behaviour
+- Book Type:
+  - if strongly matched, auto-link the existing book type,
+  - otherwise show a book type suggestion alert if a new compatible type is available.
+- Publisher:
+  - if strongly matched, auto-link the existing publisher,
+  - otherwise show a publisher suggestion alert with available metadata.
+- Authors:
+  - support multiple suggestions,
+  - preserve and show `authorRole` where available,
+  - allow role review/override before approval.
+- Series:
+  - support multiple suggestions,
+  - preserve and show `bookOrder` where available.
+- Tags:
+  - may auto-link existing tags,
+  - new tags appear as per-alert pills/badges with approve/reject actions.
+
+9) Approval + rejection rules
+- Approve:
+  - create the entity through the existing endpoint if it does not yet exist,
+  - then link it into Add Book exactly like manual creation/selection,
+  - remove only that specific suggestion from the pending suggestion set.
+- Reject:
+  - dismiss only that specific suggestion,
+  - do not affect other suggestions,
+  - hide the containing alert once no pending suggestions remain for that entity type.
+- On approval failure:
+  - keep the modal/page state intact,
+  - keep remaining suggestions intact,
+  - show a safe action error in the shared Step 1 action-error alert.
+
+10) Loading, progress, timeout, and error behaviour
+- ISBN lookup uses a modal loading state during the request.
+- Progress is simulated and must not remain fixed at a static midpoint.
+- The frontend must cap simulated progress below 100% until the real response completes.
+- Hard timeout: 10 seconds.
+- On success:
+  - finalize progress,
+  - hide the loading modal,
+  - apply prefills, auto-links, warnings, and suggestion alerts.
+- On handled error / no metadata / timeout / exception:
+  - stop progress,
+  - hide the loading modal,
+  - restore the lookup input/button state,
+  - show a clear error or warning path.
+
+11) Logging
+Minimum ISBN lookup console logs:
+- lookup started
+- normalized ISBN
+- request sending
+- loading modal shown
+- response received
+- payload parsed
+- success / no metadata / timeout / failure
+- loading modal hidden
+- UI state restored
+- suggestion alert shown/hidden
+- suggestion approved/rejected
 
 C) Icon Contract (Bootstrap Icons font)
 --------------------------------------

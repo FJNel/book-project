@@ -33,6 +33,8 @@ Add Book and Edit Book use the same multi-step page, but they are opened from di
 - Add Book is opened from the Books page for a new title. It includes Step 1: Lookup by ISBN and Step 8: Enter Book Copy Details.
 - Edit Book is opened from Book Details for an existing title. It hides the ISBN lookup step and the copy step, then uses save-change button wording.
 
+In Add Book mode, ISBN lookup can prefill book fields, auto-link strong existing matches, and show per-card suggestion alerts for new related entities.
+
 If you only need one small link update (for example tags only), use Book Details quick actions instead of running the full edit steps.
 
 ## Other ways to manage linked data
@@ -72,6 +74,8 @@ For full recovery guidance, use [Using the Recycle Bin](/guides/library/recycle-
 A good order is: Add a book, edit a book, then book details and copies. That sequence matches how most real tasks happen.
 
 Once you are comfortable with those pages, use Browsing Books to speed up filter-based search work.
+
+If you are using Add Book often, it is also worth reading [ISBN Lookup And Suggestions](/guides/library/books-isbn-lookup) so you know how auto-linking and suggestion approval behave.
 
 ### When should I use Edit Book instead of Manage Authors, Manage Series, or Manage Tags?
 
@@ -136,6 +140,7 @@ If you are already working from the author side, you can also do it in Author De
 If you’re on a roll, these pages will keep your book tasks smooth from start to finish.
 
 - [Adding a Book](/guides/library/books-adding-a-book)
+- [ISBN Lookup And Suggestions](/guides/library/books-isbn-lookup)
 - [Editing a Book](/guides/library/books-editing-a-book)
 - [Book Details](/guides/library/books-book-details)
 - [Managing Book Copies](/guides/library/books-managing-copies)

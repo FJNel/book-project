@@ -9352,6 +9352,55 @@ You can provide these list controls via query string or JSON body. If both are p
 - Existing strong matches are returned under `existingEntities`.
 - Suggested but unmatched related data is returned under `newEntities`.
 - `bookCopy` is never included; ISBN lookup is edition metadata only.
+- The endpoint is intended for the Add Book assistive flow. It prepares data for the normal add-book state; it does not create the book or save a copy.
+- Matching is conservative. Strong matches may be auto-linked by the frontend, but weak or ambiguous matches should remain suggestions.
+- Name matching is normalization-aware and is intended to cope with case differences, punctuation differences, and dotted-initial variations such as `J.K. Rowling` and `JK Rowling`.
+- Provider metadata may be partial. Missing or unsafe values are omitted rather than forced into the response.
+
+#### Frontend Consumption Notes
+
+- `data.book` is the canonical prefill object and is shaped for the existing Add Book / Edit Book field names.
+- `data.existingEntities` is meant for immediate auto-linking into the normal add-book state.
+- `data.newEntities` is meant for approval-based suggestion UIs.
+- The frontend still uses the normal Add Book review/save flow after lookup.
+
+#### Entity Matching And Suggestion Rules
+
+##### Book Type
+
+- If a returned type strongly matches an existing active book type, it is returned under `existingEntities.bookType`.
+- If it does not strongly match, it may be returned under `newEntities.bookType`.
+- If the providers do not return a confident compatible type, both values may be `null`.
+
+##### Publisher
+
+- Strong existing match: `existingEntities.publisher`
+- New suggestion: `newEntities.publisher`
+- Available metadata may include `name`, `foundedDate`, `website`, and `notes`, but provider data is often sparse.
+
+##### Authors
+
+- Strong existing matches are returned in `existingEntities.authors`.
+- New suggestions are returned in `newEntities.authors`.
+- Suggestions may include richer fields such as `displayName`, `firstNames`, `lastName`, `birthDate`, `deathDate`, `deceased`, `bio`, and `authorRole`.
+
+##### Series
+
+- Strong existing matches are returned in `existingEntities.series`.
+- New suggestions are returned in `newEntities.series`.
+- Suggestions may include `seriesName`, `bookOrder`, `description`, and `website`.
+- Public providers often do not return reliable structured series metadata, so this array may be empty even when the book belongs to a known series.
+
+##### Tags
+
+- Strong existing matches are returned in `existingEntities.tags`.
+- New suggestions are returned in `newEntities.tags`.
+- Tags are intentionally lightweight and typically include `name` only.
+
+##### Languages
+
+- Existing language matches are returned in `existingEntities.languages`.
+- Unsupported or unknown language values are not forced into `newEntities.languages`; warnings are returned instead when automatic linking is not possible.
 
 #### Example Request Body
 
@@ -9454,6 +9503,56 @@ You can provide these list controls via query string or JSON body. If both are p
   "errors": []
 }
 ```
+
+#### Success Response Field Guide
+
+##### `data.book`
+
+Use this object to prefill the existing add-book fields.
+
+- `title`, `subtitle`, `isbn`, `publicationDate`, `pageCount`, `coverImageUrl`, `description`
+- `bookType`
+- `publisher`
+- `authors`
+- `languages`
+- `tags`
+- `series`
+
+`publicationDate` uses the existing partial-date shape.
+
+##### `data.existingEntities`
+
+Use this object to link strong existing matches immediately without asking the user to create them again.
+
+##### `data.newEntities`
+
+Use this object to render approval-based suggestions for new related entities.
+
+##### `data.warnings`
+
+Use this array for non-fatal provider and matching notes, such as:
+
+- a provider being unavailable while the other succeeded,
+- conflicting page counts,
+- conflicting publication dates,
+- unsupported languages that were not linked automatically.
+
+#### Error Cases
+
+| Status | Message | Typical Cause |
+| --- | --- | --- |
+| `400` | `Validation Error` | ISBN missing or invalid |
+| `401` | standard auth error | Missing/invalid access token or API key |
+| `404` | `No metadata found.` | No usable metadata returned for that ISBN |
+| `502` | `Lookup failed.` | Both external lookup sources unavailable |
+| `500` | `Lookup failed.` | Metadata preparation/matching failed internally |
+
+#### Notes And Limitations
+
+- Not every ISBN has usable public metadata.
+- Provider data can disagree on publication date, page count, description, and categories.
+- Cover URLs are filtered before returning and may still be absent even when a provider has some artwork.
+- The endpoint returns edition metadata only; first-copy details are not part of this response.
 
 #### Common Errors
 
