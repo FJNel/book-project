@@ -65,6 +65,13 @@ const recaptchaSecret = env('RECAPTCHA_SECRET');
 const google = {
 	clientId: env('GOOGLE_CLIENT_ID', ''),
 	clientSecret: env('GOOGLE_CLIENT_SECRET', ''),
+	booksApiKey: env('GOOGLE_BOOKS_API_KEY', ''),
+};
+
+const isbnLookup = {
+	externalCacheTtlSeconds: envNumber('ISBN_LOOKUP_EXTERNAL_CACHE_TTL_SECONDS', 21600),
+	openLibraryUserAgent: env('OPEN_LIBRARY_USER_AGENT', 'BookProject (support@fjnel.co.za)'),
+	openLibraryContactEmail: env('OPEN_LIBRARY_CONTACT_EMAIL', env('SUPPORT_EMAIL', 'support@fjnel.co.za')),
 };
 
 // Mail / Notifications
@@ -101,6 +108,7 @@ module.exports = {
 	saltRounds,
 	recaptchaSecret,
 	google,
+	isbnLookup,
 	frontend: {
 		url: frontendUrl,
 		loginUrl: `${frontendUrl}${loginPath}`,
@@ -132,6 +140,7 @@ logToFile("CONFIG_LOADED", {
 	cors_origins: cors.allowedOrigins,
 	mailgun_configured: Boolean(mail.mailgunApiKey && mail.mailgunDomain),
 	google_oauth_configured: Boolean(google.clientId),
+	google_books_configured: Boolean(google.booksApiKey),
 	recaptcha_configured: Boolean(recaptchaSecret),
 	jwt_configured: Boolean(jwt.accessSecret && jwt.refreshSecret),
 	db: {

@@ -1,9 +1,11 @@
+const config = require("../../../config");
+const { logToFile } = require("../../logging");
 const {
 	MAX_TITLE_LENGTH,
 	MAX_SUBTITLE_LENGTH,
 	MAX_TAG_LENGTH,
 	deriveLanguageName,
-	fetchJsonWithTimeout,
+	fetchCachedJson,
 	inferBookTypeFromHints,
 	mergeNamedItems,
 	normalizeIsbnValue,
@@ -100,11 +102,29 @@ function extractGoogleBooksVolume(payload, isbn) {
 module.exports = {
 	name: "googleBooks",
 	async fetchByIsbn({ isbn }) {
-		const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`;
-		const payload = await fetchJsonWithTimeout(url, { timeoutMs: 3200 });
+		const apiKey = config?.google?.booksApiKey || "";
+		const warnings = [];
+		if (!apiKey) {
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+				status: "INFO",
+				provider: "googleBooks",
+				reason: "GOOGLE_BOOKS_API_KEY_MISSING",
+				isbn
+			}, "warn");
+			warnings.push("Google Books API key is not configured, so the public Google Books lookup was used.");
+		}
+
+		const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
+		const payload = await fetchCachedJson({
+			provider: "googleBooks",
+			resource: "isbn",
+			identifier: isbn,
+			url,
+			timeoutMs: 3200
+		});
 		return {
 			metadata: extractGoogleBooksVolume(payload, isbn),
-			warnings: []
+			warnings
 		};
 	}
 };

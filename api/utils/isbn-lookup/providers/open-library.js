@@ -1,9 +1,10 @@
+const config = require("../../../config");
 const {
 	MAX_TITLE_LENGTH,
 	MAX_SUBTITLE_LENGTH,
 	MAX_TAG_LENGTH,
 	extractStringValue,
-	fetchJsonWithTimeout,
+	fetchCachedJson,
 	inferBookTypeFromHints,
 	mergeNamedItems,
 	parsePartialDateFromSource,
@@ -15,6 +16,13 @@ const {
 	sanitizeLookupText,
 	splitAuthorNameParts
 } = require("../shared");
+
+function buildOpenLibraryHeaders() {
+	return {
+		"User-Agent": config?.isbnLookup?.openLibraryUserAgent || "BookProject (support@fjnel.co.za)",
+		From: config?.isbnLookup?.openLibraryContactEmail || "support@fjnel.co.za"
+	};
+}
 
 function normalizeOpenLibraryKey(value) {
 	const normalized = sanitizeLookupText(value, 120);
@@ -173,7 +181,14 @@ function extractOpenLibraryMetadata({ isbnRecord, edition, work, authorDetailsBy
 
 async function fetchOpenLibraryAuthor(authorKey) {
 	if (!authorKey) return null;
-	const payload = await fetchJsonWithTimeout(`https://openlibrary.org${authorKey}.json`, { timeoutMs: 1800 });
+	const payload = await fetchCachedJson({
+		provider: "openLibrary",
+		resource: "author",
+		identifier: authorKey,
+		url: `https://openlibrary.org${authorKey}.json`,
+		timeoutMs: 1800,
+		headers: buildOpenLibraryHeaders()
+	});
 	const displayName = sanitizeLookupText(payload?.name || payload?.personal_name, 150);
 	if (!displayName) return null;
 	const parts = splitAuthorNameParts(displayName);
@@ -194,8 +209,22 @@ module.exports = {
 	async fetchByIsbn({ isbn }) {
 		const warnings = [];
 		const [isbnResult, editionResult] = await Promise.allSettled([
-			fetchJsonWithTimeout(`https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`, { timeoutMs: 3200 }),
-			fetchJsonWithTimeout(`https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`, { timeoutMs: 3200 })
+			fetchCachedJson({
+				provider: "openLibrary",
+				resource: "isbn-data",
+				identifier: isbn,
+				url: `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`,
+				timeoutMs: 3200,
+				headers: buildOpenLibraryHeaders()
+			}),
+			fetchCachedJson({
+				provider: "openLibrary",
+				resource: "edition",
+				identifier: isbn,
+				url: `https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`,
+				timeoutMs: 3200,
+				headers: buildOpenLibraryHeaders()
+			})
 		]);
 
 		const isbnPayload = isbnResult.status === "fulfilled" ? isbnResult.value : null;
@@ -220,7 +249,14 @@ module.exports = {
 		);
 		if (workKey) {
 			try {
-				work = await fetchJsonWithTimeout(`https://openlibrary.org${workKey}.json`, { timeoutMs: 1800 });
+				work = await fetchCachedJson({
+					provider: "openLibrary",
+					resource: "work",
+					identifier: workKey,
+					url: `https://openlibrary.org${workKey}.json`,
+					timeoutMs: 1800,
+					headers: buildOpenLibraryHeaders()
+				});
 			} catch (error) {
 				warnings.push("Open Library work details were unavailable, so some description or series details may be missing.");
 			}

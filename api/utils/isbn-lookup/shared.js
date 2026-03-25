@@ -1,13 +1,23 @@
 const http = require("http");
 const https = require("https");
 
+const config = require("../../config");
+const { logToFile } = require("../logging");
 const { validatePartialDateObject } = require("../partial-date");
 const { normalizeTagName } = require("../tag-normalization");
+const { getCacheEntry, setCacheEntry, deleteCacheEntry } = require("../stats-cache");
 
 const MAX_TITLE_LENGTH = 255;
 const MAX_SUBTITLE_LENGTH = 255;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_TAG_LENGTH = 50;
+const DEFAULT_EXTERNAL_CACHE_TTL_SECONDS = Number.parseInt(config?.isbnLookup?.externalCacheTtlSeconds, 10) || 21600;
+const NEGATIVE_CACHE_TTL_SECONDS = 90;
+const MAX_EXTERNAL_CACHE_ENTRIES = 750;
+
+const inFlightRequests = new Map();
+const negativeCacheStore = new Map();
+const externalCacheInsertionOrder = [];
 
 const BOOK_TYPE_CATALOG = {
 	Hardcover: "A durable hardbound edition with rigid boards and a protective jacket or printed cover.",
@@ -260,6 +270,116 @@ async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}
 	});
 }
 
+function buildExternalCacheKey({ provider, resource, identifier }) {
+	const safeProvider = sanitizeLookupText(provider, 50) || "unknown";
+	const safeResource = sanitizeLookupText(resource, 100) || "request";
+	const safeIdentifier = sanitizeLookupText(identifier, 300) || "";
+	return `external:isbn:v1:${safeProvider}:${safeResource}:${safeIdentifier}`;
+}
+
+function buildNegativeCacheKey(cacheKey) {
+	return `${cacheKey}:negative`;
+}
+
+function getNegativeCacheEntry(key) {
+	const entry = negativeCacheStore.get(key);
+	if (!entry) return null;
+	const ageMs = Date.now() - entry.createdAt;
+	if (ageMs > entry.ttlMs) {
+		negativeCacheStore.delete(key);
+		return null;
+	}
+	return entry;
+}
+
+function setNegativeCacheEntry(key, error, ttlSeconds = NEGATIVE_CACHE_TTL_SECONDS) {
+	if (negativeCacheStore.size >= MAX_EXTERNAL_CACHE_ENTRIES) {
+		const oldestKey = negativeCacheStore.keys().next().value;
+		if (oldestKey) negativeCacheStore.delete(oldestKey);
+	}
+	negativeCacheStore.set(key, {
+		errorMessage: error?.message || "External lookup failed.",
+		createdAt: Date.now(),
+		ttlMs: Math.max(1, ttlSeconds) * 1000
+	});
+}
+
+function shouldNegativeCache(error) {
+	const message = String(error?.message || "");
+	if (error instanceof SyntaxError) return false;
+	return /HTTP \d+/i.test(message)
+		|| /timed out/i.test(message)
+		|| /ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|socket hang up/i.test(message);
+}
+
+function recordExternalCacheEntry(cacheKey) {
+	const existingIndex = externalCacheInsertionOrder.indexOf(cacheKey);
+	if (existingIndex !== -1) {
+		externalCacheInsertionOrder.splice(existingIndex, 1);
+	}
+	externalCacheInsertionOrder.push(cacheKey);
+	while (externalCacheInsertionOrder.length > MAX_EXTERNAL_CACHE_ENTRIES) {
+		const oldestKey = externalCacheInsertionOrder.shift();
+		if (!oldestKey) continue;
+		deleteCacheEntry(oldestKey);
+		negativeCacheStore.delete(buildNegativeCacheKey(oldestKey));
+	}
+}
+
+async function fetchCachedJson({
+	provider,
+	resource,
+	identifier,
+	url,
+	timeoutMs = 4500,
+	headers = {},
+	ttlSeconds = DEFAULT_EXTERNAL_CACHE_TTL_SECONDS
+} = {}) {
+	const cacheKey = buildExternalCacheKey({ provider, resource, identifier });
+	const negativeCacheKey = buildNegativeCacheKey(cacheKey);
+	const cached = getCacheEntry(cacheKey);
+	if (cached) {
+		return cached.data;
+	}
+
+	const negativeCached = getNegativeCacheEntry(negativeCacheKey);
+	if (negativeCached) {
+		throw new Error(negativeCached.errorMessage);
+	}
+
+	if (inFlightRequests.has(cacheKey)) {
+		return inFlightRequests.get(cacheKey);
+	}
+
+	logToFile("BOOK_ISBN_LOOKUP_CACHE", {
+		status: "INFO",
+		cache: "miss",
+		provider,
+		resource,
+		identifier
+	}, "info");
+
+	const requestPromise = (async () => {
+		try {
+			const payload = await fetchJsonWithTimeout(url, { timeoutMs, headers });
+			setCacheEntry(cacheKey, payload, ttlSeconds);
+			recordExternalCacheEntry(cacheKey);
+			negativeCacheStore.delete(negativeCacheKey);
+			return payload;
+		} catch (error) {
+			if (shouldNegativeCache(error)) {
+				setNegativeCacheEntry(negativeCacheKey, error, NEGATIVE_CACHE_TTL_SECONDS);
+			}
+			throw error;
+		} finally {
+			inFlightRequests.delete(cacheKey);
+		}
+	})();
+
+	inFlightRequests.set(cacheKey, requestPromise);
+	return requestPromise;
+}
+
 function resolveBookTypeDescription(name) {
 	return BOOK_TYPE_CATALOG[name] || null;
 }
@@ -480,7 +600,10 @@ module.exports = {
 	normalizeIsbnValue,
 	extractStringValue,
 	fetchJsonWithTimeout,
+	fetchCachedJson,
 	inferBookTypeFromHints,
 	resolveBookTypeDescription,
-	mergeLookupMetadata
+	mergeLookupMetadata,
+	NEGATIVE_CACHE_TTL_SECONDS,
+	MAX_EXTERNAL_CACHE_ENTRIES
 };

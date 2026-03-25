@@ -44,6 +44,11 @@ function setCacheEntry(key, data, ttlSeconds) {
 	});
 }
 
+function deleteCacheEntry(key) {
+	if (!key) return;
+	cacheStore.delete(key);
+}
+
 function invalidateByPrefix(prefix) {
 	for (const key of cacheStore.keys()) {
 		if (key.startsWith(prefix)) {
@@ -67,6 +72,7 @@ module.exports = {
 	buildCacheKey,
 	getCacheEntry,
 	setCacheEntry,
+	deleteCacheEntry,
 	invalidateUserStatsCache,
 	invalidateAdminStatsCache
 };

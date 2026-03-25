@@ -191,7 +191,11 @@ FRONTEND_URL=http://127.0.0.1:8000
 
 # Google OAuth / reCAPTCHA (optional during dev)
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_BOOKS_API_KEY=your-google-books-api-key
 RECAPTCHA_SECRET=your-recaptcha-secret
+
+# Optional ISBN lookup tuning
+ISBN_LOOKUP_EXTERNAL_CACHE_TTL_SECONDS=21600
 ```
 
 4) Start the API
