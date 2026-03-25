@@ -27,6 +27,8 @@
         isbnLookupHelp: byId('oneISBNHelp'),
         isbnLookupForm: byId('isbnLookupForm'),
         isbnLookupLoadingModal: byId('lookupByISBNLoadingModal'),
+        isbnLookupProgressBar: byId('isbnLookupProgressBar'),
+        isbnLookupProgressText: byId('isbnLookupProgressText'),
         isbnLookupErrorModal: byId('isbnLookupErrorModal'),
         isbnLookupSuggestionsCard: byId('isbnLookupSuggestionsCard'),
         isbnLookupExistingAlert: byId('isbnLookupExistingAlert'),
@@ -143,7 +145,11 @@
     const editState = addBook.state.edit || (addBook.state.edit = { enabled: false, bookId: null, copyId: null });
     const isbnLookupState = addBook.state.isbnLookup || (addBook.state.isbnLookup = {
         pending: null,
-        linkedSummary: null
+        linkedSummary: null,
+        recentDurations: [],
+        progressTimer: null,
+        timeoutId: null,
+        activeRequestToken: 0
     });
     const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
 
@@ -396,6 +402,99 @@
         ].forEach((element) => {
             if (element) element.classList.add('d-none');
         });
+    }
+
+    function getAverageLookupDuration() {
+        const durations = Array.isArray(isbnLookupState.recentDurations) ? isbnLookupState.recentDurations : [];
+        if (durations.length === 0) return 3000;
+        const total = durations.reduce((sum, value) => sum + value, 0);
+        return Math.max(1800, Math.min(6000, Math.round(total / durations.length)));
+    }
+
+    function updateLookupProgress(value) {
+        const percent = Math.max(0, Math.min(100, Math.round(value)));
+        if (selectors.isbnLookupProgressBar) {
+            selectors.isbnLookupProgressBar.style.width = `${percent}%`;
+            selectors.isbnLookupProgressBar.setAttribute('aria-valuenow', String(percent));
+        }
+        if (selectors.isbnLookupProgressText) {
+            selectors.isbnLookupProgressText.textContent = `${percent}%`;
+        }
+    }
+
+    function stopLookupProgressSimulation() {
+        if (isbnLookupState.progressTimer) {
+            window.clearInterval(isbnLookupState.progressTimer);
+            isbnLookupState.progressTimer = null;
+            log('ISBN lookup progress simulation stopped.');
+        }
+    }
+
+    function clearLookupTimeout() {
+        if (isbnLookupState.timeoutId) {
+            window.clearTimeout(isbnLookupState.timeoutId);
+            isbnLookupState.timeoutId = null;
+        }
+    }
+
+    function startLookupProgressSimulation(requestToken) {
+        stopLookupProgressSimulation();
+        updateLookupProgress(4);
+        const expectedDuration = getAverageLookupDuration();
+        const startTime = Date.now();
+        log('ISBN lookup progress simulation started.', { requestToken, expectedDuration });
+        isbnLookupState.progressTimer = window.setInterval(() => {
+            if (isbnLookupState.activeRequestToken !== requestToken) {
+                stopLookupProgressSimulation();
+                return;
+            }
+            const elapsed = Date.now() - startTime;
+            const expected = Math.max(expectedDuration, 1);
+            const ratio = Math.min(elapsed / expected, 1.6);
+            let progress;
+            if (ratio <= 0.6) {
+                progress = 10 + (ratio / 0.6) * 58;
+            } else {
+                const tailRatio = Math.min((ratio - 0.6) / 1.0, 1);
+                progress = 68 + (tailRatio * 26);
+            }
+            updateLookupProgress(Math.min(progress, 94));
+        }, 120);
+    }
+
+    async function finalizeLookupProgress(requestToken, { success = false } = {}) {
+        if (isbnLookupState.activeRequestToken !== requestToken) return;
+        stopLookupProgressSimulation();
+        if (success) {
+            updateLookupProgress(100);
+            log('ISBN lookup progress finalized at 100%.', { requestToken });
+            await new Promise((resolve) => window.setTimeout(resolve, 180));
+            return;
+        }
+        updateLookupProgress(0);
+    }
+
+    function rememberLookupDuration(durationMs) {
+        if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+        isbnLookupState.recentDurations.push(durationMs);
+        if (isbnLookupState.recentDurations.length > 5) {
+            isbnLookupState.recentDurations.shift();
+        }
+        log('ISBN lookup duration recorded.', {
+            durationMs,
+            averageDurationMs: getAverageLookupDuration(),
+            sampleSize: isbnLookupState.recentDurations.length
+        });
+    }
+
+    async function hideLookupLoadingModalSafely() {
+        try {
+            log('Hiding ISBN lookup loading modal...');
+            await hideModal(selectors.isbnLookupLoadingModal);
+            log('ISBN lookup loading modal hidden.');
+        } catch (error) {
+            console.error('[Add Book] Failed to hide ISBN lookup loading modal.', error);
+        }
     }
 
     function setLookupActionError(message, details) {
@@ -838,6 +937,9 @@
     }
 
     function resetLookupUiState() {
+        stopLookupProgressSimulation();
+        clearLookupTimeout();
+        updateLookupProgress(0);
         clearLookupSuggestions();
         if (selectors.isbnLookupInput && !isEditMode()) {
             selectors.isbnLookupInput.disabled = false;
@@ -860,44 +962,134 @@
 
     async function handleIsbnLookup() {
         if (isEditMode()) return;
+        const requestToken = Date.now();
+        isbnLookupState.activeRequestToken = requestToken;
         setLookupActionError('');
         clearLookupSuggestions();
         const rawIsbn = selectors.isbnLookupInput?.value.trim() || '';
         const normalized = normalizeIsbn(rawIsbn);
+        log('ISBN lookup started.', { rawIsbn, requestToken });
         if (!normalized) {
+            log('ISBN lookup blocked by invalid ISBN.', { rawIsbn, requestToken });
             setHelpText(selectors.isbnLookupHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
             return;
         }
+        log('ISBN lookup normalized ISBN.', { rawIsbn, normalized, requestToken });
         setHelpText(selectors.isbnLookupHelp, `This ISBN will be looked up as: ${normalized}`, false);
         setLookupUiLoading(true);
-        await showModal(selectors.isbnLookupLoadingModal, { backdrop: 'static', keyboard: false });
+        updateLookupProgress(0);
+        const startedAt = Date.now();
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
         try {
-            const response = await apiFetch('/book/isbn-lookup', {
+            log('ISBN lookup showing loading modal...', { requestToken });
+            await showModal(selectors.isbnLookupLoadingModal, { backdrop: 'static', keyboard: false });
+            log('ISBN lookup loading modal shown.', { requestToken });
+            startLookupProgressSimulation(requestToken);
+            clearLookupTimeout();
+            if (controller) {
+                isbnLookupState.timeoutId = window.setTimeout(() => {
+                    if (isbnLookupState.activeRequestToken !== requestToken) return;
+                    log('ISBN lookup timeout reached.', { requestToken, normalized, timeoutMs: 10000 });
+                    controller.abort();
+                }, 10000);
+            }
+            log('ISBN lookup request sending...', {
+                requestToken,
+                path: '/book/isbn-lookup',
+                isbn: normalized
+            });
+            const requestPromise = apiFetch('/book/isbn-lookup', {
                 method: 'POST',
-                body: JSON.stringify({ isbn: normalized })
+                body: JSON.stringify({ isbn: normalized }),
+                signal: controller?.signal
+            });
+            const response = controller
+                ? await requestPromise
+                : await Promise.race([
+                    requestPromise,
+                    new Promise((_, reject) => {
+                        isbnLookupState.timeoutId = window.setTimeout(() => {
+                            if (isbnLookupState.activeRequestToken !== requestToken) return;
+                            log('ISBN lookup timeout reached.', { requestToken, normalized, timeoutMs: 10000 });
+                            reject(new Error('Request timed out.'));
+                        }, 10000);
+                    })
+                ]);
+            if (isbnLookupState.activeRequestToken !== requestToken) {
+                log('ISBN lookup response ignored because a newer request is active.', { requestToken });
+                return;
+            }
+            const durationMs = Date.now() - startedAt;
+            rememberLookupDuration(durationMs);
+            log('ISBN lookup response received.', {
+                requestToken,
+                status: response.status,
+                ok: response.ok,
+                durationMs
             });
             const data = await readApiPayload(response);
+            log('ISBN lookup response payload parsed.', {
+                requestToken,
+                message: data?.message || null,
+                warningsCount: Array.isArray(data?.data?.warnings) ? data.data.warnings.length : 0,
+                hasBook: Boolean(data?.data?.book)
+            });
             if (!response.ok) {
                 const normalizedError = typeof window.normalizeApiErrorPayload === 'function'
                     ? window.normalizeApiErrorPayload(data, 'Unable to look up that ISBN.')
                     : { message: data.message || 'Unable to look up that ISBN.', errors: data.errors || [] };
                 if (response.status === 404) {
-                    await hideModal(selectors.isbnLookupLoadingModal);
+                    log('ISBN lookup returned no metadata.', { requestToken, normalized });
+                    await finalizeLookupProgress(requestToken, { success: false });
+                    await hideLookupLoadingModalSafely();
                     await showModal(selectors.isbnLookupErrorModal);
                 } else {
+                    log('ISBN lookup returned handled error.', {
+                        requestToken,
+                        status: response.status,
+                        message: normalizedError.message,
+                        errors: normalizedError.errors
+                    });
                     setHelpText(selectors.isbnLookupHelp, normalizedError.message, true);
-                    await hideModal(selectors.isbnLookupLoadingModal);
+                    await finalizeLookupProgress(requestToken, { success: false });
+                    await hideLookupLoadingModalSafely();
                 }
                 return;
             }
+            await finalizeLookupProgress(requestToken, { success: true });
             applyLookupResult(data.data || {});
-            await hideModal(selectors.isbnLookupLoadingModal);
+            log('ISBN lookup succeeded.', {
+                requestToken,
+                warnings: Array.isArray(data?.data?.warnings) ? data.data.warnings : []
+            });
+            await hideLookupLoadingModalSafely();
         } catch (error) {
-            console.error('[Add Book] ISBN lookup failed.', error);
-            setHelpText(selectors.isbnLookupHelp, 'Unable to look up that ISBN right now. Please try again.', true);
-            await hideModal(selectors.isbnLookupLoadingModal);
+            if (isbnLookupState.activeRequestToken !== requestToken) {
+                log('ISBN lookup exception ignored because a newer request is active.', { requestToken });
+                return;
+            }
+            const isTimeout = controller?.signal?.aborted || error?.name === 'AbortError' || /timed out/i.test(error?.message || '');
+            if (isTimeout) {
+                log('ISBN lookup timed out.', { requestToken, normalized, timeoutMs: 10000 });
+                setHelpText(selectors.isbnLookupHelp, 'ISBN lookup timed out after 10 seconds. Please try again.', true);
+            } else {
+                console.error('[Add Book] ISBN lookup failed.', error);
+                log('ISBN lookup failed.', {
+                    requestToken,
+                    normalized,
+                    message: error?.message || 'Unknown error'
+                });
+                setHelpText(selectors.isbnLookupHelp, 'Unable to look up that ISBN right now. Please try again.', true);
+            }
+            await finalizeLookupProgress(requestToken, { success: false });
+            await hideLookupLoadingModalSafely();
         } finally {
-            setLookupUiLoading(false);
+            if (isbnLookupState.activeRequestToken === requestToken) {
+                clearLookupTimeout();
+                stopLookupProgressSimulation();
+                setLookupUiLoading(false);
+                log('ISBN lookup UI state restored.', { requestToken });
+            }
         }
     }
 
