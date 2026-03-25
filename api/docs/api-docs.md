@@ -9323,6 +9323,144 @@ You can provide these list controls via query string or JSON body. If both are p
 
 </details>
 
+### POST /book/isbn-lookup
+
+- **Purpose:** Look up book metadata by ISBN using public sources, merge the usable results, and match related entities against the authenticated user's library where confidence is strong.
+- **Authentication:** Access token or API key required.
+
+#### Request Overview
+
+| Property | Value |
+| --- | --- |
+| Method | `POST` |
+| Path | `/book/isbn-lookup` |
+| Authentication | `Authorization: Bearer <accessToken>` or `X-API-Key: <apiKey>` |
+| Rate Limit | 60 requests / minute / user |
+| Content-Type | `application/json` |
+
+#### Body Parameters
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `isbn` | string | Yes | ISBN-10 or ISBN-13. Hyphens/spaces are accepted and normalized before lookup. |
+
+#### Behaviour Notes
+
+- Uses Google Books and Open Library.
+- If one provider fails but the other succeeds, the endpoint still returns usable results when possible.
+- Core book fields are normalized to the existing add/edit flow shape.
+- Existing strong matches are returned under `existingEntities`.
+- Suggested but unmatched related data is returned under `newEntities`.
+- `bookCopy` is never included; ISBN lookup is edition metadata only.
+
+#### Example Request Body
+
+```json
+{
+  "isbn": "978-0-261-10235-4"
+}
+```
+
+#### Example Success Response
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.11",
+  "message": "ISBN metadata retrieved successfully.",
+  "data": {
+    "book": {
+      "title": "The Fellowship of the Ring",
+      "subtitle": "Being the First Part of The Lord of the Rings",
+      "isbn": "9780261102354",
+      "publicationDate": {
+        "year": 1954,
+        "text": "1954"
+      },
+      "pageCount": 423,
+      "coverImageUrl": "https://example.com/fotr.jpg",
+      "description": "The first volume of The Lord of the Rings.",
+      "bookType": null,
+      "publisher": {
+        "id": 5,
+        "name": "Allen & Unwin",
+        "website": null,
+        "notes": null,
+        "foundedDate": null
+      },
+      "authors": [
+        {
+          "authorId": 1,
+          "authorRole": null,
+          "authorName": "J.R.R. Tolkien"
+        }
+      ],
+      "languages": [
+        {
+          "id": 2,
+          "name": "English"
+        }
+      ],
+      "tags": [
+        {
+          "id": null,
+          "name": "Fantasy"
+        }
+      ],
+      "series": []
+    },
+    "existingEntities": {
+      "authors": [
+        {
+          "id": 1,
+          "displayName": "J.R.R. Tolkien",
+          "firstNames": "John Ronald Reuel",
+          "lastName": "Tolkien",
+          "authorRole": null
+        }
+      ],
+      "publisher": {
+        "id": 5,
+        "name": "Allen & Unwin",
+        "website": null,
+        "notes": null
+      },
+      "series": [],
+      "bookType": null,
+      "languages": [
+        {
+          "id": 2,
+          "name": "English"
+        }
+      ],
+      "tags": []
+    },
+    "newEntities": {
+      "authors": [],
+      "publisher": null,
+      "series": [],
+      "bookType": null,
+      "languages": [],
+      "tags": [
+        {
+          "id": null,
+          "name": "Fantasy"
+        }
+      ]
+    },
+    "warnings": []
+  },
+  "errors": []
+}
+```
+
+#### Common Errors
+
+- `400 Validation Error` when the ISBN is malformed.
+- `404 No metadata found.` when neither source returns usable metadata for the ISBN.
+- `502 Lookup failed.` when external sources are temporarily unavailable and no usable result can be built.
+
 ### POST /book
 
 - **Purpose:** Create a new book and link it to related records.

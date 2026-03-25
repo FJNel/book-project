@@ -6651,6 +6651,49 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /book/isbn-lookup:
+    post:
+      tags: [Books]
+      summary: Look up book metadata by ISBN
+      operationId: lookupBookByIsbn
+      description: Fetch book metadata from public ISBN sources, merge the results, and match linked entities against the authenticated user's library where confidence is strong.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookIsbnLookupRequest'
+            examples:
+              lookup:
+                value:
+                  isbn: "9780261102354"
+      responses:
+        '200':
+          description: Lookup result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BookIsbnLookupResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: External lookup sources unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
 
   /book/{id}:
     put:
@@ -12152,6 +12195,121 @@ components:
           type: string
         title:
           type: string
+    BookIsbnLookupRequest:
+      type: object
+      required: [isbn]
+      properties:
+        isbn:
+          type: string
+          description: ISBN-10 or ISBN-13 using digits with optional hyphens/spaces and optional trailing X for ISBN-10.
+    BookIsbnLookupAuthor:
+      type: object
+      properties:
+        authorId:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        authorRole:
+          oneOf:
+            - type: string
+            - type: 'null'
+        authorName:
+          type: string
+    BookIsbnLookupSeries:
+      type: object
+      properties:
+        seriesId:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        seriesName:
+          type: string
+        bookOrder:
+          oneOf:
+            - type: integer
+            - type: 'null'
+    BookIsbnLookupLanguage:
+      type: object
+      properties:
+        id:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        name:
+          type: string
+    BookIsbnLookupTag:
+      type: object
+      properties:
+        id:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        name:
+          type: string
+    BookIsbnLookupResponse:
+      type: object
+      properties:
+        book:
+          type: object
+          properties:
+            title:
+              type: string
+            subtitle:
+              oneOf:
+                - type: string
+                - type: 'null'
+            isbn:
+              oneOf:
+                - type: string
+                - type: 'null'
+            publicationDate:
+              oneOf:
+                - $ref: '#/components/schemas/PartialDate'
+                - type: 'null'
+            pageCount:
+              oneOf:
+                - type: integer
+                - type: 'null'
+            coverImageUrl:
+              oneOf:
+                - type: string
+                - type: 'null'
+            description:
+              oneOf:
+                - type: string
+                - type: 'null'
+            bookType:
+              oneOf:
+                - $ref: '#/components/schemas/BookType'
+                - type: 'null'
+            publisher:
+              oneOf:
+                - $ref: '#/components/schemas/Publisher'
+                - type: 'null'
+            authors:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookIsbnLookupAuthor'
+            languages:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookIsbnLookupLanguage'
+            tags:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookIsbnLookupTag'
+            series:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookIsbnLookupSeries'
+        existingEntities:
+          type: object
+        newEntities:
+          type: object
+        warnings:
+          type: array
+          items:
+            type: string
     BookStatsRequest:
       type: object
       properties:

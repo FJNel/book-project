@@ -22,6 +22,25 @@
     const rateLimitGuard = window.rateLimitGuard;
 
     const selectors = {
+        isbnLookupInput: byId('oneISBN'),
+        isbnLookupButton: byId('oneBtnLookup'),
+        isbnLookupHelp: byId('oneISBNHelp'),
+        isbnLookupForm: byId('isbnLookupForm'),
+        isbnLookupLoadingModal: byId('lookupByISBNLoadingModal'),
+        isbnLookupErrorModal: byId('isbnLookupErrorModal'),
+        isbnLookupSuggestionsCard: byId('isbnLookupSuggestionsCard'),
+        isbnLookupExistingAlert: byId('isbnLookupExistingAlert'),
+        isbnLookupWarningsAlert: byId('isbnLookupWarningsAlert'),
+        isbnLookupActionErrorAlert: byId('isbnLookupActionErrorAlert'),
+        isbnLookupNoSuggestions: byId('isbnLookupNoSuggestions'),
+        isbnLookupPublisherSuggestionsWrap: byId('isbnLookupPublisherSuggestionsWrap'),
+        isbnLookupPublisherSuggestions: byId('isbnLookupPublisherSuggestions'),
+        isbnLookupAuthorSuggestionsWrap: byId('isbnLookupAuthorSuggestionsWrap'),
+        isbnLookupAuthorSuggestions: byId('isbnLookupAuthorSuggestions'),
+        isbnLookupSeriesSuggestionsWrap: byId('isbnLookupSeriesSuggestionsWrap'),
+        isbnLookupSeriesSuggestions: byId('isbnLookupSeriesSuggestions'),
+        isbnLookupTagSuggestionsWrap: byId('isbnLookupTagSuggestionsWrap'),
+        isbnLookupTagSuggestions: byId('isbnLookupTagSuggestions'),
         title: byId('twoEdtTitle'),
         subtitle: byId('twoEdtSubtitle'),
         isbn: byId('twoEdtISBN'),
@@ -90,6 +109,7 @@
     };
 
     selectors.titleHelp = ensureHelpText(selectors.title, 'twoTitleHelp');
+    selectors.isbnLookupHelp = ensureHelpText(selectors.isbnLookupInput, 'oneISBNHelp');
     selectors.subtitleHelp = ensureHelpText(selectors.subtitle, 'twoSubtitleHelp');
     selectors.isbnHelp = ensureHelpText(selectors.isbn, 'twoISBNHelp');
     selectors.pagesHelp = ensureHelpText(selectors.pages, 'twoPagesHelp');
@@ -121,6 +141,10 @@
     };
 
     const editState = addBook.state.edit || (addBook.state.edit = { enabled: false, bookId: null, copyId: null });
+    const isbnLookupState = addBook.state.isbnLookup || (addBook.state.isbnLookup = {
+        pending: null,
+        linkedSummary: null
+    });
     const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
 
     function triggerInput(el) {
@@ -252,6 +276,9 @@
         if (selectors.isbnLookupCard) {
             selectors.isbnLookupCard.classList.add('d-none');
         }
+        if (selectors.isbnLookupSuggestionsCard) {
+            selectors.isbnLookupSuggestionsCard.classList.add('d-none');
+        }
         const detailTitle = document.querySelector('#bookDetailsCard .card-title');
         const typeTitle = document.querySelector('#bookBookTypeCard .card-title');
         const authorsTitle = document.querySelector('#bookAuthorsCard .card-title');
@@ -315,6 +342,563 @@
             return { role, customRole: '' };
         }
         return { role: 'Other', customRole: role };
+    }
+
+    function renderLookupAlert(alertEl, message, { type = 'info', details = [] } = {}) {
+        if (!alertEl) return;
+        const safeDetails = Array.isArray(details) ? details.filter(Boolean) : [];
+        alertEl.classList.remove('d-none', 'alert-info', 'alert-warning', 'alert-danger');
+        alertEl.classList.add(`alert-${type}`);
+        alertEl.innerHTML = '';
+        const strong = document.createElement('strong');
+        strong.textContent = message || '';
+        alertEl.appendChild(strong);
+        if (safeDetails.length > 0) {
+            const list = document.createElement('ul');
+            list.className = 'mb-0 mt-2';
+            safeDetails.forEach((detail) => {
+                const li = document.createElement('li');
+                li.textContent = detail;
+                list.appendChild(li);
+            });
+            alertEl.appendChild(list);
+        }
+    }
+
+    function clearLookupAlert(alertEl) {
+        if (!alertEl) return;
+        alertEl.classList.add('d-none');
+        alertEl.innerHTML = '';
+        alertEl.classList.remove('alert-info', 'alert-warning', 'alert-danger');
+    }
+
+    function clearLookupSuggestions() {
+        isbnLookupState.pending = null;
+        isbnLookupState.linkedSummary = null;
+        clearLookupAlert(selectors.isbnLookupExistingAlert);
+        clearLookupAlert(selectors.isbnLookupWarningsAlert);
+        clearLookupAlert(selectors.isbnLookupActionErrorAlert);
+        [
+            selectors.isbnLookupPublisherSuggestions,
+            selectors.isbnLookupAuthorSuggestions,
+            selectors.isbnLookupSeriesSuggestions,
+            selectors.isbnLookupTagSuggestions
+        ].forEach((container) => {
+            if (container) container.innerHTML = '';
+        });
+        [
+            selectors.isbnLookupPublisherSuggestionsWrap,
+            selectors.isbnLookupAuthorSuggestionsWrap,
+            selectors.isbnLookupSeriesSuggestionsWrap,
+            selectors.isbnLookupTagSuggestionsWrap,
+            selectors.isbnLookupNoSuggestions,
+            selectors.isbnLookupSuggestionsCard
+        ].forEach((element) => {
+            if (element) element.classList.add('d-none');
+        });
+    }
+
+    function setLookupActionError(message, details) {
+        if (!message) {
+            clearLookupAlert(selectors.isbnLookupActionErrorAlert);
+            return;
+        }
+        renderLookupAlert(selectors.isbnLookupActionErrorAlert, message, {
+            type: 'danger',
+            details: Array.isArray(details) ? details : (details ? [details] : [])
+        });
+    }
+
+    function dedupeById(items, key = 'id') {
+        const seen = new Set();
+        return (Array.isArray(items) ? items : []).filter((item) => {
+            if (!item || !Number.isInteger(item[key])) return false;
+            if (seen.has(item[key])) return false;
+            seen.add(item[key]);
+            return true;
+        });
+    }
+
+    function dedupeStrings(values) {
+        const seen = new Set();
+        return (Array.isArray(values) ? values : []).filter((value) => {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!normalized || seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+    }
+
+    function addAuthorSelection(author, roleValue) {
+        const mapped = mapAuthorRole(roleValue ?? null);
+        const existing = addBook.state.selections.authors.find((entry) => entry.id === author.id);
+        if (existing) {
+            existing.displayName = author.displayName || existing.displayName;
+            existing.role = mapped.role;
+            existing.customRole = mapped.customRole;
+            return;
+        }
+        addBook.state.selections.authors.push({
+            id: author.id,
+            displayName: author.displayName || 'Unknown Author',
+            role: mapped.role,
+            customRole: mapped.customRole
+        });
+    }
+
+    function addSeriesSelection(series, order) {
+        const existing = addBook.state.selections.series.find((entry) => entry.id === series.id);
+        if (existing) {
+            existing.name = series.name || existing.name;
+            existing.order = Number.isInteger(order) ? order : existing.order;
+            return;
+        }
+        addBook.state.selections.series.push({
+            id: series.id,
+            name: series.name || 'Unknown Series',
+            order: Number.isInteger(order) ? order : null
+        });
+    }
+
+    function applyLookupBookFields(book) {
+        if (!book) return;
+        selectors.title.value = book.title || '';
+        selectors.subtitle.value = book.subtitle || '';
+        selectors.isbn.value = book.isbn || '';
+        selectors.publicationDate.value = book.publicationDate?.text || '';
+        selectors.pages.value = Number.isInteger(book.pageCount) ? String(book.pageCount) : '';
+        selectors.coverUrl.value = book.coverImageUrl || '';
+        selectors.description.value = book.description || '';
+        refreshInlineHelp();
+        triggerInput(selectors.title);
+        triggerInput(selectors.subtitle);
+        triggerInput(selectors.isbn);
+        triggerInput(selectors.pages);
+        triggerInput(selectors.coverUrl);
+        triggerInput(selectors.description);
+        triggerInput(selectors.publicationDate);
+    }
+
+    function applyLookupExistingEntities(existingEntities = {}, book = {}) {
+        const linked = [];
+
+        const bookTypeId = existingEntities.bookType?.id ?? book.bookType?.id ?? null;
+        addBook.state.selections.bookTypeId = Number.isInteger(bookTypeId) ? bookTypeId : null;
+        if (selectors.bookType) {
+            selectors.bookType.value = addBook.state.selections.bookTypeId ? String(addBook.state.selections.bookTypeId) : 'none';
+            updateBookTypeDisplay();
+        }
+        if (existingEntities.bookType?.name) {
+            linked.push(`Book type linked: ${existingEntities.bookType.name}.`);
+        }
+
+        const publisherId = existingEntities.publisher?.id ?? book.publisher?.id ?? null;
+        addBook.state.selections.publisherId = Number.isInteger(publisherId) ? publisherId : null;
+        if (selectors.publisher) {
+            selectors.publisher.value = addBook.state.selections.publisherId ? String(addBook.state.selections.publisherId) : 'none';
+            updatePublisherDisplay();
+        }
+        if (existingEntities.publisher?.name) {
+            linked.push(`Publisher linked: ${existingEntities.publisher.name}.`);
+        }
+
+        addBook.state.selections.authors = [];
+        const linkedAuthors = dedupeById(existingEntities.authors || [], 'id');
+        linkedAuthors.forEach((author) => {
+            addAuthorSelection({
+                id: author.id,
+                displayName: author.displayName || author.authorName
+            }, author.authorRole || null);
+        });
+        renderAuthors();
+        if (linkedAuthors.length > 0) {
+            linked.push(`Authors linked: ${linkedAuthors.map((author) => author.displayName || author.authorName).join(', ')}.`);
+        }
+
+        addBook.state.selections.series = [];
+        const linkedSeries = dedupeById(existingEntities.series || [], 'id');
+        linkedSeries.forEach((series) => {
+            addSeriesSelection({
+                id: series.id,
+                name: series.name || series.seriesName
+            }, series.bookOrder);
+        });
+        renderSeries();
+        if (linkedSeries.length > 0) {
+            linked.push(`Series linked: ${linkedSeries.map((series) => series.name || series.seriesName).join(', ')}.`);
+        }
+
+        const linkedLanguages = dedupeById(existingEntities.languages || [], 'id')
+            .map((language) => addBook.state.languages.all.find((entry) => entry.id === language.id) || language)
+            .filter((language) => Number.isInteger(language?.id));
+        addBook.state.languages.selected = linkedLanguages;
+        addBook.events.dispatchEvent(new CustomEvent('languages:updated', { detail: linkedLanguages }));
+        if (linkedLanguages.length > 0) {
+            linked.push(`Languages linked: ${linkedLanguages.map((language) => language.name).join(', ')}.`);
+        }
+
+        const linkedTags = dedupeStrings((existingEntities.tags || []).map((tag) => tag?.name || tag));
+        addBook.state.selections.tags = linkedTags;
+        addBook.events.dispatchEvent(new CustomEvent('tags:updated', { detail: linkedTags }));
+        if (linkedTags.length > 0) {
+            linked.push(`Tags linked: ${linkedTags.join(', ')}.`);
+        }
+
+        isbnLookupState.linkedSummary = linked;
+    }
+
+    function createSuggestionItem({ title, detailLines = [], buttonLabel, onApprove, disabled = false, mutedNote = '' }) {
+        const item = document.createElement('div');
+        item.className = 'list-group-item';
+
+        const row = document.createElement('div');
+        row.className = 'd-flex flex-column flex-md-row justify-content-between align-items-start gap-2';
+
+        const textWrap = document.createElement('div');
+        const strong = document.createElement('strong');
+        strong.textContent = title;
+        textWrap.appendChild(strong);
+
+        detailLines.filter(Boolean).forEach((line) => {
+            const p = document.createElement('p');
+            p.className = 'mb-0 text-secondary small';
+            p.textContent = line;
+            textWrap.appendChild(p);
+        });
+
+        if (mutedNote) {
+            const p = document.createElement('p');
+            p.className = 'mb-0 text-secondary small';
+            p.textContent = mutedNote;
+            textWrap.appendChild(p);
+        }
+
+        row.appendChild(textWrap);
+
+        if (buttonLabel) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-outline-primary btn-sm';
+            button.textContent = buttonLabel;
+            button.disabled = disabled;
+            if (typeof onApprove === 'function' && !disabled) {
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    try {
+                        await onApprove();
+                    } finally {
+                        if (item.isConnected) {
+                            button.disabled = false;
+                        }
+                    }
+                });
+            }
+            row.appendChild(button);
+        }
+
+        item.appendChild(row);
+        return item;
+    }
+
+    async function approveSuggestedAuthor(index) {
+        const suggestion = isbnLookupState.pending?.newEntities?.authors?.[index];
+        if (!suggestion) return;
+        setLookupActionError('');
+        const payload = {
+            displayName: suggestion.displayName || suggestion.authorName || '',
+            firstNames: suggestion.firstNames || null,
+            lastName: suggestion.lastName || null,
+            birthDate: suggestion.birthDate || null,
+            deceased: Boolean(suggestion.deceased),
+            deathDate: suggestion.deceased ? (suggestion.deathDate || null) : null,
+            bio: suggestion.bio || null
+        };
+        const response = await apiFetch('/author', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const data = await readApiPayload(response);
+        if (!response.ok) {
+            const normalized = typeof window.normalizeApiErrorPayload === 'function'
+                ? window.normalizeApiErrorPayload(data, 'Unable to add author.')
+                : { message: data.message || 'Unable to add author.', errors: data.errors || [] };
+            setLookupActionError(normalized.message, normalized.errors);
+            return;
+        }
+        const created = data.data || {};
+        addBook.state.authors.push(created);
+        addAuthorSelection({
+            id: created.id,
+            displayName: created.displayName || payload.displayName
+        }, suggestion.authorRole || null);
+        renderAuthors();
+        updateAuthorSearchAvailability();
+        isbnLookupState.pending.newEntities.authors.splice(index, 1);
+        renderLookupSuggestions();
+    }
+
+    async function approveSuggestedPublisher() {
+        const suggestion = isbnLookupState.pending?.newEntities?.publisher;
+        if (!suggestion) return;
+        setLookupActionError('');
+        const payload = {
+            name: suggestion.name,
+            foundedDate: suggestion.foundedDate || null,
+            website: suggestion.website || null,
+            notes: suggestion.notes || null
+        };
+        const response = await apiFetch('/publisher', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const data = await readApiPayload(response);
+        if (!response.ok) {
+            const normalized = typeof window.normalizeApiErrorPayload === 'function'
+                ? window.normalizeApiErrorPayload(data, 'Unable to add publisher.')
+                : { message: data.message || 'Unable to add publisher.', errors: data.errors || [] };
+            setLookupActionError(normalized.message, normalized.errors);
+            return;
+        }
+        const created = data.data || {};
+        addBook.state.publishers.push(created);
+        addBook.state.selections.publisherId = created.id;
+        if (selectors.publisher) {
+            selectors.publisher.value = String(created.id);
+            updatePublisherDisplay();
+        }
+        isbnLookupState.pending.newEntities.publisher = null;
+        renderLookupSuggestions();
+    }
+
+    async function approveSuggestedSeries(index) {
+        const suggestion = isbnLookupState.pending?.newEntities?.series?.[index];
+        if (!suggestion) return;
+        setLookupActionError('');
+        const payload = {
+            name: suggestion.name || suggestion.seriesName,
+            website: suggestion.website || null,
+            description: suggestion.description || null
+        };
+        const response = await apiFetch('/bookseries', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const data = await readApiPayload(response);
+        if (!response.ok) {
+            const normalized = typeof window.normalizeApiErrorPayload === 'function'
+                ? window.normalizeApiErrorPayload(data, 'Unable to add series.')
+                : { message: data.message || 'Unable to add series.', errors: data.errors || [] };
+            setLookupActionError(normalized.message, normalized.errors);
+            return;
+        }
+        const created = data.data || {};
+        addBook.state.series.push(created);
+        addSeriesSelection({
+            id: created.id,
+            name: created.name || payload.name
+        }, suggestion.bookOrder);
+        renderSeries();
+        updateSeriesSearchAvailability();
+        isbnLookupState.pending.newEntities.series.splice(index, 1);
+        renderLookupSuggestions();
+    }
+
+    async function approveSuggestedTag(index) {
+        const suggestion = isbnLookupState.pending?.newEntities?.tags?.[index];
+        if (!suggestion) return;
+        const tagName = suggestion.name || suggestion;
+        if (!tagName) return;
+        setLookupActionError('');
+        if (!addBook.state.selections.tags.some((tag) => tag.toLowerCase() === tagName.toLowerCase())) {
+            addBook.state.selections.tags.push(tagName);
+            addBook.events.dispatchEvent(new CustomEvent('tags:updated', { detail: addBook.state.selections.tags }));
+        }
+        isbnLookupState.pending.newEntities.tags.splice(index, 1);
+        renderLookupSuggestions();
+    }
+
+    function renderLookupSuggestions() {
+        const pending = isbnLookupState.pending;
+        if (!pending) {
+            clearLookupSuggestions();
+            return;
+        }
+
+        clearLookupAlert(selectors.isbnLookupActionErrorAlert);
+        const linkedSummary = Array.isArray(isbnLookupState.linkedSummary) ? isbnLookupState.linkedSummary : [];
+        if (linkedSummary.length > 0) {
+            renderLookupAlert(selectors.isbnLookupExistingAlert, 'Existing library matches were linked automatically.', {
+                type: 'info',
+                details: linkedSummary
+            });
+        } else {
+            clearLookupAlert(selectors.isbnLookupExistingAlert);
+        }
+
+        const warnings = Array.isArray(pending.warnings) ? pending.warnings.filter(Boolean) : [];
+        if (warnings.length > 0) {
+            renderLookupAlert(selectors.isbnLookupWarningsAlert, 'A few lookup notes may need your attention.', {
+                type: 'warning',
+                details: warnings
+            });
+        } else {
+            clearLookupAlert(selectors.isbnLookupWarningsAlert);
+        }
+
+        const newPublisher = pending.newEntities?.publisher || null;
+        const newAuthors = Array.isArray(pending.newEntities?.authors) ? pending.newEntities.authors : [];
+        const newSeries = Array.isArray(pending.newEntities?.series) ? pending.newEntities.series : [];
+        const newTags = Array.isArray(pending.newEntities?.tags) ? pending.newEntities.tags : [];
+
+        if (selectors.isbnLookupPublisherSuggestions) {
+            selectors.isbnLookupPublisherSuggestions.innerHTML = '';
+        }
+        if (selectors.isbnLookupAuthorSuggestions) {
+            selectors.isbnLookupAuthorSuggestions.innerHTML = '';
+        }
+        if (selectors.isbnLookupSeriesSuggestions) {
+            selectors.isbnLookupSeriesSuggestions.innerHTML = '';
+        }
+        if (selectors.isbnLookupTagSuggestions) {
+            selectors.isbnLookupTagSuggestions.innerHTML = '';
+        }
+
+        if (newPublisher && selectors.isbnLookupPublisherSuggestions) {
+            selectors.isbnLookupPublisherSuggestions.appendChild(createSuggestionItem({
+                title: newPublisher.name,
+                detailLines: [
+                    newPublisher.foundedDate?.text ? `Founded: ${newPublisher.foundedDate.text}` : '',
+                    newPublisher.website ? `Website: ${newPublisher.website}` : ''
+                ],
+                buttonLabel: 'Add and link',
+                onApprove: approveSuggestedPublisher
+            }));
+            selectors.isbnLookupPublisherSuggestionsWrap?.classList.remove('d-none');
+        } else {
+            selectors.isbnLookupPublisherSuggestionsWrap?.classList.add('d-none');
+        }
+
+        if (selectors.isbnLookupAuthorSuggestions && newAuthors.length > 0) {
+            newAuthors.forEach((author, index) => {
+                selectors.isbnLookupAuthorSuggestions.appendChild(createSuggestionItem({
+                    title: author.displayName || author.authorName || 'Suggested Author',
+                    detailLines: [author.authorRole ? `Role: ${author.authorRole}` : ''],
+                    buttonLabel: 'Add and link',
+                    onApprove: () => approveSuggestedAuthor(index)
+                }));
+            });
+            selectors.isbnLookupAuthorSuggestionsWrap?.classList.remove('d-none');
+        } else {
+            selectors.isbnLookupAuthorSuggestionsWrap?.classList.add('d-none');
+        }
+
+        if (selectors.isbnLookupSeriesSuggestions && newSeries.length > 0) {
+            newSeries.forEach((series, index) => {
+                selectors.isbnLookupSeriesSuggestions.appendChild(createSuggestionItem({
+                    title: series.name || series.seriesName || 'Suggested Series',
+                    detailLines: [Number.isInteger(series.bookOrder) ? `Book order: ${series.bookOrder}` : ''],
+                    buttonLabel: 'Add and link',
+                    onApprove: () => approveSuggestedSeries(index)
+                }));
+            });
+            selectors.isbnLookupSeriesSuggestionsWrap?.classList.remove('d-none');
+        } else {
+            selectors.isbnLookupSeriesSuggestionsWrap?.classList.add('d-none');
+        }
+
+        if (selectors.isbnLookupTagSuggestions && newTags.length > 0) {
+            newTags.forEach((tag, index) => {
+                const name = tag?.name || tag;
+                selectors.isbnLookupTagSuggestions.appendChild(createSuggestionItem({
+                    title: name,
+                    buttonLabel: 'Add tag',
+                    onApprove: () => approveSuggestedTag(index)
+                }));
+            });
+            selectors.isbnLookupTagSuggestionsWrap?.classList.remove('d-none');
+        } else {
+            selectors.isbnLookupTagSuggestionsWrap?.classList.add('d-none');
+        }
+
+        const hasSuggestions = Boolean(newPublisher) || newAuthors.length > 0 || newSeries.length > 0 || newTags.length > 0;
+        selectors.isbnLookupNoSuggestions?.classList.toggle('d-none', hasSuggestions);
+        selectors.isbnLookupSuggestionsCard?.classList.remove('d-none');
+    }
+
+    function applyLookupResult(payload) {
+        const book = payload?.book || {};
+        const existingEntities = payload?.existingEntities || {};
+        isbnLookupState.pending = {
+            newEntities: payload?.newEntities || {},
+            warnings: payload?.warnings || []
+        };
+        applyLookupBookFields(book);
+        applyLookupExistingEntities(existingEntities, book);
+        renderLookupSuggestions();
+    }
+
+    function resetLookupUiState() {
+        clearLookupSuggestions();
+        if (selectors.isbnLookupInput && !isEditMode()) {
+            selectors.isbnLookupInput.disabled = false;
+        }
+        if (selectors.isbnLookupButton && !isEditMode()) {
+            selectors.isbnLookupButton.disabled = false;
+            selectors.isbnLookupButton.classList.remove('disabled');
+        }
+    }
+
+    function setLookupUiLoading(loading) {
+        if (selectors.isbnLookupInput) {
+            selectors.isbnLookupInput.disabled = loading || isEditMode();
+        }
+        if (selectors.isbnLookupButton) {
+            selectors.isbnLookupButton.disabled = loading || isEditMode() || !normalizeIsbn(selectors.isbnLookupInput?.value || '');
+            selectors.isbnLookupButton.classList.toggle('disabled', selectors.isbnLookupButton.disabled);
+        }
+    }
+
+    async function handleIsbnLookup() {
+        if (isEditMode()) return;
+        setLookupActionError('');
+        clearLookupSuggestions();
+        const rawIsbn = selectors.isbnLookupInput?.value.trim() || '';
+        const normalized = normalizeIsbn(rawIsbn);
+        if (!normalized) {
+            setHelpText(selectors.isbnLookupHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
+            return;
+        }
+        setHelpText(selectors.isbnLookupHelp, `This ISBN will be looked up as: ${normalized}`, false);
+        setLookupUiLoading(true);
+        await showModal(selectors.isbnLookupLoadingModal, { backdrop: 'static', keyboard: false });
+        try {
+            const response = await apiFetch('/book/isbn-lookup', {
+                method: 'POST',
+                body: JSON.stringify({ isbn: normalized })
+            });
+            const data = await readApiPayload(response);
+            if (!response.ok) {
+                const normalizedError = typeof window.normalizeApiErrorPayload === 'function'
+                    ? window.normalizeApiErrorPayload(data, 'Unable to look up that ISBN.')
+                    : { message: data.message || 'Unable to look up that ISBN.', errors: data.errors || [] };
+                if (response.status === 404) {
+                    await hideModal(selectors.isbnLookupLoadingModal);
+                    await showModal(selectors.isbnLookupErrorModal);
+                } else {
+                    setHelpText(selectors.isbnLookupHelp, normalizedError.message, true);
+                    await hideModal(selectors.isbnLookupLoadingModal);
+                }
+                return;
+            }
+            applyLookupResult(data.data || {});
+            await hideModal(selectors.isbnLookupLoadingModal);
+        } catch (error) {
+            console.error('[Add Book] ISBN lookup failed.', error);
+            setHelpText(selectors.isbnLookupHelp, 'Unable to look up that ISBN right now. Please try again.', true);
+            await hideModal(selectors.isbnLookupLoadingModal);
+        } finally {
+            setLookupUiLoading(false);
+        }
     }
 
     const editParam = getEditBookParam();
@@ -1294,6 +1878,46 @@
         selectors.publisher.addEventListener('change', updatePublisherDisplay);
         selectors.storageLocation.addEventListener('change', updateLocationDisplay);
 
+        if (selectors.isbnLookupInput) {
+            selectors.isbnLookupInput.disabled = isEditMode();
+            selectors.isbnLookupInput.addEventListener('input', () => {
+                const value = selectors.isbnLookupInput.value.trim();
+                if (!value) {
+                    clearHelpText(selectors.isbnLookupHelp);
+                    setLookupUiLoading(false);
+                    selectors.isbnLookupButton.disabled = true;
+                    selectors.isbnLookupButton.classList.add('disabled');
+                    return;
+                }
+                const normalized = normalizeIsbn(value);
+                if (!normalized) {
+                    setHelpText(selectors.isbnLookupHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
+                    selectors.isbnLookupButton.disabled = true;
+                    selectors.isbnLookupButton.classList.add('disabled');
+                    return;
+                }
+                setHelpText(selectors.isbnLookupHelp, `This ISBN will be looked up as: ${normalized}`, false);
+                selectors.isbnLookupButton.disabled = isEditMode();
+                selectors.isbnLookupButton.classList.toggle('disabled', selectors.isbnLookupButton.disabled);
+            });
+            selectors.isbnLookupInput.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                handleIsbnLookup();
+            });
+        }
+        if (selectors.isbnLookupButton) {
+            selectors.isbnLookupButton.disabled = true;
+            selectors.isbnLookupButton.classList.add('disabled');
+            selectors.isbnLookupButton.addEventListener('click', handleIsbnLookup);
+        }
+        if (selectors.isbnLookupForm) {
+            selectors.isbnLookupForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                handleIsbnLookup();
+            });
+        }
+
         const validateTitleField = () => {
             const value = selectors.title.value.trim();
             if (!value) {
@@ -1479,6 +2103,7 @@
 
             attachEvents();
             applyEditModeUI();
+            resetLookupUiState();
             renderAuthors();
             renderSeries();
 

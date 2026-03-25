@@ -151,6 +151,34 @@
                 </div>
             </div>
         </div>
+        <div class="card shadow mb-3 d-none" id="isbnLookupSuggestionsCard">
+            <div class="card-body">
+                <h4 class="card-title">Step 1a: Review ISBN Suggestions</h4>
+                <p class="mb-3">We applied the book details we could safely use. Review any linked entities below. Existing matches have already been linked. New suggestions still need your approval before they are added.</p>
+                <div class="alert alert-info d-none" role="alert" id="isbnLookupExistingAlert"></div>
+                <div class="alert alert-warning d-none" role="alert" id="isbnLookupWarningsAlert"></div>
+                <div class="alert alert-danger d-none" role="alert" id="isbnLookupActionErrorAlert"></div>
+                <div class="d-none" id="isbnLookupPublisherSuggestionsWrap">
+                    <h5>Publisher Suggestion</h5>
+                    <div class="list-group mb-3" id="isbnLookupPublisherSuggestions"></div>
+                </div>
+                <div class="d-none" id="isbnLookupAuthorSuggestionsWrap">
+                    <h5>Author Suggestions</h5>
+                    <div class="list-group mb-3" id="isbnLookupAuthorSuggestions"></div>
+                </div>
+                <div class="d-none" id="isbnLookupSeriesSuggestionsWrap">
+                    <h5>Series Suggestions</h5>
+                    <div class="list-group mb-3" id="isbnLookupSeriesSuggestions"></div>
+                </div>
+                <div class="d-none" id="isbnLookupTagSuggestionsWrap">
+                    <h5>Tag Suggestions</h5>
+                    <div class="list-group mb-3" id="isbnLookupTagSuggestions"></div>
+                </div>
+                <div class="d-none" id="isbnLookupNoSuggestions">
+                    <p class="text-secondary mb-0">No additional linked-entity suggestions were found.</p>
+                </div>
+            </div>
+        </div>
         <form id="bookForm">
             <div class="card" id="bookDetailsCard">
                 <div class="card-body shadow">

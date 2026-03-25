@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const http = require("http");
+const https = require("https");
 
 const pool = require("../db");
 const { successResponse, errorResponse } = require("../utils/response");
@@ -498,6 +500,635 @@ function validateCoverUrl(value) {
 		errors.push("Cover Image URL must be a valid URL starting with http:// or https://.");
 	}
 	return errors;
+}
+
+function stripDiacritics(value) {
+	return String(value || "")
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeLookupName(value) {
+	if (typeof value !== "string") return "";
+	return stripDiacritics(value)
+		.toLowerCase()
+		.replace(/&/g, " and ")
+		.replace(/[^\p{L}\p{N}\s]/gu, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function normalizeLookupCompact(value) {
+	return normalizeLookupName(value).replace(/\s+/g, "");
+}
+
+function sanitizeLookupText(value, maxLength) {
+	const normalized = normalizeOptionalText(value);
+	if (!normalized || typeof normalized !== "string") return null;
+	const collapsed = normalized.replace(/\s+/g, " ").trim();
+	if (!collapsed) return null;
+	return maxLength ? collapsed.slice(0, maxLength) : collapsed;
+}
+
+function sanitizeLookupDescription(value) {
+	const normalized = sanitizeLookupText(value, MAX_DESCRIPTION_LENGTH);
+	if (!normalized) return null;
+	return validateDescription(normalized).length === 0 ? normalized : null;
+}
+
+function sanitizeLookupCoverUrl(value) {
+	const normalized = sanitizeLookupText(value, 500);
+	if (!normalized) return null;
+	return validateCoverUrl(normalized).length === 0 ? normalized : null;
+}
+
+function sanitizeLookupPageCount(value) {
+	if (value === undefined || value === null || value === "") return null;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isInteger(parsed) || parsed < 1 || parsed > 10000) return null;
+	return parsed;
+}
+
+function lookupDateSpecificity(dateValue) {
+	if (!dateValue || typeof dateValue !== "object") return 0;
+	if (Number.isInteger(dateValue.day) && Number.isInteger(dateValue.month) && Number.isInteger(dateValue.year)) return 3;
+	if (Number.isInteger(dateValue.month) && Number.isInteger(dateValue.year)) return 2;
+	if (Number.isInteger(dateValue.year)) return 1;
+	return 0;
+}
+
+function buildPartialDate(text, { year = null, month = null, day = null } = {}) {
+	const normalizedText = sanitizeLookupText(text, 120);
+	if (!normalizedText) return null;
+	const payload = {
+		text: normalizedText,
+		year: Number.isInteger(year) ? year : null,
+		month: Number.isInteger(month) ? month : null,
+		day: Number.isInteger(day) ? day : null
+	};
+	return validatePartialDateObject(payload, "Publication Date").length === 0 ? payload : null;
+}
+
+function parsePartialDateFromSource(rawValue) {
+	const value = sanitizeLookupText(rawValue, 120);
+	if (!value) return null;
+
+	const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+	if (isoMatch) {
+		return buildPartialDate(value, {
+			year: Number.parseInt(isoMatch[1], 10),
+			month: Number.parseInt(isoMatch[2], 10),
+			day: Number.parseInt(isoMatch[3], 10)
+		});
+	}
+
+	const yearOnlyMatch = value.match(/^(\d{4})$/);
+	if (yearOnlyMatch) {
+		return buildPartialDate(value, { year: Number.parseInt(yearOnlyMatch[1], 10) });
+	}
+
+	const monthYearMatch = value.match(/^([A-Za-z]+)\s+(\d{4})$/);
+	if (monthYearMatch) {
+		const parsed = Date.parse(`${monthYearMatch[1]} 1, ${monthYearMatch[2]}`);
+		if (!Number.isNaN(parsed)) {
+			const date = new Date(parsed);
+			return buildPartialDate(value, {
+				year: date.getUTCFullYear(),
+				month: date.getUTCMonth() + 1
+			});
+		}
+	}
+
+	const parsed = Date.parse(value);
+	if (!Number.isNaN(parsed)) {
+		const date = new Date(parsed);
+		return buildPartialDate(value, {
+			year: date.getUTCFullYear(),
+			month: date.getUTCMonth() + 1,
+			day: date.getUTCDate()
+		});
+	}
+
+	return null;
+}
+
+function pickBetterString(currentValue, nextValue, { maxLength = null } = {}) {
+	const current = sanitizeLookupText(currentValue, maxLength);
+	const next = sanitizeLookupText(nextValue, maxLength);
+	if (!next) return current;
+	if (!current) return next;
+	const currentCompact = normalizeLookupCompact(current);
+	const nextCompact = normalizeLookupCompact(next);
+	if (currentCompact === nextCompact) {
+		return next.length > current.length ? next : current;
+	}
+	return next.length > current.length ? next : current;
+}
+
+function pickBetterDate(currentValue, nextValue) {
+	if (!nextValue) return currentValue || null;
+	if (!currentValue) return nextValue;
+	const currentScore = lookupDateSpecificity(currentValue);
+	const nextScore = lookupDateSpecificity(nextValue);
+	return nextScore > currentScore ? nextValue : currentValue;
+}
+
+function pickBetterCover(currentValue, nextValue) {
+	const current = sanitizeLookupCoverUrl(currentValue);
+	const next = sanitizeLookupCoverUrl(nextValue);
+	if (!next) return current;
+	if (!current) return next;
+	if (current.startsWith("https://") && !next.startsWith("https://")) return current;
+	if (next.startsWith("https://") && !current.startsWith("https://")) return next;
+	return next.length > current.length ? next : current;
+}
+
+function mergeNamedItems(items, getName) {
+	const merged = [];
+	const seen = new Set();
+	for (const item of items || []) {
+		const name = sanitizeLookupText(getName(item), 150);
+		if (!name) continue;
+		const key = normalizeLookupCompact(name);
+		if (!key || seen.has(key)) continue;
+		seen.add(key);
+		merged.push(item);
+	}
+	return merged;
+}
+
+function deriveLanguageName(rawValue) {
+	const value = sanitizeLookupText(rawValue, 64);
+	if (!value) return null;
+	if (/^[a-z]{2,3}$/i.test(value)) {
+		try {
+			const display = new Intl.DisplayNames(["en"], { type: "language" }).of(value.toLowerCase());
+			return sanitizeLookupText(display || value, 64);
+		} catch (_) {
+			return value;
+		}
+	}
+	return value;
+}
+
+function splitAuthorNameParts(name) {
+	const normalized = sanitizeLookupText(name, 150);
+	if (!normalized) return { displayName: null, firstNames: null, lastName: null };
+	const parts = normalized.split(" ").filter(Boolean);
+	if (parts.length < 2) {
+		return { displayName: normalized, firstNames: null, lastName: null };
+	}
+	return {
+		displayName: normalized,
+		firstNames: parts.slice(0, -1).join(" ") || null,
+		lastName: parts[parts.length - 1] || null
+	};
+}
+
+async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}) {
+	const target = new URL(url);
+	const transport = target.protocol === "http:" ? http : https;
+	return new Promise((resolve, reject) => {
+		const request = transport.request(target, {
+			method: "GET",
+			headers: {
+				accept: "application/json",
+				...headers
+			}
+		}, (response) => {
+			const chunks = [];
+			response.on("data", (chunk) => chunks.push(chunk));
+			response.on("end", () => {
+				const body = Buffer.concat(chunks).toString("utf8");
+				if (response.statusCode < 200 || response.statusCode >= 300) {
+					reject(new Error(`HTTP ${response.statusCode}`));
+					return;
+				}
+				try {
+					resolve(body ? JSON.parse(body) : {});
+				} catch (error) {
+					reject(error);
+				}
+			});
+		});
+
+		request.setTimeout(timeoutMs, () => {
+			request.destroy(new Error("Request timed out."));
+		});
+		request.on("error", reject);
+		request.end();
+	});
+}
+
+function extractGoogleBooksVolume(payload, isbn) {
+	const items = Array.isArray(payload?.items) ? payload.items : [];
+	if (items.length === 0) return null;
+	const normalizedIsbn = normalizeIsbn(isbn);
+	const preferred = items.find((item) => {
+		const identifiers = Array.isArray(item?.volumeInfo?.industryIdentifiers) ? item.volumeInfo.industryIdentifiers : [];
+		return identifiers.some((entry) => normalizeIsbn(entry?.identifier) === normalizedIsbn);
+	}) || items[0];
+	const info = preferred?.volumeInfo || {};
+	const title = sanitizeLookupText(info.title, MAX_TITLE_LENGTH);
+	if (!title) return null;
+	const authors = mergeNamedItems(
+		(Array.isArray(info.authors) ? info.authors : []).map((name) => {
+			const parts = splitAuthorNameParts(name);
+			return {
+				authorId: null,
+				authorRole: null,
+				authorName: parts.displayName,
+				displayName: parts.displayName,
+				firstNames: parts.firstNames,
+				lastName: parts.lastName
+			};
+		}),
+		(item) => item.authorName
+	);
+	const categories = mergeNamedItems(
+		(Array.isArray(info.categories) ? info.categories : []).flatMap((entry) => String(entry || "").split("/")).map((name) => ({
+			id: null,
+			name: sanitizeLookupText(name, MAX_TAG_LENGTH)
+		})),
+		(item) => item.name
+	).filter((item) => normalizeTagName(item.name));
+
+	return {
+		source: "googleBooks",
+		title,
+		subtitle: sanitizeLookupText(info.subtitle, MAX_SUBTITLE_LENGTH),
+		description: sanitizeLookupDescription(info.description),
+		pageCount: sanitizeLookupPageCount(info.pageCount),
+		publicationDate: parsePartialDateFromSource(info.publishedDate),
+		coverImageUrl: pickBetterCover(
+			info.imageLinks?.extraLarge,
+			info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || info.imageLinks?.large || info.imageLinks?.medium
+		),
+		publisher: sanitizeLookupText(info.publisher, 150)
+			? {
+				id: null,
+				name: sanitizeLookupText(info.publisher, 150),
+				foundedDate: null,
+				website: null,
+				notes: null
+			}
+			: null,
+		authors,
+		languages: mergeNamedItems(
+			[deriveLanguageName(info.language)].filter(Boolean).map((name) => ({ id: null, name })),
+			(item) => item.name
+		),
+		tags: categories,
+		series: []
+	};
+}
+
+async function fetchGoogleBooksByIsbn(isbn) {
+	const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`;
+	const payload = await fetchJsonWithTimeout(url);
+	return extractGoogleBooksVolume(payload, isbn);
+}
+
+function extractOpenLibraryBook(payload, isbn) {
+	const key = `ISBN:${isbn}`;
+	const record = payload?.[key];
+	if (!record || typeof record !== "object") return null;
+	const title = sanitizeLookupText(record.title, MAX_TITLE_LENGTH);
+	if (!title) return null;
+	const authors = mergeNamedItems(
+		(Array.isArray(record.authors) ? record.authors : []).map((entry) => {
+			const parts = splitAuthorNameParts(entry?.name);
+			return {
+				authorId: null,
+				authorRole: null,
+				authorName: parts.displayName,
+				displayName: parts.displayName,
+				firstNames: parts.firstNames,
+				lastName: parts.lastName
+			};
+		}),
+		(item) => item.authorName
+	);
+	const tags = mergeNamedItems(
+		(Array.isArray(record.subjects) ? record.subjects : []).map((entry) => ({
+			id: null,
+			name: sanitizeLookupText(entry?.name, MAX_TAG_LENGTH)
+		})),
+		(item) => item.name
+	).filter((item) => normalizeTagName(item.name));
+
+	return {
+		source: "openLibrary",
+		title,
+		subtitle: sanitizeLookupText(record.subtitle, MAX_SUBTITLE_LENGTH),
+		description: sanitizeLookupDescription(record.notes?.value || record.notes || record.subtitle || null),
+		pageCount: sanitizeLookupPageCount(record.number_of_pages),
+		publicationDate: parsePartialDateFromSource(record.publish_date),
+		coverImageUrl: pickBetterCover(record.cover?.large, record.cover?.medium || record.cover?.small),
+		publisher: sanitizeLookupText(record.publishers?.[0]?.name, 150)
+			? {
+				id: null,
+				name: sanitizeLookupText(record.publishers?.[0]?.name, 150),
+				foundedDate: null,
+				website: null,
+				notes: null
+			}
+			: null,
+		authors,
+		languages: [],
+		tags,
+		series: []
+	};
+}
+
+async function fetchOpenLibraryByIsbn(isbn) {
+	const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`;
+	const payload = await fetchJsonWithTimeout(url);
+	return extractOpenLibraryBook(payload, isbn);
+}
+
+function mergeLookupMetadata({ isbn, google, openLibrary, warnings }) {
+	const merged = {
+		title: null,
+		subtitle: null,
+		isbn: normalizeIsbn(isbn),
+		publicationDate: null,
+		pageCount: null,
+		coverImageUrl: null,
+		description: null,
+		bookType: null,
+		publisher: null,
+		authors: [],
+		languages: [],
+		tags: [],
+		series: []
+	};
+
+	const providers = [google, openLibrary].filter(Boolean);
+	for (const provider of providers) {
+		merged.title = pickBetterString(merged.title, provider.title, { maxLength: MAX_TITLE_LENGTH });
+		merged.subtitle = pickBetterString(merged.subtitle, provider.subtitle, { maxLength: MAX_SUBTITLE_LENGTH });
+		merged.description = pickBetterString(merged.description, provider.description, { maxLength: MAX_DESCRIPTION_LENGTH });
+		merged.publicationDate = pickBetterDate(merged.publicationDate, provider.publicationDate);
+		merged.coverImageUrl = pickBetterCover(merged.coverImageUrl, provider.coverImageUrl);
+		if (!merged.pageCount && Number.isInteger(provider.pageCount)) {
+			merged.pageCount = provider.pageCount;
+		}
+		if (!merged.publisher?.name && provider.publisher?.name) {
+			merged.publisher = { ...provider.publisher };
+		} else if (merged.publisher?.name && provider.publisher?.name) {
+			merged.publisher.name = pickBetterString(merged.publisher.name, provider.publisher.name, { maxLength: 150 });
+		}
+		merged.authors = mergeNamedItems([...(merged.authors || []), ...(provider.authors || [])], (item) => item.authorName);
+		merged.languages = mergeNamedItems([...(merged.languages || []), ...(provider.languages || [])], (item) => item.name);
+		merged.tags = mergeNamedItems([...(merged.tags || []), ...(provider.tags || [])], (item) => item.name)
+			.filter((item) => normalizeTagName(item.name));
+	}
+
+	if (!merged.title) {
+		return null;
+	}
+	if (providers.length === 2 && google?.pageCount && openLibrary?.pageCount && google.pageCount !== openLibrary.pageCount) {
+		warnings.push("Google Books and Open Library reported different page counts; the first valid count was used.");
+	}
+	if (providers.length === 2 && google?.publicationDate && openLibrary?.publicationDate) {
+		const googleText = google.publicationDate.text || "";
+		const openText = openLibrary.publicationDate.text || "";
+		if (googleText && openText && googleText !== openText) {
+			warnings.push("Google Books and Open Library reported different publication dates; the more specific valid date was used.");
+		}
+	}
+	return merged;
+}
+
+function buildEntityMatchVariants(value) {
+	const safe = sanitizeLookupText(value, 200);
+	if (!safe) return [];
+	const variants = new Set();
+	variants.add(normalizeLookupName(safe));
+	variants.add(normalizeLookupCompact(safe));
+	return Array.from(variants).filter(Boolean);
+}
+
+function findNamedEntityMatch(candidates, names, getCandidateStrings) {
+	const wanted = new Set();
+	for (const name of names) {
+		buildEntityMatchVariants(name).forEach((variant) => wanted.add(variant));
+	}
+	if (wanted.size === 0) return null;
+	for (const candidate of candidates) {
+		const candidateStrings = getCandidateStrings(candidate).flatMap((value) => buildEntityMatchVariants(value));
+		if (candidateStrings.some((variant) => wanted.has(variant))) {
+			return candidate;
+		}
+	}
+	return null;
+}
+
+async function matchLookupEntities({ userId, merged, warnings }) {
+	const [authorsResult, publishersResult, seriesResult, bookTypesResult, tagsResult, languagesResult] = await Promise.all([
+		merged.authors.length > 0
+			? pool.query(`SELECT id, display_name, first_names, last_name FROM authors WHERE user_id = $1 AND deleted_at IS NULL ORDER BY display_name ASC`, [userId])
+			: Promise.resolve({ rows: [] }),
+		merged.publisher?.name
+			? pool.query(`SELECT id, name, website, notes FROM publishers WHERE user_id = $1 AND deleted_at IS NULL ORDER BY name ASC`, [userId])
+			: Promise.resolve({ rows: [] }),
+		merged.series.length > 0
+			? pool.query(`SELECT id, name, description, website FROM book_series WHERE user_id = $1 AND deleted_at IS NULL ORDER BY name ASC`, [userId])
+			: Promise.resolve({ rows: [] }),
+		merged.bookType?.name
+			? pool.query(`SELECT id, name, description FROM book_types WHERE user_id = $1 AND deleted_at IS NULL ORDER BY name ASC`, [userId])
+			: Promise.resolve({ rows: [] }),
+		merged.tags.length > 0
+			? pool.query(`SELECT id, name, name_normalized FROM tags WHERE user_id = $1 ORDER BY name ASC`, [userId])
+			: Promise.resolve({ rows: [] }),
+		merged.languages.length > 0
+			? pool.query(`SELECT id, name, name_normalized FROM languages ORDER BY name ASC`, [])
+			: Promise.resolve({ rows: [] })
+	]);
+
+	const existingEntities = {
+		authors: [],
+		publisher: null,
+		series: [],
+		bookType: null,
+		languages: [],
+		tags: []
+	};
+	const newEntities = {
+		authors: [],
+		publisher: null,
+		series: [],
+		bookType: null,
+		languages: [],
+		tags: []
+	};
+
+	const book = {
+		title: merged.title,
+		subtitle: merged.subtitle || null,
+		isbn: merged.isbn || null,
+		publicationDate: merged.publicationDate || null,
+		pageCount: Number.isInteger(merged.pageCount) ? merged.pageCount : null,
+		coverImageUrl: merged.coverImageUrl || null,
+		description: merged.description || null,
+		bookType: null,
+		publisher: null,
+		authors: [],
+		languages: [],
+		tags: [],
+		series: []
+	};
+
+	for (const author of merged.authors) {
+		const match = findNamedEntityMatch(authorsResult.rows, [author.authorName, author.displayName], (candidate) => [
+			candidate.display_name,
+			[candidate.first_names, candidate.last_name].filter(Boolean).join(" ")
+		]);
+		if (match) {
+			const mapped = {
+				id: match.id,
+				displayName: match.display_name,
+				firstNames: match.first_names,
+				lastName: match.last_name,
+				authorRole: author.authorRole || null
+			};
+			existingEntities.authors.push(mapped);
+			book.authors.push({
+				authorId: match.id,
+				authorRole: author.authorRole || null,
+				authorName: match.display_name
+			});
+		} else {
+			const suggestion = {
+				authorId: null,
+				authorRole: author.authorRole || null,
+				authorName: author.authorName,
+				displayName: author.displayName || author.authorName,
+				firstNames: author.firstNames || null,
+				lastName: author.lastName || null,
+				birthDate: author.birthDate || null,
+				deathDate: author.deathDate || null,
+				deceased: author.deceased || false,
+				bio: author.bio || null
+			};
+			newEntities.authors.push(suggestion);
+			book.authors.push({
+				authorId: null,
+				authorRole: suggestion.authorRole,
+				authorName: suggestion.authorName
+			});
+		}
+	}
+
+	if (merged.publisher?.name) {
+		const match = findNamedEntityMatch(publishersResult.rows, [merged.publisher.name], (candidate) => [candidate.name]);
+		if (match) {
+			existingEntities.publisher = {
+				id: match.id,
+				name: match.name,
+				website: match.website,
+				notes: match.notes
+			};
+			book.publisher = {
+				id: match.id,
+				name: match.name,
+				website: match.website,
+				notes: match.notes,
+				foundedDate: null
+			};
+		} else {
+			newEntities.publisher = { ...merged.publisher, id: null };
+			book.publisher = { ...merged.publisher, id: null };
+		}
+	}
+
+	for (const series of merged.series) {
+		const match = findNamedEntityMatch(seriesResult.rows, [series.seriesName || series.name], (candidate) => [candidate.name]);
+		if (match) {
+			const mapped = {
+				id: match.id,
+				name: match.name,
+				description: match.description,
+				website: match.website,
+				bookOrder: Number.isInteger(series.bookOrder) ? series.bookOrder : null
+			};
+			existingEntities.series.push(mapped);
+			book.series.push({
+				seriesId: match.id,
+				seriesName: match.name,
+				bookOrder: mapped.bookOrder
+			});
+		} else {
+			const suggestion = {
+				seriesId: null,
+				seriesName: series.seriesName || series.name,
+				name: series.seriesName || series.name,
+				bookOrder: Number.isInteger(series.bookOrder) ? series.bookOrder : null,
+				description: series.description || null,
+				website: series.website || null
+			};
+			newEntities.series.push(suggestion);
+			book.series.push({
+				seriesId: null,
+				seriesName: suggestion.seriesName,
+				bookOrder: suggestion.bookOrder
+			});
+		}
+	}
+
+	for (const language of merged.languages) {
+		const languageName = deriveLanguageName(language.name);
+		const normalizedLanguage = normalizeLookupName(languageName);
+		const match = languagesResult.rows.find((candidate) =>
+			candidate.name_normalized === normalizedLanguage || normalizeLookupCompact(candidate.name) === normalizeLookupCompact(languageName)
+		);
+		if (match) {
+			existingEntities.languages.push({ id: match.id, name: match.name });
+			book.languages.push({ id: match.id, name: match.name });
+		} else if (languageName) {
+			warnings.push(`Language '${languageName}' is not available in the current language list, so it was not linked automatically.`);
+		}
+	}
+
+	for (const tag of merged.tags) {
+		const normalizedTag = normalizeTagName(tag.name);
+		if (!normalizedTag) continue;
+		const match = tagsResult.rows.find((candidate) => candidate.name_normalized === normalizedTag);
+		if (match) {
+			existingEntities.tags.push({ id: match.id, name: match.name });
+			book.tags.push({ id: match.id, name: match.name });
+		} else {
+			newEntities.tags.push({ id: null, name: buildTagDisplayName(tag.name) || tag.name });
+			book.tags.push({ id: null, name: buildTagDisplayName(tag.name) || tag.name });
+		}
+	}
+
+	if (merged.bookType?.name) {
+		const match = findNamedEntityMatch(bookTypesResult.rows, [merged.bookType.name], (candidate) => [candidate.name]);
+		if (match) {
+			existingEntities.bookType = {
+				id: match.id,
+				name: match.name,
+				description: match.description
+			};
+			book.bookType = {
+				id: match.id,
+				name: match.name,
+				description: match.description
+			};
+		} else {
+			newEntities.bookType = { ...merged.bookType, id: null };
+			book.bookType = { ...merged.bookType, id: null };
+		}
+	}
+
+	return {
+		book,
+		existingEntities,
+		newEntities,
+		warnings: Array.from(new Set(warnings.filter(Boolean)))
+	};
 }
 
 async function insertPartialDate(client, dateValue) {
@@ -1429,6 +2060,106 @@ async function listBooksHandler(req, res) {
 			return errorResponse(res, 500, "Database Error", ["An error occurred while retrieving books."]);
 	}
 }
+
+router.post("/isbn-lookup", requiresAuth, authenticatedLimiter, async (req, res) => {
+	const userId = req.user.id;
+	const isbnRaw = normalizeText(req.body?.isbn);
+	const isbn = normalizeIsbn(isbnRaw);
+
+	if (!isbn || validateIsbn(isbnRaw).length > 0) {
+		return errorResponse(res, 400, "Validation Error", ["ISBN must be 10–17 characters and contain only digits, hyphens, or X."]);
+	}
+
+	const warnings = [];
+	let google = null;
+	let openLibrary = null;
+	let googleFailed = false;
+	let openLibraryFailed = false;
+
+	try {
+		const [googleResult, openLibraryResult] = await Promise.allSettled([
+			fetchGoogleBooksByIsbn(isbn),
+			fetchOpenLibraryByIsbn(isbn)
+		]);
+
+		if (googleResult.status === "fulfilled") {
+			google = googleResult.value;
+		} else {
+			googleFailed = true;
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+				status: "FAILURE",
+				provider: "google_books",
+				user_id: userId,
+				isbn,
+				error_message: googleResult.reason?.message || "Unknown provider error."
+			}, "warn");
+		}
+
+		if (openLibraryResult.status === "fulfilled") {
+			openLibrary = openLibraryResult.value;
+		} else {
+			openLibraryFailed = true;
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+				status: "FAILURE",
+				provider: "open_library",
+				user_id: userId,
+				isbn,
+				error_message: openLibraryResult.reason?.message || "Unknown provider error."
+			}, "warn");
+		}
+	} catch (error) {
+		logToFile("BOOK_ISBN_LOOKUP", {
+			status: "FAILURE",
+			stage: "FETCH",
+			user_id: userId,
+			isbn,
+			error_message: error.message
+		}, "error");
+		return errorResponse(res, 500, "Lookup failed.", ["Unable to look up this ISBN right now. Please try again later."]);
+	}
+
+	if (!google && googleFailed && openLibrary) {
+		warnings.push("Google Books was unavailable, so the lookup used Open Library data only.");
+	}
+	if (!openLibrary && openLibraryFailed && google) {
+		warnings.push("Open Library was unavailable, so the lookup used Google Books data only.");
+	}
+
+	if (!google && !openLibrary) {
+		if (googleFailed || openLibraryFailed) {
+			return errorResponse(res, 502, "Lookup failed.", ["External lookup sources were unavailable. Please try again later."]);
+		}
+		return errorResponse(res, 404, "No metadata found.", ["We could not find metadata for that ISBN."]);
+	}
+
+	const merged = mergeLookupMetadata({ isbn, google, openLibrary, warnings });
+	if (!merged) {
+		return errorResponse(res, 404, "No metadata found.", ["We could not find metadata for that ISBN."]);
+	}
+
+	try {
+		const payload = await matchLookupEntities({ userId, merged, warnings });
+		logToFile("BOOK_ISBN_LOOKUP", {
+			status: "SUCCESS",
+			user_id: userId,
+			isbn,
+			google_used: Boolean(google),
+			open_library_used: Boolean(openLibrary),
+			existing_authors: payload.existingEntities.authors.length,
+			new_authors: payload.newEntities.authors.length
+		}, "info");
+		return successResponse(res, 200, "ISBN metadata retrieved successfully.", payload);
+	} catch (error) {
+		logToFile("BOOK_ISBN_LOOKUP", {
+			status: "FAILURE",
+			stage: "MATCH",
+			user_id: userId,
+			isbn,
+			error_message: error.message
+		}, "error");
+		return errorResponse(res, 500, "Lookup failed.", ["Unable to prepare ISBN lookup results right now."]);
+	}
+});
 
 // GET /book - List or fetch a specific book
 router.get("/", requiresAuth, authenticatedLimiter, listBooksHandler);
