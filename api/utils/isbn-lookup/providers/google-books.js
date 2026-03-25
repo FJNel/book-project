@@ -124,10 +124,11 @@ module.exports = {
 			resource: "isbn",
 			identifier: isbn,
 			url: url.toString(),
-			timeoutMs: 3200,
+			timeoutMs: 4500,
 			bypassCache: Boolean(debug?.bypassProviderCache),
 			logContext: {
-				usesApiKey: Boolean(apiKey)
+				usesApiKey: Boolean(apiKey),
+				requestStage: "primary_lookup"
 			}
 		});
 		const metadata = extractGoogleBooksVolume(payload, isbn);

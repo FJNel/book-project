@@ -13,6 +13,7 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_TAG_LENGTH = 50;
 const DEFAULT_EXTERNAL_CACHE_TTL_SECONDS = Number.parseInt(config?.isbnLookup?.externalCacheTtlSeconds, 10) || 21600;
 const NEGATIVE_CACHE_TTL_SECONDS = 90;
+const OPEN_LIBRARY_503_NEGATIVE_CACHE_TTL_SECONDS = 300;
 const MAX_EXTERNAL_CACHE_ENTRIES = 750;
 
 const inFlightRequests = new Map();
@@ -238,6 +239,7 @@ function extractStringValue(value) {
 async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}) {
 	const target = new URL(url);
 	const transport = target.protocol === "http:" ? http : https;
+	const startedAt = Date.now();
 	return new Promise((resolve, reject) => {
 		const request = transport.request(target, {
 			method: "GET",
@@ -259,20 +261,31 @@ async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}
 				try {
 					resolve({
 						payload: body ? JSON.parse(body) : {},
-						httpStatus: response.statusCode || 200
+						httpStatus: response.statusCode || 200,
+						durationMs: Date.now() - startedAt
 					});
 				} catch (error) {
 					error.httpStatus = response.statusCode || 200;
 					error.parseFailed = true;
+					error.durationMs = Date.now() - startedAt;
 					reject(error);
 				}
 			});
 		});
 
 		request.setTimeout(timeoutMs, () => {
-			request.destroy(new Error("Request timed out."));
+			const error = new Error("Request timed out.");
+			error.code = "REQUEST_TIMEOUT";
+			error.isTimeout = true;
+			error.durationMs = Date.now() - startedAt;
+			request.destroy(error);
 		});
-		request.on("error", reject);
+		request.on("error", (error) => {
+			if (!error.durationMs) {
+				error.durationMs = Date.now() - startedAt;
+			}
+			reject(error);
+		});
 		request.end();
 	});
 }
@@ -318,8 +331,10 @@ function setNegativeCacheEntry(key, error, ttlSeconds = NEGATIVE_CACHE_TTL_SECON
 	}
 	negativeCacheStore.set(key, {
 		errorMessage: error?.message || "External lookup failed.",
+		httpStatus: error?.httpStatus || null,
 		createdAt: Date.now(),
-		ttlMs: Math.max(1, ttlSeconds) * 1000
+		ttlMs: Math.max(1, ttlSeconds) * 1000,
+		ttlSeconds: Math.max(1, ttlSeconds)
 	});
 }
 
@@ -329,6 +344,13 @@ function shouldNegativeCache(error) {
 	return /HTTP \d+/i.test(message)
 		|| /timed out/i.test(message)
 		|| /ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|socket hang up/i.test(message);
+}
+
+function resolveNegativeCacheTtlSeconds({ provider, error }) {
+	if (provider === "openLibrary" && Number(error?.httpStatus) === 503) {
+		return OPEN_LIBRARY_503_NEGATIVE_CACHE_TTL_SECONDS;
+	}
+	return NEGATIVE_CACHE_TTL_SECONDS;
 }
 
 function recordExternalCacheEntry(cacheKey) {
@@ -362,6 +384,7 @@ async function fetchCachedJson({
 		status: "INFO",
 		provider,
 		resource,
+		request_stage: sanitizeLookupText(logContext.requestStage, 80) || "request",
 		identifier,
 		url: sanitizeExternalUrlForLog(url),
 		timeout_ms: timeoutMs,
@@ -388,19 +411,23 @@ async function fetchCachedJson({
 		if (negativeCached) {
 			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
 				...requestLogBase,
-				cache_source: "negative_cache"
+				cache_source: "negative_cache",
+				http_status: negativeCached.httpStatus || null,
+				is_timeout: /timed out/i.test(negativeCached.errorMessage),
+				negative_cache_ttl_seconds: negativeCached.ttlSeconds
 			}, "warn");
 			const error = new Error(negativeCached.errorMessage);
 			error.fromNegativeCache = true;
+			error.httpStatus = negativeCached.httpStatus || null;
 			throw error;
 		}
 	}
 
 	if (inFlightRequests.has(inFlightKey)) {
-		logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
-			...requestLogBase,
-			cache_source: "in_flight"
-		}, "info");
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+				...requestLogBase,
+				cache_source: "in_flight"
+			}, "info");
 		return inFlightRequests.get(inFlightKey);
 	}
 
@@ -416,7 +443,8 @@ async function fetchCachedJson({
 				...requestLogBase,
 				cache_source: bypassCache ? "network_bypass" : "network",
 				http_status: result.httpStatus,
-				parse_succeeded: true
+				parse_succeeded: true,
+				duration_ms: result.durationMs
 			}, "info");
 			const payload = result.payload;
 			setCacheEntry(cacheKey, payload, ttlSeconds);
@@ -429,10 +457,19 @@ async function fetchCachedJson({
 				cache_source: bypassCache ? "network_bypass" : "network",
 				http_status: error?.httpStatus || null,
 				parse_succeeded: error?.parseFailed ? false : null,
-				error_message: error?.message || "External lookup failed."
+				error_message: error?.message || "External lookup failed.",
+				duration_ms: error?.durationMs || null,
+				is_timeout: Boolean(error?.isTimeout || /timed out/i.test(error?.message || "")),
+				negative_cache_ttl_seconds: shouldNegativeCache(error)
+					? resolveNegativeCacheTtlSeconds({ provider, error })
+					: null
 			}, "warn");
 			if (shouldNegativeCache(error)) {
-				setNegativeCacheEntry(negativeCacheKey, error, NEGATIVE_CACHE_TTL_SECONDS);
+				setNegativeCacheEntry(
+					negativeCacheKey,
+					error,
+					resolveNegativeCacheTtlSeconds({ provider, error })
+				);
 			}
 			throw error;
 		} finally {
@@ -670,5 +707,6 @@ module.exports = {
 	resolveBookTypeDescription,
 	mergeLookupMetadata,
 	NEGATIVE_CACHE_TTL_SECONDS,
+	OPEN_LIBRARY_503_NEGATIVE_CACHE_TTL_SECONDS,
 	MAX_EXTERNAL_CACHE_ENTRIES
 };

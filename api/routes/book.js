@@ -1707,6 +1707,9 @@ router.post("/isbn-lookup", requiresAuth, authenticatedLimiter, async (req, res)
 				user_id: userId,
 				isbn,
 				classification: providerResult.classification || "unavailable",
+				http_status: providerResult.error?.httpStatus || null,
+				is_timeout: Boolean(providerResult.error?.isTimeout || /timed out/i.test(providerResult.error?.message || "")),
+				error_cached: Boolean(providerResult.error?.fromNegativeCache),
 				error_message: providerResult.error?.message || "Unknown provider error."
 			}, "warn");
 		}

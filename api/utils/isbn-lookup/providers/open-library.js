@@ -187,11 +187,12 @@ async function fetchOpenLibraryAuthor(authorKey, debug = {}) {
 		resource: "author",
 		identifier: authorKey,
 		url: `https://openlibrary.org${authorKey}.json`,
-		timeoutMs: 2200,
+		timeoutMs: 2600,
 		headers: buildOpenLibraryHeaders(),
 		bypassCache: Boolean(debug?.bypassProviderCache),
 		logContext: {
-			headersIdentified: true
+			headersIdentified: true,
+			requestStage: "author_enrichment"
 		}
 	});
 	const displayName = sanitizeLookupText(payload?.name || payload?.personal_name, 150);
@@ -226,11 +227,12 @@ module.exports = {
 				resource: "isbn-data",
 				identifier: isbn,
 				url: booksApiUrl.toString(),
-				timeoutMs: 4200,
+				timeoutMs: 5200,
 				headers: buildOpenLibraryHeaders(),
 				bypassCache: Boolean(debug?.bypassProviderCache),
 				logContext: {
-					headersIdentified: true
+					headersIdentified: true,
+					requestStage: "primary_lookup"
 				}
 			}),
 			fetchCachedJson({
@@ -238,11 +240,12 @@ module.exports = {
 				resource: "edition",
 				identifier: isbn,
 				url: editionUrl.toString(),
-				timeoutMs: 4200,
+				timeoutMs: 3600,
 				headers: buildOpenLibraryHeaders(),
 				bypassCache: Boolean(debug?.bypassProviderCache),
 				logContext: {
-					headersIdentified: true
+					headersIdentified: true,
+					requestStage: "edition_enrichment"
 				}
 			})
 		]);
@@ -287,11 +290,12 @@ module.exports = {
 					resource: "work",
 					identifier: workKey,
 					url: `https://openlibrary.org${workKey}.json`,
-					timeoutMs: 2200,
+					timeoutMs: 2600,
 					headers: buildOpenLibraryHeaders(),
 					bypassCache: Boolean(debug?.bypassProviderCache),
 					logContext: {
-						headersIdentified: true
+						headersIdentified: true,
+						requestStage: "work_enrichment"
 					}
 				});
 			} catch (error) {
