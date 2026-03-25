@@ -23,10 +23,15 @@
 
     const selectors = {
         isbnLookupInput: byId('oneISBN'),
+        isbnScanButton: byId('oneBtnScanISBN'),
         isbnLookupButton: byId('oneBtnLookup'),
         isbnLookupHelp: byId('oneISBNHelp'),
         isbnLookupForm: byId('isbnLookupForm'),
         isbnLookupLoadingModal: byId('lookupByISBNLoadingModal'),
+        isbnBarcodeScannerModal: byId('isbnBarcodeScannerModal'),
+        isbnBarcodeScannerVideo: byId('isbnBarcodeScannerVideo'),
+        isbnBarcodeScannerStatus: byId('isbnBarcodeScannerStatus'),
+        isbnBarcodeScannerRetry: byId('isbnBarcodeScannerRetry'),
         isbnLookupProgressBar: byId('isbnLookupProgressBar'),
         isbnLookupProgressText: byId('isbnLookupProgressText'),
         isbnLookupErrorModal: byId('isbnLookupErrorModal'),
@@ -155,9 +160,23 @@
         recentDurations: [],
         progressTimer: null,
         timeoutId: null,
-        activeRequestToken: 0
+        activeRequestToken: 0,
+        scannerStream: null,
+        scannerPollTimer: null,
+        scannerActive: false,
+        scannerStarting: false,
+        scannerLookupTriggered: false,
+        scannerSessionToken: 0,
+        hardwareScannerTimer: null,
+        hardwareScannerBurstCount: 0,
+        hardwareScannerBurstStartedAt: 0,
+        hardwareScannerLastKeyAt: 0,
+        hardwareScannerEndedWithEnter: false,
+        lastAutoLookupIsbn: null,
+        lastAutoLookupAt: 0
     });
     const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
+    let barcodeDetectorPromise = null;
 
     function triggerInput(el) {
         if (!el) return;
@@ -1188,6 +1207,9 @@
         if (selectors.isbnLookupInput && !isEditMode()) {
             selectors.isbnLookupInput.disabled = false;
         }
+        if (selectors.isbnScanButton && !isEditMode()) {
+            selectors.isbnScanButton.disabled = false;
+        }
         if (selectors.isbnLookupButton && !isEditMode()) {
             selectors.isbnLookupButton.disabled = false;
             selectors.isbnLookupButton.classList.remove('disabled');
@@ -1198,10 +1220,276 @@
         if (selectors.isbnLookupInput) {
             selectors.isbnLookupInput.disabled = loading || isEditMode();
         }
+        if (selectors.isbnScanButton) {
+            selectors.isbnScanButton.disabled = loading || isEditMode();
+        }
         if (selectors.isbnLookupButton) {
             selectors.isbnLookupButton.disabled = loading || isEditMode() || !normalizeIsbn(selectors.isbnLookupInput?.value || '');
             selectors.isbnLookupButton.classList.toggle('disabled', selectors.isbnLookupButton.disabled);
         }
+    }
+
+    function setScannerStatus(message, type = 'secondary') {
+        if (!selectors.isbnBarcodeScannerStatus) return;
+        selectors.isbnBarcodeScannerStatus.classList.remove('alert-secondary', 'alert-info', 'alert-warning', 'alert-danger', 'alert-success');
+        selectors.isbnBarcodeScannerStatus.classList.add(`alert-${type}`);
+        selectors.isbnBarcodeScannerStatus.textContent = message || '';
+    }
+
+    function setScannerRetryEnabled(enabled) {
+        if (!selectors.isbnBarcodeScannerRetry) return;
+        selectors.isbnBarcodeScannerRetry.disabled = !enabled;
+    }
+
+    function stopBarcodeScanner() {
+        if (isbnLookupState.scannerPollTimer) {
+            window.clearTimeout(isbnLookupState.scannerPollTimer);
+            isbnLookupState.scannerPollTimer = null;
+        }
+        if (isbnLookupState.scannerStream) {
+            isbnLookupState.scannerStream.getTracks().forEach((track) => track.stop());
+            isbnLookupState.scannerStream = null;
+        }
+        if (selectors.isbnBarcodeScannerVideo) {
+            selectors.isbnBarcodeScannerVideo.pause();
+            selectors.isbnBarcodeScannerVideo.srcObject = null;
+        }
+        isbnLookupState.scannerActive = false;
+        isbnLookupState.scannerStarting = false;
+    }
+
+    function resetBarcodeScannerUi() {
+        stopBarcodeScanner();
+        isbnLookupState.scannerLookupTriggered = false;
+        isbnLookupState.scannerSessionToken = 0;
+        setScannerRetryEnabled(true);
+        setScannerStatus('Select “Retry Scan” to start your camera, or close this window and enter the ISBN manually.', 'secondary');
+    }
+
+    function extractIsbnCandidateFromBarcode(rawValue) {
+        const cleaned = String(rawValue || '').replace(/[^0-9Xx]/g, '');
+        if (!cleaned) return null;
+        const isbn13Match = cleaned.match(/97[89][0-9]{10}/);
+        if (isbn13Match) return isbn13Match[0];
+        const isbn10Match = cleaned.match(/[0-9]{9}[0-9Xx]/);
+        return isbn10Match ? isbn10Match[0] : null;
+    }
+
+    async function getBarcodeDetector() {
+        if (typeof window.BarcodeDetector === 'undefined') {
+            return null;
+        }
+        if (!barcodeDetectorPromise) {
+            barcodeDetectorPromise = (async () => {
+                const preferredFormats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
+                if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
+                    const supported = await window.BarcodeDetector.getSupportedFormats();
+                    const formats = preferredFormats.filter((format) => supported.includes(format));
+                    return new window.BarcodeDetector(formats.length ? { formats } : undefined);
+                }
+                return new window.BarcodeDetector();
+            })().catch((error) => {
+                console.error('[Add Book] Barcode detector initialization failed.', error);
+                barcodeDetectorPromise = null;
+                return null;
+            });
+        }
+        return barcodeDetectorPromise;
+    }
+
+    function resetHardwareScannerBurst() {
+        isbnLookupState.hardwareScannerBurstCount = 0;
+        isbnLookupState.hardwareScannerBurstStartedAt = 0;
+        isbnLookupState.hardwareScannerLastKeyAt = 0;
+        isbnLookupState.hardwareScannerEndedWithEnter = false;
+    }
+
+    function registerHardwareScannerKey(event) {
+        if (isEditMode()) return;
+        if (event?.altKey || event?.ctrlKey || event?.metaKey) return;
+        const key = event?.key || '';
+        const isCharacterKey = key.length === 1 || key === 'Backspace' || key === 'Delete';
+        if (!isCharacterKey && key !== 'Enter') return;
+        const now = Date.now();
+        if (!isbnLookupState.hardwareScannerBurstStartedAt || now - isbnLookupState.hardwareScannerLastKeyAt > 120) {
+            resetHardwareScannerBurst();
+            isbnLookupState.hardwareScannerBurstStartedAt = now;
+        }
+        isbnLookupState.hardwareScannerLastKeyAt = now;
+        if (key === 'Enter') {
+            isbnLookupState.hardwareScannerEndedWithEnter = true;
+            return;
+        }
+        isbnLookupState.hardwareScannerBurstCount += 1;
+    }
+
+    function isLikelyHardwareScannerInput() {
+        const duration = isbnLookupState.hardwareScannerLastKeyAt - isbnLookupState.hardwareScannerBurstStartedAt;
+        if (isbnLookupState.hardwareScannerEndedWithEnter) {
+            return isbnLookupState.hardwareScannerBurstCount >= 8 && duration >= 0 && duration <= 900;
+        }
+        if (isbnLookupState.hardwareScannerBurstCount < 10) return false;
+        return duration >= 0 && duration <= 500;
+    }
+
+    async function triggerLookupFromNormalizedIsbn(normalized, source) {
+        if (!normalized || isEditMode()) return;
+        const now = Date.now();
+        if (isbnLookupState.lastAutoLookupIsbn === normalized && (now - isbnLookupState.lastAutoLookupAt) < 2000) {
+            return;
+        }
+        isbnLookupState.lastAutoLookupIsbn = normalized;
+        isbnLookupState.lastAutoLookupAt = now;
+        if (selectors.isbnLookupInput) {
+            selectors.isbnLookupInput.value = normalized;
+            triggerInput(selectors.isbnLookupInput);
+        }
+        log('ISBN auto-lookup triggered from scan.', { source, normalized });
+        await handleIsbnLookup();
+    }
+
+    function scheduleHardwareScannerLookup() {
+        if (isbnLookupState.hardwareScannerTimer) {
+            window.clearTimeout(isbnLookupState.hardwareScannerTimer);
+            isbnLookupState.hardwareScannerTimer = null;
+        }
+        isbnLookupState.hardwareScannerTimer = window.setTimeout(async () => {
+            const currentValue = selectors.isbnLookupInput?.value.trim() || '';
+            const normalized = normalizeIsbn(currentValue);
+            if (!normalized || !isLikelyHardwareScannerInput()) {
+                return;
+            }
+            log('Hardware scanner input detected.', {
+                normalized,
+                burstCount: isbnLookupState.hardwareScannerBurstCount,
+                endedWithEnter: isbnLookupState.hardwareScannerEndedWithEnter
+            });
+            resetHardwareScannerBurst();
+            await triggerLookupFromNormalizedIsbn(normalized, 'hardware scanner');
+        }, 140);
+    }
+
+    async function handleDetectedBarcode(rawValue, source = 'camera barcode') {
+        if (isbnLookupState.scannerLookupTriggered || isEditMode()) return;
+        const candidate = extractIsbnCandidateFromBarcode(rawValue);
+        const normalized = normalizeIsbn(candidate || '');
+        if (!normalized) {
+            log('Invalid barcode detected.', { source, rawValue });
+            setScannerStatus('That barcode was detected, but it does not look like a valid ISBN. Try again or enter the ISBN manually.', 'warning');
+            return;
+        }
+        isbnLookupState.scannerLookupTriggered = true;
+        log('Valid barcode detected.', { source, normalized });
+        setScannerStatus(`Valid ISBN detected: ${normalized}. Starting lookup...`, 'success');
+        if (selectors.isbnLookupInput) {
+            selectors.isbnLookupInput.value = normalized;
+            triggerInput(selectors.isbnLookupInput);
+        }
+        await hideModal(selectors.isbnBarcodeScannerModal);
+        await triggerLookupFromNormalizedIsbn(normalized, source);
+    }
+
+    async function pollBarcodeDetections(detector, sessionToken) {
+        if (!detector || !selectors.isbnBarcodeScannerVideo) return;
+        if (!isbnLookupState.scannerActive || isbnLookupState.scannerSessionToken !== sessionToken) return;
+        try {
+            const video = selectors.isbnBarcodeScannerVideo;
+            if (video.readyState >= 2) {
+                const detections = await detector.detect(video);
+                const barcode = Array.isArray(detections) ? detections.find((entry) => entry?.rawValue) : null;
+                if (barcode?.rawValue) {
+                    await handleDetectedBarcode(barcode.rawValue);
+                    if (isbnLookupState.scannerLookupTriggered) {
+                        return;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Add Book] Barcode scanning failed.', error);
+            setScannerStatus('We couldn’t read the barcode from the camera feed. Try holding the barcode closer and steadier.', 'warning');
+            log('Barcode scanning failed.', { message: error?.message || 'Unknown error' });
+        }
+        if (!isbnLookupState.scannerActive || isbnLookupState.scannerSessionToken !== sessionToken) return;
+        isbnLookupState.scannerPollTimer = window.setTimeout(() => {
+            pollBarcodeDetections(detector, sessionToken);
+        }, 250);
+    }
+
+    async function startBarcodeScanner() {
+        if (isEditMode()) return;
+        if (isbnLookupState.scannerStarting) return;
+        stopBarcodeScanner();
+        isbnLookupState.scannerLookupTriggered = false;
+        isbnLookupState.scannerStarting = true;
+        setScannerRetryEnabled(false);
+        const detector = await getBarcodeDetector();
+        if (!detector) {
+            isbnLookupState.scannerStarting = false;
+            setScannerRetryEnabled(false);
+            setScannerStatus('Camera barcode scanning is not supported in this browser. You can still type the ISBN or use a handheld barcode scanner in the ISBN field.', 'warning');
+            log('Barcode scanning unavailable because BarcodeDetector is not supported.');
+            return;
+        }
+        if (!navigator.mediaDevices?.getUserMedia) {
+            isbnLookupState.scannerStarting = false;
+            setScannerRetryEnabled(false);
+            setScannerStatus('Camera access is not available in this browser. You can still type the ISBN or use a handheld barcode scanner in the ISBN field.', 'warning');
+            log('Barcode scanning unavailable because getUserMedia is not supported.');
+            return;
+        }
+
+        try {
+            log('Camera permission requested.');
+            setScannerStatus('Requesting camera access...', 'info');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: 'environment' }
+                },
+                audio: false
+            });
+            if (!selectors.isbnBarcodeScannerModal?.classList.contains('show')) {
+                stream.getTracks().forEach((track) => track.stop());
+                isbnLookupState.scannerStarting = false;
+                setScannerRetryEnabled(true);
+                log('Scanner modal closed before camera access completed.');
+                return;
+            }
+            isbnLookupState.scannerStream = stream;
+            isbnLookupState.scannerActive = true;
+            isbnLookupState.scannerStarting = false;
+            setScannerRetryEnabled(true);
+            isbnLookupState.scannerSessionToken = Date.now();
+            if (selectors.isbnBarcodeScannerVideo) {
+                selectors.isbnBarcodeScannerVideo.srcObject = stream;
+                await selectors.isbnBarcodeScannerVideo.play();
+            }
+            log('Camera permission granted.');
+            setScannerStatus('Scanning for a barcode...', 'info');
+            log('Barcode scanning started.', { sessionToken: isbnLookupState.scannerSessionToken });
+            pollBarcodeDetections(detector, isbnLookupState.scannerSessionToken);
+        } catch (error) {
+            isbnLookupState.scannerStarting = false;
+            setScannerRetryEnabled(true);
+            const denied = /denied|notallowed/i.test(error?.name || '') || /denied|notallowed/i.test(error?.message || '');
+            log(denied ? 'Camera permission denied.' : 'Camera scanning could not start.', {
+                message: error?.message || 'Unknown error'
+            });
+            setScannerStatus(
+                denied
+                    ? 'Camera access was denied. You can allow access and retry, or close this window and type the ISBN manually instead.'
+                    : 'We could not start the camera. Try again, or close this window and enter the ISBN manually.',
+                'danger'
+            );
+        }
+    }
+
+    async function openBarcodeScannerModal() {
+        if (isEditMode()) return;
+        log('Scanner modal opened.');
+        setScannerRetryEnabled(false);
+        setScannerStatus('Opening camera scanner...', 'info');
+        await showModal(selectors.isbnBarcodeScannerModal, { backdrop: 'static', keyboard: true });
+        await startBarcodeScanner();
     }
 
     async function handleIsbnLookup() {
@@ -2342,6 +2630,20 @@
 
         if (selectors.isbnLookupInput) {
             selectors.isbnLookupInput.disabled = isEditMode();
+            selectors.isbnLookupInput.addEventListener('paste', () => {
+                if (isEditMode()) return;
+                log('ISBN paste detected in lookup field.');
+                window.setTimeout(async () => {
+                    const value = selectors.isbnLookupInput?.value.trim() || '';
+                    const normalized = normalizeIsbn(value);
+                    resetHardwareScannerBurst();
+                    if (!normalized) {
+                        return;
+                    }
+                    log('Valid pasted ISBN detected.', { normalized });
+                    await triggerLookupFromNormalizedIsbn(normalized, 'paste');
+                }, 0);
+            });
             selectors.isbnLookupInput.addEventListener('input', () => {
                 const value = selectors.isbnLookupInput.value.trim();
                 if (!value) {
@@ -2349,6 +2651,7 @@
                     setLookupUiLoading(false);
                     selectors.isbnLookupButton.disabled = true;
                     selectors.isbnLookupButton.classList.add('disabled');
+                    resetHardwareScannerBurst();
                     return;
                 }
                 const normalized = normalizeIsbn(value);
@@ -2356,17 +2659,31 @@
                     setHelpText(selectors.isbnLookupHelp, 'ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).', true);
                     selectors.isbnLookupButton.disabled = true;
                     selectors.isbnLookupButton.classList.add('disabled');
+                    scheduleHardwareScannerLookup();
                     return;
                 }
                 setHelpText(selectors.isbnLookupHelp, `This ISBN will be looked up as: ${normalized}`, false);
                 selectors.isbnLookupButton.disabled = isEditMode();
                 selectors.isbnLookupButton.classList.toggle('disabled', selectors.isbnLookupButton.disabled);
+                scheduleHardwareScannerLookup();
             });
             selectors.isbnLookupInput.addEventListener('keydown', (event) => {
+                registerHardwareScannerKey(event);
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
+                const normalized = normalizeIsbn(selectors.isbnLookupInput.value.trim());
+                if (normalized && isLikelyHardwareScannerInput()) {
+                    log('Hardware scanner input detected.', { normalized, endedWithEnter: true });
+                    resetHardwareScannerBurst();
+                    triggerLookupFromNormalizedIsbn(normalized, 'hardware scanner');
+                    return;
+                }
                 handleIsbnLookup();
             });
+        }
+        if (selectors.isbnScanButton) {
+            selectors.isbnScanButton.disabled = isEditMode();
+            selectors.isbnScanButton.addEventListener('click', openBarcodeScannerModal);
         }
         if (selectors.isbnLookupButton) {
             selectors.isbnLookupButton.disabled = true;
@@ -2379,6 +2696,22 @@
                 handleIsbnLookup();
             });
         }
+        selectors.isbnBarcodeScannerRetry?.addEventListener('click', () => {
+            log('Barcode scanner retry requested.');
+            startBarcodeScanner();
+        });
+        selectors.isbnBarcodeScannerModal?.addEventListener('hide.bs.modal', () => {
+            stopBarcodeScanner();
+        });
+        selectors.isbnBarcodeScannerModal?.addEventListener('hidden.bs.modal', () => {
+            stopBarcodeScanner();
+            isbnLookupState.scannerLookupTriggered = false;
+            isbnLookupState.scannerSessionToken = 0;
+            setScannerRetryEnabled(true);
+            setScannerStatus('Select “Retry Scan” to start your camera, or close this window and enter the ISBN manually.', 'secondary');
+            log('Scanner modal closed.');
+        });
+        window.addEventListener('pagehide', stopBarcodeScanner);
 
         const validateTitleField = () => {
             const value = selectors.title.value.trim();
