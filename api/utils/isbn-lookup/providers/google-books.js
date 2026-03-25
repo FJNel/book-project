@@ -114,12 +114,16 @@ module.exports = {
 			diagnostics.push("Google Books API key is not configured, so the public Google Books lookup was used.");
 		}
 
-		const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
+		const url = new URL("https://www.googleapis.com/books/v1/volumes");
+		url.searchParams.set("q", `isbn:${isbn}`);
+		if (apiKey) {
+			url.searchParams.set("key", apiKey);
+		}
 		const payload = await fetchCachedJson({
 			provider: "googleBooks",
 			resource: "isbn",
 			identifier: isbn,
-			url,
+			url: url.toString(),
 			timeoutMs: 3200
 		});
 		return {

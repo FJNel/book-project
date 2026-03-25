@@ -209,12 +209,18 @@ module.exports = {
 	async fetchByIsbn({ isbn }) {
 		const diagnostics = [];
 		let degraded = false;
+		const booksApiUrl = new URL("https://openlibrary.org/api/books");
+		booksApiUrl.searchParams.set("bibkeys", `ISBN:${isbn}`);
+		booksApiUrl.searchParams.set("format", "json");
+		booksApiUrl.searchParams.set("jscmd", "data");
+
+		const editionUrl = new URL(`https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`);
 		const [isbnResult, editionResult] = await Promise.allSettled([
 			fetchCachedJson({
 				provider: "openLibrary",
 				resource: "isbn-data",
 				identifier: isbn,
-				url: `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`,
+				url: booksApiUrl.toString(),
 				timeoutMs: 4200,
 				headers: buildOpenLibraryHeaders()
 			}),
@@ -222,7 +228,7 @@ module.exports = {
 				provider: "openLibrary",
 				resource: "edition",
 				identifier: isbn,
-				url: `https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`,
+				url: editionUrl.toString(),
 				timeoutMs: 4200,
 				headers: buildOpenLibraryHeaders()
 			})
