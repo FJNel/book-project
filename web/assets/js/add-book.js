@@ -1187,15 +1187,57 @@
         }
     }
 
+    function clearLookupAppliedState() {
+        log('Clearing prior ISBN lookup-applied form state.');
+        clearLookupSuggestions();
+        setLookupActionError('');
+
+        selectors.title.value = '';
+        selectors.subtitle.value = '';
+        selectors.isbn.value = '';
+        selectors.publicationDate.value = '';
+        selectors.pages.value = '';
+        selectors.coverUrl.value = '';
+        selectors.description.value = '';
+
+        addBook.state.selections.bookTypeId = null;
+        if (selectors.bookType) {
+            selectors.bookType.value = 'none';
+            updateBookTypeDisplay();
+        }
+
+        addBook.state.selections.publisherId = null;
+        if (selectors.publisher) {
+            selectors.publisher.value = 'none';
+            updatePublisherDisplay();
+        }
+
+        addBook.state.selections.authors = [];
+        renderAuthors();
+        updateAuthorSearchAvailability();
+
+        addBook.state.selections.series = [];
+        renderSeries();
+        updateSeriesSearchAvailability();
+
+        addBook.state.languages.selected = [];
+        addBook.events.dispatchEvent(new CustomEvent('languages:updated', { detail: [] }));
+
+        addBook.state.selections.tags = [];
+        addBook.events.dispatchEvent(new CustomEvent('tags:updated', { detail: [] }));
+    }
+
     function applyLookupResult(payload) {
         const book = payload?.book || {};
         const existingEntities = payload?.existingEntities || {};
+        clearLookupAppliedState();
         isbnLookupState.pending = {
             newEntities: payload?.newEntities || {},
             warnings: payload?.warnings || []
         };
         applyLookupBookFields(book);
         applyLookupExistingEntities(existingEntities, book);
+        log('Applying new ISBN lookup result after reset.');
         renderLookupSuggestions();
     }
 
