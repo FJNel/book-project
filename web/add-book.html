@@ -120,6 +120,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="alert alert-info d-none mt-3" role="alert" id="isbnLookupExistingAlert"></div>
+                    <div class="alert alert-warning d-none mt-3" role="alert" id="isbnLookupWarningsAlert"></div>
+                    <div class="alert alert-danger d-none mt-3" role="alert" id="isbnLookupActionErrorAlert"></div>
                 </div>
             </div>
         </div>
@@ -148,34 +151,6 @@
                         <p class="mb-1">We couldn't find any results for the ISBN you entered.&nbsp;Please double-check the ISBN. If it is correct, the book might not be available in our external data sources.&nbsp;</p>
                         <p class="mb-0">You can still add the book manually.</p>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="card shadow mb-3 d-none" id="isbnLookupSuggestionsCard">
-            <div class="card-body">
-                <h4 class="card-title">Step 1a: Review ISBN Suggestions</h4>
-                <p class="mb-3">We applied the book details we could safely use. Review any linked entities below. Existing matches have already been linked. New suggestions still need your approval before they are added.</p>
-                <div class="alert alert-info d-none" role="alert" id="isbnLookupExistingAlert"></div>
-                <div class="alert alert-warning d-none" role="alert" id="isbnLookupWarningsAlert"></div>
-                <div class="alert alert-danger d-none" role="alert" id="isbnLookupActionErrorAlert"></div>
-                <div class="d-none" id="isbnLookupPublisherSuggestionsWrap">
-                    <h5>Publisher Suggestion</h5>
-                    <div class="list-group mb-3" id="isbnLookupPublisherSuggestions"></div>
-                </div>
-                <div class="d-none" id="isbnLookupAuthorSuggestionsWrap">
-                    <h5>Author Suggestions</h5>
-                    <div class="list-group mb-3" id="isbnLookupAuthorSuggestions"></div>
-                </div>
-                <div class="d-none" id="isbnLookupSeriesSuggestionsWrap">
-                    <h5>Series Suggestions</h5>
-                    <div class="list-group mb-3" id="isbnLookupSeriesSuggestions"></div>
-                </div>
-                <div class="d-none" id="isbnLookupTagSuggestionsWrap">
-                    <h5>Tag Suggestions</h5>
-                    <div class="list-group mb-3" id="isbnLookupTagSuggestions"></div>
-                </div>
-                <div class="d-none" id="isbnLookupNoSuggestions">
-                    <p class="text-secondary mb-0">No additional linked-entity suggestions were found.</p>
                 </div>
             </div>
         </div>
@@ -222,6 +197,16 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 3: Select Book Type</h4>
                     <p>Book Type refers to the physical form or format of this book. For example <em>Hardcover</em>, <em>Softcover</em>, <em>Magazine</em>, or <em>Pamphlet</em>.&nbsp;Defining clear types helps you keep your collection consistent and searchable.</p>
+                    <div class="alert alert-info d-none position-relative" role="alert" id="bookTypeSuggestionAlert">
+                        <h5>AI Suggestion: New Book Type</h5>
+                        <hr class="mt-1 mb-2">
+                        <p class="mb-1" id="bookTypeSuggestionText"></p>
+                        <p class="mb-0 d-none" id="bookTypeSuggestionDescriptionWrap"><strong>Suggested Description:</strong> <span id="bookTypeSuggestionDescription"></span></p>
+                        <div class="mt-2">
+                            <button class="btn btn-success mt-2" id="bookTypeSuggestionApprove" type="button">Yes, add <span class="d-none d-sm-inline">and link&nbsp;</span>it.</button>
+                            <button class="btn btn-secondary ms-2 mt-2" id="bookTypeSuggestionReject" type="button">No, I'll choose.</button>
+                        </div><i class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0 fs-2" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" title="This feature used AI to help generate or suggest relevant information." tabindex="-1"></i>
+                    </div>
                     <div class="mb-3"><label class="form-label mt-0" for="threeCmbBookType"><strong>Book Type</strong></label><i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Select the type/category that best describes this book. This helps with filtering and organisation." tabindex="-1"></i><select class="form-select" id="threeCmbBookType" autocomplete="off"></select><small class="form-text" id="threeBookTypeHelp"></small></div>
                     <div id="bookTypeDescriptionDisplay" class="d-none"><span class="form-label mb-1"><strong>Selected Book Type Description:</strong></span>
                         <p id="threeLblBookTypeDescription">No Book Type selected.</p>
@@ -235,6 +220,11 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 4: Add Book Authors</h4>
                     <p>Add one or more authors for this book. You can select existing authors from your collection or create new ones. Each author can have a specific role such as <em>Author</em>, <em>Editor</em>, <em>Illustrator</em>, or <em>Translator</em>, or you can specify another role if you prefer.</p>
+                    <div class="alert alert-info d-none mb-3 py-2 position-relative" role="alert" id="bookAuthorsSuggestionAlert">
+                        <h5>AI Suggestion: New Authors Found</h5>
+                        <p class="mb-0">Based on your book details, we found new authors that may be linked to this book. Review and confirm them below.</p>
+                        <div id="bookAuthorsSuggestionList"></div><i class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0 fs-2" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" title="This feature used AI to help generate or suggest relevant information." tabindex="-1"></i>
+                    </div>
                     <div class="mb-3" id="associatedAuthorsContainer">
                         <h5>Associated Authors</h5>
                         <ul class="list-group" id="selectedAuthorsList">
@@ -274,6 +264,16 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 5: Add Book Publisher</h4>
                     <p>Select the publisher for this book. A book, as identified by its ISBN, can only have one publisher. You can select an existing publisher or create a new one.</p>
+                    <div class="alert alert-info d-none position-relative" role="alert" id="bookPublisherSuggestionAlert">
+                        <h5>AI Suggestion: New Publisher</h5>
+                        <hr class="mt-1 mb-2">
+                        <div id="bookPublisherSuggestionDetails"></div>
+                        <p class="mb-0">Would you like to add and link this Publisher?</p>
+                        <div>
+                            <button class="btn btn-success mt-2" id="bookPublisherSuggestionApprove" type="button">Yes, add <span class="d-none d-sm-inline">and link&nbsp;</span>it.</button>
+                            <button class="btn btn-secondary ms-2 mt-2" id="bookPublisherSuggestionReject" type="button">No, I'll choose.</button>
+                        </div><i class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0 fs-2" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" title="This feature used AI to help generate or suggest relevant information." tabindex="-1"></i>
+                    </div>
                     <div class="mb-3"><label class="form-label mt-0" for="fiveCmbSelectPublisher"><strong>Publisher</strong></label><i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bss-tooltip="" title="Select the publisher of this book." tabindex="-1"></i><select class="form-select" id="fiveCmbSelectPublisher" autocomplete="off"></select><small class="form-text" id="bookPublisherHelp"></small></div>
                     <div id="bookPublisherDescriptionDisplay" class="d-none"><span class="form-label mb-1"><strong>The selected Publisher's founded date:</strong></span>
                         <p id="fiveLblPublisherFoundedDate">No Publisher selected.</p><span class="form-label mb-1"><strong>The selected Publisher's website:</strong></span>
@@ -287,6 +287,11 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 6: Add Book Series</h4>
                     <p>Books can belong to one or more series. A series represents a group of books connected by story, theme, or publication sequence. Although most books belong to (at most) one series, you can link multiple for flexibility.</p>
+                    <div class="alert alert-info d-none mb-3 pb-3 py-2 position-relative" role="alert" id="bookSeriesSuggestionAlert">
+                        <h5>AI Suggestion: New Series Found</h5>
+                        <p class="mb-0">Based on this book’s details, we identified possible series matches. You can select one or more of the suggestions below or ignore them and choose your own.</p>
+                        <div id="bookSeriesSuggestionList"></div><i class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0 fs-2" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" title="This feature used AI to help generate or suggest relevant information." tabindex="-1"></i>
+                    </div>
                     <div class="mb-3" id="associatedSeriesContainer">
                         <h5>Associated Series</h5>
                         <ul class="list-group" id="selectedSeriesList">
@@ -316,6 +321,11 @@
                 <div class="card-body shadow">
                     <h4 class="card-title">Step 7: Add Book Tags</h4>
                     <p>Tags are flexible labels that describe aspects of your book such as genre, themes, settings, or notable features.&nbsp;They make it easier to explore your collection and can overlap freely.&nbsp;You can use them to filter, group, and discover books later.</p>
+                    <div class="alert alert-info d-none mt-0 mb-3 pb-1 py-2 position-relative" role="alert" id="tagsSuggestionAlert">
+                        <h5>AI Suggested Tags</h5>
+                        <p class="mb-0">Based on your book’s details we generated the following tag suggestions.</p>
+                        <div class="p-1" id="tagsSuggestionList"></div><i class="bi bi-stars text-info-emphasis position-absolute top-0 end-0 ms-2 me-2 mt-2 pt-0 mb-2 pb-0 fs-2" data-bs-toggle="tooltip" data-bss-tooltip="" data-bs-placement="left" data-bss-hover-animate="tada" title="This feature used AI to help generate or suggest relevant information." tabindex="-1"></i>
+                    </div>
                     <div class="mb-3" id="bookTagsContainer">
                         <h5>Book Tags</h5>
                         <ul class="list-group" id="selectedSeriesList-1">
