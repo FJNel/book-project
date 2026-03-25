@@ -29,9 +29,14 @@
         isbnLookupForm: byId('isbnLookupForm'),
         isbnLookupLoadingModal: byId('lookupByISBNLoadingModal'),
         isbnBarcodeScannerModal: byId('isbnBarcodeScannerModal'),
+        isbnBarcodeScannerPreviewWrap: byId('isbnBarcodeScannerPreviewWrap'),
         isbnBarcodeScannerVideo: byId('isbnBarcodeScannerVideo'),
         isbnBarcodeScannerStatus: byId('isbnBarcodeScannerStatus'),
         isbnBarcodeScannerRetry: byId('isbnBarcodeScannerRetry'),
+        isbnBarcodeCaptureButton: byId('isbnBarcodeCaptureButton'),
+        isbnBarcodeUploadButton: byId('isbnBarcodeUploadButton'),
+        isbnBarcodeCaptureInput: byId('isbnBarcodeCaptureInput'),
+        isbnBarcodeUploadInput: byId('isbnBarcodeUploadInput'),
         isbnLookupProgressBar: byId('isbnLookupProgressBar'),
         isbnLookupProgressText: byId('isbnLookupProgressText'),
         isbnLookupErrorModal: byId('isbnLookupErrorModal'),
@@ -167,6 +172,8 @@
         scannerStarting: false,
         scannerLookupTriggered: false,
         scannerSessionToken: 0,
+        scannerImageProcessing: false,
+        scannerImageObjectUrl: null,
         hardwareScannerTimer: null,
         hardwareScannerBurstCount: 0,
         hardwareScannerBurstStartedAt: 0,
@@ -177,6 +184,7 @@
     });
     const authorRoleOptions = new Set(['Author', 'Editor', 'Illustrator', 'Translator', 'Other']);
     let barcodeDetectorPromise = null;
+    let zxingReaderPromise = null;
 
     function triggerInput(el) {
         if (!el) return;
@@ -1283,6 +1291,35 @@
         selectors.isbnBarcodeScannerRetry.disabled = !enabled;
     }
 
+    function setScannerPreviewVisible(visible) {
+        selectors.isbnBarcodeScannerPreviewWrap?.classList.toggle('d-none', !visible);
+    }
+
+    function setScannerImageButtonsEnabled(enabled) {
+        if (selectors.isbnBarcodeCaptureButton) {
+            selectors.isbnBarcodeCaptureButton.disabled = !enabled;
+        }
+        if (selectors.isbnBarcodeUploadButton) {
+            selectors.isbnBarcodeUploadButton.disabled = !enabled;
+        }
+    }
+
+    function clearScannerImageInputs() {
+        if (selectors.isbnBarcodeCaptureInput) {
+            selectors.isbnBarcodeCaptureInput.value = '';
+        }
+        if (selectors.isbnBarcodeUploadInput) {
+            selectors.isbnBarcodeUploadInput.value = '';
+        }
+    }
+
+    function cleanupScannerImageObjectUrl() {
+        if (isbnLookupState.scannerImageObjectUrl) {
+            URL.revokeObjectURL(isbnLookupState.scannerImageObjectUrl);
+            isbnLookupState.scannerImageObjectUrl = null;
+        }
+    }
+
     function stopBarcodeScanner() {
         if (isbnLookupState.scannerPollTimer) {
             window.clearTimeout(isbnLookupState.scannerPollTimer);
@@ -1302,9 +1339,14 @@
 
     function resetBarcodeScannerUi() {
         stopBarcodeScanner();
+        cleanupScannerImageObjectUrl();
         isbnLookupState.scannerLookupTriggered = false;
         isbnLookupState.scannerSessionToken = 0;
+        isbnLookupState.scannerImageProcessing = false;
         setScannerRetryEnabled(true);
+        setScannerImageButtonsEnabled(true);
+        setScannerPreviewVisible(true);
+        clearScannerImageInputs();
         setScannerStatus('Select “Retry Scan” to start your camera, or close this window and enter the ISBN manually.', 'secondary');
     }
 
@@ -1337,6 +1379,52 @@
             });
         }
         return barcodeDetectorPromise;
+    }
+
+    async function getZxingReader() {
+        if (!window.ZXing?.BrowserMultiFormatReader) {
+            return null;
+        }
+        if (!zxingReaderPromise) {
+            zxingReaderPromise = Promise.resolve(new window.ZXing.BrowserMultiFormatReader()).catch((error) => {
+                console.error('[Add Book] ZXing reader initialization failed.', error);
+                zxingReaderPromise = null;
+                return null;
+            });
+        }
+        return zxingReaderPromise;
+    }
+
+    function isZxingAvailable() {
+        return Boolean(window.ZXing?.BrowserMultiFormatReader);
+    }
+
+    async function loadScannerImage(file) {
+        cleanupScannerImageObjectUrl();
+        const objectUrl = URL.createObjectURL(file);
+        isbnLookupState.scannerImageObjectUrl = objectUrl;
+        const image = new Image();
+        image.decoding = 'async';
+        return new Promise((resolve, reject) => {
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('Unable to read selected image.'));
+            image.src = objectUrl;
+        });
+    }
+
+    async function detectBarcodeFromImageWithDetector(image) {
+        const detector = await getBarcodeDetector();
+        if (!detector || !image) return null;
+        const detections = await detector.detect(image);
+        const barcode = Array.isArray(detections) ? detections.find((entry) => entry?.rawValue) : null;
+        return barcode?.rawValue || null;
+    }
+
+    async function detectBarcodeFromImageWithZxing(image) {
+        const reader = await getZxingReader();
+        if (!reader || !image) return null;
+        const result = await reader.decodeFromImageElement(image);
+        return result?.text || null;
     }
 
     function resetHardwareScannerBurst() {
@@ -1431,6 +1519,76 @@
         await triggerLookupFromNormalizedIsbn(normalized, source);
     }
 
+    async function processScannerImageFile(file, source) {
+        if (!file || isbnLookupState.scannerLookupTriggered || isbnLookupState.scannerImageProcessing || isEditMode()) return;
+        if (file.type && !file.type.startsWith('image/')) {
+            setScannerStatus('Please choose an image file that contains the barcode.', 'warning');
+            clearScannerImageInputs();
+            return;
+        }
+        isbnLookupState.scannerImageProcessing = true;
+        stopBarcodeScanner();
+        setScannerRetryEnabled(false);
+        setScannerImageButtonsEnabled(false);
+        try {
+            log('Fallback image mode used.', { source });
+            log('Image selected for barcode scan.', {
+                source,
+                fileName: file.name || null,
+                fileType: file.type || null,
+                fileSize: file.size || null
+            });
+            setScannerStatus('Processing the selected image for a barcode...', 'info');
+            const image = await loadScannerImage(file);
+
+            let rawValue = null;
+            let detectorAttempted = false;
+            try {
+                detectorAttempted = true;
+                rawValue = await detectBarcodeFromImageWithDetector(image);
+            } catch (error) {
+                log('Image barcode detection with BarcodeDetector failed.', { source, message: error?.message || 'Unknown error' });
+            }
+
+            if (!rawValue) {
+                if (!isZxingAvailable() && !detectorAttempted) {
+                    log('Image barcode fallback unavailable because ZXing failed to load.', { source });
+                    setScannerStatus('Image barcode scanning is not available right now. Please try live scanning if available, or enter the ISBN manually.', 'danger');
+                    return;
+                }
+                if (!isZxingAvailable() && detectorAttempted) {
+                    log('Image barcode fallback unavailable because ZXing failed to load.', { source });
+                }
+                rawValue = await detectBarcodeFromImageWithZxing(image);
+            }
+
+            if (!rawValue) {
+                log('Invalid/no barcode detected from image.', { source });
+                setScannerStatus('We could not find a readable ISBN barcode in that image. Try another photo, or enter the ISBN manually.', 'warning');
+                return;
+            }
+
+            log('Barcode detected from image.', { source, rawValue });
+            await handleDetectedBarcode(rawValue, source);
+            if (!isbnLookupState.scannerLookupTriggered) {
+                log('Invalid/no barcode detected from image.', { source });
+                setScannerStatus('A barcode was found in the image, but it did not look like a valid ISBN. Try another photo, or enter the ISBN manually.', 'warning');
+            }
+        } catch (error) {
+            console.error('[Add Book] Image barcode processing failed.', error);
+            setScannerStatus('We could not process that image. Try another photo, or enter the ISBN manually.', 'danger');
+            log('Image barcode processing failed.', { source, message: error?.message || 'Unknown error' });
+        } finally {
+            cleanupScannerImageObjectUrl();
+            clearScannerImageInputs();
+            isbnLookupState.scannerImageProcessing = false;
+            if (!isbnLookupState.scannerLookupTriggered) {
+                setScannerRetryEnabled(true);
+                setScannerImageButtonsEnabled(true);
+            }
+        }
+    }
+
     async function pollBarcodeDetections(detector, sessionToken) {
         if (!detector || !selectors.isbnBarcodeScannerVideo) return;
         if (!isbnLookupState.scannerActive || isbnLookupState.scannerSessionToken !== sessionToken) return;
@@ -1464,23 +1622,30 @@
         isbnLookupState.scannerLookupTriggered = false;
         isbnLookupState.scannerStarting = true;
         setScannerRetryEnabled(false);
+        setScannerImageButtonsEnabled(false);
         const detector = await getBarcodeDetector();
+        const hasCameraAccess = Boolean(navigator.mediaDevices?.getUserMedia);
         if (!detector) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(false);
-            setScannerStatus('Camera barcode scanning is not supported in this browser. You can still type the ISBN or use a handheld barcode scanner in the ISBN field.', 'warning');
-            log('Barcode scanning unavailable because BarcodeDetector is not supported.');
+            setScannerImageButtonsEnabled(true);
+            setScannerPreviewVisible(false);
+            setScannerStatus('Live camera scanning is not supported in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.', 'warning');
+            log('Live barcode scanning unsupported; image fallback available.');
             return;
         }
-        if (!navigator.mediaDevices?.getUserMedia) {
+        if (!hasCameraAccess) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(false);
-            setScannerStatus('Camera access is not available in this browser. You can still type the ISBN or use a handheld barcode scanner in the ISBN field.', 'warning');
-            log('Barcode scanning unavailable because getUserMedia is not supported.');
+            setScannerImageButtonsEnabled(true);
+            setScannerPreviewVisible(false);
+            setScannerStatus('Live camera scanning is not available in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.', 'warning');
+            log('Live barcode scanning unavailable because getUserMedia is not supported.');
             return;
         }
 
         try {
+            log('Live barcode scanning supported.');
             log('Camera permission requested.');
             setScannerStatus('Requesting camera access...', 'info');
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -1493,6 +1658,7 @@
                 stream.getTracks().forEach((track) => track.stop());
                 isbnLookupState.scannerStarting = false;
                 setScannerRetryEnabled(true);
+                setScannerImageButtonsEnabled(true);
                 log('Scanner modal closed before camera access completed.');
                 return;
             }
@@ -1500,6 +1666,8 @@
             isbnLookupState.scannerActive = true;
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(true);
+            setScannerImageButtonsEnabled(true);
+            setScannerPreviewVisible(true);
             isbnLookupState.scannerSessionToken = Date.now();
             if (selectors.isbnBarcodeScannerVideo) {
                 selectors.isbnBarcodeScannerVideo.srcObject = stream;
@@ -1512,14 +1680,15 @@
         } catch (error) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(true);
+            setScannerImageButtonsEnabled(true);
             const denied = /denied|notallowed/i.test(error?.name || '') || /denied|notallowed/i.test(error?.message || '');
             log(denied ? 'Camera permission denied.' : 'Camera scanning could not start.', {
                 message: error?.message || 'Unknown error'
             });
             setScannerStatus(
                 denied
-                    ? 'Camera access was denied. You can allow access and retry, or close this window and type the ISBN manually instead.'
-                    : 'We could not start the camera. Try again, or close this window and enter the ISBN manually.',
+                    ? 'Camera access was denied. You can allow access and retry, take/upload a photo instead, or enter the ISBN manually.'
+                    : 'We could not start the camera. Try again, use a photo instead, or enter the ISBN manually.',
                 'danger'
             );
         }
@@ -1529,6 +1698,7 @@
         if (isEditMode()) return;
         log('Scanner modal opened.');
         setScannerRetryEnabled(false);
+        setScannerImageButtonsEnabled(false);
         setScannerStatus('Opening camera scanner...', 'info');
         await showModal(selectors.isbnBarcodeScannerModal, { backdrop: 'static', keyboard: true });
         await startBarcodeScanner();
@@ -2742,15 +2912,33 @@
             log('Barcode scanner retry requested.');
             startBarcodeScanner();
         });
+        selectors.isbnBarcodeCaptureButton?.addEventListener('click', () => {
+            if (isEditMode()) return;
+            stopBarcodeScanner();
+            setScannerStatus('Choose or capture a barcode photo to continue.', 'info');
+            selectors.isbnBarcodeCaptureInput?.click();
+        });
+        selectors.isbnBarcodeUploadButton?.addEventListener('click', () => {
+            if (isEditMode()) return;
+            stopBarcodeScanner();
+            setScannerStatus('Choose a barcode image to continue.', 'info');
+            selectors.isbnBarcodeUploadInput?.click();
+        });
+        selectors.isbnBarcodeCaptureInput?.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            if (!file) return;
+            processScannerImageFile(file, 'captured barcode image');
+        });
+        selectors.isbnBarcodeUploadInput?.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            if (!file) return;
+            processScannerImageFile(file, 'uploaded barcode image');
+        });
         selectors.isbnBarcodeScannerModal?.addEventListener('hide.bs.modal', () => {
             stopBarcodeScanner();
         });
         selectors.isbnBarcodeScannerModal?.addEventListener('hidden.bs.modal', () => {
-            stopBarcodeScanner();
-            isbnLookupState.scannerLookupTriggered = false;
-            isbnLookupState.scannerSessionToken = 0;
-            setScannerRetryEnabled(true);
-            setScannerStatus('Select “Retry Scan” to start your camera, or close this window and enter the ISBN manually.', 'secondary');
+            resetBarcodeScannerUi();
             log('Scanner modal closed.');
         });
         window.addEventListener('pagehide', stopBarcodeScanner);

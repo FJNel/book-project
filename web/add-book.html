@@ -161,10 +161,16 @@
                         <h5 class="modal-title" id="isbnBarcodeScannerTitle">Scan ISBN Barcode</h5><button class="btn-close" aria-label="Close" data-bs-dismiss="modal" type="button"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="mb-3">Allow camera access, then hold the barcode on the back of your book inside the frame. If a valid ISBN is found, it will be entered automatically and the lookup will begin.</p>
-                        <div class="ratio ratio-16x9 bg-body-tertiary border rounded overflow-hidden">
+                        <p class="mb-3">Use the live camera scanner when available, or take/upload a photo of the barcode on the back of your book. If a valid ISBN is found, it will be entered automatically and the lookup will begin.</p>
+                        <div class="ratio ratio-16x9 bg-body-tertiary border rounded overflow-hidden" id="isbnBarcodeScannerPreviewWrap">
                             <video id="isbnBarcodeScannerVideo" class="w-100 h-100" autoplay="" playsinline="" muted=""></video>
                         </div>
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <button class="btn btn-outline-primary" id="isbnBarcodeCaptureButton" type="button">Take Photo</button>
+                            <button class="btn btn-outline-secondary" id="isbnBarcodeUploadButton" type="button">Upload Photo</button>
+                        </div>
+                        <input class="d-none" id="isbnBarcodeCaptureInput" type="file" accept="image/*" capture="environment" aria-label="Take barcode photo">
+                        <input class="d-none" id="isbnBarcodeUploadInput" type="file" accept="image/*" aria-label="Upload barcode photo">
                         <div class="alert alert-secondary mt-3 mb-0" role="status" id="isbnBarcodeScannerStatus">Select “Retry Scan” to start your camera, or close this window and enter the ISBN manually.</div>
                     </div>
                     <div class="modal-footer">
@@ -559,6 +565,7 @@
     <script src="assets/js/add-book-languages.js"></script>
     <script src="assets/js/add-book-tags.js"></script>
     <script src="assets/js/add-book-cover.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
     <script>
         window.ADD_BOOK_REDIRECT_BASE = 'book-details?id=';
     </script>
