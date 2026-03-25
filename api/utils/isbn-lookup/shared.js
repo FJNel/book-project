@@ -251,12 +251,19 @@ async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}
 			response.on("end", () => {
 				const body = Buffer.concat(chunks).toString("utf8");
 				if ((response.statusCode || 500) < 200 || (response.statusCode || 500) >= 300) {
-					reject(new Error(`HTTP ${response.statusCode}`));
+					const error = new Error(`HTTP ${response.statusCode}`);
+					error.httpStatus = response.statusCode || 500;
+					reject(error);
 					return;
 				}
 				try {
-					resolve(body ? JSON.parse(body) : {});
+					resolve({
+						payload: body ? JSON.parse(body) : {},
+						httpStatus: response.statusCode || 200
+					});
 				} catch (error) {
+					error.httpStatus = response.statusCode || 200;
+					error.parseFailed = true;
 					reject(error);
 				}
 			});
@@ -268,6 +275,18 @@ async function fetchJsonWithTimeout(url, { timeoutMs = 4500, headers = {} } = {}
 		request.on("error", reject);
 		request.end();
 	});
+}
+
+function sanitizeExternalUrlForLog(url) {
+	try {
+		const parsed = new URL(url);
+		if (parsed.searchParams.has("key")) {
+			parsed.searchParams.set("key", "[redacted]");
+		}
+		return `${parsed.origin}${parsed.pathname}${parsed.search}`;
+	} catch (_) {
+		return sanitizeLookupText(url, 500) || "invalid-url";
+	}
 }
 
 function buildExternalCacheKey({ provider, resource, identifier }) {
@@ -333,50 +352,95 @@ async function fetchCachedJson({
 	url,
 	timeoutMs = 4500,
 	headers = {},
-	ttlSeconds = DEFAULT_EXTERNAL_CACHE_TTL_SECONDS
+	ttlSeconds = DEFAULT_EXTERNAL_CACHE_TTL_SECONDS,
+	bypassCache = false,
+	logContext = {}
 } = {}) {
 	const cacheKey = buildExternalCacheKey({ provider, resource, identifier });
 	const negativeCacheKey = buildNegativeCacheKey(cacheKey);
-	const cached = getCacheEntry(cacheKey);
-	if (cached) {
-		return cached.data;
-	}
-
-	const negativeCached = getNegativeCacheEntry(negativeCacheKey);
-	if (negativeCached) {
-		throw new Error(negativeCached.errorMessage);
-	}
-
-	if (inFlightRequests.has(cacheKey)) {
-		return inFlightRequests.get(cacheKey);
-	}
-
-	logToFile("BOOK_ISBN_LOOKUP_CACHE", {
+	const requestLogBase = {
 		status: "INFO",
-		cache: "miss",
 		provider,
 		resource,
-		identifier
+		identifier,
+		url: sanitizeExternalUrlForLog(url),
+		timeout_ms: timeoutMs,
+		uses_api_key: Boolean(logContext.usesApiKey),
+		headers_identified: Boolean(logContext.headersIdentified),
+		bypass_cache: Boolean(bypassCache)
+	};
+	const inFlightKey = bypassCache ? `${cacheKey}:bypass` : cacheKey;
+
+	if (!bypassCache) {
+		const cached = getCacheEntry(cacheKey);
+		if (cached) {
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+				...requestLogBase,
+				cache_source: "cache",
+				cache_age_seconds: cached.ageSeconds
+			}, "info");
+			return cached.data;
+		}
+	}
+
+	if (!bypassCache) {
+		const negativeCached = getNegativeCacheEntry(negativeCacheKey);
+		if (negativeCached) {
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+				...requestLogBase,
+				cache_source: "negative_cache"
+			}, "warn");
+			const error = new Error(negativeCached.errorMessage);
+			error.fromNegativeCache = true;
+			throw error;
+		}
+	}
+
+	if (inFlightRequests.has(inFlightKey)) {
+		logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+			...requestLogBase,
+			cache_source: "in_flight"
+		}, "info");
+		return inFlightRequests.get(inFlightKey);
+	}
+
+	logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+		...requestLogBase,
+		cache_source: bypassCache ? "network_bypass" : "network"
 	}, "info");
 
 	const requestPromise = (async () => {
 		try {
-			const payload = await fetchJsonWithTimeout(url, { timeoutMs, headers });
+			const result = await fetchJsonWithTimeout(url, { timeoutMs, headers });
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+				...requestLogBase,
+				cache_source: bypassCache ? "network_bypass" : "network",
+				http_status: result.httpStatus,
+				parse_succeeded: true
+			}, "info");
+			const payload = result.payload;
 			setCacheEntry(cacheKey, payload, ttlSeconds);
 			recordExternalCacheEntry(cacheKey);
 			negativeCacheStore.delete(negativeCacheKey);
 			return payload;
 		} catch (error) {
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER_REQUEST", {
+				...requestLogBase,
+				cache_source: bypassCache ? "network_bypass" : "network",
+				http_status: error?.httpStatus || null,
+				parse_succeeded: error?.parseFailed ? false : null,
+				error_message: error?.message || "External lookup failed."
+			}, "warn");
 			if (shouldNegativeCache(error)) {
 				setNegativeCacheEntry(negativeCacheKey, error, NEGATIVE_CACHE_TTL_SECONDS);
 			}
 			throw error;
 		} finally {
-			inFlightRequests.delete(cacheKey);
+			inFlightRequests.delete(inFlightKey);
 		}
 	})();
 
-	inFlightRequests.set(cacheKey, requestPromise);
+	inFlightRequests.set(inFlightKey, requestPromise);
 	return requestPromise;
 }
 
@@ -601,6 +665,7 @@ module.exports = {
 	extractStringValue,
 	fetchJsonWithTimeout,
 	fetchCachedJson,
+	sanitizeExternalUrlForLog,
 	inferBookTypeFromHints,
 	resolveBookTypeDescription,
 	mergeLookupMetadata,

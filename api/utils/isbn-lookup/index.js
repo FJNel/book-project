@@ -15,27 +15,28 @@ function buildUserFacingWarnings(providerResults) {
 	if (successfulMetadata.length === 0) return [];
 
 	const warnings = [];
-	if (providerResults.some((result) => result.error)) {
+	if (providerResults.some((result) => result.classification === "unavailable")) {
 		warnings.push("Some external book sources were temporarily unavailable, so you may need to fill in a few details manually.");
 	}
 
-	if (!warnings.length && providerResults.some((result) => result.degraded)) {
+	if (!warnings.length && providerResults.some((result) => result.classification === "degraded")) {
 		warnings.push("We found some details for this book, but not everything could be loaded.");
 	}
 
 	return warnings;
 }
 
-async function lookupIsbnMetadata({ isbn }) {
+async function lookupIsbnMetadata({ isbn, debug = {} }) {
 	const providerResults = await Promise.all(providers.map(async (provider) => {
 		try {
-			const result = await provider.fetchByIsbn({ isbn });
+			const result = await provider.fetchByIsbn({ isbn, debug });
 			return {
 				name: provider.name,
 				metadata: result?.metadata || null,
 				warnings: Array.isArray(result?.warnings) ? result.warnings.filter(Boolean) : [],
 				diagnostics: Array.isArray(result?.diagnostics) ? result.diagnostics.filter(Boolean) : [],
 				degraded: Boolean(result?.degraded),
+				classification: result?.classification || (result?.metadata ? (result?.degraded ? "degraded" : "success") : "no_metadata"),
 				error: null
 			};
 		} catch (error) {
@@ -45,6 +46,7 @@ async function lookupIsbnMetadata({ isbn }) {
 				warnings: [],
 				diagnostics: [],
 				degraded: false,
+				classification: "unavailable",
 				error
 			};
 		}

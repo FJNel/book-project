@@ -101,7 +101,7 @@ function extractGoogleBooksVolume(payload, isbn) {
 
 module.exports = {
 	name: "googleBooks",
-	async fetchByIsbn({ isbn }) {
+	async fetchByIsbn({ isbn, debug = {} }) {
 		const apiKey = config?.google?.booksApiKey || "";
 		const diagnostics = [];
 		if (!apiKey) {
@@ -124,13 +124,28 @@ module.exports = {
 			resource: "isbn",
 			identifier: isbn,
 			url: url.toString(),
-			timeoutMs: 3200
+			timeoutMs: 3200,
+			bypassCache: Boolean(debug?.bypassProviderCache),
+			logContext: {
+				usesApiKey: Boolean(apiKey)
+			}
 		});
+		const metadata = extractGoogleBooksVolume(payload, isbn);
+		const classification = metadata ? "success" : "no_metadata";
+		logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+			status: "INFO",
+			provider: "googleBooks",
+			isbn,
+			classification,
+			uses_api_key: Boolean(apiKey),
+			produced_primary_metadata: Boolean(metadata)
+		}, "info");
 		return {
-			metadata: extractGoogleBooksVolume(payload, isbn),
+			metadata,
 			warnings: [],
 			diagnostics,
-			degraded: false
+			degraded: false,
+			classification
 		};
 	}
 };

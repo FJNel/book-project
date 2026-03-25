@@ -1,4 +1,5 @@
 const config = require("../../../config");
+const { logToFile } = require("../../logging");
 const {
 	MAX_TITLE_LENGTH,
 	MAX_SUBTITLE_LENGTH,
@@ -179,7 +180,7 @@ function extractOpenLibraryMetadata({ isbnRecord, edition, work, authorDetailsBy
 	};
 }
 
-async function fetchOpenLibraryAuthor(authorKey) {
+async function fetchOpenLibraryAuthor(authorKey, debug = {}) {
 	if (!authorKey) return null;
 	const payload = await fetchCachedJson({
 		provider: "openLibrary",
@@ -187,7 +188,11 @@ async function fetchOpenLibraryAuthor(authorKey) {
 		identifier: authorKey,
 		url: `https://openlibrary.org${authorKey}.json`,
 		timeoutMs: 2200,
-		headers: buildOpenLibraryHeaders()
+		headers: buildOpenLibraryHeaders(),
+		bypassCache: Boolean(debug?.bypassProviderCache),
+		logContext: {
+			headersIdentified: true
+		}
 	});
 	const displayName = sanitizeLookupText(payload?.name || payload?.personal_name, 150);
 	if (!displayName) return null;
@@ -206,7 +211,7 @@ async function fetchOpenLibraryAuthor(authorKey) {
 
 module.exports = {
 	name: "openLibrary",
-	async fetchByIsbn({ isbn }) {
+	async fetchByIsbn({ isbn, debug = {} }) {
 		const diagnostics = [];
 		let degraded = false;
 		const booksApiUrl = new URL("https://openlibrary.org/api/books");
@@ -222,7 +227,11 @@ module.exports = {
 				identifier: isbn,
 				url: booksApiUrl.toString(),
 				timeoutMs: 4200,
-				headers: buildOpenLibraryHeaders()
+				headers: buildOpenLibraryHeaders(),
+				bypassCache: Boolean(debug?.bypassProviderCache),
+				logContext: {
+					headersIdentified: true
+				}
 			}),
 			fetchCachedJson({
 				provider: "openLibrary",
@@ -230,7 +239,11 @@ module.exports = {
 				identifier: isbn,
 				url: editionUrl.toString(),
 				timeoutMs: 4200,
-				headers: buildOpenLibraryHeaders()
+				headers: buildOpenLibraryHeaders(),
+				bypassCache: Boolean(debug?.bypassProviderCache),
+				logContext: {
+					headersIdentified: true
+				}
 			})
 		]);
 
@@ -252,7 +265,15 @@ module.exports = {
 		const isbnRecord = isbnPayload?.[`ISBN:${isbn}`] || null;
 		const edition = editionPayload && typeof editionPayload === "object" ? editionPayload : null;
 		if (!isbnRecord && !edition) {
-			return { metadata: null, warnings: [], diagnostics, degraded };
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+				status: "INFO",
+				provider: "openLibrary",
+				isbn,
+				classification: "no_metadata",
+				produced_primary_metadata: false,
+				enrichment_degraded: degraded
+			}, "info");
+			return { metadata: null, warnings: [], diagnostics, degraded, classification: "no_metadata" };
 		}
 
 		let work = null;
@@ -267,7 +288,11 @@ module.exports = {
 					identifier: workKey,
 					url: `https://openlibrary.org${workKey}.json`,
 					timeoutMs: 2200,
-					headers: buildOpenLibraryHeaders()
+					headers: buildOpenLibraryHeaders(),
+					bypassCache: Boolean(debug?.bypassProviderCache),
+					logContext: {
+						headersIdentified: true
+					}
 				});
 			} catch (error) {
 				degraded = true;
@@ -280,7 +305,7 @@ module.exports = {
 			...(Array.isArray(isbnRecord?.authors) ? isbnRecord.authors.map((entry) => ({ key: normalizeOpenLibraryKey(entry?.key || entry?.url) })) : [])
 		], (item) => item.key).map((entry) => entry.key).filter(Boolean).slice(0, 3);
 
-		const authorDetailResults = await Promise.allSettled(authorKeys.map((key) => fetchOpenLibraryAuthor(key)));
+		const authorDetailResults = await Promise.allSettled(authorKeys.map((key) => fetchOpenLibraryAuthor(key, debug)));
 		const authorDetailsByKey = new Map();
 		authorDetailResults.forEach((result, index) => {
 			const authorKey = authorKeys[index];
@@ -292,11 +317,22 @@ module.exports = {
 			}
 		});
 
+		const metadata = extractOpenLibraryMetadata({ isbnRecord, edition, work, authorDetailsByKey });
+		const classification = metadata ? (degraded ? "degraded" : "success") : "no_metadata";
+		logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+			status: degraded ? "WARN" : "INFO",
+			provider: "openLibrary",
+			isbn,
+			classification,
+			produced_primary_metadata: Boolean(metadata),
+			enrichment_degraded: degraded
+		}, degraded ? "warn" : "info");
 		return {
-			metadata: extractOpenLibraryMetadata({ isbnRecord, edition, work, authorDetailsByKey }),
+			metadata,
 			warnings: [],
 			diagnostics: Array.from(new Set(diagnostics.filter(Boolean))),
-			degraded
+			degraded,
+			classification
 		};
 	}
 };

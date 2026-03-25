@@ -1677,11 +1677,27 @@ router.post("/isbn-lookup", requiresAuth, authenticatedLimiter, async (req, res)
 	}
 
 	try {
-		const lookupResult = await lookupIsbnMetadata({ isbn });
+		const bypassProviderCache = req.body?.debug?.bypassProviderCache === true;
+		const lookupResult = await lookupIsbnMetadata({
+			isbn,
+			debug: {
+				bypassProviderCache
+			}
+		});
 		const warnings = Array.isArray(lookupResult.warnings) ? [...lookupResult.warnings] : [];
 		const providerResults = Array.isArray(lookupResult.providerResults) ? lookupResult.providerResults : [];
 		const googleResult = providerResults.find((result) => result.name === "googleBooks") || null;
 		const openLibraryResult = providerResults.find((result) => result.name === "openLibrary") || null;
+
+		if (bypassProviderCache) {
+			logToFile("BOOK_ISBN_LOOKUP", {
+				status: "INFO",
+				stage: "FETCH",
+				user_id: userId,
+				isbn,
+				debug_bypass_provider_cache: true
+			}, "info");
+		}
 
 		for (const providerResult of providerResults) {
 			if (!providerResult?.error) continue;
@@ -1690,14 +1706,25 @@ router.post("/isbn-lookup", requiresAuth, authenticatedLimiter, async (req, res)
 				provider: providerResult.name,
 				user_id: userId,
 				isbn,
+				classification: providerResult.classification || "unavailable",
 				error_message: providerResult.error?.message || "Unknown provider error."
 			}, "warn");
 		}
 		for (const providerResult of providerResults) {
+			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+				status: providerResult.classification === "degraded" ? "WARN" : "INFO",
+				provider: providerResult.name,
+				user_id: userId,
+				isbn,
+				classification: providerResult.classification || "unknown",
+				produced_primary_metadata: Boolean(providerResult?.metadata),
+				enrichment_degraded: Boolean(providerResult?.degraded),
+				error_cached: Boolean(providerResult?.error?.fromNegativeCache)
+			}, providerResult.classification === "degraded" ? "warn" : "info");
 			const diagnostics = Array.isArray(providerResult?.diagnostics) ? providerResult.diagnostics : [];
 			for (const diagnostic of diagnostics) {
 				logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
-					status: providerResult.degraded ? "FAILURE" : "INFO",
+					status: providerResult.degraded ? "WARN" : "INFO",
 					provider: providerResult.name,
 					user_id: userId,
 					isbn,
