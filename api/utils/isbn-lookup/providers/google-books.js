@@ -103,7 +103,7 @@ module.exports = {
 	name: "googleBooks",
 	async fetchByIsbn({ isbn }) {
 		const apiKey = config?.google?.booksApiKey || "";
-		const warnings = [];
+		const diagnostics = [];
 		if (!apiKey) {
 			logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
 				status: "INFO",
@@ -111,7 +111,7 @@ module.exports = {
 				reason: "GOOGLE_BOOKS_API_KEY_MISSING",
 				isbn
 			}, "warn");
-			warnings.push("Google Books API key is not configured, so the public Google Books lookup was used.");
+			diagnostics.push("Google Books API key is not configured, so the public Google Books lookup was used.");
 		}
 
 		const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}${apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
@@ -124,7 +124,9 @@ module.exports = {
 		});
 		return {
 			metadata: extractGoogleBooksVolume(payload, isbn),
-			warnings
+			warnings: [],
+			diagnostics,
+			degraded: false
 		};
 	}
 };

@@ -10,8 +10,23 @@ const {
 
 const providers = [googleBooksProvider, openLibraryProvider];
 
-async function lookupIsbnMetadata({ isbn }) {
+function buildUserFacingWarnings(providerResults) {
+	const successfulMetadata = providerResults.filter((result) => result.metadata);
+	if (successfulMetadata.length === 0) return [];
+
 	const warnings = [];
+	if (providerResults.some((result) => result.error)) {
+		warnings.push("Some external book sources were temporarily unavailable, so you may need to fill in a few details manually.");
+	}
+
+	if (!warnings.length && providerResults.some((result) => result.degraded)) {
+		warnings.push("We found some details for this book, but not everything could be loaded.");
+	}
+
+	return warnings;
+}
+
+async function lookupIsbnMetadata({ isbn }) {
 	const providerResults = await Promise.all(providers.map(async (provider) => {
 		try {
 			const result = await provider.fetchByIsbn({ isbn });
@@ -19,6 +34,8 @@ async function lookupIsbnMetadata({ isbn }) {
 				name: provider.name,
 				metadata: result?.metadata || null,
 				warnings: Array.isArray(result?.warnings) ? result.warnings.filter(Boolean) : [],
+				diagnostics: Array.isArray(result?.diagnostics) ? result.diagnostics.filter(Boolean) : [],
+				degraded: Boolean(result?.degraded),
 				error: null
 			};
 		} catch (error) {
@@ -26,24 +43,15 @@ async function lookupIsbnMetadata({ isbn }) {
 				name: provider.name,
 				metadata: null,
 				warnings: [],
+				diagnostics: [],
+				degraded: false,
 				error
 			};
 		}
 	}));
 
-	for (const result of providerResults) {
-		warnings.push(...result.warnings);
-	}
-
 	const successfulMetadata = providerResults.filter((result) => result.metadata);
-	if (successfulMetadata.length > 0) {
-		for (const result of providerResults) {
-			if (!result.metadata && result.error) {
-				const sourceName = result.name === "googleBooks" ? "Google Books" : "Open Library";
-				warnings.push(`${sourceName} was unavailable, so available metadata from other sources was used.`);
-			}
-		}
-	}
+	const warnings = buildUserFacingWarnings(providerResults);
 
 	return {
 		merged: mergeLookupMetadata({

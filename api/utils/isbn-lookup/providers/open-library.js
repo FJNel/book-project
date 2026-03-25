@@ -186,7 +186,7 @@ async function fetchOpenLibraryAuthor(authorKey) {
 		resource: "author",
 		identifier: authorKey,
 		url: `https://openlibrary.org${authorKey}.json`,
-		timeoutMs: 1800,
+		timeoutMs: 2200,
 		headers: buildOpenLibraryHeaders()
 	});
 	const displayName = sanitizeLookupText(payload?.name || payload?.personal_name, 150);
@@ -207,14 +207,15 @@ async function fetchOpenLibraryAuthor(authorKey) {
 module.exports = {
 	name: "openLibrary",
 	async fetchByIsbn({ isbn }) {
-		const warnings = [];
+		const diagnostics = [];
+		let degraded = false;
 		const [isbnResult, editionResult] = await Promise.allSettled([
 			fetchCachedJson({
 				provider: "openLibrary",
 				resource: "isbn-data",
 				identifier: isbn,
 				url: `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`,
-				timeoutMs: 3200,
+				timeoutMs: 4200,
 				headers: buildOpenLibraryHeaders()
 			}),
 			fetchCachedJson({
@@ -222,7 +223,7 @@ module.exports = {
 				resource: "edition",
 				identifier: isbn,
 				url: `https://openlibrary.org/isbn/${encodeURIComponent(isbn)}.json`,
-				timeoutMs: 3200,
+				timeoutMs: 4200,
 				headers: buildOpenLibraryHeaders()
 			})
 		]);
@@ -234,13 +235,18 @@ module.exports = {
 			throw editionResult.reason || isbnResult.reason || new Error("Open Library lookup failed.");
 		}
 		if (!isbnPayload && editionPayload) {
-			warnings.push("Open Library returned partial edition data, so some lookup details may be missing.");
+			degraded = true;
+			diagnostics.push("Open Library ISBN data endpoint was unavailable; partial edition data was used.");
+		}
+		if (isbnPayload && !editionPayload) {
+			degraded = true;
+			diagnostics.push("Open Library edition endpoint was unavailable; primary ISBN data endpoint was used.");
 		}
 
 		const isbnRecord = isbnPayload?.[`ISBN:${isbn}`] || null;
 		const edition = editionPayload && typeof editionPayload === "object" ? editionPayload : null;
 		if (!isbnRecord && !edition) {
-			return { metadata: null, warnings };
+			return { metadata: null, warnings: [], diagnostics, degraded };
 		}
 
 		let work = null;
@@ -254,11 +260,12 @@ module.exports = {
 					resource: "work",
 					identifier: workKey,
 					url: `https://openlibrary.org${workKey}.json`,
-					timeoutMs: 1800,
+					timeoutMs: 2200,
 					headers: buildOpenLibraryHeaders()
 				});
 			} catch (error) {
-				warnings.push("Open Library work details were unavailable, so some description or series details may be missing.");
+				degraded = true;
+				diagnostics.push("Open Library work details were unavailable, so description or series details may be incomplete.");
 			}
 		}
 
@@ -274,13 +281,16 @@ module.exports = {
 			if (result.status === "fulfilled" && result.value) {
 				authorDetailsByKey.set(authorKey, result.value);
 			} else if (result.status === "rejected") {
-				warnings.push("Some Open Library author details were unavailable, so author biographies or life dates may be incomplete.");
+				degraded = true;
+				diagnostics.push("Some Open Library author detail lookups failed, so biographies or life dates may be incomplete.");
 			}
 		});
 
 		return {
 			metadata: extractOpenLibraryMetadata({ isbnRecord, edition, work, authorDetailsByKey }),
-			warnings: Array.from(new Set(warnings.filter(Boolean)))
+			warnings: [],
+			diagnostics: Array.from(new Set(diagnostics.filter(Boolean))),
+			degraded
 		};
 	}
 };

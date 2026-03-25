@@ -1693,6 +1693,18 @@ router.post("/isbn-lookup", requiresAuth, authenticatedLimiter, async (req, res)
 				error_message: providerResult.error?.message || "Unknown provider error."
 			}, "warn");
 		}
+		for (const providerResult of providerResults) {
+			const diagnostics = Array.isArray(providerResult?.diagnostics) ? providerResult.diagnostics : [];
+			for (const diagnostic of diagnostics) {
+				logToFile("BOOK_ISBN_LOOKUP_PROVIDER", {
+					status: providerResult.degraded ? "FAILURE" : "INFO",
+					provider: providerResult.name,
+					user_id: userId,
+					isbn,
+					error_message: diagnostic
+				}, providerResult.degraded ? "warn" : "info");
+			}
+		}
 
 		if (!lookupResult.merged) {
 			if (providerResults.some((result) => result.error)) {

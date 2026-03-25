@@ -565,13 +565,13 @@ function mergeLookupMetadata({ isbn, providers, warnings }) {
 	if (successfulProviders.length === 2) {
 		const [first, second] = successfulProviders;
 		if (first?.pageCount && second?.pageCount && first.pageCount !== second.pageCount) {
-			warnings.push("Google Books and Open Library reported different page counts; the first valid count was used.");
+			warnings.push("Some book details differed between sources, so one valid page count was used.");
 		}
 		if (first?.publicationDate && second?.publicationDate) {
 			const firstText = first.publicationDate.text || "";
 			const secondText = second.publicationDate.text || "";
 			if (firstText && secondText && firstText !== secondText) {
-				warnings.push("Google Books and Open Library reported different publication dates; the more specific valid date was used.");
+				warnings.push("Some publication details differed between sources, so the most complete date available was used.");
 			}
 		}
 	}
