@@ -608,14 +608,16 @@
     state.deweyEnabled = enabled;
 
     if (controls.deweyEnabledToggle) {
-      controls.deweyEnabledToggle.checked = enabled;
+      controls.deweyEnabledToggle.checked = available ? enabled : false;
       controls.deweyEnabledToggle.disabled = !available;
     }
 
     if (controls.deweyFeatureHelp) {
       controls.deweyFeatureHelp.textContent = available
         ? 'Turn Dewey Decimal support on for your account. Stored Dewey data remains in place if you turn it off later.'
-        : 'Dewey Decimal support is currently unavailable for this deployment.';
+        : (enabled
+          ? 'Dewey Decimal support is currently unavailable for this deployment. Your saved preference will be used again if the deployment enables Dewey later.'
+          : 'Dewey Decimal support is currently unavailable for this deployment.');
       controls.deweyFeatureHelp.classList.toggle('text-danger', !available);
       controls.deweyFeatureHelp.classList.toggle('text-muted', available);
     }
@@ -998,6 +1000,10 @@
 
   async function saveDeweyPreference() {
     clearDeweyFeatureAlerts();
+    if (!state.deweyAvailable) {
+      setDeweyFeatureAlert(controls.deweyFeatureError, 'Dewey Decimal support is currently unavailable for this deployment.', 'danger');
+      return;
+    }
     const current = collectDeweyPreference();
 
     try {

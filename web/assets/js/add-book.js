@@ -203,6 +203,17 @@
 
     function setDeweyVisibility(visible) {
         selectors.deweyFieldWrap?.classList.toggle('d-none', !visible);
+        if (!visible) {
+            selectors.deweyStatusWrap?.classList.add('d-none');
+            selectors.deweyUnavailable?.classList.add('d-none');
+            if (selectors.deweyCaption) selectors.deweyCaption.textContent = '';
+            if (selectors.deweyPath) selectors.deweyPath.textContent = '';
+            clearHelpText(selectors.deweyHelp);
+        }
+    }
+
+    function isDeweyFeatureActive() {
+        return Boolean(window.deweyClient?.isFeatureActive?.());
     }
 
     function renderDeweyInterpretation(result, datasetState) {
@@ -269,17 +280,29 @@
 
     async function initializeDeweyField() {
         if (!window.deweyClient) {
-            setDeweyVisibility(true);
-            addBook.state.dewey = { enabled: true, available: false, source: 'unavailable', entries: [] };
-            selectors.deweyUnavailable?.classList.remove('d-none');
-            log('Dewey client script is unavailable; showing manual fallback.');
+            setDeweyVisibility(false);
+            addBook.state.dewey = { enabled: false, available: false, source: 'client-unavailable', entries: [] };
+            log('Dewey client script is unavailable; hiding Dewey UI because feature state cannot be resolved safely.');
+            return;
+        }
+
+        const featureState = await window.deweyClient.loadFeatureState();
+        if (!featureState.available || !featureState.enabled) {
+            window.deweyClient.clearDatasetCache?.(featureState.available ? 'feature-disabled' : 'feature-unavailable');
+            addBook.state.dewey = {
+                enabled: Boolean(featureState.enabled),
+                available: Boolean(featureState.available),
+                source: featureState.available ? 'user-disabled' : 'globally-unavailable',
+                entries: []
+            };
+            setDeweyVisibility(false);
             return;
         }
 
         const datasetState = await window.deweyClient.loadDataset();
         addBook.state.dewey = datasetState;
 
-        if (!datasetState.enabled) {
+        if (!isDeweyFeatureActive()) {
             setDeweyVisibility(false);
             return;
         }

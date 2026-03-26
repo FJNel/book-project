@@ -423,8 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const isDeweyFeatureActive = () => {
-    const featureState = window.deweyClient?.getFeatureState?.();
-    return Boolean(featureState?.available && featureState?.enabled);
+    return Boolean(window.deweyClient?.isFeatureActive?.());
   };
 
   const renderDeweyFieldState = (inputEl, helpEl, statusWrap, captionEl, pathEl, unavailableEl) => {
@@ -502,6 +501,11 @@ document.addEventListener('DOMContentLoaded', () => {
     editBookDeweyWrap?.classList.toggle('d-none', !active);
     if (!active) {
       document.getElementById('coreDeweyRow')?.classList.add('d-none');
+      editBookDeweyStatusWrap?.classList.add('d-none');
+      editBookDeweyUnavailable?.classList.add('d-none');
+      if (editBookDeweyCaption) editBookDeweyCaption.textContent = '';
+      if (editBookDeweyPath) editBookDeweyPath.textContent = '';
+      clearHelpText(editBookDeweyHelp);
     }
   };
 
@@ -3369,12 +3373,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.deweyClient?.loadDataset?.()
-    .then(() => {
-      applyDeweyFeatureVisibility();
-      if (bookRecord) {
-        renderCoreDewey(bookRecord);
+  window.deweyClient?.loadFeatureState?.()
+    .then((featureState) => {
+      if (!featureState?.available || !featureState?.enabled) {
+        window.deweyClient?.clearDatasetCache?.(featureState?.available ? 'feature-disabled' : 'feature-unavailable');
+        applyDeweyFeatureVisibility();
+        if (bookRecord) {
+          renderCoreDewey(bookRecord);
+        }
+        return null;
       }
+
+      return window.deweyClient?.loadDataset?.()
+        .then(() => {
+          applyDeweyFeatureVisibility();
+          if (bookRecord) {
+            renderCoreDewey(bookRecord);
+          }
+        });
     })
     .catch((error) => {
       applyDeweyFeatureVisibility();

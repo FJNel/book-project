@@ -134,6 +134,27 @@
     };
   }
 
+  function isFeatureActive(featureState = featureStateCache) {
+    return Boolean(featureState?.available && featureState?.enabled);
+  }
+
+  function buildInactiveDatasetState(featureState, source) {
+    return {
+      enabled: Boolean(featureState?.enabled),
+      available: Boolean(featureState?.available),
+      source,
+      entries: []
+    };
+  }
+
+  function clearDatasetCache(reason) {
+    if (datasetCache || datasetPromise) {
+      log('Clearing Dewey dataset cache.', { reason });
+    }
+    datasetCache = null;
+    datasetPromise = null;
+  }
+
   function readStoredFeatureState() {
     try {
       const raw = localStorage.getItem('userProfile');
@@ -161,7 +182,17 @@
   }
 
   function setFeatureState(featureState) {
-    featureStateCache = normalizeFeatureState(featureState);
+    const nextFeatureState = normalizeFeatureState(featureState);
+    const wasActive = isFeatureActive(featureStateCache);
+    const willBeActive = isFeatureActive(nextFeatureState);
+
+    if (!willBeActive) {
+      clearDatasetCache(nextFeatureState.available ? 'feature-disabled' : 'feature-unavailable');
+    } else if (!wasActive) {
+      clearDatasetCache('feature-enabled');
+    }
+
+    featureStateCache = nextFeatureState;
     syncStoredFeatureState(featureStateCache);
     return featureStateCache;
   }
@@ -204,27 +235,29 @@
   }
 
   async function loadDataset() {
-    if (datasetCache) return datasetCache;
+    const featureState = await loadFeatureState();
+    if (!featureState.available) {
+      log('Skipping Dewey dataset fetch because the feature is unavailable for this deployment.');
+      datasetCache = buildInactiveDatasetState(featureState, 'globally-unavailable');
+      return datasetCache;
+    }
+    if (!featureState.enabled) {
+      log('Skipping Dewey dataset fetch because the feature is disabled for this user.');
+      datasetCache = buildInactiveDatasetState(featureState, 'user-disabled');
+      return datasetCache;
+    }
+
+    if (datasetCache && datasetCache.enabled && datasetCache.available && isFeatureActive(featureState)) {
+      return datasetCache;
+    }
     if (datasetPromise) return datasetPromise;
 
     datasetPromise = (async () => {
       try {
-        const featureState = await loadFeatureState();
-        if (!featureState.available) {
-          log('Dewey feature is unavailable for this deployment.');
-          datasetCache = { enabled: false, available: false, source: 'globally-unavailable', entries: [] };
-          return datasetCache;
-        }
-        if (!featureState.enabled) {
-          log('Dewey feature is disabled for this user.');
-          datasetCache = { enabled: false, available: true, source: 'user-disabled', entries: [] };
-          return datasetCache;
-        }
-
         const response = await apiFetch('/me/dewey-dataset', { method: 'GET' });
         if (response.status === 403) {
           warn('Dewey dataset request was rejected for this account.');
-          datasetCache = { enabled: false, available: featureState.available, source: 'inactive', entries: [] };
+          datasetCache = buildInactiveDatasetState(featureState, 'inactive');
           return datasetCache;
         }
         if (!response.ok) {
@@ -263,6 +296,8 @@
     setFeatureState,
     getFeatureState: () => featureStateCache,
     isFeatureEnabled: () => Boolean(featureStateCache?.enabled),
+    isFeatureActive: () => isFeatureActive(featureStateCache),
+    clearDatasetCache,
     loadDataset,
     getCachedDataset: () => datasetCache
   };
