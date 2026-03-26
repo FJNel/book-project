@@ -2,6 +2,7 @@
 // Pulls from environment variables with sensible defaults and light parsing.
 
 require('dotenv').config();
+const path = require("path");
 const { logToFile } = require("./utils/logging");
 
 function env(name, def = undefined) {
@@ -98,6 +99,15 @@ const cors = {
 	optionsSuccessStatus: envNumber('CORS_OPTIONS_SUCCESS_STATUS', 204),
 };
 
+const deployWebhookSecret = env("GITHUB_WEBHOOK_SECRET");
+const deployWebhookEnabledSetting = env("DEPLOY_WEBHOOK_ENABLED");
+const deployWebhookEnabled = deployWebhookEnabledSetting === undefined
+	? Boolean(deployWebhookSecret)
+	: deployWebhookEnabledSetting !== "false";
+const deployScriptPath = env("DEPLOY_SCRIPT_PATH", "/home/johan/book-project/deploy.sh");
+const deployWorkingDirectory = env("DEPLOY_WORKING_DIRECTORY", "/home/johan/book-project");
+const deployLockFilePath = env("DEPLOY_LOCK_FILE_PATH", path.join(deployWorkingDirectory, ".deploy-webhook.lock"));
+
 module.exports = {
 	nodeEnv,
 	port,
@@ -122,6 +132,13 @@ module.exports = {
 		baseUrl: apiBaseUrl,
 		docsUrl: apiDocsUrl,
 	},
+	deploy: {
+		webhookEnabled: deployWebhookEnabled,
+		webhookSecret: deployWebhookSecret || "",
+		scriptPath: deployScriptPath,
+		workingDirectory: deployWorkingDirectory,
+		lockFilePath: deployLockFilePath,
+	},
 };
 
 const missingConfig = [];
@@ -131,6 +148,7 @@ if (!jwt.refreshSecret || jwt.refreshSecret === "change-me-refresh") missingConf
 if (!db.host) missingConfig.push("DB_HOST");
 if (!db.user) missingConfig.push("DB_USER");
 if (!db.name) missingConfig.push("DB_NAME");
+if (deployWebhookEnabled && !deployWebhookSecret) missingConfig.push("GITHUB_WEBHOOK_SECRET");
 
 logToFile("CONFIG_LOADED", {
 	environment: nodeEnv,
@@ -143,6 +161,10 @@ logToFile("CONFIG_LOADED", {
 	google_books_configured: Boolean(google.booksApiKey),
 	recaptcha_configured: Boolean(recaptchaSecret),
 	jwt_configured: Boolean(jwt.accessSecret && jwt.refreshSecret),
+	deploy_webhook_enabled: deployWebhookEnabled,
+	deploy_script_path: deployScriptPath,
+	deploy_working_directory: deployWorkingDirectory,
+	deploy_lock_file_path: deployLockFilePath,
 	db: {
 		host: db.host,
 		port: db.port,

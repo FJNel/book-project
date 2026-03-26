@@ -38,6 +38,7 @@ const adminRoutes = require("./routes/admin");
 const searchRoutes = require("./routes/search");
 const importExportRoutes = require("./routes/import-export");
 const logRoutes = require("./routes/logs");
+const internalDeployRoutes = require("./routes/internal-deploy");
 
 // Attach correlation id early for request tracing
 app.use(attachCorrelationId);
@@ -51,6 +52,11 @@ app.set("trust proxy", 1);
 //Middleware: Security and Parsing
 app.use(helmet()); // Set HTTP headers for security
 
+app.use(
+	"/internal/deploy/github-webhook",
+	express.raw({ type: "application/json", limit: "1mb" }),
+	internalDeployRoutes
+);
 app.use(express.json()); // Parse JSON request bodies
 // Allow requests from other domains (CORS)
 const corsOptions = {
