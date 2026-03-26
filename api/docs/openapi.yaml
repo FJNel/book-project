@@ -2458,6 +2458,12 @@ paths:
                       lastLogin: "2025-01-17T09:20:11.000Z"
                       oauthProviders:
                         - google
+                      settings:
+                        deweyEnabled: false
+                      features:
+                        dewey:
+                          available: true
+                          enabled: false
                       createdAt: "2025-01-10T09:15:23.000Z"
                       updatedAt: "2025-01-14T16:58:41.000Z"
                     errors: []
@@ -2467,7 +2473,7 @@ paths:
       tags: [Users]
       summary: Update my profile
       operationId: updateMyProfile
-      description: Update fullName, preferredName, and/or themePreference.
+      description: Update fullName, preferredName, themePreference, and/or deweyEnabled.
       x-rateLimit:
         limit: 60
         window: minute
@@ -2487,6 +2493,10 @@ paths:
                 summary: Update theme preference
                 value:
                   themePreference: dark
+              updateDewey:
+                summary: Update Dewey enablement
+                value:
+                  deweyEnabled: true
       responses:
         '200':
           description: Updated
@@ -2507,6 +2517,12 @@ paths:
                       fullName: Jane Q. Doe
                       preferredName: Jan
                       themePreference: dark
+                      settings:
+                        deweyEnabled: true
+                      features:
+                        dewey:
+                          available: true
+                          enabled: true
                       role: user
                       isVerified: true
                       isDisabled: false
@@ -3234,6 +3250,8 @@ paths:
                     errors: []
         '401':
           $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /booktype:
     get:
       tags: [BookTypes]
@@ -10814,6 +10832,10 @@ components:
           description: Theme preference for the user interface.
           type: string
           enum: [device, light, dark]
+        settings:
+          $ref: '#/components/schemas/UserSettings'
+        features:
+          $ref: '#/components/schemas/UserFeatures'
         passwordUpdated:
           description: Timestamp of last password change; null for OAuth-only accounts.
           type:
@@ -10984,6 +11006,26 @@ components:
           description: Theme preference for the user interface.
           type: string
           enum: [device, light, dark]
+        deweyEnabled:
+          description: Enable Dewey Decimal support for the current user when the deployment supports it.
+          type: boolean
+    UserSettings:
+      type: object
+      properties:
+        deweyEnabled:
+          type: boolean
+    FeatureState:
+      type: object
+      properties:
+        available:
+          type: boolean
+        enabled:
+          type: boolean
+    UserFeatures:
+      type: object
+      properties:
+        dewey:
+          $ref: '#/components/schemas/FeatureState'
     ChangePasswordRequest:
       description: Change password for the authenticated user.
       type: object

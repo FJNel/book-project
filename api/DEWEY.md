@@ -8,6 +8,7 @@ Phase 1 adds optional Dewey Decimal support to books without changing the rest o
 - A built-in default dataset at `data/dewey/default.json`
 - An effective-dataset service that currently returns the default dataset and is structured for future user overrides
 - `GET /me/dewey-dataset` for frontend dataset loading
+- Structured Dewey feature state exposed through `GET /users/me`
 - Local frontend interpretation while typing on Add Book and Edit Book
 - Save-time backend normalization, validation, and canonical resolution
 - Minimal Dewey display on Book Details
@@ -65,16 +66,37 @@ When a book is created or updated with a Dewey code:
 
 Valid but unresolved codes are still allowed in Phase 1. The backend remains authoritative for normalization and canonical resolution even though the frontend interprets locally for instant feedback.
 
-## Feature Toggle
+## Feature Enablement
 
-There was no existing user-facing feature-toggle framework suitable for this scope, so Phase 1 uses a small server-side environment flag:
+Dewey support now uses a small settings foundation with two layers:
 
-- `DEWEY_DECIMAL_ENABLED=true` enables Dewey support
-- `DEWEY_DECIMAL_ENABLED=false` disables the dataset endpoint
+1. Global availability from `DEWEY_DECIMAL_ENABLED`
+2. Per-user enablement from `users.dewey_enabled`
+
+Dewey is active only when both are true.
+
+The canonical resolver lives in `api/utils/feature-settings.js`.
+
+`GET /users/me` exposes:
+
+```json
+{
+  "settings": {
+    "deweyEnabled": false
+  },
+  "features": {
+    "dewey": {
+      "available": true,
+      "enabled": false
+    }
+  }
+}
+```
 
 Frontend behavior:
 
-- if disabled: Dewey UI stays hidden
-- if enabled but dataset loading fails: Dewey input stays usable with a manual-entry fallback
+- if globally unavailable: Dewey UI stays hidden
+- if globally available but the user has not enabled it: Dewey UI stays hidden
+- if active but dataset loading fails: Dewey input stays usable with a manual-entry fallback
 
 Stored Dewey data is not deleted when the feature is hidden.

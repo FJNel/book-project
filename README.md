@@ -15,7 +15,7 @@ This README documents the architecture, technology choices, setup instructions, 
 - Static frontend with Bootstrap 5; dedicated flows for login, register, verify email, reset password
 - Frontend HTTP interceptor that attaches tokens, refreshes access token on 401, and handles session expiry
 - Language file support (`web/lang/en.json`) for UI copy
-- Phase 1 Dewey Decimal support with a built-in dataset, local live interpretation, and save-time backend validation
+- Phase 1 Dewey Decimal support with a built-in dataset, local live interpretation, save-time backend validation, and per-user enablement settings
 
 ## Repository Structure
 
@@ -72,7 +72,8 @@ The API is documented in `api/api-docs.md` and serves JSON using a consistent en
 
 - Auth routes: register, resend verification, verify email, login, refresh token, logout, request password reset, reset password, Google OAuth
 - User routes: get current user (`/users/me`), update profile, soft‑delete own account (also revokes refresh tokens)
-- Dewey route: fetch the authenticated user's effective Dewey dataset (`/me/dewey-dataset`)
+- Dewey feature state: exposed on the authenticated profile (`/users/me`)
+- Dewey route: fetch the authenticated user's effective Dewey dataset (`/me/dewey-dataset`) only when Dewey is active for that account
 - Admin routes: scaffolded under `/admin` with role checks (not yet implemented)
 
 Cross‑cutting concerns:
@@ -122,6 +123,7 @@ Language strings:
 TypeORM migrations now own schema changes. See `api/MIGRATIONS.md` for the workflow and `api/database-tables.txt` for the current schema reference. Core tables:
 
 - `books.dewey_code` Optional Dewey Decimal code stored as a normalized string
+- `users.dewey_enabled` Per-user Dewey enablement preference; defaults to `false`
 - `users` User records; local password and/or OAuth
 - `verification_tokens` Type: `email_verification` or `password_reset`; expiry + used flags
 - `oauth_accounts` Linked OAuth providers (e.g., Google)

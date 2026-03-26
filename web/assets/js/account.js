@@ -24,7 +24,9 @@
     recycleSelection: new Set(),
     recycleActionTargets: [],
     emailPreferences: null,
-    themePreference: null
+    themePreference: null,
+    deweyEnabled: false,
+    deweyAvailable: false
   };
 
   const elements = {
@@ -162,7 +164,14 @@
     themePreferenceResetBtn: document.getElementById('themePreferenceResetBtn'),
     themePreferenceSaveBtn: document.getElementById('themePreferenceSaveBtn'),
     themePreferenceError: document.getElementById('themePreferenceError'),
-    themePreferenceSuccess: document.getElementById('themePreferenceSuccess')
+    themePreferenceSuccess: document.getElementById('themePreferenceSuccess'),
+    deweyEnabledToggle: document.getElementById('deweyEnabledToggle'),
+    deweyFeatureHelp: document.getElementById('deweyFeatureHelp'),
+    deweyFeatureChanges: document.getElementById('deweyFeatureChanges'),
+    deweyFeatureResetBtn: document.getElementById('deweyFeatureResetBtn'),
+    deweyFeatureSaveBtn: document.getElementById('deweyFeatureSaveBtn'),
+    deweyFeatureError: document.getElementById('deweyFeatureError'),
+    deweyFeatureSuccess: document.getElementById('deweyFeatureSuccess')
   };
 
   const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -520,6 +529,7 @@
     elements.welcomeName.textContent = profile.preferredName || profile.fullName || 'Your account';
     renderStatusChips(profile);
     renderThemePreference(profile.themePreference || 'device');
+    renderDeweyPreference(profile);
     if (window.themeManager) {
       window.themeManager.setPreference(profile.themePreference || 'device', { persist: true });
     }
@@ -546,6 +556,72 @@
     controls.editPreferredName.value = profile.preferredName || '';
 
     renderProfileChecklist(state.profileCompleteness);
+  }
+
+  function clearDeweyFeatureAlerts() {
+    if (controls.deweyFeatureError) controls.deweyFeatureError.classList.add('d-none');
+    if (controls.deweyFeatureSuccess) controls.deweyFeatureSuccess.classList.add('d-none');
+  }
+
+  function setDeweyFeatureAlert(element, message, type) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove('d-none');
+    element.classList.toggle('alert-danger', type === 'danger');
+    element.classList.toggle('alert-success', type === 'success');
+  }
+
+  function collectDeweyPreference() {
+    return Boolean(controls.deweyEnabledToggle?.checked);
+  }
+
+  function updateDeweyPreferenceChanges() {
+    if (!controls.deweyFeatureChanges || !controls.deweyFeatureSaveBtn) return;
+
+    const available = Boolean(state.deweyAvailable);
+    const current = collectDeweyPreference();
+    const baseline = Boolean(state.deweyEnabled);
+
+    if (!available) {
+      controls.deweyFeatureChanges.textContent = 'Dewey Decimal support is disabled for this deployment.';
+      controls.deweyFeatureSaveBtn.disabled = true;
+      return;
+    }
+
+    if (current === baseline) {
+      controls.deweyFeatureChanges.textContent = 'No changes yet.';
+      controls.deweyFeatureSaveBtn.disabled = true;
+      return;
+    }
+
+    controls.deweyFeatureChanges.textContent = current
+      ? 'Turning on Dewey Decimal support for your library.'
+      : 'Turning off Dewey Decimal support for your library.';
+    controls.deweyFeatureSaveBtn.disabled = false;
+  }
+
+  function renderDeweyPreference(profile) {
+    const available = Boolean(profile?.features?.dewey?.available);
+    const enabled = Boolean(profile?.settings?.deweyEnabled);
+
+    state.deweyAvailable = available;
+    state.deweyEnabled = enabled;
+
+    if (controls.deweyEnabledToggle) {
+      controls.deweyEnabledToggle.checked = enabled;
+      controls.deweyEnabledToggle.disabled = !available;
+    }
+
+    if (controls.deweyFeatureHelp) {
+      controls.deweyFeatureHelp.textContent = available
+        ? 'Turn Dewey Decimal support on for your account. Stored Dewey data remains in place if you turn it off later.'
+        : 'Dewey Decimal support is currently unavailable for this deployment.';
+      controls.deweyFeatureHelp.classList.toggle('text-danger', !available);
+      controls.deweyFeatureHelp.classList.toggle('text-muted', available);
+    }
+
+    window.deweyClient?.setFeatureState?.(profile?.features?.dewey || { available, enabled: available && enabled });
+    updateDeweyPreferenceChanges();
   }
 
   function renderStats(stats) {
@@ -723,12 +799,16 @@
     state.profile = data;
     renderProfile(data);
     try {
-      const raw = localStorage.getItem('userProfile');
-      if (raw) {
-        const profile = JSON.parse(raw);
-        profile.themePreference = data.themePreference || 'device';
-        localStorage.setItem('userProfile', JSON.stringify(profile));
-      }
+      localStorage.setItem('userProfile', JSON.stringify({
+        id: data.id,
+        email: data.email,
+        fullName: data.fullName,
+        preferredName: data.preferredName,
+        role: data.role,
+        themePreference: data.themePreference || 'device',
+        settings: data.settings || {},
+        features: data.features || {}
+      }));
     } catch (error) {
       warn('Unable to sync theme preference to profile storage.', error);
     }
@@ -914,6 +994,45 @@
     if (!state.themePreference) return;
     if (controls.themePreferenceSelect) controls.themePreferenceSelect.value = normalizeThemePreference(state.themePreference);
     updateThemePreferenceChanges();
+  }
+
+  async function saveDeweyPreference() {
+    clearDeweyFeatureAlerts();
+    const current = collectDeweyPreference();
+
+    try {
+      const data = await fetchJson('/users/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deweyEnabled: current })
+      });
+
+      if (state.profile) {
+        state.profile.settings = data.settings || {};
+        state.profile.features = data.features || {};
+      }
+      renderDeweyPreference(data);
+      try {
+        const raw = localStorage.getItem('userProfile');
+        if (raw) {
+          const profile = JSON.parse(raw);
+          profile.settings = data.settings || {};
+          profile.features = data.features || {};
+          localStorage.setItem('userProfile', JSON.stringify(profile));
+        }
+      } catch (storageError) {
+        warn('Unable to persist Dewey feature settings to profile storage.', storageError);
+      }
+      setDeweyFeatureAlert(controls.deweyFeatureSuccess, 'Dewey preference updated.', 'success');
+    } catch (error) {
+      setDeweyFeatureAlert(controls.deweyFeatureError, error.message || 'Unable to update Dewey preference.', 'danger');
+    }
+  }
+
+  function resetDeweyPreference() {
+    if (!controls.deweyEnabledToggle) return;
+    controls.deweyEnabledToggle.checked = Boolean(state.deweyEnabled);
+    updateDeweyPreferenceChanges();
   }
 
   async function loadStats() {
@@ -1714,6 +1833,15 @@
       resetThemePreference();
     });
     controls.themePreferenceSaveBtn?.addEventListener('click', saveThemePreference);
+    controls.deweyEnabledToggle?.addEventListener('change', () => {
+      clearDeweyFeatureAlerts();
+      updateDeweyPreferenceChanges();
+    });
+    controls.deweyFeatureResetBtn?.addEventListener('click', () => {
+      clearDeweyFeatureAlerts();
+      resetDeweyPreference();
+    });
+    controls.deweyFeatureSaveBtn?.addEventListener('click', saveDeweyPreference);
 
     elements.sessionsTable?.addEventListener('click', (event) => {
       const btn = event.target.closest('.js-revoke-session');

@@ -657,7 +657,9 @@ window.authSessionManager = window.authSessionManager || (function createAuthSes
 					fullName: profile.fullName,
 					preferredName: profile.preferredName,
 					role: profile.role,
-					themePreference: profile.themePreference || 'device'
+					themePreference: profile.themePreference || 'device',
+					settings: profile.settings || {},
+					features: profile.features || {}
 				});
 			}
 			setStatus('authenticated');

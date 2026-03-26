@@ -316,6 +316,25 @@
                         <div class="alert alert-success d-none mt-3" id="themePreferenceSuccess"></div>
                       </div>
                     </div>
+                    <div class="card account-card shadow-sm mt-3">
+                      <div class="card-body">
+                        <div class="text-muted small">Library features</div>
+                        <h3 class="h5 mb-2">Dewey Decimal</h3>
+                        <p class="text-muted small">Turn Dewey Decimal support on or off for your own library experience.</p>
+                        <div class="form-check mb-2">
+                          <input class="form-check-input" type="checkbox" id="deweyEnabledToggle">
+                          <label class="form-check-label" for="deweyEnabledToggle">Enable Dewey Decimal support</label>
+                        </div>
+                        <div class="form-text text-muted" id="deweyFeatureHelp">Loading Dewey feature availability…</div>
+                        <div class="small text-muted mt-3" id="deweyFeatureChanges">No changes yet.</div>
+                        <div class="d-flex gap-2 mt-3">
+                          <button class="btn btn-outline-secondary" type="button" id="deweyFeatureResetBtn">Reset</button>
+                          <button class="btn btn-primary" type="button" id="deweyFeatureSaveBtn" disabled>Save Dewey setting</button>
+                        </div>
+                        <div class="alert alert-danger d-none mt-3" id="deweyFeatureError"></div>
+                        <div class="alert alert-success d-none mt-3" id="deweyFeatureSuccess"></div>
+                      </div>
+                    </div>
                   </section>
 
                   <section class="account-section" data-section-content="security">

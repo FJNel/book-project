@@ -5,6 +5,8 @@
   const DEWEY_CODE_PATTERN = /^\d{1,3}(\.\d+)?$/;
   let datasetPromise = null;
   let datasetCache = null;
+  let featureStatePromise = null;
+  let featureStateCache = null;
 
   function normalizeCode(value) {
     if (value === undefined || value === null || value === '') return null;
@@ -124,16 +126,105 @@
     };
   }
 
+  function normalizeFeatureState(featureState) {
+    const available = Boolean(featureState?.available);
+    return {
+      available,
+      enabled: available && Boolean(featureState?.enabled)
+    };
+  }
+
+  function readStoredFeatureState() {
+    try {
+      const raw = localStorage.getItem('userProfile');
+      if (!raw) return null;
+      const profile = JSON.parse(raw);
+      if (!profile?.features?.dewey) return null;
+      return normalizeFeatureState(profile.features.dewey);
+    } catch (error) {
+      warn('Unable to read stored Dewey feature state.', error);
+      return null;
+    }
+  }
+
+  function syncStoredFeatureState(featureState) {
+    try {
+      const raw = localStorage.getItem('userProfile');
+      if (!raw) return;
+      const profile = JSON.parse(raw);
+      profile.features = profile.features && typeof profile.features === 'object' ? profile.features : {};
+      profile.features.dewey = normalizeFeatureState(featureState);
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+    } catch (error) {
+      warn('Unable to persist Dewey feature state.', error);
+    }
+  }
+
+  function setFeatureState(featureState) {
+    featureStateCache = normalizeFeatureState(featureState);
+    syncStoredFeatureState(featureStateCache);
+    return featureStateCache;
+  }
+
+  async function loadFeatureState() {
+    if (featureStateCache) return featureStateCache;
+
+    const stored = readStoredFeatureState();
+    if (stored) {
+      featureStateCache = stored;
+      return featureStateCache;
+    }
+
+    if (featureStatePromise) return featureStatePromise;
+
+    featureStatePromise = (async () => {
+      try {
+        const response = await apiFetch('/users/me', { method: 'GET' });
+        if (!response.ok) {
+          warn('Unable to load Dewey feature state from profile.', { status: response.status });
+          featureStateCache = { available: false, enabled: false };
+          return featureStateCache;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        featureStateCache = normalizeFeatureState(payload?.data?.features?.dewey);
+        syncStoredFeatureState(featureStateCache);
+        log('Dewey feature state loaded.', featureStateCache);
+        return featureStateCache;
+      } catch (error) {
+        warn('Unable to load Dewey feature state.', error);
+        featureStateCache = { available: false, enabled: false };
+        return featureStateCache;
+      } finally {
+        featureStatePromise = null;
+      }
+    })();
+
+    return featureStatePromise;
+  }
+
   async function loadDataset() {
     if (datasetCache) return datasetCache;
     if (datasetPromise) return datasetPromise;
 
     datasetPromise = (async () => {
       try {
+        const featureState = await loadFeatureState();
+        if (!featureState.available) {
+          log('Dewey feature is unavailable for this deployment.');
+          datasetCache = { enabled: false, available: false, source: 'globally-unavailable', entries: [] };
+          return datasetCache;
+        }
+        if (!featureState.enabled) {
+          log('Dewey feature is disabled for this user.');
+          datasetCache = { enabled: false, available: true, source: 'user-disabled', entries: [] };
+          return datasetCache;
+        }
+
         const response = await apiFetch('/me/dewey-dataset', { method: 'GET' });
-        if (response.status === 404) {
-          log('Dewey dataset disabled or unavailable by configuration.');
-          datasetCache = { enabled: false, available: false, source: 'disabled', entries: [] };
+        if (response.status === 403) {
+          warn('Dewey dataset request was rejected for this account.');
+          datasetCache = { enabled: false, available: featureState.available, source: 'inactive', entries: [] };
           return datasetCache;
         }
         if (!response.ok) {
@@ -168,6 +259,10 @@
     normalizeCode,
     isValidCode,
     resolveCode,
+    loadFeatureState,
+    setFeatureState,
+    getFeatureState: () => featureStateCache,
+    isFeatureEnabled: () => Boolean(featureStateCache?.enabled),
     loadDataset,
     getCachedDataset: () => datasetCache
   };

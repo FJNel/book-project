@@ -17,6 +17,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../utils/email-queue");
 const { getUserEmailPreferences, updateUserEmailPreferences, preferenceSummary } = require("../utils/email-preferences");
+const { buildUserFeatureContext } = require("../utils/feature-settings");
 const fetch = global.fetch
 	? global.fetch.bind(global)
 	: (...args) => import("node-fetch").then(({ default: fetchFn }) => fetchFn(...args));
@@ -224,6 +225,27 @@ function normalizeEmail(value) {
 	return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
+function buildUserProfile(row) {
+	const featureContext = buildUserFeatureContext(row);
+
+	return {
+		id: row.id,
+		email: row.email,
+		fullName: row.full_name,
+		preferredName: row.preferred_name,
+		themePreference: row.theme_preference || "device",
+		role: row.role,
+		isVerified: row.is_verified,
+		passwordUpdated: row.password_updated,
+		lastLogin: row.last_login,
+		oauthProviders: Array.isArray(row.oauth_providers) ? row.oauth_providers : [],
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+		settings: featureContext.settings,
+		features: featureContext.features
+	};
+}
+
 function invalidConfirmationResponse(res) {
 	return errorResponse(res, 400, "Invalid or expired token", [
 		"The confirmation token is invalid, has expired, or the supplied information does not match this request."
@@ -292,6 +314,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 				u.full_name,
 				u.preferred_name,
 				u.theme_preference,
+				u.dewey_enabled,
 				u.role,
 				u.is_verified,
 				u.password_updated,
@@ -315,20 +338,7 @@ router.get("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		// Construct user profile response
-		const userProfile = {
-			id: result.rows[0].id,
-			email: result.rows[0].email,
-			fullName: result.rows[0].full_name,
-			preferredName: result.rows[0].preferred_name,
-			themePreference: result.rows[0].theme_preference || "device",
-			role: result.rows[0].role,
-			isVerified: result.rows[0].is_verified,
-			passwordUpdated: result.rows[0].password_updated,
-			lastLogin: result.rows[0].last_login,
-			oauthProviders: result.rows[0].oauth_providers,
-			createdAt: result.rows[0].created_at,
-			updatedAt: result.rows[0].updated_at,
-		};
+		const userProfile = buildUserProfile(result.rows[0]);
 
 		// Log successful retrieval
 
@@ -413,8 +423,7 @@ router.put("/me/email-preferences", requiresAuth, authenticatedLimiter, async (r
 });
 
 
-// Update the profile information of the currently authenticated user
-// Only fullName and preferredName can be updated
+// Update the profile information and lightweight account preferences of the currently authenticated user.
 router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	// Get the user ID from the authenticated request
 	const userId = req.user.id;
@@ -423,6 +432,8 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	const preferredName = req.body?.preferredName ?? req.query?.preferredName;
 	const rawThemePreference = req.body?.themePreference ?? req.body?.theme ?? req.query?.themePreference ?? req.query?.theme;
 	const themePreference = parseThemePreference(rawThemePreference);
+	const rawDeweyEnabled = req.body?.deweyEnabled ?? req.query?.deweyEnabled;
+	const deweyEnabled = rawDeweyEnabled === undefined ? undefined : parseBooleanFlag(rawDeweyEnabled);
 
 	// Validation
 	const errors = [];
@@ -434,6 +445,9 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 	}
 	if (rawThemePreference !== undefined && themePreference === null) {
 		errors.push("themePreference must be one of: device, light, dark.");
+	}
+	if (rawDeweyEnabled !== undefined && deweyEnabled === null) {
+		errors.push("deweyEnabled must be a boolean value.");
 	}
 
 	// If validation errors exist, log and return them
@@ -459,6 +473,10 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		updateFields.push(`theme_preference = $${paramIndex++}`);
 		queryParams.push(themePreference);
 	}
+	if (deweyEnabled !== undefined) {
+		updateFields.push(`dewey_enabled = $${paramIndex++}`);
+		queryParams.push(deweyEnabled);
+	}
 
 	if (updateFields.length === 0) {
 		return errorResponse(res, 400, "No changes were provided.", ["Please provide at least one field to update."]);
@@ -469,7 +487,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		UPDATE users
 		SET ${updateFields.join(", ")}, updated_at = NOW()
 		WHERE id = $1 AND is_disabled = false
-		RETURNING id, email, full_name, preferred_name, theme_preference, role, is_verified, password_updated, last_login, created_at, updated_at;
+		RETURNING id, email, full_name, preferred_name, theme_preference, dewey_enabled, role, is_verified, password_updated, last_login, created_at, updated_at;
 	`;
 
 	try {
@@ -482,19 +500,7 @@ router.put("/me", requiresAuth, authenticatedLimiter, async (req, res) => {
 		}
 
 		// Construct the updated user profile response
-		const updatedUser = {
-			id: result.rows[0].id,
-			email: result.rows[0].email,
-			fullName: result.rows[0].full_name,
-			preferredName: result.rows[0].preferred_name,
-			themePreference: result.rows[0].theme_preference || "device",
-			role: result.rows[0].role,
-			isVerified: result.rows[0].is_verified,
-			passwordUpdated: result.rows[0].password_updated,
-			lastLogin: result.rows[0].last_login,
-			createdAt: result.rows[0].created_at,
-			updatedAt: result.rows[0].updated_at,
-		};
+		const updatedUser = buildUserProfile(result.rows[0]);
 
 		logToFile("UPDATE_PROFILE", { status: "SUCCESS", user_id: userId, ip: req.ip, user_agent: req.get("user-agent") }, "info");
 

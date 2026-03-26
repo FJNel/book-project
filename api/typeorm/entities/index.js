@@ -36,6 +36,7 @@ const UsersEntity = new EntitySchema({
 		emailPrefCreatedAt: { name: "email_pref_created_at", type: "timestamptz", default: () => "now()" },
 		emailPrefUpdatedAt: { name: "email_pref_updated_at", type: "timestamptz", default: () => "now()" },
 		themePreference: { name: "theme_preference", type: String, length: 16, default: "device" },
+		deweyEnabled: { name: "dewey_enabled", type: Boolean, default: false },
 		createdAt: { name: "created_at", type: "timestamptz", default: () => "now()" },
 		updatedAt: { name: "updated_at", type: "timestamptz", default: () => "now()" },
 		passwordUpdated: { name: "password_updated", type: "timestamptz", nullable: true },

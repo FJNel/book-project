@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const editBookSubtitle = document.getElementById('editBookSubtitle');
   const editBookIsbn = document.getElementById('editBookIsbn');
   const editBookDewey = document.getElementById('editBookDewey');
+  const editBookDeweyWrap = document.getElementById('editBookDeweyWrap');
   const editBookPublication = document.getElementById('editBookPublication');
   const editBookPages = document.getElementById('editBookPages');
   const editBookCover = document.getElementById('editBookCover');
@@ -421,6 +422,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return Array.isArray(cached?.entries) ? cached.entries : [];
   };
 
+  const isDeweyFeatureActive = () => {
+    const featureState = window.deweyClient?.getFeatureState?.();
+    return Boolean(featureState?.available && featureState?.enabled);
+  };
+
   const renderDeweyFieldState = (inputEl, helpEl, statusWrap, captionEl, pathEl, unavailableEl) => {
     const rawValue = inputEl?.value || '';
     const normalized = window.deweyClient?.normalizeCode
@@ -477,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pathEl = document.getElementById('coreDeweyPath');
     if (!row || !valueEl || !captionEl || !pathEl) return;
 
-    if (!book?.deweyCode) {
+    if (!isDeweyFeatureActive() || !book?.deweyCode) {
       row.classList.add('d-none');
       return;
     }
@@ -489,6 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
     pathEl.classList.toggle('d-none', !(resolution?.path && resolution.path.length > 0));
     pathEl.textContent = resolution?.path?.length ? resolution.path.join(' > ') : '';
     row.classList.remove('d-none');
+  };
+
+  const applyDeweyFeatureVisibility = () => {
+    const active = isDeweyFeatureActive();
+    editBookDeweyWrap?.classList.toggle('d-none', !active);
+    if (!active) {
+      document.getElementById('coreDeweyRow')?.classList.add('d-none');
+    }
   };
 
   const formatPartialDateDisplay = (value) => {
@@ -3355,9 +3369,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.deweyClient?.loadDataset?.().catch((error) => {
-    warn('Dewey dataset preload failed.', error);
-  });
+  window.deweyClient?.loadDataset?.()
+    .then(() => {
+      applyDeweyFeatureVisibility();
+      if (bookRecord) {
+        renderCoreDewey(bookRecord);
+      }
+    })
+    .catch((error) => {
+      applyDeweyFeatureVisibility();
+      warn('Dewey dataset preload failed.', error);
+    });
+  applyDeweyFeatureVisibility();
   loadBook();
   initializeTooltips();
 });

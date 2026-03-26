@@ -109,7 +109,7 @@ const deployServiceName = env("DEPLOY_SERVICE_NAME", "book-project-deploy.servic
 const systemctlPath = env("SYSTEMCTL_PATH", "/bin/systemctl");
 const sudoPath = env("SUDO_PATH", "/usr/bin/sudo");
 const deweyEnabledSetting = env("DEWEY_DECIMAL_ENABLED", "true");
-const deweyEnabled = deweyEnabledSetting !== "false";
+const deweyAvailable = deweyEnabledSetting !== "false";
 
 module.exports = {
 	nodeEnv,
@@ -144,8 +144,10 @@ module.exports = {
 		systemctlPath,
 		sudoPath,
 	},
-	dewey: {
-		enabled: deweyEnabled
+	features: {
+		dewey: {
+			available: deweyAvailable
+		}
 	}
 };
 
@@ -170,7 +172,7 @@ logToFile("CONFIG_LOADED", {
 	recaptcha_configured: Boolean(recaptchaSecret),
 	jwt_configured: Boolean(jwt.accessSecret && jwt.refreshSecret),
 	deploy_webhook_enabled: deployWebhookEnabled,
-	dewey_enabled: deweyEnabled,
+	dewey_available: deweyAvailable,
 	deploy_script_path: deployScriptPath,
 	deploy_working_directory: deployWorkingDirectory,
 	deploy_service_name: deployServiceName,

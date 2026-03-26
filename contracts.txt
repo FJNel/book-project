@@ -13,7 +13,7 @@ A) Contracts Index
   - Reference implementations: web/add-book.html, web/assets/js/add-book.js, api/routes/book.js
 - Dewey Contract
   - Location: contracts.txt -> "A3) Dewey Contract (Phase 1)"
-  - Reference implementations: web/add-book.html, web/book-details.html, web/assets/js/dewey.js, api/routes/book.js, api/routes/me.js
+  - Reference implementations: web/add-book.html, web/book-details.html, web/assets/js/dewey.js, api/routes/book.js, api/routes/me.js, api/routes/users.js
 - Changes Contract
   - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
   - Reference implementations: web/assets/js/book-details.js, web/assets/js/account.js, web/assets/js/storage-locations.js
@@ -52,7 +52,7 @@ A3) Dewey Contract (Phase 1)
 ----------------------------
 
 1) Frontend live interpretation
-- The frontend fetches `/me/dewey-dataset` once and reuses it in memory for the page.
+- The frontend reads Dewey feature state from `/users/me`, fetches `/me/dewey-dataset` only when the feature is active, and reuses the dataset in memory for the page.
 - Dewey interpretation must never call the backend while the user types.
 - Live interpretation uses the same normalization and validation rules as the backend:
   - trim whitespace
@@ -77,6 +77,7 @@ A3) Dewey Contract (Phase 1)
 - Valid unresolved code: confirm the stored normalized code and explain that no dataset match was found.
 - Valid resolved code: show the matched caption and derived hierarchy path.
 - Dataset unavailable: keep manual entry usable and show a lightweight fallback message.
+- Feature inactive (globally unavailable or user-disabled): hide Dewey UI without deleting stored Dewey data.
 
 1) Live validation
 - Each field has help text below it.
