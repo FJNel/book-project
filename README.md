@@ -28,11 +28,14 @@ This README documents the architecture, technology choices, setup instructions, 
 - `api/` Backend (Node.js + Express)
   - `index.js` Server setup, middleware, and route wiring
   - `db.js` PostgreSQL connection pool
+  - `typeorm/data-source.js` TypeORM data source for schema migrations
+  - `typeorm/migrations/` Versioned database migrations
   - `routes/` Core routes: `root.js`, `auth.js`, `users.js`, `admin.js`
   - `utils/` Shared utilities: `jwt.js`, `validators.js`, `logging.js`, `response.js`, `email.js`
   - `public/` Static API docs HTML
   - `api-docs.md` API documentation (detailed endpoints and examples)
   - `database-tables.txt` PostgreSQL schema for users, tokens, OAuth links, and logs
+  - `MIGRATIONS.md` Migration workflow and deployment notes
 - `README.md` This document
 - `package.json` Root (placeholder) and `api/package.json` (API dependencies and scripts)
 
@@ -113,13 +116,15 @@ Language strings:
 
 ## Database Schema
 
-See `api/database-tables.txt` for full DDL. Core tables:
+TypeORM migrations now own schema changes. See `api/MIGRATIONS.md` for the workflow and `api/database-tables.txt` for the current schema reference. Core tables:
 
 - `users` User records; local password and/or OAuth
 - `verification_tokens` Type: `email_verification` or `password_reset`; expiry + used flags
 - `oauth_accounts` Linked OAuth providers (e.g., Google)
 - `refresh_tokens` Refresh token fingerprints with expiry and revocation
-- `user_logs` Action logs with `action`, `status`, minimal metadata, and optional JSON `details`
+- `request_logs` Request/response audit logs with correlation IDs, actor context, and response metadata
+- `email_send_history` Delivery history for outbound email jobs
+- `user_api_keys` Per-user API keys with revocation and usage tracking
 
 ## Security Model
 
@@ -149,10 +154,11 @@ Prerequisites:
 - `cd api`
 - `npm install`
 
-2) Create the database and tables
+2) Create the database and schema
 
 - Create a PostgreSQL database and user
-- Run the DDL in `api/database-tables.txt` against your DB
+- Run `npm run db:migrate` inside `api/`
+- The baseline migration is safe for an empty database and is designed to mostly no-op against an already-existing schema that already has these objects
 
 3) Configure API environment
 
@@ -224,11 +230,16 @@ API (`api/package.json`):
 
 - `npm run dev` Run API with nodemon
 - `npm start` Run API with node
+- `npm run db:migrate` Apply pending TypeORM migrations
+- `npm run db:revert` Revert the latest migration
+- `npm run db:show` Show migration status
+- `npm run db:create -- <name>` Create an empty migration
+- `npm run db:generate -- <name>` Generate a migration from the TypeORM entity schema definitions
 
 ## Operational Logging
 
 - File logs: rotating log at `api/logs/app.log` with size rotation (Winston)
-- DB logs: `user_logs` captures key actions with status and minimal metadata
+- DB logs: `request_logs` captures request/response audit data, and `email_send_history` records outbound email delivery history
 - Sanitisation: credentials, tokens, and large strings are redacted by `sanitizeInput`
 
 ## Internationalisation (i18n)
@@ -255,6 +266,8 @@ API (`api/package.json`):
 
 - Frontend: host `web/` on any static hosting (e.g., Netlify, GitHub Pages, S3/CloudFront)
 - API: deploy `api/` to your Node hosting (e.g., Docker on a VPS); ensure environment variables and Postgres connectivity
+- On the Raspberry Pi deploy path, `deploy.sh` now runs the TypeORM migration check before restarting `book-api.service`
+- The deploy migration check is filesystem-based, not git-diff-based: it hashes DB-relevant files and only attempts migration execution when that fingerprint changes
 - Update CORS `origin` allowlist in `api/index.js`
 - Ensure Mailgun and OAuth credentials are configured and DNS is correct for sender domain
 

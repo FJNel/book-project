@@ -1,3 +1,7 @@
+-- Reference schema mirror for the current baseline migration.
+-- Apply schema changes through TypeORM migrations, not by running this file directly.
+-- Authoritative baseline: api/typeorm/migrations/1743000000000-baseline-schema.js
+
 -- Use an ENUM type for roles for better data integrity.
 CREATE TYPE user_role AS ENUM ('user', 'admin');
 
@@ -43,8 +47,6 @@ CREATE TABLE IF NOT EXISTS verification_tokens (
   used            BOOLEAN NOT NULL DEFAULT FALSE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
----
 
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id               SERIAL PRIMARY KEY,
@@ -145,17 +147,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS publishers_unique_active_name
   ON publishers (user_id, name)
   WHERE deleted_at IS NULL;
 
-CREATE TABLE IF NOT EXISTS book_authors (
-  id         SERIAL PRIMARY KEY,
-  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  book_id    INT NOT NULL,
-  author_id  INT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
-  role       VARCHAR(100),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, book_id, author_id)
-);
-
 CREATE TABLE IF NOT EXISTS book_series (
   id             SERIAL PRIMARY KEY,
   user_id        INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -193,20 +184,6 @@ CREATE TABLE IF NOT EXISTS storage_locations (
   UNIQUE (user_id, parent_id, name)
 );
 
-CREATE TABLE IF NOT EXISTS book_copies (
-  id                    SERIAL PRIMARY KEY,
-  user_id               INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  book_id               INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-  storage_location_id   INT REFERENCES storage_locations(id) ON DELETE SET NULL,
-  acquisition_story     TEXT,
-  acquisition_date_id   INT REFERENCES dates(id) ON DELETE SET NULL,
-  acquired_from         VARCHAR(255),
-  acquisition_type      VARCHAR(100),
-  acquisition_location  VARCHAR(255),
-  notes                 TEXT,
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 CREATE TABLE IF NOT EXISTS books (
   id                 SERIAL PRIMARY KEY,
   user_id            INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -227,6 +204,17 @@ CREATE TABLE IF NOT EXISTS books (
 CREATE UNIQUE INDEX IF NOT EXISTS books_unique_active_isbn
   ON books (user_id, isbn)
   WHERE deleted_at IS NULL AND isbn IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS book_authors (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id    INT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  author_id  INT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+  role       VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, book_id, author_id)
+);
 
 CREATE TABLE IF NOT EXISTS book_copies (
   id                    SERIAL PRIMARY KEY,
@@ -440,12 +428,4 @@ CREATE TRIGGER update_user_api_keys_modtime
 BEFORE UPDATE ON user_api_keys
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
-
-
--- Recommendation: Add indexes for common query patterns.
--- Speeds up finding all logs for a specific user.
-CREATE INDEX idx_user_logs_user_id ON user_logs(user_id);
--- Speeds up finding all logs of a certain type (e.g., all failed logins).
-CREATE INDEX idx_user_logs_action_status ON user_logs(action, status);
--- Speeds up sorting by time.
-CREATE INDEX idx_user_logs_created_at ON user_logs(created_at);
+-- Request log indexes are defined above on request_logs.

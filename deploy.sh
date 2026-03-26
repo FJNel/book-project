@@ -124,10 +124,16 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     CURRENT_STEP="api: npm install"
     npm install --production --prefix api >> "$LOG_FILE" 2>&1
 
+    CURRENT_STEP="api: run migrations if schema inputs changed"
+    (
+      cd "$PROJECT_DIR/api"
+      node ./scripts/run-migrations-if-needed.js
+    ) >> "$LOG_FILE" 2>&1
+
     CURRENT_STEP="api: restart systemd service"
     sudo systemctl restart book-api.service >> "$LOG_FILE" 2>&1
 
-    ACTIONS_TAKEN+=("API changed: npm install (production) + restarted book-api.service")
+    ACTIONS_TAKEN+=("API changed: npm install (production), checked TypeORM schema fingerprint, ran pending migrations if needed, restarted book-api.service")
   fi
 
   # If web folder changed

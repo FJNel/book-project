@@ -5,7 +5,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "db:migrate": "node ./scripts/typeorm-cli.js migration:run",
+    "db:revert": "node ./scripts/typeorm-cli.js migration:revert",
+    "db:show": "node ./scripts/typeorm-cli.js migration:show",
+    "db:create": "node ./scripts/typeorm-create-migration.js",
+    "db:generate": "node ./scripts/typeorm-generate-migration.js"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +30,7 @@
     "node-fetch": "^3.3.2",
     "pg": "^8.16.3",
     "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.24",
     "uuid": "^13.0.0",
     "winston": "^3.17.0",
     "yaml": "^2.8.2"
