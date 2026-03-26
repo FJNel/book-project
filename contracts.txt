@@ -12,7 +12,7 @@ A) Contracts Index
   - Location: contracts.txt -> "A2) ISBN Lookup Contract (Add Book)"
   - Reference implementations: web/add-book.html, web/assets/js/add-book.js, api/routes/book.js
 - Dewey Contract
-  - Location: contracts.txt -> "A3) Dewey Contract (Phase 1)"
+  - Location: contracts.txt -> "A3) Dewey Contract (Phase 1-2)"
   - Reference implementations: web/add-book.html, web/book-details.html, web/assets/js/dewey.js, api/routes/book.js, api/routes/me.js, api/routes/users.js
 - Changes Contract
   - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
@@ -48,7 +48,7 @@ A) Modal Contract (Book Project standard)
 ----------------------------------------
 Applies to any modal that accepts user input, performs a server action, or confirms a destructive change.
 
-A3) Dewey Contract (Phase 1)
+A3) Dewey Contract (Phase 1-2)
 ----------------------------
 
 1) Frontend live interpretation
@@ -78,6 +78,14 @@ A3) Dewey Contract (Phase 1)
 - Valid resolved code: show the matched caption and derived hierarchy path.
 - Dataset unavailable: keep manual entry usable and show a lightweight fallback message.
 - Feature inactive (globally unavailable or user-disabled): hide Dewey UI without deleting stored Dewey data.
+
+5) Uploaded dataset contract
+- The account page is the canonical place for Dewey dataset upload/status in Phase 2.
+- Upload format is CSV with required columns `code` and `caption`, plus optional `parent_code`.
+- User uploads override matching default codes; they do not replace the default dataset entirely.
+- Missing or invalid `parent_code` values are warnings only and must not block activation by themselves.
+- Fatal validation errors must not replace the currently active valid user dataset.
+- Frontend live interpretation must continue using `/me/dewey-dataset` only once per page/module load, never per keystroke.
 
 1) Live validation
 - Each field has help text below it.

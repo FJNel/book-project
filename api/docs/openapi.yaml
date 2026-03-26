@@ -3205,7 +3205,7 @@ paths:
       tags: [Users]
       summary: Effective Dewey dataset
       operationId: getMyDeweyDataset
-      description: Return the authenticated user's effective Dewey Decimal dataset for client-side live interpretation. Phase 1 returns the built-in default dataset.
+      description: Return the authenticated user's effective Dewey Decimal dataset for client-side live interpretation. When an active user dataset exists, matching codes override the built-in default dataset and missing codes still fall back to the default dataset.
       x-rateLimit:
         limit: 60
         window: minute
@@ -3252,6 +3252,277 @@ paths:
           $ref: '#/components/responses/AuthError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /me/dewey-source/status:
+    get:
+      tags: [Users]
+      summary: Dewey source status
+      operationId: getMyDeweySourceStatus
+      description: Return the authenticated user's uploaded Dewey source status, validation report, and whether the effective dataset is still default-only or merged.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Dewey source status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DeweySourceStatus'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.85"
+                    message: Dewey source status retrieved successfully.
+                    data:
+                      hasUploadedSource: true
+                      hasActiveUserSource: true
+                      usingDefaultOnly: false
+                      effectiveDatasetMode: merged
+                      activeSource:
+                        id: 14
+                        userId: 12
+                        originalFilename: my-dewey.csv
+                        status: active
+                        isActive: true
+                        entryCount: 24
+                        validationReport:
+                          fatalErrors: []
+                          warnings:
+                            - "Row 3 (513.2): parent_code is missing. Prefix hierarchy will be inferred."
+                          summary:
+                            totalRows: 24
+                            acceptedEntries: 24
+                            fatalCount: 0
+                            warningCount: 1
+                        createdAt: "2026-03-26T08:15:00.000Z"
+                        updatedAt: "2026-03-26T08:15:00.000Z"
+                      latestSource:
+                        id: 14
+                        userId: 12
+                        originalFilename: my-dewey.csv
+                        status: active
+                        isActive: true
+                        entryCount: 24
+                        validationReport:
+                          fatalErrors: []
+                          warnings: []
+                          summary:
+                            totalRows: 24
+                            acceptedEntries: 24
+                            fatalCount: 0
+                            warningCount: 0
+                        createdAt: "2026-03-26T08:15:00.000Z"
+                        updatedAt: "2026-03-26T08:15:00.000Z"
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /me/dewey-source/upload:
+    post:
+      tags: [Users]
+      summary: Upload Dewey source CSV
+      operationId: uploadMyDeweySource
+      description: Upload a Dewey CSV override for the authenticated user. Required columns are `code` and `caption`. Optional `parent_code` values are validated for warnings but are not required for activation.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with `code`, `caption`, and optional `parent_code` columns.
+      responses:
+        '200':
+          description: Upload processed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DeweySourceUploadResponse'
+              examples:
+                accepted:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "8.10"
+                    message: Dewey source uploaded successfully.
+                    data:
+                      uploadAccepted: true
+                      activeUsable: true
+                      source:
+                        id: 14
+                        userId: 12
+                        originalFilename: my-dewey.csv
+                        status: active
+                        isActive: true
+                        entryCount: 24
+                        validationReport:
+                          fatalErrors: []
+                          warnings:
+                            - "Row 3 (513.2): parent_code is missing. Prefix hierarchy will be inferred."
+                          summary:
+                            totalRows: 24
+                            acceptedEntries: 24
+                            fatalCount: 0
+                            warningCount: 1
+                        createdAt: "2026-03-26T08:15:00.000Z"
+                        updatedAt: "2026-03-26T08:15:00.000Z"
+                      validationReport:
+                        fatalErrors: []
+                        warnings:
+                          - "Row 3 (513.2): parent_code is missing. Prefix hierarchy will be inferred."
+                        summary:
+                          totalRows: 24
+                          acceptedEntries: 24
+                          fatalCount: 0
+                          warningCount: 1
+                      datasetStatus:
+                        hasUploadedSource: true
+                        hasActiveUserSource: true
+                        usingDefaultOnly: false
+                        effectiveDatasetMode: merged
+                        activeSource:
+                          id: 14
+                          userId: 12
+                          originalFilename: my-dewey.csv
+                          status: active
+                          isActive: true
+                          entryCount: 24
+                          validationReport:
+                            fatalErrors: []
+                            warnings: []
+                            summary:
+                              totalRows: 24
+                              acceptedEntries: 24
+                              fatalCount: 0
+                              warningCount: 0
+                          createdAt: "2026-03-26T08:15:00.000Z"
+                          updatedAt: "2026-03-26T08:15:00.000Z"
+                        latestSource:
+                          id: 14
+                          userId: 12
+                          originalFilename: my-dewey.csv
+                          status: active
+                          isActive: true
+                          entryCount: 24
+                          validationReport:
+                            fatalErrors: []
+                            warnings: []
+                            summary:
+                              totalRows: 24
+                              acceptedEntries: 24
+                              fatalCount: 0
+                              warningCount: 0
+                          createdAt: "2026-03-26T08:15:00.000Z"
+                          updatedAt: "2026-03-26T08:15:00.000Z"
+                    errors: []
+                rejected:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "6.21"
+                    message: Dewey source validation failed.
+                    data:
+                      uploadAccepted: false
+                      activeUsable: false
+                      source:
+                        id: 15
+                        userId: 12
+                        originalFilename: broken-dewey.csv
+                        status: invalid
+                        isActive: false
+                        entryCount: 0
+                        validationReport:
+                          fatalErrors:
+                            - "Duplicate code '500' appears on rows 2, 3."
+                          warnings:
+                            - "Optional parent_code column was not provided. Prefix hierarchy will be used."
+                          summary:
+                            totalRows: 2
+                            acceptedEntries: 0
+                            fatalCount: 1
+                            warningCount: 1
+                        createdAt: "2026-03-26T08:20:00.000Z"
+                        updatedAt: "2026-03-26T08:20:00.000Z"
+                      validationReport:
+                        fatalErrors:
+                          - "Duplicate code '500' appears on rows 2, 3."
+                        warnings:
+                          - "Optional parent_code column was not provided. Prefix hierarchy will be used."
+                        summary:
+                          totalRows: 2
+                          acceptedEntries: 0
+                          fatalCount: 1
+                          warningCount: 1
+                      datasetStatus:
+                        hasUploadedSource: true
+                        hasActiveUserSource: true
+                        usingDefaultOnly: false
+                        effectiveDatasetMode: merged
+                        activeSource:
+                          id: 14
+                          userId: 12
+                          originalFilename: my-dewey.csv
+                          status: active
+                          isActive: true
+                          entryCount: 24
+                          validationReport:
+                            fatalErrors: []
+                            warnings: []
+                            summary:
+                              totalRows: 24
+                              acceptedEntries: 24
+                              fatalCount: 0
+                              warningCount: 0
+                          createdAt: "2026-03-26T08:15:00.000Z"
+                          updatedAt: "2026-03-26T08:15:00.000Z"
+                        latestSource:
+                          id: 15
+                          userId: 12
+                          originalFilename: broken-dewey.csv
+                          status: invalid
+                          isActive: false
+                          entryCount: 0
+                          validationReport:
+                            fatalErrors:
+                              - "Duplicate code '500' appears on rows 2, 3."
+                            warnings:
+                              - "Optional parent_code column was not provided. Prefix hierarchy will be used."
+                            summary:
+                              totalRows: 2
+                              acceptedEntries: 0
+                              fatalCount: 1
+                              warningCount: 1
+                          createdAt: "2026-03-26T08:20:00.000Z"
+                          updatedAt: "2026-03-26T08:20:00.000Z"
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /booktype:
     get:
       tags: [BookTypes]
@@ -12392,7 +12663,94 @@ components:
           type: string
         caption:
           type: string
+        parentCode:
+          oneOf:
+            - type: string
+            - type: 'null'
       required: [code, caption]
+    DeweyValidationReport:
+      type: object
+      properties:
+        fatalErrors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        summary:
+          type: object
+          properties:
+            totalRows:
+              type: integer
+            acceptedEntries:
+              type: integer
+            fatalCount:
+              type: integer
+            warningCount:
+              type: integer
+      required: [fatalErrors, warnings, summary]
+    DeweySource:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        originalFilename:
+          type: string
+        status:
+          type: string
+          enum: [active, invalid, replaced]
+        isActive:
+          type: boolean
+        entryCount:
+          type: integer
+        validationReport:
+          $ref: '#/components/schemas/DeweyValidationReport'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, originalFilename, status, isActive, entryCount, validationReport, createdAt, updatedAt]
+    DeweySourceStatus:
+      type: object
+      properties:
+        hasUploadedSource:
+          type: boolean
+        hasActiveUserSource:
+          type: boolean
+        usingDefaultOnly:
+          type: boolean
+        effectiveDatasetMode:
+          type: string
+          enum: [default, merged]
+        activeSource:
+          oneOf:
+            - $ref: '#/components/schemas/DeweySource'
+            - type: 'null'
+        latestSource:
+          oneOf:
+            - $ref: '#/components/schemas/DeweySource'
+            - type: 'null'
+      required: [hasUploadedSource, hasActiveUserSource, usingDefaultOnly, effectiveDatasetMode]
+    DeweySourceUploadResponse:
+      type: object
+      properties:
+        uploadAccepted:
+          type: boolean
+        activeUsable:
+          type: boolean
+        source:
+          $ref: '#/components/schemas/DeweySource'
+        validationReport:
+          $ref: '#/components/schemas/DeweyValidationReport'
+        datasetStatus:
+          $ref: '#/components/schemas/DeweySourceStatus'
+      required: [uploadAccepted, activeUsable, source, validationReport, datasetStatus]
     DeweyResolution:
       type: object
       properties:

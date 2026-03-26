@@ -1,13 +1,16 @@
-# Dewey Decimal Support (Phase 1)
+# Dewey Decimal Support
 
-Phase 1 adds optional Dewey Decimal support to books without changing the rest of the runtime data-access layer.
+The current Dewey implementation covers Phase 1 and Phase 2 without changing the rest of the runtime data-access layer.
 
-## What Phase 1 Includes
+## What Is Implemented
 
 - `books.dewey_code` as a nullable string column
 - A built-in default dataset at `data/dewey/default.json`
-- An effective-dataset service that currently returns the default dataset and is structured for future user overrides
+- A per-user uploaded dataset model stored in `user_dewey_sources` and `user_dewey_entries`
+- An effective-dataset service in `api/utils/dewey.js`
 - `GET /me/dewey-dataset` for frontend dataset loading
+- `GET /me/dewey-source/status` for Dewey source status
+- `POST /me/dewey-source/upload` for CSV uploads
 - Structured Dewey feature state exposed through `GET /users/me`
 - Local frontend interpretation while typing on Add Book and Edit Book
 - Save-time backend normalization, validation, and canonical resolution
@@ -45,15 +48,14 @@ Path construction is also prefix-based, so missing intermediate captions are ski
 
 The backend uses `api/utils/dewey.js` as the single Dewey service entry point.
 
-Today:
+Merge rules:
 
-- default dataset only
-- response source: `default`
-
-Designed for a later phase:
-
-- user dataset overrides matching default codes
+- default dataset loads first
+- active user dataset entries override matching default codes
 - missing user codes still fall back to default entries
+- the merged result is returned as source `merged`
+
+If the user has no active uploaded dataset, the effective dataset remains `default`.
 
 ## Save-Time Behaviour
 
@@ -100,3 +102,67 @@ Frontend behavior:
 - if active but dataset loading fails: Dewey input stays usable with a manual-entry fallback
 
 Stored Dewey data is not deleted when the feature is hidden.
+
+## Phase 2 Upload Format
+
+Supported upload format: CSV
+
+Required columns:
+
+- `code`
+- `caption`
+
+Optional column:
+
+- `parent_code`
+
+The parser normalizes headers to tolerate spaces and hyphens, but the upload should still be kept simple and explicit.
+
+## Upload Validation Rules
+
+Fatal errors prevent the uploaded dataset from becoming active:
+
+- missing required `code` column
+- missing required `caption` column
+- empty file or no data rows
+- missing row `code`
+- invalid row `code`
+- missing row `caption`
+- duplicate `code` values in the same upload
+
+Warnings do not block activation:
+
+- missing `parent_code` column
+- missing row `parent_code`
+- invalid `parent_code`
+- `parent_code` that is not present in the uploaded dataset
+- sparse uploaded hierarchy where broader fallback will rely on defaults
+
+If an upload has fatal errors, it is recorded as an invalid source for status/reporting, but the currently active valid user dataset is left unchanged.
+
+## Upload and Status Endpoints
+
+`POST /me/dewey-source/upload`
+
+- multipart upload
+- file field name: `file`
+- accepts CSV content
+- returns whether the upload was accepted, the validation report, and the current dataset status
+
+`GET /me/dewey-source/status`
+
+- returns whether the user has uploaded a Dewey source
+- returns whether an active user source exists
+- returns active/latest source metadata and validation details
+- indicates whether the account is still using the default dataset only
+
+## Resolution Priority
+
+Canonical resolution now follows this order:
+
+1. active user dataset exact match
+2. active user dataset prefix fallback
+3. default dataset exact or prefix fallback
+4. unresolved
+
+This still uses the same prefix-based resolver introduced in Phase 1. `parent_code` remains optional metadata and is not required for resolution to work.

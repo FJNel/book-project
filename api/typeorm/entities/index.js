@@ -129,6 +129,59 @@ const RefreshTokensEntity = new EntitySchema({
 	},
 });
 
+const UserDeweySourcesEntity = new EntitySchema({
+	name: "UserDeweySources",
+	tableName: "user_dewey_sources",
+	columns: {
+		id: { type: Number, primary: true, generated: "increment" },
+		userId: { name: "user_id", type: Number },
+		originalFilename: { name: "original_filename", type: String, length: 255 },
+		status: { type: String, length: 20 },
+		isActive: { name: "is_active", type: Boolean, default: false },
+		validationReport: { name: "validation_report", type: "jsonb", nullable: true },
+		createdAt: { name: "created_at", type: "timestamptz", default: () => "now()" },
+		updatedAt: { name: "updated_at", type: "timestamptz", default: () => "now()" },
+	},
+	indices: [
+		{ name: "user_dewey_sources_user_created_idx", columns: ["userId", "createdAt"] },
+		{ name: "user_dewey_sources_user_active_idx", columns: ["userId", "isActive"] }
+	],
+	relations: {
+		user: {
+			type: "many-to-one",
+			target: "Users",
+			joinColumn: { name: "user_id" },
+			onDelete: "CASCADE",
+		},
+	},
+});
+
+const UserDeweyEntriesEntity = new EntitySchema({
+	name: "UserDeweyEntries",
+	tableName: "user_dewey_entries",
+	columns: {
+		id: { type: Number, primary: true, generated: "increment" },
+		sourceId: { name: "source_id", type: Number },
+		code: { type: String, length: 32 },
+		caption: { type: "text" },
+		parentCode: { name: "parent_code", type: String, length: 32, nullable: true },
+		createdAt: { name: "created_at", type: "timestamptz", default: () => "now()" },
+		updatedAt: { name: "updated_at", type: "timestamptz", default: () => "now()" },
+	},
+	indices: [
+		{ name: "user_dewey_entries_source_code_unique", columns: ["sourceId", "code"], unique: true },
+		{ name: "user_dewey_entries_source_idx", columns: ["sourceId"] },
+	],
+	relations: {
+		source: {
+			type: "many-to-one",
+			target: "UserDeweySources",
+			joinColumn: { name: "source_id" },
+			onDelete: "CASCADE",
+		},
+	},
+});
+
 const LanguagesEntity = new EntitySchema({
 	name: "Languages",
 	tableName: "languages",
@@ -546,6 +599,8 @@ module.exports = {
 	VerificationTokensEntity,
 	OauthAccountsEntity,
 	RefreshTokensEntity,
+	UserDeweySourcesEntity,
+	UserDeweyEntriesEntity,
 	LanguagesEntity,
 	BookTypesEntity,
 	DatesEntity,

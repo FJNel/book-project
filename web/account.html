@@ -333,6 +333,33 @@
                         </div>
                         <div class="alert alert-danger d-none mt-3" id="deweyFeatureError"></div>
                         <div class="alert alert-success d-none mt-3" id="deweyFeatureSuccess"></div>
+
+                        <hr class="my-4">
+
+                        <div class="text-muted small">Custom dataset</div>
+                        <h4 class="h6 mb-2">Upload CSV overrides</h4>
+                        <p class="text-muted small">Upload a CSV with <code>code</code> and <code>caption</code>. Optional <code>parent_code</code> values can be included, but missing parents are warnings only.</p>
+                        <div class="input-group mb-2">
+                          <input class="form-control" type="file" id="deweySourceFile" accept=".csv,text/csv">
+                          <button class="btn btn-outline-primary" type="button" id="deweySourceUploadBtn">Upload CSV</button>
+                        </div>
+                        <div class="form-text text-muted" id="deweySourceUploadHelp">Required columns: code, caption. Optional column: parent_code.</div>
+                        <div class="alert alert-danger d-none mt-3" id="deweySourceUploadError"></div>
+                        <div class="alert alert-success d-none mt-3" id="deweySourceUploadSuccess"></div>
+
+                        <div class="mt-4">
+                          <div class="fw-semibold mb-1">Dataset status</div>
+                          <div class="small text-muted" id="deweySourceStatusSummary">Loading Dewey dataset status…</div>
+                          <div class="small mt-2" id="deweySourceActiveMeta"></div>
+                          <div class="small mt-1" id="deweySourceLatestMeta"></div>
+                        </div>
+
+                        <div class="mt-3">
+                          <div class="fw-semibold mb-1 d-none" id="deweySourceWarningsHeading">Warnings</div>
+                          <ul class="small text-muted mb-2 d-none" id="deweySourceWarningsList"></ul>
+                          <div class="fw-semibold mb-1 d-none text-danger" id="deweySourceErrorsHeading">Validation errors</div>
+                          <ul class="small text-danger mb-0 d-none" id="deweySourceErrorsList"></ul>
+                        </div>
                       </div>
                     </div>
                   </section>

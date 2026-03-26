@@ -40,6 +40,15 @@ Yes, you can update your profile information as many times as you like. There ar
 ### Will updating my profile affect my books or data?
 No, updating your profile information will not affect your books or any other data in your Book Project account. Your library data, including books, authors, publishers, and other related information, remains intact and accessible after you update your profile. The profile update only affects your personal information used for identification and communication; it does not modify or delete any of your library data.
 
+### Can I manage Dewey Decimal support from my account?
+Yes. If the deployment supports Dewey Decimal, your Account page includes a Dewey section where you can:
+
+1. Turn Dewey support on or off for your own library experience.
+2. Upload a CSV file with your own Dewey captions and overrides.
+3. Review warnings or validation errors from the latest upload.
+
+Custom uploads do not replace the built-in dataset completely. They override matching codes, and the built-in dataset still fills any gaps.
+
 ### What happens if I leave a field blank?
 Your Full Name field cannot be left blank; it is a required field. If you attempt to submit the form with an empty Full Name field, you will receive an error message prompting you to fill in the required information. Your Preferred Name field is optional and can be left blank if you do not wish to set a preferred name. To remove a previously set preferred name, simply clear the field and save your changes.
 
@@ -70,4 +79,3 @@ You have successfully updated your profile information. If you want to adjust ot
 - [Changing Your Email Address](/guides/account/changing-your-email)
 - [Changing Your Password](/guides/account/changing-your-password)
 - [Devices and Sessions](/guides/account/devices-and-sessions)
-

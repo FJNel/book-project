@@ -26,7 +26,8 @@
     emailPreferences: null,
     themePreference: null,
     deweyEnabled: false,
-    deweyAvailable: false
+    deweyAvailable: false,
+    deweySourceStatus: null
   };
 
   const elements = {
@@ -171,7 +172,19 @@
     deweyFeatureResetBtn: document.getElementById('deweyFeatureResetBtn'),
     deweyFeatureSaveBtn: document.getElementById('deweyFeatureSaveBtn'),
     deweyFeatureError: document.getElementById('deweyFeatureError'),
-    deweyFeatureSuccess: document.getElementById('deweyFeatureSuccess')
+    deweyFeatureSuccess: document.getElementById('deweyFeatureSuccess'),
+    deweySourceFile: document.getElementById('deweySourceFile'),
+    deweySourceUploadBtn: document.getElementById('deweySourceUploadBtn'),
+    deweySourceUploadHelp: document.getElementById('deweySourceUploadHelp'),
+    deweySourceUploadError: document.getElementById('deweySourceUploadError'),
+    deweySourceUploadSuccess: document.getElementById('deweySourceUploadSuccess'),
+    deweySourceStatusSummary: document.getElementById('deweySourceStatusSummary'),
+    deweySourceActiveMeta: document.getElementById('deweySourceActiveMeta'),
+    deweySourceLatestMeta: document.getElementById('deweySourceLatestMeta'),
+    deweySourceWarningsHeading: document.getElementById('deweySourceWarningsHeading'),
+    deweySourceWarningsList: document.getElementById('deweySourceWarningsList'),
+    deweySourceErrorsHeading: document.getElementById('deweySourceErrorsHeading'),
+    deweySourceErrorsList: document.getElementById('deweySourceErrorsList')
   };
 
   const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -624,6 +637,94 @@
 
     window.deweyClient?.setFeatureState?.(profile?.features?.dewey || { available, enabled: available && enabled });
     updateDeweyPreferenceChanges();
+    renderDeweySourceStatus(state.deweySourceStatus);
+  }
+
+  function clearDeweySourceAlerts() {
+    if (controls.deweySourceUploadError) controls.deweySourceUploadError.classList.add('d-none');
+    if (controls.deweySourceUploadSuccess) controls.deweySourceUploadSuccess.classList.add('d-none');
+  }
+
+  function setDeweySourceAlert(element, message, type) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove('d-none');
+    element.classList.toggle('alert-danger', type === 'danger');
+    element.classList.toggle('alert-success', type === 'success');
+  }
+
+  function renderMessageList(listEl, headingEl, items) {
+    if (!listEl || !headingEl) return;
+    listEl.innerHTML = '';
+    const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+    headingEl.classList.toggle('d-none', safeItems.length === 0);
+    listEl.classList.toggle('d-none', safeItems.length === 0);
+    safeItems.forEach((item) => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      listEl.appendChild(li);
+    });
+  }
+
+  function describeDeweySourceMeta(prefix, source) {
+    if (!source) return `${prefix}: —`;
+    const parts = [
+      source.originalFilename || 'Unnamed upload',
+      source.status || 'unknown',
+      typeof source.entryCount === 'number' ? `${source.entryCount} entries` : null,
+      source.createdAt ? formatDate(source.createdAt) : null
+    ].filter(Boolean);
+    return `${prefix}: ${parts.join(' • ')}`;
+  }
+
+  function renderDeweySourceStatus(status) {
+    state.deweySourceStatus = status || null;
+
+    const available = Boolean(state.deweyAvailable);
+    const activeSource = status?.activeSource || null;
+    const latestSource = status?.latestSource || null;
+    const validationReport = latestSource?.validationReport || { fatalErrors: [], warnings: [], summary: {} };
+
+    if (controls.deweySourceUploadBtn) {
+      controls.deweySourceUploadBtn.disabled = !available;
+    }
+    if (controls.deweySourceFile) {
+      controls.deweySourceFile.disabled = !available;
+      if (!available) {
+        controls.deweySourceFile.value = '';
+      }
+    }
+    if (controls.deweySourceUploadHelp) {
+      controls.deweySourceUploadHelp.textContent = available
+        ? 'Required columns: code, caption. Optional column: parent_code.'
+        : 'CSV uploads are disabled while Dewey Decimal support is unavailable for this deployment.';
+      controls.deweySourceUploadHelp.classList.toggle('text-danger', !available);
+      controls.deweySourceUploadHelp.classList.toggle('text-muted', available);
+    }
+
+    if (controls.deweySourceStatusSummary) {
+      if (!status) {
+        controls.deweySourceStatusSummary.textContent = 'Loading Dewey dataset status…';
+      } else if (!available) {
+        controls.deweySourceStatusSummary.textContent = activeSource
+          ? 'Dewey uploads are stored, but the deployment is currently using no Dewey dataset because the feature is unavailable.'
+          : 'Dewey uploads are unavailable right now, so the deployment is using no Dewey dataset.';
+      } else if (status.usingDefaultOnly) {
+        controls.deweySourceStatusSummary.textContent = 'Effective dataset: default dataset only.';
+      } else {
+        controls.deweySourceStatusSummary.textContent = 'Effective dataset: merged default dataset plus your uploaded overrides.';
+      }
+    }
+
+    if (controls.deweySourceActiveMeta) {
+      controls.deweySourceActiveMeta.textContent = describeDeweySourceMeta('Active source', activeSource);
+    }
+    if (controls.deweySourceLatestMeta) {
+      controls.deweySourceLatestMeta.textContent = describeDeweySourceMeta('Latest upload', latestSource);
+    }
+
+    renderMessageList(controls.deweySourceWarningsList, controls.deweySourceWarningsHeading, validationReport.warnings || []);
+    renderMessageList(controls.deweySourceErrorsList, controls.deweySourceErrorsHeading, validationReport.fatalErrors || []);
   }
 
   function renderStats(stats) {
@@ -1039,6 +1140,82 @@
     if (!controls.deweyEnabledToggle) return;
     controls.deweyEnabledToggle.checked = Boolean(state.deweyEnabled);
     updateDeweyPreferenceChanges();
+  }
+
+  async function loadDeweySourceStatus() {
+    try {
+      const data = await fetchJson('/me/dewey-source/status', { method: 'GET' });
+      renderDeweySourceStatus(data);
+    } catch (error) {
+      warn('Failed to load Dewey source status.', error);
+      renderDeweySourceStatus({
+        usingDefaultOnly: true,
+        activeSource: null,
+        latestSource: null
+      });
+      setDeweySourceAlert(controls.deweySourceUploadError, 'Unable to load Dewey dataset status.', 'danger');
+    }
+  }
+
+  async function uploadDeweySource() {
+    clearDeweySourceAlerts();
+
+    if (!state.deweyAvailable) {
+      setDeweySourceAlert(controls.deweySourceUploadError, 'Dewey Decimal support is currently unavailable for this deployment.', 'danger');
+      return;
+    }
+
+    const file = controls.deweySourceFile?.files?.[0] || null;
+    if (!file) {
+      setDeweySourceAlert(controls.deweySourceUploadError, 'Please choose a CSV file to upload.', 'danger');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setButtonLoading(controls.deweySourceUploadBtn, true);
+    if (controls.deweySourceFile) controls.deweySourceFile.disabled = true;
+
+    try {
+      const response = await apiFetch('/me/dewey-source/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = typeof payload.message === 'string' ? payload.message : 'Upload failed';
+        const errors = Array.isArray(payload.errors) ? payload.errors : [];
+        throw new Error(errors.length ? `${message}: ${errors.join(', ')}` : message);
+      }
+
+      const data = payload.data || {};
+      renderDeweySourceStatus(data.datasetStatus || null);
+      window.deweyClient?.clearDatasetCache?.('user-source-uploaded');
+
+      if (data.uploadAccepted) {
+        setDeweySourceAlert(
+          controls.deweySourceUploadSuccess,
+          data.validationReport?.warnings?.length
+            ? 'Dewey CSV uploaded. It is active, but there are warnings to review below.'
+            : 'Dewey CSV uploaded and activated.',
+          'success'
+        );
+      } else {
+        setDeweySourceAlert(
+          controls.deweySourceUploadError,
+          'The CSV was uploaded, but validation errors prevented it from becoming active. Your previous active dataset was left unchanged.',
+          'danger'
+        );
+      }
+
+      if (controls.deweySourceFile) controls.deweySourceFile.value = '';
+    } catch (error) {
+      setDeweySourceAlert(controls.deweySourceUploadError, error.message || 'Unable to upload the Dewey CSV.', 'danger');
+    } finally {
+      setButtonLoading(controls.deweySourceUploadBtn, false);
+      if (controls.deweySourceFile) controls.deweySourceFile.disabled = !state.deweyAvailable;
+    }
   }
 
   async function loadStats() {
@@ -1848,6 +2025,10 @@
       resetDeweyPreference();
     });
     controls.deweyFeatureSaveBtn?.addEventListener('click', saveDeweyPreference);
+    controls.deweySourceUploadBtn?.addEventListener('click', uploadDeweySource);
+    controls.deweySourceFile?.addEventListener('change', () => {
+      clearDeweySourceAlerts();
+    });
 
     elements.sessionsTable?.addEventListener('click', (event) => {
       const btn = event.target.closest('.js-revoke-session');
@@ -1924,6 +2105,7 @@
     await showPageLoading();
     try {
       await Promise.all([loadProfile(), loadStats(), loadSessions(), loadApiKeys(), loadRecycleBin(), loadEmailPreferences()]);
+      await loadDeweySourceStatus();
     } catch (error) {
       console.error('[Account] Initial load failed', error);
       if (modalManager) await modalManager.showModal(apiErrorModal);
