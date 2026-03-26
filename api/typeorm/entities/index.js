@@ -254,6 +254,7 @@ const BooksEntity = new EntitySchema({
 		title: { type: String, length: 255 },
 		subtitle: { type: String, length: 255, nullable: true },
 		isbn: { type: String, length: 20, nullable: true },
+		deweyCode: { name: "dewey_code", type: String, length: 32, nullable: true },
 		publicationDateId: { name: "publication_date_id", type: Number, nullable: true },
 		pageCount: { name: "page_count", type: Number, nullable: true },
 		coverImageUrl: { name: "cover_image_url", type: "text", nullable: true },

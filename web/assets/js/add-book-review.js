@@ -93,6 +93,7 @@
             ['Title', payload.title],
             ['Subtitle', payload.subtitle],
             ['ISBN', payload.isbn],
+            ['Dewey Code', payload.deweyCode],
             ['Publication Date', payload.publicationDate?.text ? [payload.publicationDate.text] : null],
             ['Page Count', payload.pageCount],
             ['Book Type', bookTypeName],

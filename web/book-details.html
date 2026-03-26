@@ -251,6 +251,15 @@
                         <div class="text-muted">ISBN</div>
                         <div class="fw-semibold" id="coreIsbnValue"></div>
                       </li>
+
+                      <li class="list-group-item d-flex justify-content-between align-items-start gap-3 d-none" id="coreDeweyRow">
+                        <div class="text-muted">Dewey</div>
+                        <div class="fw-semibold text-end">
+                          <div id="coreDeweyValue"></div>
+                          <div class="small text-muted d-none" id="coreDeweyCaption"></div>
+                          <div class="small text-muted d-none" id="coreDeweyPath"></div>
+                        </div>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -457,6 +466,16 @@
                 <label class="form-label" for="editBookIsbn"><strong>ISBN</strong></label>
                 <input class="form-control" type="text" id="editBookIsbn" autocomplete="off" maxlength="40">
                 <small class="form-text" id="editBookIsbnHelp"></small>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="editBookDewey"><strong>Dewey Code</strong></label>
+                <input class="form-control" type="text" id="editBookDewey" autocomplete="off" maxlength="32" inputmode="decimal" placeholder="e.g. 513.2">
+                <small class="form-text" id="editBookDeweyHelp"></small>
+                <div class="small text-muted mt-2 d-none" id="editBookDeweyStatusWrap">
+                  <div class="fw-semibold" id="editBookDeweyCaption"></div>
+                  <div id="editBookDeweyPath"></div>
+                </div>
+                <div class="small text-muted mt-2 d-none" id="editBookDeweyUnavailable">Dewey lookup data is unavailable right now. You can still save a valid Dewey code manually.</div>
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label" for="editBookPublication"><strong>Publication Date</strong></label>
@@ -881,6 +900,7 @@
   <script src="assets/js/common.js"></script>
   <script src="assets/js/navbar.js"></script>
   <script src="assets/js/partial-date-parser.js"></script>
+  <script src="assets/js/dewey.js"></script>
   <script src="assets/js/shared-add-modals.js"></script>
   <script src="assets/js/book-details.js"></script>
 </body>

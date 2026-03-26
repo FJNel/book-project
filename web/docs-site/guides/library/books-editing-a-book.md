@@ -118,6 +118,12 @@ Book Details > Manage Authors is usually faster for that one change.
 
 Use Edit Book only if the role update is part of a wider pass.
 
+### Can I Change the Dewey Decimal Code Here?
+
+Yes. Dewey Code is optional and can be added, changed, or cleared during editing.
+
+The page interprets the code locally while you type when the dataset is available, so there is no wait for per-keystroke lookups.
+
 ### What Happens After Confirm and Save Changes?
 
 You return to Book Details for that title.

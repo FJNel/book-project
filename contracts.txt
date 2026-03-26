@@ -11,6 +11,9 @@ A) Contracts Index
 - ISBN Lookup Contract
   - Location: contracts.txt -> "A2) ISBN Lookup Contract (Add Book)"
   - Reference implementations: web/add-book.html, web/assets/js/add-book.js, api/routes/book.js
+- Dewey Contract
+  - Location: contracts.txt -> "A3) Dewey Contract (Phase 1)"
+  - Reference implementations: web/add-book.html, web/book-details.html, web/assets/js/dewey.js, api/routes/book.js, api/routes/me.js
 - Changes Contract
   - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
   - Reference implementations: web/assets/js/book-details.js, web/assets/js/account.js, web/assets/js/storage-locations.js
@@ -29,11 +32,13 @@ B) Implementation Order Checklist
    - Why: modal structure and locking rules determine safe request handling and consistent error flows.
 2. ISBN Lookup Contract baseline
    - Why: Add Book now depends on a documented lookup/request/response/suggestion flow that must stay aligned across frontend and backend.
-3. Changes Contract baseline
+3. Dewey Contract baseline
+   - Why: Dewey interpretation is split deliberately between frontend instant feedback and backend authoritative save-time validation.
+4. Changes Contract baseline
    - Why: change summaries depend on modal structure and must match modal validation/state rules.
-4. Icon Contract
+5. Icon Contract
    - Why: icons are a visible UX contract; normalizing them avoids UI drift during later sweeps.
-5. Interaction Contract
+6. Interaction Contract
    - Why: interactions and hover rules build on the modal/icon baselines and must align with them.
 
 C) Reference rule
@@ -42,6 +47,36 @@ C) Reference rule
 A) Modal Contract (Book Project standard)
 ----------------------------------------
 Applies to any modal that accepts user input, performs a server action, or confirms a destructive change.
+
+A3) Dewey Contract (Phase 1)
+----------------------------
+
+1) Frontend live interpretation
+- The frontend fetches `/me/dewey-dataset` once and reuses it in memory for the page.
+- Dewey interpretation must never call the backend while the user types.
+- Live interpretation uses the same normalization and validation rules as the backend:
+  - trim whitespace
+  - replace commas with dots
+  - collapse repeated dots
+  - valid format: `^\d{1,3}(\.\d+)?$`
+
+2) Resolution behaviour
+- Exact match wins first.
+- If no exact match exists, trim decimal digits from the right until a match is found.
+- If no decimal match exists, fall back to broader integer prefixes (`513` -> `510` -> `500`).
+- Parent-child relationships come from code prefixes, not `parent_code`.
+
+3) Incomplete dataset tolerance
+- Missing intermediate captions must not break interpretation.
+- Path rendering may skip missing nodes while still showing broader matches.
+- A Dewey-shaped code may still be saved even if it is unresolved by the current dataset.
+
+4) UI states
+- Empty input: no Dewey guidance shown.
+- Invalid format: inline validation error.
+- Valid unresolved code: confirm the stored normalized code and explain that no dataset match was found.
+- Valid resolved code: show the matched caption and derived hierarchy path.
+- Dataset unavailable: keep manual entry usable and show a lightweight fallback message.
 
 1) Live validation
 - Each field has help text below it.

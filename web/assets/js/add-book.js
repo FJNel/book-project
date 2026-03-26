@@ -12,6 +12,7 @@
         isValidUrl,
         normalizeUrl,
         normalizeIsbn,
+        normalizeDeweyCode,
         ensureHelpText
     } = addBook.utils;
     const log = (...args) => console.log('[Add Book]', ...args);
@@ -46,6 +47,13 @@
         title: byId('twoEdtTitle'),
         subtitle: byId('twoEdtSubtitle'),
         isbn: byId('twoEdtISBN'),
+        deweyCode: byId('twoEdtDeweyCode'),
+        deweyFieldWrap: byId('twoDeweyFieldWrap'),
+        deweyHelp: byId('twoDeweyCodeHelp'),
+        deweyStatusWrap: byId('twoDeweyStatusWrap'),
+        deweyCaption: byId('twoDeweyCaption'),
+        deweyPath: byId('twoDeweyPath'),
+        deweyUnavailable: byId('twoDeweyUnavailable'),
         publicationDate: byId('twoEdtPublicationDate'),
         pages: byId('twoSpnPages'),
         coverUrl: byId('twoEdtBookCoverURL'),
@@ -130,6 +138,7 @@
     selectors.isbnLookupHelp = ensureHelpText(selectors.isbnLookupInput, 'oneISBNHelp');
     selectors.subtitleHelp = ensureHelpText(selectors.subtitle, 'twoSubtitleHelp');
     selectors.isbnHelp = ensureHelpText(selectors.isbn, 'twoISBNHelp');
+    selectors.deweyHelp = ensureHelpText(selectors.deweyCode, 'twoDeweyCodeHelp');
     selectors.pagesHelp = ensureHelpText(selectors.pages, 'twoPagesHelp');
     selectors.coverUrlHelp = ensureHelpText(selectors.coverUrl, 'twoBookCoverURLHelp');
     selectors.descriptionHelp = ensureHelpText(selectors.description, 'twoBookDescriptionHelp');
@@ -192,6 +201,93 @@
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    function setDeweyVisibility(visible) {
+        selectors.deweyFieldWrap?.classList.toggle('d-none', !visible);
+    }
+
+    function renderDeweyInterpretation(result, datasetState) {
+        if (!selectors.deweyHelp) return;
+
+        selectors.deweyStatusWrap?.classList.add('d-none');
+        selectors.deweyUnavailable?.classList.add('d-none');
+        if (selectors.deweyCaption) selectors.deweyCaption.textContent = '';
+        if (selectors.deweyPath) selectors.deweyPath.textContent = '';
+
+        if (!result?.normalized) {
+            clearHelpText(selectors.deweyHelp);
+            return;
+        }
+
+        if (!result.valid) {
+            setHelpText(selectors.deweyHelp, 'Dewey Code must be 1 to 3 digits, with an optional decimal part such as 513.2.', true);
+            return;
+        }
+
+        setHelpText(selectors.deweyHelp, `This Dewey Code will be stored as: ${result.normalized}`, false);
+
+        if (datasetState && datasetState.enabled && !datasetState.available) {
+            selectors.deweyUnavailable?.classList.remove('d-none');
+            log('Dewey dataset unavailable; allowing manual entry fallback.');
+            return;
+        }
+
+        if (!datasetState?.available) {
+            return;
+        }
+
+        selectors.deweyStatusWrap?.classList.remove('d-none');
+        if (result.resolved) {
+            if (selectors.deweyCaption) {
+                selectors.deweyCaption.textContent = `\u2192 ${result.caption || result.matchedCode}`;
+            }
+            if (selectors.deweyPath) {
+                selectors.deweyPath.textContent = result.path.length > 0
+                    ? `\u2192 ${result.path.join(' > ')}`
+                    : '\u2192 Matching Dewey path found.';
+            }
+            return;
+        }
+
+        if (selectors.deweyCaption) {
+            selectors.deweyCaption.textContent = '\u2192 Valid Dewey code, but not found in your current dataset.';
+        }
+        if (selectors.deweyPath) {
+            selectors.deweyPath.textContent = '';
+        }
+    }
+
+    function interpretDeweyInput() {
+        const rawValue = selectors.deweyCode?.value || '';
+        const normalized = normalizeDeweyCode(rawValue);
+        const datasetState = addBook.state.dewey || {};
+        const result = window.deweyClient
+            ? window.deweyClient.resolveCode(normalized, datasetState.entries || [])
+            : { normalized, valid: false, resolved: false, caption: null, path: [] };
+        renderDeweyInterpretation(result, datasetState);
+        return result;
+    }
+
+    async function initializeDeweyField() {
+        if (!window.deweyClient) {
+            setDeweyVisibility(true);
+            addBook.state.dewey = { enabled: true, available: false, source: 'unavailable', entries: [] };
+            selectors.deweyUnavailable?.classList.remove('d-none');
+            log('Dewey client script is unavailable; showing manual fallback.');
+            return;
+        }
+
+        const datasetState = await window.deweyClient.loadDataset();
+        addBook.state.dewey = datasetState;
+
+        if (!datasetState.enabled) {
+            setDeweyVisibility(false);
+            return;
+        }
+
+        setDeweyVisibility(true);
+        interpretDeweyInput();
+    }
+
     function refreshInlineHelp() {
         const title = selectors.title.value.trim();
         if (!title) {
@@ -226,6 +322,8 @@
                 setHelpText(selectors.isbnHelp, `This ISBN will be stored as: ${normalized}`, false);
             }
         }
+
+        interpretDeweyInput();
 
         const pagesRaw = selectors.pages.value.trim();
         if (!pagesRaw) {
@@ -596,6 +694,7 @@
         selectors.title.value = book.title || '';
         selectors.subtitle.value = book.subtitle || '';
         selectors.isbn.value = book.isbn || '';
+        if (selectors.deweyCode) selectors.deweyCode.value = book.deweyCode || book.dewey?.code || '';
         selectors.publicationDate.value = book.publicationDate?.text || '';
         selectors.pages.value = Number.isInteger(book.pageCount) ? String(book.pageCount) : '';
         selectors.coverUrl.value = book.coverImageUrl || '';
@@ -604,6 +703,7 @@
         triggerInput(selectors.title);
         triggerInput(selectors.subtitle);
         triggerInput(selectors.isbn);
+        triggerInput(selectors.deweyCode);
         triggerInput(selectors.pages);
         triggerInput(selectors.coverUrl);
         triggerInput(selectors.description);
@@ -1203,6 +1303,7 @@
         selectors.title.value = '';
         selectors.subtitle.value = '';
         selectors.isbn.value = '';
+        if (selectors.deweyCode) selectors.deweyCode.value = '';
         selectors.publicationDate.value = '';
         selectors.pages.value = '';
         selectors.coverUrl.value = '';
@@ -2587,12 +2688,14 @@
         }
 
         const normalizedIsbn = normalizeIsbn(selectors.isbn.value.trim());
+        const normalizedDeweyCode = normalizeDeweyCode(selectors.deweyCode?.value || '');
         const normalizedCoverUrl = normalizeUrl(selectors.coverUrl.value.trim());
 
         const payload = {
             title: selectors.title.value.trim(),
             subtitle: selectors.subtitle.value.trim() || null,
             isbn: normalizedIsbn || null,
+            deweyCode: normalizedDeweyCode || null,
             publicationDate: publicationParsed.value || null,
             pageCount: Number.isInteger(pageCountValue) ? pageCountValue : null,
             coverImageUrl: normalizedCoverUrl || null,
@@ -2655,6 +2758,14 @@
             const normalizedIsbn = addBook.utils.normalizeIsbn(rawIsbn);
             if (!normalizedIsbn) {
                 errors.push('ISBN must be a valid ISBN-10 or ISBN-13 using digits and optional X (last character for ISBN-10).');
+            }
+        }
+
+        const rawDeweyCode = selectors.deweyCode?.value.trim() || '';
+        if (rawDeweyCode) {
+            const normalizedDewey = normalizeDeweyCode(rawDeweyCode);
+            if (!window.deweyClient?.isValidCode(normalizedDewey)) {
+                errors.push('Dewey Code must be 1 to 3 digits, with an optional decimal part such as 513.2.');
             }
         }
 
@@ -2754,6 +2865,14 @@
         const isbn = selectors.isbn.value.trim();
         if (isbn && !/^[0-9Xx-]{10,17}$/.test(isbn)) {
             return selectors.isbn;
+        }
+
+        const deweyCode = selectors.deweyCode?.value.trim() || '';
+        if (deweyCode) {
+            const normalizedDewey = normalizeDeweyCode(deweyCode);
+            if (!window.deweyClient?.isValidCode(normalizedDewey)) {
+                return selectors.deweyCode;
+            }
         }
 
         const coverUrl = selectors.coverUrl.value.trim();
@@ -3057,6 +3176,9 @@
             }
             setHelpText(selectors.isbnHelp, `This ISBN will be stored as: ${normalized}`, false);
         });
+        selectors.deweyCode?.addEventListener('input', () => {
+            interpretDeweyInput();
+        });
         selectors.pages.addEventListener('input', () => {
             const value = selectors.pages.value.trim();
             if (!value) {
@@ -3199,6 +3321,7 @@
             resetLookupUiState();
             renderAuthors();
             renderSeries();
+            await initializeDeweyField();
 
             log('Starting initial Add Book data loads...');
             results = await Promise.allSettled([

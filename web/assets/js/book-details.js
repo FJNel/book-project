@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const editBookTitle = document.getElementById('editBookTitle');
   const editBookSubtitle = document.getElementById('editBookSubtitle');
   const editBookIsbn = document.getElementById('editBookIsbn');
+  const editBookDewey = document.getElementById('editBookDewey');
   const editBookPublication = document.getElementById('editBookPublication');
   const editBookPages = document.getElementById('editBookPages');
   const editBookCover = document.getElementById('editBookCover');
@@ -58,6 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const editBookTitleHelp = document.getElementById('editBookTitleHelp');
   const editBookSubtitleHelp = document.getElementById('editBookSubtitleHelp');
   const editBookIsbnHelp = document.getElementById('editBookIsbnHelp');
+  const editBookDeweyHelp = document.getElementById('editBookDeweyHelp');
+  const editBookDeweyStatusWrap = document.getElementById('editBookDeweyStatusWrap');
+  const editBookDeweyCaption = document.getElementById('editBookDeweyCaption');
+  const editBookDeweyPath = document.getElementById('editBookDeweyPath');
+  const editBookDeweyUnavailable = document.getElementById('editBookDeweyUnavailable');
   const editBookPublicationHelp = document.getElementById('editBookPublicationHelp');
   const editBookPagesHelp = document.getElementById('editBookPagesHelp');
   const editBookCoverHelp = document.getElementById('editBookCoverHelp');
@@ -409,6 +415,81 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const clearHelpText = (el) => setHelpText(el, '', false);
+
+  const getDeweyDatasetEntries = () => {
+    const cached = window.deweyClient?.getCachedDataset?.();
+    return Array.isArray(cached?.entries) ? cached.entries : [];
+  };
+
+  const renderDeweyFieldState = (inputEl, helpEl, statusWrap, captionEl, pathEl, unavailableEl) => {
+    const rawValue = inputEl?.value || '';
+    const normalized = window.deweyClient?.normalizeCode
+      ? window.deweyClient.normalizeCode(rawValue)
+      : (rawValue.trim() || null);
+    const cached = window.deweyClient?.getCachedDataset?.();
+    const datasetEnabled = cached ? cached.enabled !== false : true;
+    const datasetAvailable = Boolean(cached?.available);
+    const resolution = window.deweyClient?.resolveCode
+      ? window.deweyClient.resolveCode(normalized, getDeweyDatasetEntries())
+      : { normalized, valid: false, resolved: false, caption: null, path: [] };
+
+    if (statusWrap) statusWrap.classList.add('d-none');
+    if (unavailableEl) unavailableEl.classList.add('d-none');
+    if (captionEl) captionEl.textContent = '';
+    if (pathEl) pathEl.textContent = '';
+
+    if (!resolution.normalized) {
+      clearHelpText(helpEl);
+      return resolution;
+    }
+
+    if (!resolution.valid) {
+      setHelpText(helpEl, 'Dewey Code must be 1 to 3 digits, with an optional decimal part such as 513.2.', true);
+      return resolution;
+    }
+
+    setHelpText(helpEl, `This Dewey Code will be stored as: ${resolution.normalized}`, false);
+
+    if (datasetEnabled && !datasetAvailable) {
+      unavailableEl?.classList.remove('d-none');
+      return resolution;
+    }
+
+    if (!datasetAvailable) {
+      return resolution;
+    }
+
+    statusWrap?.classList.remove('d-none');
+    if (resolution.resolved) {
+      if (captionEl) captionEl.textContent = `\u2192 ${resolution.caption || resolution.matchedCode}`;
+      if (pathEl) pathEl.textContent = resolution.path.length > 0 ? `\u2192 ${resolution.path.join(' > ')}` : '';
+      return resolution;
+    }
+
+    if (captionEl) captionEl.textContent = '\u2192 Valid Dewey code, but not found in your current dataset.';
+    return resolution;
+  };
+
+  const renderCoreDewey = (book) => {
+    const row = document.getElementById('coreDeweyRow');
+    const valueEl = document.getElementById('coreDeweyValue');
+    const captionEl = document.getElementById('coreDeweyCaption');
+    const pathEl = document.getElementById('coreDeweyPath');
+    if (!row || !valueEl || !captionEl || !pathEl) return;
+
+    if (!book?.deweyCode) {
+      row.classList.add('d-none');
+      return;
+    }
+
+    valueEl.textContent = book.deweyCode;
+    const resolution = book.dewey || null;
+    captionEl.classList.toggle('d-none', !resolution?.caption);
+    captionEl.textContent = resolution?.caption ? resolution.caption : '';
+    pathEl.classList.toggle('d-none', !(resolution?.path && resolution.path.length > 0));
+    pathEl.textContent = resolution?.path?.length ? resolution.path.join(' > ') : '';
+    row.classList.remove('d-none');
+  };
 
   const formatPartialDateDisplay = (value) => {
     if (!value) return '';
@@ -1114,6 +1195,8 @@ document.addEventListener('DOMContentLoaded', () => {
       isbnRow.classList.add('d-none');
     }
 
+    renderCoreDewey(book);
+
     const bookTypeRow = document.getElementById('bookTypeRow');
     const bookTypeName = book.bookType?.name || 'Format unknown';
     const bookTypeNameEl = document.getElementById('bookTypeName');
@@ -1354,6 +1437,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (editBookTitle) editBookTitle.value = bookRecord.title || '';
       if (editBookSubtitle) editBookSubtitle.value = bookRecord.subtitle || '';
       if (editBookIsbn) editBookIsbn.value = bookRecord.isbn || '';
+      if (editBookDewey) editBookDewey.value = bookRecord.deweyCode || bookRecord.dewey?.code || '';
       if (editBookPublication) editBookPublication.value = bookRecord.publicationDate?.text || '';
       if (editBookPages) editBookPages.value = Number.isInteger(bookRecord.pageCount) ? String(bookRecord.pageCount) : '';
       if (editBookCover) editBookCover.value = bookRecord.coverImageUrl || '';
@@ -1373,8 +1457,9 @@ document.addEventListener('DOMContentLoaded', () => {
         editBookPublisher.value = bookRecord.publisher?.id ? String(bookRecord.publisher.id) : '';
       }
 
-      [editBookTitleHelp, editBookSubtitleHelp, editBookIsbnHelp, editBookPublicationHelp, editBookPagesHelp, editBookCoverHelp, editBookDescriptionHelp]
+      [editBookTitleHelp, editBookSubtitleHelp, editBookIsbnHelp, editBookDeweyHelp, editBookPublicationHelp, editBookPagesHelp, editBookCoverHelp, editBookDescriptionHelp]
         .forEach((el) => clearHelpText(el));
+      renderDeweyFieldState(editBookDewey, editBookDeweyHelp, editBookDeweyStatusWrap, editBookDeweyCaption, editBookDeweyPath, editBookDeweyUnavailable);
       updateEditBookState();
       await showModal(editBookModal, { backdrop: 'static', keyboard: false });
     } catch (error) {
@@ -1388,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTitle = editBookTitle?.value.trim() || '';
     const currentSubtitle = editBookSubtitle?.value.trim() || '';
     const currentIsbn = editBookIsbn?.value.trim() || '';
+    const currentDewey = editBookDewey?.value.trim() || '';
     const currentPublication = formatPartialDateDisplay(editBookPublication?.value || '');
     const currentPages = editBookPages?.value.trim() || '';
     const currentCover = editBookCover?.value.trim() || '';
@@ -1398,6 +1484,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalTitle = bookRecord.title || '';
     const originalSubtitle = bookRecord.subtitle || '';
     const originalIsbn = bookRecord.isbn || '';
+    const originalDewey = bookRecord.deweyCode || '';
     const originalPublication = formatPartialDateDisplay(bookRecord.publicationDate?.text || bookRecord.publicationDate || '');
     const originalPages = Number.isInteger(bookRecord.pageCount) ? String(bookRecord.pageCount) : '';
     const originalCover = bookRecord.coverImageUrl || '';
@@ -1408,6 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleChange = describeChange('title', originalTitle, currentTitle);
     const subtitleChange = describeChange('subtitle', originalSubtitle, currentSubtitle);
     const isbnChange = describeChange('ISBN', originalIsbn, currentIsbn);
+    const deweyChange = describeChange('Dewey Code', originalDewey, currentDewey);
     const publicationChange = describeChange('publication date', originalPublication, currentPublication);
     const pagesChange = describeChange('page count', originalPages, currentPages);
     const coverChange = describeChange('cover image URL', originalCover, currentCover);
@@ -1415,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeChange = describeChange('book type', originalBookType, currentBookType);
     const publisherChange = describeChange('publisher', originalPublisher, currentPublisher);
 
-    [titleChange, subtitleChange, isbnChange, publicationChange, pagesChange, coverChange, descriptionChange, typeChange, publisherChange]
+    [titleChange, subtitleChange, isbnChange, deweyChange, publicationChange, pagesChange, coverChange, descriptionChange, typeChange, publisherChange]
       .forEach((entry) => { if (entry) changes.push(entry); });
 
     const originalLanguages = (bookRecord.languages || []).map((lang) => lang?.name).filter(Boolean);
@@ -1485,6 +1573,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    const rawDewey = editBookDewey?.value.trim() || '';
+    if (!rawDewey) {
+      clearHelpText(editBookDeweyHelp);
+      editBookDeweyStatusWrap?.classList.add('d-none');
+      editBookDeweyUnavailable?.classList.add('d-none');
+    } else {
+      const resolution = renderDeweyFieldState(editBookDewey, editBookDeweyHelp, editBookDeweyStatusWrap, editBookDeweyCaption, editBookDeweyPath, editBookDeweyUnavailable);
+      if (!resolution.valid) {
+        valid = false;
+      }
+    }
+
     const publicationRaw = editBookPublication?.value.trim() || '';
     if (!publicationRaw) {
       clearHelpText(editBookPublicationHelp);
@@ -1538,11 +1638,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const publicationRaw = editBookPublication.value.trim();
     const pagesRaw = editBookPages.value.trim();
     const languagesSelected = Array.from(editBookLanguages?.selectedOptions || []).map((option) => Number(option.value)).filter(Number.isFinite);
+    const normalizedDewey = window.deweyClient?.normalizeCode ? window.deweyClient.normalizeCode(editBookDewey?.value || '') : (editBookDewey?.value.trim() || null);
     const payload = {
       id: bookRecord.id,
       title: editBookTitle.value.trim(),
       subtitle: editBookSubtitle.value.trim() || null,
       isbn: editBookIsbn.value.trim() || null,
+      deweyCode: normalizedDewey || null,
       publicationDate: publicationRaw ? parsePartialDateInput(publicationRaw).value : null,
       pageCount: pagesRaw ? Number(pagesRaw) : null,
       coverImageUrl: editBookCover.value.trim() ? normalizeUrl(editBookCover.value.trim()) : null,
@@ -3056,6 +3158,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editBookTitle) editBookTitle.addEventListener('input', updateEditBookState);
   if (editBookSubtitle) editBookSubtitle.addEventListener('input', updateEditBookState);
   if (editBookIsbn) editBookIsbn.addEventListener('input', updateEditBookState);
+  if (editBookDewey) editBookDewey.addEventListener('input', updateEditBookState);
   if (editBookPublication) editBookPublication.addEventListener('input', updateEditBookState);
   if (editBookPages) editBookPages.addEventListener('input', updateEditBookState);
   if (editBookCover) editBookCover.addEventListener('input', updateEditBookState);
@@ -3252,6 +3355,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  window.deweyClient?.loadDataset?.().catch((error) => {
+    warn('Dewey dataset preload failed.', error);
+  });
   loadBook();
   initializeTooltips();
 });

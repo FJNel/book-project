@@ -23,7 +23,13 @@
             storageLocationId: null,
             storageLocationPath: null
         },
-        modalCache: {}
+        modalCache: {},
+        dewey: {
+            enabled: false,
+            available: false,
+            source: null,
+            entries: []
+        }
     };
 
     addBook.events = addBook.events || new EventTarget();
@@ -224,6 +230,15 @@
         return null;
     }
 
+    function normalizeDeweyCode(value) {
+        if (value === undefined || value === null || value === '') return null;
+        const normalized = String(value)
+            .trim()
+            .replace(/,/g, '.')
+            .replace(/\.+/g, '.');
+        return normalized || null;
+    }
+
     function ensureHelpText(inputEl, helpId) {
         if (!inputEl) return null;
         let helpEl = helpId ? document.getElementById(helpId) : null;
@@ -259,6 +274,7 @@
         normalizeUrl,
         normalizeTag,
         normalizeIsbn,
+        normalizeDeweyCode,
         ensureHelpText
     };
 })();

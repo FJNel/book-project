@@ -31,6 +31,7 @@ This guide describes the publicly available REST endpoints exposed by the API, t
     - [POST /auth/reset-password](#post-authreset-password)
     - [POST /auth/google](#post-authgoogle)
   - [User Management](#user-management)
+    - [GET /me/dewey-dataset](#get-medewey-dataset)
     - [GET /users/me](#get-usersme)
     - [PUT /users/me](#put-usersme)
     - [DELETE /users/me](#delete-usersme)
@@ -264,6 +265,37 @@ The email cost limiter is shared across endpoints that explicitly apply it. Requ
 - **Unhandled Errors:** Unexpected exceptions return HTTP `500`, `message` `"Internal Server Error"`, and a generic error list.
 - **Account action quotas:** Authenticated flows that trigger emails also enforce daily per-account quotas: up to 2 password changes per day, 1 email change request per day, and 2 account disable or deletion requests per day (regardless of HTTP verb).
 - **Password metadata:** Whenever the API returns a user profile (login, `/users/me`, profile updates), the payload includes `passwordUpdated`, an ISO timestamp describing the last password change, or `null` for OAuth-only accounts.
+
+### GET /me/dewey-dataset
+
+- **Purpose:** Return the authenticated user's effective Dewey Decimal dataset for client-side live interpretation.
+- **Authentication:** Access token or API key required.
+- **Method:** `GET`
+- **Path:** `/me/dewey-dataset`
+- **Rate Limit:** 60 requests / minute / user
+
+The frontend is expected to fetch this once, cache it in memory, and interpret Dewey codes locally while the user types.
+
+Example success payload:
+
+```json
+{
+  "status": "success",
+  "httpCode": 200,
+  "responseTime": "3.18",
+  "message": "Dewey dataset retrieved successfully.",
+  "data": {
+    "source": "default",
+    "entries": [
+      { "code": "500", "caption": "Science" },
+      { "code": "510", "caption": "Mathematics" },
+      { "code": "513", "caption": "Arithmetic" },
+      { "code": "513.2", "caption": "Algebra" }
+    ]
+  },
+  "errors": []
+}
+```
 - **Login metadata:** User profiles include `lastLogin`, an ISO timestamp of the most recent successful login (regardless of login method).
 - **Shared per-user limiter:** Endpoints covered by the `authenticatedLimiter` share a single 60 requests/minute bucket per user. Calls across those endpoints count toward the same limit.
 - **JSON body preference:** For endpoints that accept filtering/sorting inputs in both query strings and JSON bodies, the JSON body is preferred. If both are supplied, JSON values take precedence.
@@ -9591,6 +9623,7 @@ Use this array for non-fatal provider and matching notes, such as:
 | `title` | string | Yes | 2–255 characters. |
 | `subtitle` | string | No | Optional subtitle (<= 255 characters). |
 | `isbn` | string | No | ISBN-10 or ISBN-13, normalized to digits with optional final `X` for ISBN-10 (no spaces or hyphens). Unique per user when provided. |
+| `deweyCode` | string | No | Optional Dewey Decimal code. Stored as a normalized string after trimming, replacing commas with dots, and collapsing repeated dots. Valid format: `^\d{1,3}(\.\d+)?$`. Valid-but-unresolved codes may still be saved. |
 | `publicationDate` | object | No | Partial Date Object. |
 | `pageCount` | integer | No | Number of pages (1–10000). |
 | `coverImageUrl` | string | No | Valid URL for a cover image (http/https only, no spaces). |
@@ -9612,6 +9645,7 @@ Notes:
 - If no `bookCopy` is provided, the API creates a blank copy so every book has at least one copy.
 - The response includes `series[].bookPublishedDate` derived from the book's `publicationDate`.
 - If `authors` is provided, entries may be numbers or objects with `authorId` and optional `authorRole`.
+- Dewey codes are resolved against the effective dataset at save-time for canonical interpretation, but unresolved valid codes are still allowed.
 
 Book copy fields:
 
@@ -9642,6 +9676,7 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
   "title": "The Lord of the Rings",
   "subtitle": "The Fellowship of the Ring",
   "isbn": "978-0-261-10235-4",
+  "deweyCode": "823.92",
   "publicationDate": {
     "day": 29,
     "month": 7,
@@ -9719,6 +9754,19 @@ If both `storageLocationId` and `storageLocationPath` are provided, they must re
     "title": "The Lord of the Rings",
     "subtitle": "The Fellowship of the Ring",
     "isbn": "978-0-261-10235-4",
+    "deweyCode": "823.92",
+    "dewey": {
+      "code": "823.92",
+      "resolved": true,
+      "caption": "English fiction, 2000-",
+      "matchedCode": "823.92",
+      "path": [
+        "Literature",
+        "English & Old English literatures",
+        "English fiction",
+        "English fiction, 2000-"
+      ]
+    },
     "publicationDate": {
       "id": 61,
       "day": 29,
@@ -9899,6 +9947,7 @@ Updatable fields (all optional):
 | `title` | string | New title. |
 | `subtitle` | string | New subtitle (use `null` to clear). |
 | `isbn` | string | New ISBN (use `null` to clear). Must be normalized ISBN-10/ISBN-13 (digits with optional final `X`). |
+| `deweyCode` | string | New Dewey Decimal code (use `null` to clear). Normalized the same way as `POST /book`; valid unresolved codes may still be saved. |
 | `publicationDate` | object | Partial Date Object (use `null` to clear). |
 | `pageCount` | integer | New page count. |
 | `coverImageUrl` | string | New cover image URL (use `null` to clear). Must be http/https and contain no spaces. |
@@ -9928,6 +9977,7 @@ Notes:
 ```json
 {
   "id": 22,
+  "deweyCode": "823.92",
   "pageCount": 430,
   "tags": [
     "Fantasy"
@@ -9956,6 +10006,19 @@ Notes:
     "title": "The Lord of the Rings",
     "subtitle": "The Fellowship of the Ring",
     "isbn": "978-0-261-10235-4",
+    "deweyCode": "823.92",
+    "dewey": {
+      "code": "823.92",
+      "resolved": true,
+      "caption": "English fiction, 2000-",
+      "matchedCode": "823.92",
+      "path": [
+        "Literature",
+        "English & Old English literatures",
+        "English fiction",
+        "English fiction, 2000-"
+      ]
+    },
     "publicationDate": {
       "id": 61,
       "day": 29,

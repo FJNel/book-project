@@ -15,6 +15,7 @@ This README documents the architecture, technology choices, setup instructions, 
 - Static frontend with Bootstrap 5; dedicated flows for login, register, verify email, reset password
 - Frontend HTTP interceptor that attaches tokens, refreshes access token on 401, and handles session expiry
 - Language file support (`web/lang/en.json`) for UI copy
+- Phase 1 Dewey Decimal support with a built-in dataset, local live interpretation, and save-time backend validation
 
 ## Repository Structure
 
@@ -36,6 +37,7 @@ This README documents the architecture, technology choices, setup instructions, 
   - `api-docs.md` API documentation (detailed endpoints and examples)
   - `database-tables.txt` PostgreSQL schema for users, tokens, OAuth links, and logs
   - `MIGRATIONS.md` Migration workflow and deployment notes
+  - `DEWEY.md` Phase 1 Dewey Decimal behaviour and dataset architecture
 - `README.md` This document
 - `package.json` Root (placeholder) and `api/package.json` (API dependencies and scripts)
 
@@ -70,6 +72,7 @@ The API is documented in `api/api-docs.md` and serves JSON using a consistent en
 
 - Auth routes: register, resend verification, verify email, login, refresh token, logout, request password reset, reset password, Google OAuth
 - User routes: get current user (`/users/me`), update profile, soft‑delete own account (also revokes refresh tokens)
+- Dewey route: fetch the authenticated user's effective Dewey dataset (`/me/dewey-dataset`)
 - Admin routes: scaffolded under `/admin` with role checks (not yet implemented)
 
 Cross‑cutting concerns:
@@ -118,6 +121,7 @@ Language strings:
 
 TypeORM migrations now own schema changes. See `api/MIGRATIONS.md` for the workflow and `api/database-tables.txt` for the current schema reference. Core tables:
 
+- `books.dewey_code` Optional Dewey Decimal code stored as a normalized string
 - `users` User records; local password and/or OAuth
 - `verification_tokens` Type: `email_verification` or `password_reset`; expiry + used flags
 - `oauth_accounts` Linked OAuth providers (e.g., Google)
@@ -202,6 +206,9 @@ RECAPTCHA_SECRET=your-recaptcha-secret
 
 # Optional ISBN lookup tuning
 ISBN_LOOKUP_EXTERNAL_CACHE_TTL_SECONDS=21600
+
+# Optional Dewey feature toggle
+DEWEY_DECIMAL_ENABLED=true
 ```
 
 4) Start the API

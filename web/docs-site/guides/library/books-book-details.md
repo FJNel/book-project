@@ -153,6 +153,12 @@ Yes. Turn on Include deleted in Books, apply, open the deleted title, then click
 
 For multi-item restore, use [Using the Recycle Bin](/guides/library/recycle-bin).
 
+### Where Do I See Dewey Information on Book Details?
+
+When a book has a Dewey Code, Book Details shows it in Core facts.
+
+If the current dataset resolves the code, the details page also shows the matched caption and the derived hierarchy path.
+
 ### What Is a Good Final Check Before Leaving Book Details?
 
 Confirm title, linked authors, linked series, and copy locations.

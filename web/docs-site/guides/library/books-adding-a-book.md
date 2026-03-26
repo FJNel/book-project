@@ -395,6 +395,14 @@ Open Book Details and use Manage Authors or Manage Series.
 
 For broader changes, use Edit Book.
 
+### Can I Add a Dewey Decimal Code While Adding a Book?
+
+Yes. Dewey Code is optional in Phase 1.
+
+If the Dewey dataset is available, the page interprets the code instantly on the page itself and shows the matched caption and hierarchy path.
+
+If the dataset is temporarily unavailable, you can still save a valid Dewey-shaped code manually.
+
 ### What Happens Right After Confirm And Add Book?
 
 You are taken to that book’s details page.

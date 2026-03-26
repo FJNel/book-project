@@ -3184,6 +3184,56 @@ paths:
                     errors: []
         '429':
           $ref: '#/components/responses/RateLimit'
+  /me/dewey-dataset:
+    get:
+      tags: [Users]
+      summary: Effective Dewey dataset
+      operationId: getMyDeweyDataset
+      description: Return the authenticated user's effective Dewey Decimal dataset for client-side live interpretation. Phase 1 returns the built-in default dataset.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Dewey dataset
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          source:
+                            type: string
+                            enum: [default, merged]
+                          entries:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DeweyEntry'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "2.40"
+                    message: Dewey dataset retrieved successfully.
+                    data:
+                      source: default
+                      entries:
+                        - code: "500"
+                          caption: Science
+                        - code: "510"
+                          caption: Mathematics
+                        - code: "513"
+                          caption: Arithmetic
+                        - code: "513.2"
+                          caption: Algebra
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
   /booktype:
     get:
       tags: [BookTypes]
@@ -6321,6 +6371,7 @@ paths:
                         - id: 12
                           title: The Fellowship of the Ring
                           subtitle: Being the First Part of The Lord of the Rings
+                          deweyCode: "823.92"
                           coverImageUrl: https://example.com/fotr.jpg
                           publicationDate:
                             id: 61
@@ -6350,6 +6401,17 @@ paths:
                       title: The Lord of the Rings
                       subtitle: The Fellowship of the Ring
                       isbn: "9780261102354"
+                      deweyCode: "823.92"
+                      dewey:
+                        code: "823.92"
+                        resolved: true
+                        caption: English fiction, 2000-
+                        matchedCode: "823.92"
+                        path:
+                          - Literature
+                          - English & Old English literatures
+                          - English fiction
+                          - English fiction, 2000-
                       publicationDate:
                         id: 61
                         day: 29
@@ -6457,6 +6519,7 @@ paths:
                   title: The Hobbit
                   subtitle: There and Back Again
                   isbn: "9780261103344"
+                  deweyCode: "823.912"
                   publicationDate:
                     day: 21
                     month: 9
@@ -6527,6 +6590,7 @@ paths:
                 value:
                   id: 33
                   title: The Hobbit (Illustrated)
+                  deweyCode: "823.912"
                   description: Updated to illustrated edition.
       responses:
         '200':
@@ -11802,6 +11866,16 @@ components:
           type:
             - string
             - "null"
+        deweyCode:
+          description: Optional normalized Dewey Decimal code; may be null.
+          type:
+            - string
+            - "null"
+        dewey:
+          description: Derived Dewey interpretation based on the effective dataset.
+          oneOf:
+            - $ref: '#/components/schemas/DeweyResolution'
+            - type: 'null'
         publicationDate:
           description: Partial publication date.
           $ref: '#/components/schemas/PartialDate'
@@ -12166,6 +12240,10 @@ components:
           type: string
         isbn:
           type: string
+        deweyCode:
+          oneOf:
+            - type: string
+            - type: 'null'
         publicationDate:
           $ref: '#/components/schemas/PartialDate'
         pageCount:
@@ -12265,6 +12343,34 @@ components:
           type: string
         title:
           type: string
+    DeweyEntry:
+      type: object
+      properties:
+        code:
+          type: string
+        caption:
+          type: string
+      required: [code, caption]
+    DeweyResolution:
+      type: object
+      properties:
+        code:
+          type: string
+        resolved:
+          type: boolean
+        caption:
+          oneOf:
+            - type: string
+            - type: 'null'
+        matchedCode:
+          oneOf:
+            - type: string
+            - type: 'null'
+        path:
+          type: array
+          items:
+            type: string
+      required: [code, resolved, path]
     BookIsbnLookupRequest:
       type: object
       description: Request body for ISBN lookup in the Add Book assistive flow.
