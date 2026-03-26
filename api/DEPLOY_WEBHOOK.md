@@ -86,4 +86,4 @@ Use GitHub's webhook delivery UI:
    - the API logs for webhook validation/start events
    - the deploy log used by `deploy.sh`
 
-If you send a push event for a branch other than `main`, the API should respond successfully but indicate that the event was ignored.
+If you send a push event for a branch other than `main`, the API should respond successfully but indicate that the event was ignored. 
