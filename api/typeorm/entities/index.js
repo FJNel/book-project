@@ -309,6 +309,11 @@ const BooksEntity = new EntitySchema({
 		subtitle: { type: String, length: 255, nullable: true },
 		isbn: { type: String, length: 20, nullable: true },
 		deweyCode: { name: "dewey_code", type: String, length: 32, nullable: true },
+		deweyResolved: { name: "dewey_resolved", type: Boolean, nullable: true },
+		deweyMatchedCode: { name: "dewey_matched_code", type: String, length: 32, nullable: true },
+		deweyCaption: { name: "dewey_caption", type: "text", nullable: true },
+		deweyPath: { name: "dewey_path", type: "jsonb", nullable: true },
+		deweySourceUsed: { name: "dewey_source_used", type: String, length: 20, nullable: true },
 		publicationDateId: { name: "publication_date_id", type: Number, nullable: true },
 		pageCount: { name: "page_count", type: Number, nullable: true },
 		coverImageUrl: { name: "cover_image_url", type: "text", nullable: true },
@@ -324,6 +329,9 @@ const BooksEntity = new EntitySchema({
 		columns: ["userId", "isbn"],
 		unique: true,
 		where: "\"deleted_at\" IS NULL AND \"isbn\" IS NOT NULL",
+	}, {
+		name: "idx_books_dewey_code",
+		columns: ["deweyCode"]
 	}],
 	relations: {
 		user: { type: "many-to-one", target: "Users", joinColumn: { name: "user_id" }, onDelete: "CASCADE" },

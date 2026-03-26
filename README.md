@@ -15,7 +15,7 @@ This README documents the architecture, technology choices, setup instructions, 
 - Static frontend with Bootstrap 5; dedicated flows for login, register, verify email, reset password
 - Frontend HTTP interceptor that attaches tokens, refreshes access token on 401, and handles session expiry
 - Language file support (`web/lang/en.json`) for UI copy
-- Dewey Decimal support with a built-in dataset, optional per-user CSV overrides, local live interpretation, save-time backend validation, and per-user enablement settings
+- Dewey Decimal support with a built-in dataset, optional per-user CSV overrides, local live interpretation, save-time backend validation, per-user enablement settings, and Phase 4 caching/snapshot optimizations
 
 ## Repository Structure
 
@@ -129,6 +129,7 @@ Language strings:
 TypeORM migrations now own schema changes. See `api/MIGRATIONS.md` for the workflow and `api/database-tables.txt` for the current schema reference. Core tables:
 
 - `books.dewey_code` Optional Dewey Decimal code stored as a normalized string
+- `books.dewey_caption`, `books.dewey_path`, `books.dewey_source_used` Cached Dewey snapshot fields refreshed on book save and active dataset replacement
 - `users.dewey_enabled` Per-user Dewey enablement preference; defaults to `false`
 - `user_dewey_sources` Uploaded Dewey source metadata and validation reports
 - `user_dewey_entries` Uploaded Dewey entries for the active or historical user sources
@@ -143,6 +144,16 @@ When Dewey is active for a user, the frontend exposes a Dewey Dashboard page tha
 - books listed for either exact-only or descendants mode
 
 The dashboard uses the merged effective dataset, so uploaded user captions override matching default nodes everywhere in the tree and node detail views.
+
+## Dewey Performance Notes
+
+Phase 4 keeps Dewey fast without changing the earlier feature model:
+
+- `/me/dewey-dataset` now returns a dataset version string for frontend caching
+- the frontend Dewey client keeps the dataset in memory and also uses a short-lived localStorage cache scoped to the current signed-in user
+- the backend caches the effective merged dataset per user in `api/utils/dewey.js`
+- successful active Dewey CSV replacement rebuilds cached Dewey snapshot fields for that user's books
+- `books.dewey_code` now has a dedicated index for Dewey-driven lookups
 - `users` User records; local password and/or OAuth
 - `verification_tokens` Type: `email_verification` or `password_reset`; expiry + used flags
 - `oauth_accounts` Linked OAuth providers (e.g., Google)

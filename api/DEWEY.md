@@ -1,6 +1,6 @@
 # Dewey Decimal Support
 
-The current Dewey implementation covers Phase 1 and Phase 2 without changing the rest of the runtime data-access layer.
+The current Dewey implementation covers Phases 1 through 4 without changing the rest of the runtime data-access layer.
 
 ## What Is Implemented
 
@@ -15,6 +15,10 @@ The current Dewey implementation covers Phase 1 and Phase 2 without changing the
 - `GET /dewey/node/:code` for Dewey node details and books
 - `GET /dewey/search?q=...` for Dewey Dashboard search
 - Structured Dewey feature state exposed through `GET /users/me`
+- Per-user effective dataset caching with cache invalidation on active-source replacement
+- Frontend in-memory dataset caching plus a short-lived localStorage cache for the effective dataset
+- Book-level Dewey snapshot fields on `books` for resolved caption/path/source tracking
+- `idx_books_dewey_code` for dashboard and Dewey lookups
 - Local frontend interpretation while typing on Add Book and Edit Book
 - Save-time backend normalization, validation, and canonical resolution
 - Minimal Dewey display on Book Details
@@ -61,6 +65,8 @@ Merge rules:
 
 If the user has no active uploaded dataset, the effective dataset remains `default`.
 
+Phase 4 adds a version string to the effective dataset response so the frontend can safely cache and replace datasets without guessing.
+
 ## Save-Time Behaviour
 
 When a book is created or updated with a Dewey code:
@@ -71,6 +77,16 @@ When a book is created or updated with a Dewey code:
 4. The normalized code is stored.
 
 Valid but unresolved codes are still allowed in Phase 1. The backend remains authoritative for normalization and canonical resolution even though the frontend interprets locally for instant feedback.
+
+Phase 4 also stores save-time Dewey snapshot fields on the book row:
+
+- `dewey_resolved`
+- `dewey_matched_code`
+- `dewey_caption`
+- `dewey_path`
+- `dewey_source_used`
+
+These fields are refreshed when the book is saved with a Dewey code and when a valid active user dataset replaces the current one.
 
 ## Feature Enablement
 
@@ -152,6 +168,7 @@ If an upload has fatal errors, it is recorded as an invalid source for status/re
 - file field name: `file`
 - accepts CSV content
 - returns whether the upload was accepted, the validation report, and the current dataset status
+- when a valid upload becomes active, the backend clears the per-user effective-dataset cache and rebuilds Dewey snapshots for that user's books in the same overall upload flow
 
 `GET /me/dewey-source/status`
 
@@ -202,3 +219,31 @@ Implemented Phase 3 browsing behavior:
 - plus books whose Dewey path contains the selected code as a broader prefix
 
 This means a valid stored Dewey code can still appear under a broader node even if that exact code is not an explicit node in the current dataset.
+
+## Phase 4 Caching and Performance
+
+### Frontend caching
+
+- `web/assets/js/dewey.js` keeps the active dataset in memory for the page lifecycle
+- the same module now also stores a short-lived localStorage copy keyed to the signed-in user profile
+- the localStorage entry is cleared when:
+  - Dewey becomes inactive
+  - a Dewey CSV upload succeeds
+  - the cache TTL expires
+
+The frontend still never calls the backend on each keystroke.
+
+### Backend caching
+
+- `api/utils/dewey.js` is still the central Dewey service
+- effective merged datasets are cached per user and reused by:
+  - `/me/dewey-dataset`
+  - Dewey Dashboard endpoints
+  - save-time Dewey resolution
+- cache invalidation remains centralized in `clearUserDeweyCaches(userId)`
+
+### Snapshot rebuilds
+
+- On create/update, the backend writes the current Dewey snapshot to the book row.
+- On successful active dataset replacement, the backend rebuilds Dewey snapshots for that user's books immediately.
+- Invalid uploads do not replace the active dataset and do not trigger snapshot rebuilds.

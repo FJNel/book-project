@@ -217,6 +217,12 @@ CREATE TABLE IF NOT EXISTS books (
   title              VARCHAR(255) NOT NULL,
   subtitle           VARCHAR(255),
   isbn               VARCHAR(20),
+  dewey_code         VARCHAR(32),
+  dewey_resolved     BOOLEAN,
+  dewey_matched_code VARCHAR(32),
+  dewey_caption      TEXT,
+  dewey_path         JSONB,
+  dewey_source_used  VARCHAR(20),
   publication_date_id INT REFERENCES dates(id) ON DELETE SET NULL,
   page_count         INT,
   cover_image_url    TEXT,
@@ -231,6 +237,9 @@ CREATE TABLE IF NOT EXISTS books (
 CREATE UNIQUE INDEX IF NOT EXISTS books_unique_active_isbn
   ON books (user_id, isbn)
   WHERE deleted_at IS NULL AND isbn IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_books_dewey_code
+  ON books (dewey_code);
 
 CREATE TABLE IF NOT EXISTS book_authors (
   id         SERIAL PRIMARY KEY,

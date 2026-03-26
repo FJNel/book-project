@@ -3,6 +3,8 @@
   const warn = (...args) => console.warn('[Dewey]', ...args);
 
   const DEWEY_CODE_PATTERN = /^\d{1,3}(\.\d+)?$/;
+  const DATASET_STORAGE_KEY = 'bookProject.deweyDatasetCache.v1';
+  const DATASET_CACHE_TTL_MS = 15 * 60 * 1000;
   let datasetPromise = null;
   let datasetCache = null;
   let featureStatePromise = null;
@@ -143,7 +145,78 @@
       enabled: Boolean(featureState?.enabled),
       available: Boolean(featureState?.available),
       source,
+      version: null,
       entries: []
+    };
+  }
+
+  function getStoredProfile() {
+    try {
+      const raw = localStorage.getItem('userProfile');
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      warn('Unable to read stored user profile.', error);
+      return null;
+    }
+  }
+
+  function getCurrentUserId() {
+    return getStoredProfile()?.id || null;
+  }
+
+  function readStoredDatasetCache() {
+    try {
+      const raw = localStorage.getItem(DATASET_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      warn('Unable to read stored Dewey dataset cache.', error);
+      return null;
+    }
+  }
+
+  function clearStoredDatasetCache() {
+    try {
+      localStorage.removeItem(DATASET_STORAGE_KEY);
+    } catch (error) {
+      warn('Unable to clear stored Dewey dataset cache.', error);
+    }
+  }
+
+  function writeStoredDatasetCache(dataset) {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId || !dataset || !Array.isArray(dataset.entries)) return;
+      localStorage.setItem(DATASET_STORAGE_KEY, JSON.stringify({
+        userId,
+        source: dataset.source || 'default',
+        version: dataset.version || null,
+        entries: dataset.entries,
+        expiresAt: Date.now() + DATASET_CACHE_TTL_MS
+      }));
+    } catch (error) {
+      warn('Unable to store Dewey dataset cache.', error);
+    }
+  }
+
+  function readUsableStoredDataset(featureState) {
+    if (!isFeatureActive(featureState)) return null;
+
+    const cached = readStoredDatasetCache();
+    const userId = getCurrentUserId();
+    if (!cached || !userId) return null;
+    if (cached.userId !== userId) return null;
+    if (!Array.isArray(cached.entries)) return null;
+    if (!cached.expiresAt || cached.expiresAt <= Date.now()) {
+      clearStoredDatasetCache();
+      return null;
+    }
+
+    return {
+      enabled: true,
+      available: true,
+      source: cached.source || 'default',
+      version: cached.version || null,
+      entries: cached.entries
     };
   }
 
@@ -153,6 +226,7 @@
     }
     datasetCache = null;
     datasetPromise = null;
+    clearStoredDatasetCache();
   }
 
   function readStoredFeatureState() {
@@ -250,6 +324,16 @@
     if (datasetCache && datasetCache.enabled && datasetCache.available && isFeatureActive(featureState)) {
       return datasetCache;
     }
+    const storedDataset = readUsableStoredDataset(featureState);
+    if (storedDataset) {
+      datasetCache = storedDataset;
+      log('Using stored Dewey dataset cache.', {
+        source: storedDataset.source,
+        version: storedDataset.version,
+        entryCount: storedDataset.entries.length
+      });
+      return datasetCache;
+    }
     if (datasetPromise) return datasetPromise;
 
     datasetPromise = (async () => {
@@ -271,8 +355,10 @@
           enabled: true,
           available: true,
           source: payload?.data?.source || 'default',
+          version: payload?.data?.version || null,
           entries
         };
+        writeStoredDatasetCache(datasetCache);
         log('Dewey dataset loaded.', { source: datasetCache.source, entryCount: entries.length });
         return datasetCache;
       } catch (error) {

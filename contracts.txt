@@ -12,7 +12,7 @@ A) Contracts Index
   - Location: contracts.txt -> "A2) ISBN Lookup Contract (Add Book)"
   - Reference implementations: web/add-book.html, web/assets/js/add-book.js, api/routes/book.js
 - Dewey Contract
-  - Location: contracts.txt -> "A3) Dewey Contract (Phase 1-2)"
+  - Location: contracts.txt -> "A3) Dewey Contract (Phase 1-4)"
   - Reference implementations: web/add-book.html, web/book-details.html, web/assets/js/dewey.js, api/routes/book.js, api/routes/me.js, api/routes/users.js
 - Changes Contract
   - Location: contracts.txt -> "B) Changes Contract (applies to edit/change modals)"
@@ -48,7 +48,7 @@ A) Modal Contract (Book Project standard)
 ----------------------------------------
 Applies to any modal that accepts user input, performs a server action, or confirms a destructive change.
 
-A3) Dewey Contract (Phase 1-2)
+A3) Dewey Contract (Phase 1-4)
 ----------------------------
 
 1) Frontend live interpretation
@@ -96,6 +96,13 @@ A3) Dewey Contract (Phase 1-2)
   - `exact`: only books whose `dewey_code` exactly equals the selected code
   - `descendants`: books whose Dewey path includes the selected code as a broader prefix
 - The dashboard must not appear in normal navigation unless `features.dewey.enabled === true`.
+
+7) Caching and snapshot contract (Phase 4)
+- The frontend may cache `/me/dewey-dataset` in memory and a short-lived localStorage entry, but must still treat the backend as authoritative.
+- Frontend caching must remain user-scoped and must be cleared when Dewey becomes inactive or when a successful Dewey upload replaces the active source.
+- Backend effective dataset caching must stay centralized in the Dewey service, not route handlers.
+- Books keep `dewey_code` as the canonical stored value, while snapshot fields cache the current resolved caption/path/source state.
+- Successful active dataset replacement must reprocess the user's existing book Dewey snapshots so they do not stay stale indefinitely.
 
 1) Live validation
 - Each field has help text below it.

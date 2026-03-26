@@ -13,6 +13,7 @@ const DEWEY_SOURCE_STATUS = {
 };
 
 let defaultDatasetCache = null;
+let defaultDatasetVersion = null;
 let defaultDatasetErrorLogged = false;
 const activeSourceCache = new Map();
 const userEntriesCache = new Map();
@@ -51,11 +52,12 @@ function validateDeweyCodeInput(rawValue) {
 	return { normalized, errors: [] };
 }
 
-function normalizeEntry(entry) {
+function normalizeEntry(entry, { sourceUsed = null } = {}) {
 	if (!entry || typeof entry !== "object") return null;
 	const normalizedCode = normalizeDeweyCode(entry.code);
 	const caption = normalizeDeweyCaption(entry.caption);
 	const normalizedParentCode = normalizeDeweyCode(entry.parentCode ?? entry.parent_code);
+	const resolvedSourceUsed = entry.sourceUsed || entry.source_used || entry.source || sourceUsed || null;
 
 	if (!normalizedCode || !caption || !isValidDeweyCode(normalizedCode)) {
 		return null;
@@ -64,7 +66,8 @@ function normalizeEntry(entry) {
 	return {
 		code: normalizedCode,
 		caption,
-		parentCode: normalizedParentCode && isValidDeweyCode(normalizedParentCode) ? normalizedParentCode : null
+		parentCode: normalizedParentCode && isValidDeweyCode(normalizedParentCode) ? normalizedParentCode : null,
+		sourceUsed: resolvedSourceUsed === "user" ? "user" : "default"
 	};
 }
 
@@ -92,13 +95,18 @@ function loadDefaultDataset() {
 
 	try {
 		const raw = fs.readFileSync(DATASET_PATH, "utf8");
+		const stats = fs.statSync(DATASET_PATH);
 		const parsed = JSON.parse(raw);
-		const entries = Array.isArray(parsed) ? parsed.map(normalizeEntry).filter(Boolean) : [];
+		const entries = Array.isArray(parsed)
+			? parsed.map((entry) => normalizeEntry(entry, { sourceUsed: "default" })).filter(Boolean)
+			: [];
 		defaultDatasetCache = entries;
+		defaultDatasetVersion = `default:${stats.mtimeMs}:${entries.length}`;
 		logToFile("DEWEY_DATASET_LOAD", {
 			status: "SUCCESS",
 			source: "default",
 			entry_count: entries.length,
+			version: defaultDatasetVersion,
 			path: DATASET_PATH
 		}, "info");
 		return defaultDatasetCache;
@@ -197,13 +205,13 @@ function mergeDeweyDatasets(defaultEntries, userEntries = []) {
 	const merged = new Map();
 
 	for (const entry of defaultEntries || []) {
-		const normalized = normalizeEntry(entry);
+		const normalized = normalizeEntry(entry, { sourceUsed: "default" });
 		if (!normalized) continue;
 		merged.set(normalized.code, normalized);
 	}
 
 	for (const entry of userEntries || []) {
-		const normalized = normalizeEntry(entry);
+		const normalized = normalizeEntry(entry, { sourceUsed: "user" });
 		if (!normalized) continue;
 		merged.set(normalized.code, normalized);
 	}
@@ -219,7 +227,8 @@ function resolveDeweyCode(code, entries) {
 			resolved: false,
 			caption: null,
 			matchedCode: null,
-			path: []
+			path: [],
+			sourceUsed: null
 		};
 	}
 
@@ -236,7 +245,20 @@ function resolveDeweyCode(code, entries) {
 		resolved: Boolean(match),
 		caption: match ? match.caption : null,
 		matchedCode: match ? match.code : null,
-		path
+		path,
+		sourceUsed: match?.sourceUsed || null
+	};
+}
+
+function buildDeweySnapshot(code, entries) {
+	const resolution = resolveDeweyCode(code, entries);
+	return {
+		deweyCode: resolution.code,
+		deweyResolved: resolution.code ? resolution.resolved : null,
+		deweyMatchedCode: resolution.code ? resolution.matchedCode : null,
+		deweyCaption: resolution.code ? resolution.caption : null,
+		deweyPath: resolution.code ? resolution.path : null,
+		deweySourceUsed: resolution.code ? resolution.sourceUsed : null
 	};
 }
 
@@ -764,31 +786,105 @@ async function getUserDeweyEntries(userId, { force = false } = {}) {
 	const entries = result.rows.map((row) => normalizeEntry({
 		code: row.code,
 		caption: row.caption,
-		parentCode: row.parent_code
+		parentCode: row.parent_code,
+		sourceUsed: "user"
 	})).filter(Boolean);
 	userEntriesCache.set(userId, entries);
 	return entries;
 }
 
+function buildDatasetVersion({ defaultEntries, userId, activeSource = null, userEntryCount = 0 }) {
+	const normalizedUserId = Number.isInteger(userId) ? userId : "default";
+	const activeStamp = activeSource
+		? `${activeSource.id}:${activeSource.updatedAt || activeSource.createdAt || "unknown"}:${userEntryCount}`
+		: "default-only";
+	return `${normalizedUserId}:${defaultDatasetVersion || `default:${defaultEntries.length}`}:${activeStamp}`;
+}
+
 async function getEffectiveDeweyDataset(userId, { force = false } = {}) {
 	const normalizedUserId = Number.isInteger(userId) ? userId : null;
 	if (normalizedUserId !== null && !force && effectiveDatasetCache.has(normalizedUserId)) {
+		logToFile("DEWEY_DATASET_CACHE", {
+			status: "HIT",
+			user_id: normalizedUserId
+		}, "info");
 		return effectiveDatasetCache.get(normalizedUserId);
 	}
 
 	const defaultEntries = loadDefaultDataset();
+	const activeSource = normalizedUserId === null ? null : await getActiveUserDeweySource(normalizedUserId, { force });
 	const userEntries = normalizedUserId === null ? [] : await getUserDeweyEntries(normalizedUserId, { force });
 	const dataset = {
 		userId: normalizedUserId,
 		source: userEntries.length > 0 ? "merged" : "default",
+		version: buildDatasetVersion({
+			defaultEntries,
+			userId: normalizedUserId,
+			activeSource,
+			userEntryCount: userEntries.length
+		}),
 		entries: mergeDeweyDatasets(defaultEntries, userEntries)
 	};
 
 	if (normalizedUserId !== null) {
 		effectiveDatasetCache.set(normalizedUserId, dataset);
+		logToFile("DEWEY_DATASET_CACHE", {
+			status: "MISS",
+			user_id: normalizedUserId,
+			source: dataset.source,
+			version: dataset.version,
+			entry_count: dataset.entries.length
+		}, "info");
 	}
 
 	return dataset;
+}
+
+async function rebuildBookDeweySnapshotsForUser(client, userId, entries) {
+	if (!client || !Number.isInteger(userId)) return 0;
+
+	const result = await client.query(
+		`SELECT id, dewey_code
+		 FROM books
+		 WHERE user_id = $1`,
+		[userId]
+	);
+
+	logToFile("DEWEY_BOOK_SNAPSHOT_REBUILD", {
+		status: "STARTED",
+		user_id: userId,
+		book_count: result.rows.length
+	}, "info");
+
+	for (const row of result.rows) {
+		const snapshot = buildDeweySnapshot(row.dewey_code, entries);
+		await client.query(
+			`UPDATE books
+			 SET dewey_resolved = $3,
+			     dewey_matched_code = $4,
+			     dewey_caption = $5,
+			     dewey_path = $6::jsonb,
+			     dewey_source_used = $7
+			 WHERE user_id = $1 AND id = $2`,
+			[
+				userId,
+				row.id,
+				snapshot.deweyResolved,
+				snapshot.deweyMatchedCode,
+				snapshot.deweyCaption,
+				snapshot.deweyPath === null ? null : JSON.stringify(snapshot.deweyPath),
+				snapshot.deweySourceUsed
+			]
+		);
+	}
+
+	logToFile("DEWEY_BOOK_SNAPSHOT_REBUILD", {
+		status: "SUCCESS",
+		user_id: userId,
+		book_count: result.rows.length
+	}, "info");
+
+	return result.rows.length;
 }
 
 async function getUserDeweySourceStatus(userId) {
@@ -944,6 +1040,11 @@ async function uploadUserDeweySource(userId, { originalFilename, csvText }) {
 			storedRow = await storeInvalidUserDeweySource(client, normalizedUserId, safeFilename, validationReport);
 		} else {
 			storedRow = await storeActiveUserDeweySource(client, normalizedUserId, safeFilename, validationReport, normalizedEntries);
+			const mergedEntries = mergeDeweyDatasets(loadDefaultDataset(), normalizedEntries.map((entry) => ({
+				...entry,
+				sourceUsed: "user"
+			})));
+			await rebuildBookDeweySnapshotsForUser(client, normalizedUserId, mergedEntries);
 		}
 
 		await client.query("COMMIT");
@@ -1001,9 +1102,11 @@ module.exports = {
 	getBrowsableNode,
 	searchBrowsableNodes,
 	resolveDeweyCode,
+	buildDeweySnapshot,
 	parseUserDeweyCsv,
 	validateUserDeweyCsv,
 	getUserDeweySourceStatus,
 	uploadUserDeweySource,
-	clearUserDeweyCaches
+	clearUserDeweyCaches,
+	rebuildBookDeweySnapshotsForUser
 };

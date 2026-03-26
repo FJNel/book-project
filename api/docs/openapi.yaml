@@ -3225,6 +3225,8 @@ paths:
                           source:
                             type: string
                             enum: [default, merged]
+                          version:
+                            type: string
                           entries:
                             type: array
                             items:
@@ -3238,6 +3240,7 @@ paths:
                     message: Dewey dataset retrieved successfully.
                     data:
                       source: default
+                      version: "42:default:1741297384000:default-only"
                       entries:
                         - code: "500"
                           caption: Science
@@ -12901,6 +12904,11 @@ components:
           oneOf:
             - type: string
             - type: 'null'
+        sourceUsed:
+          oneOf:
+            - type: string
+              enum: [default, user]
+            - type: 'null'
       required: [code, caption]
     DeweyBreadcrumbNode:
       type: object
@@ -13103,6 +13111,11 @@ components:
           type: array
           items:
             type: string
+        sourceUsed:
+          oneOf:
+            - type: string
+              enum: [default, user]
+            - type: 'null'
       required: [code, resolved, path]
     BookIsbnLookupRequest:
       type: object

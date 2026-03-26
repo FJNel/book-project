@@ -10,6 +10,7 @@ const { validatePartialDateObject } = require("../utils/partial-date");
 const { normalizeTagName, buildTagDisplayName } = require("../utils/tag-normalization");
 const {
 	getEffectiveDeweyDataset,
+	buildDeweySnapshot,
 	resolveDeweyCode,
 	validateDeweyCodeInput
 } = require("../utils/dewey");
@@ -487,15 +488,49 @@ function validateDescription(description) {
 	return errors;
 }
 
-function buildDeweyPayload(code, entries) {
+function buildDeweyPayload(row, entries) {
+	const code = row?.dewey_code ?? null;
 	if (!code) return null;
+
+	if (Array.isArray(entries) && entries.length > 0) {
+		const resolution = resolveDeweyCode(code, entries);
+		return {
+			code: resolution.code,
+			resolved: resolution.resolved,
+			caption: resolution.caption,
+			matchedCode: resolution.matchedCode,
+			path: resolution.path,
+			sourceUsed: resolution.sourceUsed
+		};
+	}
+
+	const hasStoredSnapshot = row && (
+		row.dewey_resolved !== null && row.dewey_resolved !== undefined
+		|| row.dewey_caption !== null && row.dewey_caption !== undefined
+		|| row.dewey_matched_code !== null && row.dewey_matched_code !== undefined
+		|| row.dewey_source_used !== null && row.dewey_source_used !== undefined
+		|| Array.isArray(row.dewey_path)
+	);
+
+	if (hasStoredSnapshot) {
+		return {
+			code,
+			resolved: row.dewey_resolved === null || row.dewey_resolved === undefined ? false : Boolean(row.dewey_resolved),
+			caption: row.dewey_caption ?? null,
+			matchedCode: row.dewey_matched_code ?? null,
+			path: Array.isArray(row.dewey_path) ? row.dewey_path : [],
+			sourceUsed: row.dewey_source_used ?? null
+		};
+	}
+
 	const resolution = resolveDeweyCode(code, entries);
 	return {
 		code: resolution.code,
 		resolved: resolution.resolved,
 		caption: resolution.caption,
 		matchedCode: resolution.matchedCode,
-		path: resolution.path
+		path: resolution.path,
+		sourceUsed: resolution.sourceUsed
 	};
 }
 
@@ -1133,7 +1168,7 @@ function buildBookPayload(row, view, relations, deweyEntries = []) {
 		publisherId: row.publisher_id,
 		coverImageUrl: row.cover_image_url,
 		description: row.description,
-		dewey: buildDeweyPayload(row.dewey_code ?? null, deweyEntries),
+		dewey: buildDeweyPayload(row, deweyEntries),
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 		deletedAt: row.deleted_at
@@ -1249,7 +1284,8 @@ async function listBooksHandler(req, res) {
 			}
 
 			const result = await pool.query(
-				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.page_count, b.cover_image_url,
+				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.dewey_resolved, b.dewey_matched_code,
+				        b.dewey_caption, b.dewey_path, b.dewey_source_used, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id, b.deleted_at,
 				        bt.name AS book_type_name, bt.description AS book_type_description,
 				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
@@ -1634,7 +1670,8 @@ async function listBooksHandler(req, res) {
 		return errorResponse(res, 400, "Validation Error", errors);
 	}
 
-	let query = `SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.page_count, b.cover_image_url,
+	let query = `SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.dewey_resolved, b.dewey_matched_code,
+			            b.dewey_caption, b.dewey_path, b.dewey_source_used, b.page_count, b.cover_image_url,
 			            b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
 			            bt.name AS book_type_name, bt.description AS book_type_description,
 			            p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
@@ -1925,7 +1962,7 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 
 	try {
 		const deweyDataset = deweyCode ? await getEffectiveDeweyDataset(userId) : null;
-		const deweyResolution = deweyCode ? resolveDeweyCode(deweyCode, deweyDataset.entries) : null;
+		const deweySnapshot = deweyCode ? buildDeweySnapshot(deweyCode, deweyDataset.entries) : buildDeweySnapshot(null, []);
 
 		if (isbn) {
 			const existing = await pool.query(
@@ -1988,8 +2025,8 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				user_id: userId,
 				dry_run: true,
 				dewey_code: deweyCode,
-				dewey_resolved: deweyResolution ? deweyResolution.resolved : null,
-				dewey_matched_code: deweyResolution ? deweyResolution.matchedCode : null,
+				dewey_resolved: deweySnapshot.deweyResolved,
+				dewey_matched_code: deweySnapshot.deweyMatchedCode,
 				ip: req.ip,
 				user_agent: req.get("user-agent")
 			}, "info");
@@ -2003,10 +2040,31 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 			const publicationDateId = await insertPartialDate(client, publicationDate);
 
 			const result = await client.query(
-				`INSERT INTO books (user_id, title, subtitle, isbn, dewey_code, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
-				 RETURNING id, title, subtitle, isbn, dewey_code, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at`,
-				[userId, title, subtitle || null, isbn, deweyCode, publicationDateId, pageCount, coverImageUrl || null, description || null, bookTypeId, publisherId]
+				`INSERT INTO books (
+					user_id, title, subtitle, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+					publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at
+				)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+				 RETURNING id, title, subtitle, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+				           publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at`,
+				[
+					userId,
+					title,
+					subtitle || null,
+					isbn,
+					deweyCode,
+					deweySnapshot.deweyResolved,
+					deweySnapshot.deweyMatchedCode,
+					deweySnapshot.deweyCaption,
+					deweySnapshot.deweyPath === null ? null : JSON.stringify(deweySnapshot.deweyPath),
+					deweySnapshot.deweySourceUsed,
+					publicationDateId,
+					pageCount,
+					coverImageUrl || null,
+					description || null,
+					bookTypeId,
+					publisherId
+				]
 			);
 			const row = result.rows[0];
 
@@ -2104,14 +2162,15 @@ router.post("/", requiresAuth, authenticatedLimiter, async (req, res) => {
 				user_id: userId,
 				book_id: row.id,
 				dewey_code: deweyCode,
-				dewey_resolved: deweyResolution ? deweyResolution.resolved : null,
-				dewey_matched_code: deweyResolution ? deweyResolution.matchedCode : null,
+				dewey_resolved: deweySnapshot.deweyResolved,
+				dewey_matched_code: deweySnapshot.deweyMatchedCode,
 				ip: req.ip,
 				user_agent: req.get("user-agent")
 			}, "info");
 
 			const full = await pool.query(
-				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.page_count, b.cover_image_url,
+				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.dewey_resolved, b.dewey_matched_code,
+				        b.dewey_caption, b.dewey_path, b.dewey_source_used, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
 				        bt.name AS book_type_name, bt.description AS book_type_description,
 				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
@@ -2253,7 +2312,9 @@ async function handleBookUpdate(req, res, bookId) {
 
 	try {
 		const deweyDataset = hasDeweyCode && deweyCode ? await getEffectiveDeweyDataset(userId) : null;
-		const deweyResolution = hasDeweyCode && deweyCode ? resolveDeweyCode(deweyCode, deweyDataset.entries) : null;
+		const deweySnapshot = hasDeweyCode
+			? buildDeweySnapshot(deweyCode, deweyDataset ? deweyDataset.entries : [])
+			: null;
 
 		if (hasIsbn && isbn) {
 			const existing = await pool.query(
@@ -2354,6 +2415,16 @@ async function handleBookUpdate(req, res, bookId) {
 			if (hasDeweyCode) {
 				updateFields.push(`dewey_code = $${index++}`);
 				params.push(deweyCode || null);
+				updateFields.push(`dewey_resolved = $${index++}`);
+				params.push(deweySnapshot.deweyResolved);
+				updateFields.push(`dewey_matched_code = $${index++}`);
+				params.push(deweySnapshot.deweyMatchedCode);
+				updateFields.push(`dewey_caption = $${index++}`);
+				params.push(deweySnapshot.deweyCaption);
+				updateFields.push(`dewey_path = $${index++}::jsonb`);
+				params.push(deweySnapshot.deweyPath === null ? null : JSON.stringify(deweySnapshot.deweyPath));
+				updateFields.push(`dewey_source_used = $${index++}`);
+				params.push(deweySnapshot.deweySourceUsed);
 			}
 			if (hasBookTypeId) {
 				updateFields.push(`book_type_id = $${index++}`);
@@ -2370,7 +2441,8 @@ async function handleBookUpdate(req, res, bookId) {
 					`UPDATE books
 					 SET ${updateFields.join(", ")}, updated_at = NOW()
 					 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
-					 RETURNING id, title, subtitle, isbn, dewey_code, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at`,
+					 RETURNING id, title, subtitle, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+					           publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at`,
 					params
 				);
 				if (result.rows.length === 0) {
@@ -2380,7 +2452,8 @@ async function handleBookUpdate(req, res, bookId) {
 				updatedRow = result.rows[0];
 			} else {
 				const result = await client.query(
-					`SELECT id, title, subtitle, isbn, dewey_code, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at
+					`SELECT id, title, subtitle, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+					        publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id, created_at, updated_at
 					 FROM books
 					 WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
 					[userId, bookId]
@@ -2478,14 +2551,15 @@ async function handleBookUpdate(req, res, bookId) {
 				user_id: userId,
 				book_id: bookId,
 				dewey_code: hasDeweyCode ? (deweyCode || null) : undefined,
-				dewey_resolved: deweyResolution ? deweyResolution.resolved : null,
-				dewey_matched_code: deweyResolution ? deweyResolution.matchedCode : null,
+				dewey_resolved: deweySnapshot ? deweySnapshot.deweyResolved : null,
+				dewey_matched_code: deweySnapshot ? deweySnapshot.deweyMatchedCode : null,
 				ip: req.ip,
 				user_agent: req.get("user-agent")
 			}, "info");
 
 			const full = await pool.query(
-				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.page_count, b.cover_image_url,
+				`SELECT b.id, b.title, b.subtitle, b.isbn, b.dewey_code, b.dewey_resolved, b.dewey_matched_code,
+				        b.dewey_caption, b.dewey_path, b.dewey_source_used, b.page_count, b.cover_image_url,
 				        b.description, b.created_at, b.updated_at, b.book_type_id, b.publisher_id,
 				        bt.name AS book_type_name, bt.description AS book_type_description,
 				        p.name AS publisher_name, p.website AS publisher_website, p.notes AS publisher_notes,
@@ -3325,7 +3399,8 @@ router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => 
 		try {
 			await client.query("BEGIN");
 			const deletedRes = await client.query(
-				`SELECT id, title, subtitle, isbn, dewey_code, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
+				`SELECT id, title, subtitle, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+				        publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
 				 FROM books
 				 WHERE user_id = $1 AND id = $2 AND deleted_at IS NOT NULL`,
 				[userId, bookId]
@@ -3340,7 +3415,8 @@ router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => 
 			let conflict = null;
 			if (deleted.isbn) {
 				const conflictRes = await client.query(
-					`SELECT id, title, isbn, dewey_code, subtitle, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
+					`SELECT id, title, isbn, dewey_code, dewey_resolved, dewey_matched_code, dewey_caption, dewey_path, dewey_source_used,
+					        subtitle, publication_date_id, page_count, cover_image_url, description, book_type_id, publisher_id
 					 FROM books
 					 WHERE user_id = $1 AND deleted_at IS NULL AND isbn = $2 AND id <> $3`,
 					[userId, deleted.isbn, deleted.id]
@@ -3360,6 +3436,10 @@ router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => 
 			}
 
 			if (conflict && mode === "merge") {
+				const deweyDataset = deleted.dewey_code ? await getEffectiveDeweyDataset(userId) : null;
+				const deletedDeweySnapshot = deleted.dewey_code
+					? buildDeweySnapshot(deleted.dewey_code, deweyDataset.entries)
+					: buildDeweySnapshot(null, []);
 				await client.query(
 					`UPDATE books SET
 						subtitle = CASE WHEN (subtitle IS NULL OR subtitle = '') AND $2 IS NOT NULL AND $2 <> '' THEN $2 ELSE subtitle END,
@@ -3369,9 +3449,29 @@ router.post("/restore", requiresAuth, authenticatedLimiter, async (req, res) => 
 						description = CASE WHEN (description IS NULL OR description = '') AND $6 IS NOT NULL AND $6 <> '' THEN $6 ELSE description END,
 						book_type_id = COALESCE(book_type_id, $7),
 						publisher_id = COALESCE(publisher_id, $8),
-						dewey_code = COALESCE(dewey_code, $9)
+						dewey_code = COALESCE(dewey_code, $9),
+						dewey_resolved = COALESCE(dewey_resolved, $10),
+						dewey_matched_code = COALESCE(dewey_matched_code, $11),
+						dewey_caption = COALESCE(dewey_caption, $12),
+						dewey_path = COALESCE(dewey_path, $13::jsonb),
+						dewey_source_used = COALESCE(dewey_source_used, $14)
 					 WHERE id = $1`,
-					[conflict.id, deleted.subtitle, deleted.publication_date_id, deleted.page_count, deleted.cover_image_url, deleted.description, deleted.book_type_id, deleted.publisher_id, deleted.dewey_code]
+					[
+						conflict.id,
+						deleted.subtitle,
+						deleted.publication_date_id,
+						deleted.page_count,
+						deleted.cover_image_url,
+						deleted.description,
+						deleted.book_type_id,
+						deleted.publisher_id,
+						deleted.dewey_code,
+						deletedDeweySnapshot.deweyResolved,
+						deletedDeweySnapshot.deweyMatchedCode,
+						deletedDeweySnapshot.deweyCaption,
+						deletedDeweySnapshot.deweyPath === null ? null : JSON.stringify(deletedDeweySnapshot.deweyPath),
+						deletedDeweySnapshot.deweySourceUsed
+					]
 				);
 				await client.query(
 					`INSERT INTO book_authors (user_id, book_id, author_id, role, created_at, updated_at)

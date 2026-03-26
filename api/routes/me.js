@@ -184,6 +184,7 @@ router.get("/dewey-dataset", requiresAuth, authenticatedLimiter, async (req, res
 		}, "info");
 		return successResponse(res, 200, "Dewey dataset retrieved successfully.", {
 			source: dataset.source,
+			version: dataset.version,
 			entries: dataset.entries
 		});
 	} catch (error) {
