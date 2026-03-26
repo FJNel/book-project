@@ -11,10 +11,14 @@ The current Dewey implementation covers Phase 1 and Phase 2 without changing the
 - `GET /me/dewey-dataset` for frontend dataset loading
 - `GET /me/dewey-source/status` for Dewey source status
 - `POST /me/dewey-source/upload` for CSV uploads
+- `GET /dewey/roots` for the Dewey Dashboard tree
+- `GET /dewey/node/:code` for Dewey node details and books
+- `GET /dewey/search?q=...` for Dewey Dashboard search
 - Structured Dewey feature state exposed through `GET /users/me`
 - Local frontend interpretation while typing on Add Book and Edit Book
 - Save-time backend normalization, validation, and canonical resolution
 - Minimal Dewey display on Book Details
+- A Dewey Dashboard browsing page aligned with the Storage Locations experience
 
 ## Normalization and Validation
 
@@ -166,3 +170,35 @@ Canonical resolution now follows this order:
 4. unresolved
 
 This still uses the same prefix-based resolver introduced in Phase 1. `parent_code` remains optional metadata and is not required for resolution to work.
+
+## Phase 3 Dashboard Browsing
+
+The Dewey Dashboard uses the effective merged dataset for the authenticated user and derives hierarchy from code prefixes, not `parent_code`.
+
+Implemented Phase 3 browsing behavior:
+
+- browse Dewey roots and child nodes
+- search by code or caption
+- open a node and view its breadcrumb path
+- see child nodes for the selected area
+- switch between exact-book matches and descendants mode
+- browse books linked to the selected node
+
+### Tree rules
+
+- nearest broader existing prefix becomes the parent in the visible tree
+- missing intermediate dataset nodes do not break the tree
+- user-uploaded captions override default captions everywhere the node is shown
+
+### Book matching modes
+
+`exact`
+
+- only books with `dewey_code` exactly equal to the selected code
+
+`descendants`
+
+- books with the selected code
+- plus books whose Dewey path contains the selected code as a broader prefix
+
+This means a valid stored Dewey code can still appear under a broader node even if that exact code is not an explicit node in the current dataset.

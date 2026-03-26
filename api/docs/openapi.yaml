@@ -3523,6 +3523,240 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /dewey/roots:
+    get:
+      tags: [Users]
+      summary: Dewey Dashboard roots
+      operationId: getDeweyRoots
+      description: Return the effective Dewey tree roots for the authenticated user, including child nodes and per-node book counts for dashboard browsing.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      responses:
+        '200':
+          description: Dewey roots
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          source:
+                            type: string
+                            enum: [default, merged]
+                          nodes:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DeweyDashboardNode'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "4.62"
+                    message: Dewey roots retrieved successfully.
+                    data:
+                      source: merged
+                      nodes:
+                        - code: "500"
+                          caption: Science
+                          parentCode: null
+                          exactBookCount: 1
+                          descendantBookCount: 7
+                          childCount: 2
+                          breadcrumb:
+                            - code: "500"
+                              caption: Science
+                          children: []
+                    errors: []
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /dewey/search:
+    get:
+      tags: [Users]
+      summary: Search Dewey nodes
+      operationId: searchDeweyNodes
+      description: Search the authenticated user's effective Dewey dataset by code or caption for dashboard selection.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          query:
+                            type: string
+                          results:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DeweyDashboardNodeSummary'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "3.10"
+                    message: Dewey search completed successfully.
+                    data:
+                      query: math
+                      results:
+                        - code: "510"
+                          caption: Mathematics
+                          parentCode: "500"
+                          exactBookCount: 0
+                          descendantBookCount: 3
+                          childCount: 1
+                          breadcrumb:
+                            - code: "500"
+                              caption: Science
+                            - code: "510"
+                              caption: Mathematics
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /dewey/node/{code}:
+    get:
+      tags: [Users]
+      summary: Dewey node details
+      operationId: getDeweyNode
+      description: Return a selected Dewey node, its breadcrumb, child nodes, and books for exact or descendants mode.
+      x-rateLimit:
+        limit: 60
+        window: minute
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: mode
+          required: false
+          schema:
+            type: string
+            enum: [exact, descendants]
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Dewey node
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          source:
+                            type: string
+                            enum: [default, merged]
+                          mode:
+                            type: string
+                            enum: [exact, descendants]
+                          node:
+                            $ref: '#/components/schemas/DeweyDashboardNodeSummary'
+                          childNodes:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DeweyDashboardNodeSummary'
+                          books:
+                            $ref: '#/components/schemas/DeweyDashboardBooks'
+              examples:
+                success:
+                  value:
+                    status: success
+                    httpCode: 200
+                    responseTime: "5.81"
+                    message: Dewey node retrieved successfully.
+                    data:
+                      source: merged
+                      mode: descendants
+                      node:
+                        code: "510"
+                        caption: Mathematics
+                        parentCode: "500"
+                        exactBookCount: 1
+                        descendantBookCount: 3
+                        childCount: 1
+                        breadcrumb:
+                          - code: "500"
+                            caption: Science
+                          - code: "510"
+                            caption: Mathematics
+                      childNodes:
+                        - code: "513"
+                          caption: Arithmetic
+                          parentCode: "510"
+                          exactBookCount: 0
+                          descendantBookCount: 2
+                          childCount: 1
+                          breadcrumb:
+                            - code: "500"
+                              caption: Science
+                            - code: "510"
+                              caption: Mathematics
+                            - code: "513"
+                              caption: Arithmetic
+                      books:
+                        items: []
+                        total: 3
+                        page: 1
+                        limit: 10
+                    errors: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /booktype:
     get:
       tags: [BookTypes]
@@ -12668,6 +12902,105 @@ components:
             - type: string
             - type: 'null'
       required: [code, caption]
+    DeweyBreadcrumbNode:
+      type: object
+      properties:
+        code:
+          type: string
+        caption:
+          type: string
+      required: [code, caption]
+    DeweyDashboardNodeSummary:
+      type: object
+      properties:
+        code:
+          type: string
+        caption:
+          oneOf:
+            - type: string
+            - type: 'null'
+        parentCode:
+          oneOf:
+            - type: string
+            - type: 'null'
+        exactBookCount:
+          type: integer
+        descendantBookCount:
+          type: integer
+        childCount:
+          type: integer
+        breadcrumb:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeweyBreadcrumbNode'
+      required: [code, exactBookCount, descendantBookCount, childCount, breadcrumb]
+    DeweyDashboardNode:
+      allOf:
+        - $ref: '#/components/schemas/DeweyDashboardNodeSummary'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/DeweyDashboardNode'
+          required: [children]
+    DeweyDashboardBook:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        subtitle:
+          oneOf:
+            - type: string
+            - type: 'null'
+        deweyCode:
+          oneOf:
+            - type: string
+            - type: 'null'
+        coverImageUrl:
+          oneOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        bookTypeName:
+          oneOf:
+            - type: string
+            - type: 'null'
+        publicationDate:
+          oneOf:
+            - $ref: '#/components/schemas/PartialDate'
+            - type: 'null'
+        authors:
+          type: array
+          items:
+            type: object
+        languages:
+          type: array
+          items:
+            type: object
+        tags:
+          type: array
+          items:
+            type: object
+      required: [id, title, authors, languages, tags]
+    DeweyDashboardBooks:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeweyDashboardBook'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required: [items, total, page, limit]
     DeweyValidationReport:
       type: object
       properties:

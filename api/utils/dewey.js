@@ -240,6 +240,215 @@ function resolveDeweyCode(code, entries) {
 	};
 }
 
+function compareDeweyCodes(left, right) {
+	return String(left || "").localeCompare(String(right || ""), undefined, { numeric: true });
+}
+
+function findNearestExistingParentCode(code, lookup) {
+	const normalized = normalizeDeweyCode(code);
+	if (!normalized || !lookup || !lookup.size) return null;
+
+	const candidates = buildDeweyCandidateCodes(normalized).slice(1);
+	for (const candidate of candidates) {
+		if (lookup.has(candidate)) return candidate;
+	}
+	return null;
+}
+
+function buildHierarchyMetadata(entries = []) {
+	const normalizedEntries = Array.isArray(entries) ? entries.map(normalizeEntry).filter(Boolean) : [];
+	const lookup = buildLookupMap(normalizedEntries);
+	const childrenMap = new Map();
+	const parentMap = new Map();
+	const roots = [];
+
+	for (const entry of normalizedEntries) {
+		const parentCode = findNearestExistingParentCode(entry.code, lookup);
+		parentMap.set(entry.code, parentCode);
+		if (parentCode) {
+			if (!childrenMap.has(parentCode)) childrenMap.set(parentCode, []);
+			childrenMap.get(parentCode).push(entry.code);
+		} else {
+			roots.push(entry.code);
+		}
+	}
+
+	for (const childCodes of childrenMap.values()) {
+		childCodes.sort(compareDeweyCodes);
+	}
+	roots.sort(compareDeweyCodes);
+
+	return {
+		lookup,
+		parentMap,
+		childrenMap,
+		roots
+	};
+}
+
+function buildBreadcrumbNodes(code, entries = [], hierarchy = null) {
+	const normalized = normalizeDeweyCode(code);
+	if (!normalized) return [];
+
+	const metadata = hierarchy || buildHierarchyMetadata(entries);
+	if (!metadata.lookup.has(normalized)) {
+		return buildDeweyPathCodes(normalized)
+			.map((pathCode) => metadata.lookup.get(pathCode))
+			.filter(Boolean)
+			.map((entry) => ({ code: entry.code, caption: entry.caption }));
+	}
+
+	const breadcrumb = [];
+	let currentCode = normalized;
+	while (currentCode) {
+		const entry = metadata.lookup.get(currentCode);
+		if (entry) breadcrumb.unshift({ code: entry.code, caption: entry.caption });
+		currentCode = metadata.parentMap.get(currentCode) || null;
+	}
+	return breadcrumb;
+}
+
+function isCodeWithinDeweyBranch(descendantCode, ancestorCode) {
+	const normalizedDescendant = normalizeDeweyCode(descendantCode);
+	const normalizedAncestor = normalizeDeweyCode(ancestorCode);
+	if (!normalizedDescendant || !normalizedAncestor) return false;
+	if (!isValidDeweyCode(normalizedDescendant) || !isValidDeweyCode(normalizedAncestor)) return false;
+	return buildDeweyPathCodes(normalizedDescendant).includes(normalizedAncestor);
+}
+
+function buildExactBookCountMap(books = []) {
+	const counts = new Map();
+	for (const book of books) {
+		const code = normalizeDeweyCode(book?.deweyCode ?? book?.dewey_code);
+		if (!code || !isValidDeweyCode(code)) continue;
+		counts.set(code, (counts.get(code) || 0) + 1);
+	}
+	return counts;
+}
+
+function buildDescendantBookCountMap(books = [], hierarchy = null) {
+	const counts = new Map();
+	if (!hierarchy) return counts;
+
+	for (const code of hierarchy.lookup.keys()) {
+		let total = 0;
+		for (const book of books) {
+			if (isCodeWithinDeweyBranch(book?.deweyCode ?? book?.dewey_code, code)) {
+				total += 1;
+			}
+		}
+		counts.set(code, total);
+	}
+
+	return counts;
+}
+
+function buildBrowsableTree(entries = [], books = []) {
+	const hierarchy = buildHierarchyMetadata(entries);
+	const exactCounts = buildExactBookCountMap(books);
+	const descendantCounts = buildDescendantBookCountMap(books, hierarchy);
+
+	const buildNode = (code) => {
+		const entry = hierarchy.lookup.get(code);
+		const childCodes = hierarchy.childrenMap.get(code) || [];
+		return {
+			code,
+			caption: entry?.caption || null,
+			parentCode: hierarchy.parentMap.get(code) || null,
+			exactBookCount: exactCounts.get(code) || 0,
+			descendantBookCount: descendantCounts.get(code) || 0,
+			childCount: childCodes.length,
+			breadcrumb: buildBreadcrumbNodes(code, entries, hierarchy),
+			children: childCodes.map((childCode) => buildNode(childCode))
+		};
+	};
+
+	return {
+		roots: (hierarchy.roots || []).map((code) => buildNode(code)),
+		hierarchy,
+		exactCounts,
+		descendantCounts
+	};
+}
+
+function getBrowsableNode(code, entries = [], books = []) {
+	const normalized = normalizeDeweyCode(code);
+	if (!normalized || !isValidDeweyCode(normalized)) return null;
+
+	const tree = buildBrowsableTree(entries, books);
+	if (!tree.hierarchy.lookup.has(normalized)) return null;
+
+	const entry = tree.hierarchy.lookup.get(normalized);
+	const childCodes = tree.hierarchy.childrenMap.get(normalized) || [];
+	return {
+		code: normalized,
+		caption: entry?.caption || null,
+		parentCode: tree.hierarchy.parentMap.get(normalized) || null,
+		exactBookCount: tree.exactCounts.get(normalized) || 0,
+		descendantBookCount: tree.descendantCounts.get(normalized) || 0,
+		childCount: childCodes.length,
+		breadcrumb: buildBreadcrumbNodes(normalized, entries, tree.hierarchy),
+		children: childCodes.map((childCode) => {
+			const childEntry = tree.hierarchy.lookup.get(childCode);
+			return {
+				code: childCode,
+				caption: childEntry?.caption || null,
+				parentCode: tree.hierarchy.parentMap.get(childCode) || null,
+				exactBookCount: tree.exactCounts.get(childCode) || 0,
+				descendantBookCount: tree.descendantCounts.get(childCode) || 0,
+				childCount: (tree.hierarchy.childrenMap.get(childCode) || []).length,
+				breadcrumb: buildBreadcrumbNodes(childCode, entries, tree.hierarchy)
+			};
+		})
+	};
+}
+
+function searchBrowsableNodes(query, entries = [], books = [], { limit = 25 } = {}) {
+	const normalizedQuery = String(query || "").trim().toLowerCase();
+	if (!normalizedQuery) return [];
+
+	const tree = buildBrowsableTree(entries, books);
+	const matches = [];
+
+	for (const entry of entries || []) {
+		const normalizedEntry = normalizeEntry(entry);
+		if (!normalizedEntry) continue;
+		const code = normalizedEntry.code;
+		const caption = normalizedEntry.caption || "";
+		const codeLower = code.toLowerCase();
+		const captionLower = caption.toLowerCase();
+
+		let rank = null;
+		if (codeLower === normalizedQuery) rank = 0;
+		else if (captionLower === normalizedQuery) rank = 1;
+		else if (codeLower.startsWith(normalizedQuery)) rank = 2;
+		else if (captionLower.startsWith(normalizedQuery)) rank = 3;
+		else if (codeLower.includes(normalizedQuery)) rank = 4;
+		else if (captionLower.includes(normalizedQuery)) rank = 5;
+
+		if (rank === null) continue;
+
+		matches.push({
+			code,
+			caption,
+			parentCode: tree.hierarchy.parentMap.get(code) || null,
+			exactBookCount: tree.exactCounts.get(code) || 0,
+			descendantBookCount: tree.descendantCounts.get(code) || 0,
+			childCount: (tree.hierarchy.childrenMap.get(code) || []).length,
+			breadcrumb: buildBreadcrumbNodes(code, entries, tree.hierarchy),
+			rank
+		});
+	}
+
+	return matches
+		.sort((left, right) => {
+			if (left.rank !== right.rank) return left.rank - right.rank;
+			return compareDeweyCodes(left.code, right.code);
+		})
+		.slice(0, Math.max(1, Math.min(limit, 100)))
+		.map(({ rank, ...match }) => match);
+}
+
 function clearUserDeweyCaches(userId) {
 	if (!Number.isInteger(userId)) return;
 	activeSourceCache.delete(userId);
@@ -786,6 +995,11 @@ module.exports = {
 	getEffectiveDeweyDataset,
 	buildDeweyCandidateCodes,
 	buildDeweyPathCodes,
+	buildBreadcrumbNodes,
+	isCodeWithinDeweyBranch,
+	buildBrowsableTree,
+	getBrowsableNode,
+	searchBrowsableNodes,
 	resolveDeweyCode,
 	parseUserDeweyCsv,
 	validateUserDeweyCsv,

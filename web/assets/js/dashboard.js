@@ -4,7 +4,8 @@
   const warn = (...args) => console.warn('[Dashboard]', ...args);
 
   const dom = {
-    greeting: document.getElementById('dashboardGreeting')
+    greeting: document.getElementById('dashboardGreeting'),
+    deweyCard: document.getElementById('dashboardDeweyCard')
   };
 
   const resolveUserName = () => {
@@ -25,9 +26,22 @@
     dom.greeting.textContent = name ? `Welcome ${name}!` : 'Welcome!';
   };
 
+  const renderFeatureCards = () => {
+    try {
+      const raw = localStorage.getItem('userProfile');
+      const profile = raw ? JSON.parse(raw) : null;
+      const deweyEnabled = Boolean(profile?.features?.dewey?.enabled);
+      dom.deweyCard?.classList.toggle('d-none', !deweyEnabled);
+    } catch (error) {
+      warn('Failed to read feature state for dashboard cards.', error);
+      dom.deweyCard?.classList.add('d-none');
+    }
+  };
+
   const init = () => {
     log('Initializing dashboard.');
     renderGreeting();
+    renderFeatureCards();
   };
 
   document.addEventListener('DOMContentLoaded', init);

@@ -87,6 +87,16 @@ A3) Dewey Contract (Phase 1-2)
 - Fatal validation errors must not replace the currently active valid user dataset.
 - Frontend live interpretation must continue using `/me/dewey-dataset` only once per page/module load, never per keystroke.
 
+6) Dashboard browsing contract (Phase 3)
+- The Dewey Dashboard should feel similar to Storage Locations in structure: left tree, right detail panel, breadcrumb, child-node area, and related books table.
+- Tree structure must be derived from code prefixes and the effective merged dataset, not from `parent_code`.
+- Search is backend-driven and supports code and caption matches.
+- Selecting a node loads canonical backend data from `/dewey/node/:code`.
+- Book mode toggle rules:
+  - `exact`: only books whose `dewey_code` exactly equals the selected code
+  - `descendants`: books whose Dewey path includes the selected code as a broader prefix
+- The dashboard must not appear in normal navigation unless `features.dewey.enabled === true`.
+
 1) Live validation
 - Each field has help text below it.
 - Help text has two states:

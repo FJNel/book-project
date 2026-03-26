@@ -40,6 +40,7 @@ const importExportRoutes = require("./routes/import-export");
 const logRoutes = require("./routes/logs");
 const internalDeployRoutes = require("./routes/internal-deploy");
 const meRoutes = require("./routes/me");
+const deweyRoutes = require("./routes/dewey");
 
 // Attach correlation id early for request tracing
 app.use(attachCorrelationId);
@@ -138,6 +139,7 @@ app.use("/publishers", publisherRoutes);
 app.use("/bookauthors", bookAuthorRoutes);
 app.use("/seriesbooks", bookSeriesBooksRoutes);
 app.use("/me", meRoutes);
+app.use("/dewey", deweyRoutes);
 
 //404 Handler
 app.use((req, res) => {

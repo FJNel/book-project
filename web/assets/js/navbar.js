@@ -8,6 +8,7 @@
     { key: 'publishers', label: 'Publishers', href: 'publishers' },
     { key: 'authors', label: 'Authors', href: 'authors' },
     { key: 'series', label: 'Series', href: 'series' },
+    { key: 'dewey-dashboard', label: 'Dewey Dashboard', href: 'dewey-dashboard', feature: 'dewey' },
     { key: 'storage-locations', label: 'Storage Locations', href: 'storage-locations' },
     { key: 'statistics', label: 'Statistics', href: 'statistics' }
   ];
@@ -42,14 +43,21 @@
     if (segment.startsWith('author') || segment === 'authors') return 'authors';
     if (segment.startsWith('publisher') || segment === 'publishers') return 'publishers';
     if (segment.startsWith('series')) return 'series';
+    if (segment.startsWith('dewey')) return 'dewey-dashboard';
     if (segment.startsWith('storage')) return 'storage-locations';
     if (segment.startsWith('statistics')) return 'statistics';
     if (segment.startsWith('account')) return 'account';
     return segment;
   }
 
-  function buildNavItems(activeKey, includeAdmin) {
-    const items = includeAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  function isFeatureActive(profile, featureKey) {
+    if (!featureKey) return true;
+    return Boolean(profile?.features?.[featureKey]?.enabled);
+  }
+
+  function buildNavItems(activeKey, includeAdmin, profile) {
+    const baseItems = NAV_ITEMS.filter((item) => isFeatureActive(profile, item.feature));
+    const items = includeAdmin ? [...baseItems, ADMIN_ITEM] : baseItems;
     return items.map((item) => {
       const isActive = item.key === activeKey;
       const activeClass = isActive ? ' active' : '';
@@ -73,7 +81,7 @@
           </button>
           <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-              ${buildNavItems(activeKey, includeAdmin)}
+              ${buildNavItems(activeKey, includeAdmin, profile)}
             </ul>
             <div class="d-flex gap-2">
               <a class="btn btn-outline-secondary btn-sm" href="/account">Account</a>

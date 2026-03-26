@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no" />
+  <script>
+    (function () {
+      try {
+        const pref = localStorage.getItem('themePreference');
+        const resolved = (pref === 'light' || pref === 'dark')
+          ? pref
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', resolved);
+      } catch (e) {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+      }
+    })();
+  </script>
+  <title>The Book Project</title>
+  <link rel="icon" type="image/png" sizes="500x499" href="assets/img/Icon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.css" />
+  <style>
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover,
+    .clickable-row:focus-within { background-color: var(--bs-tertiary-bg); }
+    .clickable-row:active { background-color: var(--bs-secondary-bg); }
+    .clickable-row:focus-visible {
+      outline: 2px solid var(--bs-focus-ring-color);
+      outline-offset: -2px;
+    }
+    .tree-node {
+      position: relative;
+      padding-left: calc(var(--level, 0) * 1.1rem + 0.5rem);
+    }
+    .tree-node .node-row {
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.5rem;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .tree-node .node-row.selected {
+      background: var(--bs-secondary-bg);
+      box-shadow: inset 0 0 0 1px var(--bs-border-color);
+    }
+    .tree-node .node-row:hover { background: var(--bs-tertiary-bg); }
+    .tree-node:not(.tree-node-root)::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(var(--level, 0) * 1.1rem + 0.15rem);
+      width: 1px;
+      background: var(--bs-border-color);
+    }
+    .tree-caret {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+    .tree-caret:hover { background: var(--bs-tertiary-bg); }
+    .tree-count {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.45rem;
+    }
+    .details-pane {
+      min-height: calc(100vh - 180px);
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+    }
+    .details-pane-card { flex: 1; width: 100%; min-width: 0; }
+    .details-pane-card .card-body { min-width: 0; }
+    .details-header {
+      border-bottom: 1px solid var(--bs-border-color);
+      padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .details-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+    }
+    .cover-thumb {
+      width: 60px;
+      height: 80px;
+      object-fit: cover;
+      background: var(--bs-secondary-bg);
+      border-radius: 0.35rem;
+    }
+    .list-table th { white-space: nowrap; }
+    .list-table td { vertical-align: middle; }
+    .list-meta-mobile { display: none; }
+    .result-item {
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.75rem;
+      padding: 0.65rem 0.8rem;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      cursor: pointer;
+    }
+    .result-item:hover { background: var(--bs-tertiary-bg); }
+    .child-card {
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.85rem;
+      padding: 0.85rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .child-card:hover { background: var(--bs-tertiary-bg); }
+    @media (max-width: 767.98px) {
+      .list-table th.list-col-authors,
+      .list-table th.list-col-type,
+      .list-table th.list-col-language,
+      .list-table th.list-col-published,
+      .list-table th.list-col-tags,
+      .list-table td.list-col-authors,
+      .list-table td.list-col-type,
+      .list-table td.list-col-language,
+      .list-table td.list-col-published,
+      .list-table td.list-col-tags {
+        display: none;
+      }
+      .list-meta-mobile { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <div id="navbarContainer"></div>
+
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" id="pageLoadingModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header d-flex justify-content-center">
+          <h4 class="modal-title text-center">Page Loading</h4>
+        </div>
+        <div class="modal-body d-flex justify-content-center align-items-center">
+          <div>
+            <p class="text-center">Please wait while the page is loading...</p>
+            <div class="d-flex justify-content-center"><span class="spinner-border" role="status"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="apiErrorModal">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">API Connection Error</h4>
+        </div>
+        <div class="modal-body">
+          <h5>Unable to Connect</h5>
+          <p>We're having trouble connecting to our services right now. The application cannot load the data it needs to function correctly.</p>
+          <h5>What you can do</h5>
+          <ul>
+            <li><strong>Check your internet connection:</strong> Make sure you are connected to the internet.</li>
+            <li><strong>Please try again in a few minutes:</strong> This may be a temporary issue.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" role="dialog" tabindex="-1" data-bs-backdrop="static" id="rateLimitModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Please Slow Down for a Moment</h4>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">It looks like The Book Project has been opened or refreshed several times in a short period. Because of this, some essential information isn’t available right now.</p>
+          <p class="mb-3">Nothing is wrong, and there’s nothing you need to do. This page will automatically reload at <strong id="rateLimitResetTime">soon</strong> once everything is ready again.</p>
+          <p class="mb-2 text-muted">Preparing to continue…</p>
+          <div class="progress" role="progressbar" aria-label="Rate limit reset progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" id="rateLimitProgress" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container-fluid py-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="dashboard" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Dewey Dashboard</li>
+          </ol>
+        </nav>
+        <h1 class="mb-1">Dewey Dashboard</h1>
+        <p class="text-muted mb-0">Browse your Dewey hierarchy and the books linked to each area.</p>
+      </div>
+    </div>
+
+    <div id="feedbackContainer" class="mb-3"></div>
+
+    <div id="deweyBlockedState" class="card shadow-sm d-none">
+      <div class="card-body py-4">
+        <h2 class="h5 mb-2">Dewey is not active for this account</h2>
+        <p class="text-muted mb-3" id="deweyBlockedMessage">Turn Dewey Decimal support on in Account settings to browse the Dewey Dashboard.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-primary" href="account">Open Account Settings</a>
+          <a class="btn btn-outline-secondary" href="dashboard">Back to Dashboard</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="deweyDashboardApp" class="row g-3 d-none">
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <div class="card-body d-flex flex-column gap-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="fw-semibold">Dewey Tree</div>
+              <div class="btn-group" role="group" aria-label="Tree actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="expandAllBtn" title="Expand all"><i class="bi bi-arrows-expand"></i></button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="collapseAllBtn" title="Collapse all"><i class="bi bi-arrows-collapse"></i></button>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label text-muted small mb-1" for="treeSearchInput">Search Dewey codes or captions</label>
+              <div class="input-group">
+                <span class="input-group-text" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input class="form-control" id="treeSearchInput" type="text" placeholder="Type a code or caption" autocomplete="off" />
+                <button class="btn btn-outline-secondary" type="button" id="clearTreeSearchBtn"><i class="bi bi-x"></i><span class="d-none d-md-inline ms-1">Clear</span></button>
+              </div>
+            </div>
+
+            <div id="searchResultsWrap" class="d-none">
+              <div class="fw-semibold small mb-2">Search results</div>
+              <div id="searchResultsContainer" class="d-flex flex-column gap-2"></div>
+              <div id="searchResultsEmptyState" class="text-muted small d-none">No Dewey nodes matched your search.</div>
+            </div>
+
+            <div id="treeContainer" class="d-flex flex-column gap-1" style="max-height: calc(100vh - 260px); overflow-y: auto;"></div>
+            <div id="treeEmptyState" class="text-muted text-center py-3 d-none">No Dewey nodes are available yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-8 col-lg-9">
+        <div class="details-pane">
+          <div class="card shadow-sm h-100 border-0 rounded-3 details-pane-card">
+            <div class="card-body d-flex flex-column">
+              <div id="detailsLoadingState" class="d-none text-muted py-5 text-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                Loading Dewey node…
+              </div>
+              <div id="detailsEmptyState" class="text-muted py-5 text-center">
+                Select a Dewey node to browse it.
+              </div>
+              <div id="detailsContent" class="d-none">
+                <div class="details-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                  <div>
+                    <div class="text-muted small">Selected Dewey node</div>
+                    <h2 class="h4 mb-1" id="deweyHeading">Select a Dewey node</h2>
+                    <div class="text-muted small" id="deweySubtitle"></div>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2">
+                    <div class="btn-group" role="group" aria-label="Book matching mode">
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="exactModeBtn">Exact only</button>
+                      <button class="btn btn-outline-secondary btn-sm" type="button" id="descendantsModeBtn">Include descendants</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="details-meta mb-3">
+                  <div class="card details-card-fixed">
+                    <div class="card-body">
+                      <div class="text-muted small mb-1">Breadcrumb</div>
+                      <div id="deweyBreadcrumb"></div>
+                    </div>
+                  </div>
+                  <div class="card details-card-fixed">
+                    <div class="card-body">
+                      <div class="text-muted small mb-1">Books in exact code</div>
+                      <div class="fs-4 fw-semibold" id="deweyExactCount">0</div>
+                    </div>
+                  </div>
+                  <div class="card details-card-fixed">
+                    <div class="card-body">
+                      <div class="text-muted small mb-1">Books with descendants</div>
+                      <div class="fs-4 fw-semibold" id="deweyDescendantCount">0</div>
+                    </div>
+                  </div>
+                  <div class="card details-card-fixed">
+                    <div class="card-body">
+                      <div class="text-muted small mb-1">Child nodes</div>
+                      <div class="fs-4 fw-semibold" id="deweyChildCount">0</div>
+                    </div>
+                  </div>
+                </div>
+
+                <section class="mb-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3 class="h6 mb-0">Child nodes</h3>
+                    <div class="small text-muted" id="childNodesSummary">No child nodes loaded.</div>
+                  </div>
+                  <div id="childNodesGrid" class="row g-2"></div>
+                  <div id="childNodesEmptyState" class="text-muted small d-none">This Dewey node has no child nodes in your effective dataset.</div>
+                </section>
+
+                <section>
+                  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                    <div>
+                      <h3 class="h6 mb-1">Books</h3>
+                      <div class="small text-muted" id="booksSummaryLine">Showing books for this Dewey node.</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <label class="small text-muted" for="booksPerPageInput">Per page</label>
+                      <input class="form-control form-control-sm" style="width: 88px;" id="booksPerPageInput" type="number" min="1" max="50" value="10" />
+                    </div>
+                  </div>
+
+                  <div class="table-responsive">
+                    <table class="table align-middle list-table">
+                      <thead>
+                        <tr>
+                          <th class="list-col-book">Book</th>
+                          <th class="list-col-authors">Authors</th>
+                          <th class="list-col-type">Type</th>
+                          <th class="list-col-language">Languages</th>
+                          <th class="list-col-published">Published</th>
+                          <th class="list-col-tags">Tags</th>
+                        </tr>
+                      </thead>
+                      <tbody id="booksTableBody"></tbody>
+                    </table>
+                  </div>
+
+                  <div id="booksEmptyState" class="text-muted text-center py-4 d-none">No books match this Dewey node for the current mode.</div>
+
+                  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div class="small text-muted" id="booksPaginationInfo">0 books</div>
+                    <ul class="pagination pagination-sm mb-0 d-none" id="booksPaginationNav"></ul>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/http-interceptor.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/navbar.js"></script>
+  <script src="assets/js/dewey.js"></script>
+  <script src="assets/js/dewey-dashboard.js"></script>
+</body>
+</html>

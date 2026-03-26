@@ -77,6 +77,9 @@ The API is documented in `api/api-docs.md` and serves JSON using a consistent en
   - fetch the authenticated user's effective Dewey dataset (`/me/dewey-dataset`) only when Dewey is active for that account
   - fetch Dewey upload status (`/me/dewey-source/status`)
   - upload a custom Dewey CSV override (`/me/dewey-source/upload`)
+  - fetch Dewey Dashboard roots (`/dewey/roots`)
+  - fetch Dewey Dashboard node details (`/dewey/node/:code`)
+  - search Dewey Dashboard nodes (`/dewey/search`)
 - Admin routes: scaffolded under `/admin` with role checks (not yet implemented)
 
 Cross‑cutting concerns:
@@ -129,6 +132,17 @@ TypeORM migrations now own schema changes. See `api/MIGRATIONS.md` for the workf
 - `users.dewey_enabled` Per-user Dewey enablement preference; defaults to `false`
 - `user_dewey_sources` Uploaded Dewey source metadata and validation reports
 - `user_dewey_entries` Uploaded Dewey entries for the active or historical user sources
+
+## Dewey Dashboard
+
+When Dewey is active for a user, the frontend exposes a Dewey Dashboard page that mirrors the Storage Locations browsing pattern:
+
+- left-side Dewey tree
+- backend-driven search by code or caption
+- breadcrumb and child nodes for the selected area
+- books listed for either exact-only or descendants mode
+
+The dashboard uses the merged effective dataset, so uploaded user captions override matching default nodes everywhere in the tree and node detail views.
 - `users` User records; local password and/or OAuth
 - `verification_tokens` Type: `email_verification` or `password_reset`; expiry + used flags
 - `oauth_accounts` Linked OAuth providers (e.g., Google)
