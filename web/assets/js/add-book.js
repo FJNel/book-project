@@ -1399,6 +1399,21 @@
         return Boolean(window.ZXing?.BrowserMultiFormatReader);
     }
 
+    function hasZxingLoadFailed() {
+        return Boolean(window.__ZXING_LOAD_FAILED__);
+    }
+
+    function hasImageScannerFallback() {
+        return typeof window.BarcodeDetector !== 'undefined' || isZxingAvailable();
+    }
+
+    function getImageScannerUnavailableMessage() {
+        if (hasZxingLoadFailed()) {
+            return 'Photo barcode scanning is not available right now. Please try live scanning if available, or enter the ISBN manually.';
+        }
+        return 'Image barcode scanning is not available right now. Please try live scanning if available, or enter the ISBN manually.';
+    }
+
     async function loadScannerImage(file) {
         cleanupScannerImageObjectUrl();
         const objectUrl = URL.createObjectURL(file);
@@ -1551,13 +1566,24 @@
             }
 
             if (!rawValue) {
-                if (!isZxingAvailable() && !detectorAttempted) {
-                    log('Image barcode fallback unavailable because ZXing failed to load.', { source });
-                    setScannerStatus('Image barcode scanning is not available right now. Please try live scanning if available, or enter the ISBN manually.', 'danger');
+                if (!isZxingAvailable()) {
+                    if (!detectorAttempted) {
+                        log('Image barcode fallback unavailable.', {
+                            source,
+                            zxingLoadFailed: hasZxingLoadFailed()
+                        });
+                        setScannerStatus(getImageScannerUnavailableMessage(), 'danger');
+                        return;
+                    }
+                    log('Image barcode backup scanner unavailable after detector attempt.', {
+                        source,
+                        zxingLoadFailed: hasZxingLoadFailed()
+                    });
+                    setScannerStatus(
+                        'We could not read a barcode from that image, and the backup image scanner is not available right now. Try another photo, use live scanning if available, or enter the ISBN manually.',
+                        'warning'
+                    );
                     return;
-                }
-                if (!isZxingAvailable() && detectorAttempted) {
-                    log('Image barcode fallback unavailable because ZXing failed to load.', { source });
                 }
                 rawValue = await detectBarcodeFromImageWithZxing(image);
             }
@@ -1628,18 +1654,28 @@
         if (!detector) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(false);
-            setScannerImageButtonsEnabled(true);
+            setScannerImageButtonsEnabled(hasImageScannerFallback());
             setScannerPreviewVisible(false);
-            setScannerStatus('Live camera scanning is not supported in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.', 'warning');
+            setScannerStatus(
+                hasImageScannerFallback()
+                    ? 'Live camera scanning is not supported in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.'
+                    : getImageScannerUnavailableMessage(),
+                'warning'
+            );
             log('Live barcode scanning unsupported; image fallback available.');
             return;
         }
         if (!hasCameraAccess) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(false);
-            setScannerImageButtonsEnabled(true);
+            setScannerImageButtonsEnabled(hasImageScannerFallback());
             setScannerPreviewVisible(false);
-            setScannerStatus('Live camera scanning is not available in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.', 'warning');
+            setScannerStatus(
+                hasImageScannerFallback()
+                    ? 'Live camera scanning is not available in this browser. You can still take a photo or upload one to scan the barcode, or enter the ISBN manually.'
+                    : getImageScannerUnavailableMessage(),
+                'warning'
+            );
             log('Live barcode scanning unavailable because getUserMedia is not supported.');
             return;
         }
