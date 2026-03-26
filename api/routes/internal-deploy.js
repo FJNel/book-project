@@ -1,111 +1,13 @@
 const crypto = require("crypto");
 const express = require("express");
 const fs = require("fs");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 
 const config = require("../config");
 const { successResponse, errorResponse } = require("../utils/response");
 const { logToFile } = require("../utils/logging");
 
 const router = express.Router();
-
-let activeDeployProcess = null;
-
-function isProcessRunning(pid) {
-	if (!Number.isInteger(pid) || pid <= 0) {
-		return false;
-	}
-
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (error) {
-		if (error && error.code === "ESRCH") {
-			return false;
-		}
-		return true;
-	}
-}
-
-function readLockFile() {
-	if (!fs.existsSync(config.deploy.lockFilePath)) {
-		return null;
-	}
-
-	try {
-		return JSON.parse(fs.readFileSync(config.deploy.lockFilePath, "utf8"));
-	} catch (_) {
-		return null;
-	}
-}
-
-function clearDeployLock(expectedPid = null) {
-	if (!fs.existsSync(config.deploy.lockFilePath)) {
-		return;
-	}
-
-	if (expectedPid !== null) {
-		const existingLock = readLockFile();
-		if (existingLock && existingLock.pid !== expectedPid) {
-			return;
-		}
-	}
-
-	try {
-		fs.unlinkSync(config.deploy.lockFilePath);
-	} catch (error) {
-		if (error.code !== "ENOENT") {
-			throw error;
-		}
-	}
-}
-
-function tryAcquireDeployLock(context) {
-	const lockPayload = {
-		pid: null,
-		acquiredAt: new Date().toISOString(),
-		githubDelivery: context.github_delivery || null,
-	};
-
-	try {
-		const fd = fs.openSync(config.deploy.lockFilePath, "wx");
-		fs.writeFileSync(fd, JSON.stringify(lockPayload, null, 2));
-		fs.closeSync(fd);
-		return { acquired: true, lock: lockPayload };
-	} catch (error) {
-		if (error.code !== "EEXIST") {
-			throw error;
-		}
-	}
-
-	const existingLock = readLockFile();
-	if (existingLock && isProcessRunning(existingLock.pid)) {
-		return { acquired: false, lock: existingLock };
-	}
-
-	clearDeployLock(existingLock && Number.isInteger(existingLock.pid) ? existingLock.pid : null);
-	logToFile("DEPLOY_WEBHOOK_LOCKED", {
-		status: "INFO",
-		reason: "STALE_LOCK_CLEARED",
-		lock_file_path: config.deploy.lockFilePath,
-		stale_pid: existingLock && existingLock.pid ? existingLock.pid : null,
-		...context,
-	}, "info");
-
-	const retryFd = fs.openSync(config.deploy.lockFilePath, "wx");
-	fs.writeFileSync(retryFd, JSON.stringify(lockPayload, null, 2));
-	fs.closeSync(retryFd);
-	return { acquired: true, lock: lockPayload };
-}
-
-function updateDeployLockPid(pid) {
-	const existingLock = readLockFile() || {};
-	const nextLock = {
-		...existingLock,
-		pid,
-	};
-	fs.writeFileSync(config.deploy.lockFilePath, JSON.stringify(nextLock, null, 2));
-}
 
 function getWebhookContext(req) {
 	return {
@@ -142,13 +44,133 @@ function verifySignature(rawBody, signatureHeader, secret) {
 	return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }
 
-function clearActiveDeploy(reference) {
-	if (activeDeployProcess === reference) {
-		activeDeployProcess = null;
+function getDeployServiceState() {
+	const result = spawnSync(
+		config.deploy.sudoPath,
+		[config.deploy.systemctlPath, "is-active", config.deploy.serviceName],
+		{
+			encoding: "utf8",
+			timeout: 10000,
+		}
+	);
+
+	if (result.error) {
+		throw result.error;
 	}
+
+	const state = String(result.stdout || "").trim().toLowerCase();
+	return {
+		state,
+		status: result.status,
+		stderr: String(result.stderr || "").trim(),
+	};
 }
 
-router.post("/", (req, res) => {
+function isRunningServiceState(state) {
+	return state === "active" || state === "activating" || state === "reloading";
+}
+
+function requestDeployServiceStart(context) {
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const child = spawn(
+			config.deploy.sudoPath,
+			[config.deploy.systemctlPath, "start", "--no-block", config.deploy.serviceName],
+			{
+				cwd: config.deploy.workingDirectory,
+				env: process.env,
+				stdio: "ignore",
+			}
+		);
+
+		child.once("error", (error) => {
+			if (settled) return;
+			settled = true;
+			reject(error);
+		});
+		child.once("exit", (code, signal) => {
+			logToFile("DEPLOY_WEBHOOK_SYSTEMD", {
+				status: code === 0 ? "SUCCESS" : "FAILURE",
+				reason: "SYSTEMD_START_EXIT",
+				exit_code: code,
+				signal: signal || null,
+				service_name: config.deploy.serviceName,
+				...context,
+			}, code === 0 ? "info" : "error");
+
+			if (settled) return;
+			settled = true;
+			if (code === 0) {
+				resolve(child.pid || null);
+				return;
+			}
+			reject(new Error(`systemctl start exited with code ${code}${signal ? ` (signal: ${signal})` : ""}`));
+		});
+		child.unref();
+	});
+}
+
+function ensureDeployServiceConfig(context) {
+	if (!fs.existsSync(config.deploy.scriptPath)) {
+		logToFile("DEPLOY_WEBHOOK_CONFIG", {
+			status: "FAILURE",
+			reason: "SCRIPT_NOT_FOUND",
+			script_path: config.deploy.scriptPath,
+			...context,
+		}, "error");
+		return {
+			ok: false,
+			response: errorResponse,
+			args: [503, "Deploy Unavailable", ["Deploy script is not available."]],
+		};
+	}
+
+	if (!fs.existsSync(config.deploy.workingDirectory)) {
+		logToFile("DEPLOY_WEBHOOK_CONFIG", {
+			status: "FAILURE",
+			reason: "WORKING_DIRECTORY_NOT_FOUND",
+			working_directory: config.deploy.workingDirectory,
+			...context,
+		}, "error");
+		return {
+			ok: false,
+			response: errorResponse,
+			args: [503, "Deploy Unavailable", ["Deploy working directory is not available."]],
+		};
+	}
+
+	if (!fs.existsSync(config.deploy.systemctlPath)) {
+		logToFile("DEPLOY_WEBHOOK_CONFIG", {
+			status: "FAILURE",
+			reason: "SYSTEMCTL_NOT_FOUND",
+			systemctl_path: config.deploy.systemctlPath,
+			...context,
+		}, "error");
+		return {
+			ok: false,
+			response: errorResponse,
+			args: [503, "Deploy Unavailable", ["systemctl is not available."]],
+		};
+	}
+
+	if (!fs.existsSync(config.deploy.sudoPath)) {
+		logToFile("DEPLOY_WEBHOOK_CONFIG", {
+			status: "FAILURE",
+			reason: "SUDO_NOT_FOUND",
+			sudo_path: config.deploy.sudoPath,
+			...context,
+		}, "error");
+		return {
+			ok: false,
+			response: errorResponse,
+			args: [503, "Deploy Unavailable", ["sudo is not available."]],
+		};
+	}
+
+	return { ok: true };
+}
+
+router.post("/", async (req, res) => {
 	const context = getWebhookContext(req);
 	logToFile("DEPLOY_WEBHOOK_RECEIVED", {
 		status: "INFO",
@@ -247,117 +269,66 @@ router.post("/", (req, res) => {
 		});
 	}
 
-	let lockResult;
+	const configCheck = ensureDeployServiceConfig(context);
+	if (!configCheck.ok) {
+		return configCheck.response(res, ...configCheck.args);
+	}
+
+	let serviceState;
 	try {
-		lockResult = tryAcquireDeployLock(context);
+		serviceState = getDeployServiceState();
 	} catch (error) {
 		logToFile("DEPLOY_WEBHOOK_LOCKED", {
 			status: "FAILURE",
-			reason: "LOCK_ACQUIRE_FAILED",
+			reason: "SERVICE_STATE_CHECK_FAILED",
 			error_message: error.message,
-			lock_file_path: config.deploy.lockFilePath,
+			service_name: config.deploy.serviceName,
 			...context,
 		}, "error");
-		return errorResponse(res, 503, "Deploy Unavailable", ["Deploy lock could not be acquired."]);
+		return errorResponse(res, 503, "Deploy Unavailable", ["Deploy service status could not be checked."]);
 	}
 
-	if (!lockResult.acquired) {
+	if (isRunningServiceState(serviceState.state)) {
 		logToFile("DEPLOY_WEBHOOK_LOCKED", {
 			status: "SKIPPED",
 			reason: "DEPLOY_ALREADY_RUNNING",
-			active_pid: lockResult.lock && lockResult.lock.pid ? lockResult.lock.pid : null,
-			lock_file_path: config.deploy.lockFilePath,
+			service_name: config.deploy.serviceName,
+			service_state: serviceState.state || null,
 			...context,
 		}, "warn");
 		return successResponse(res, 202, "Deploy already in progress.", {
 			accepted: false,
+			serviceName: config.deploy.serviceName,
 			deployInProgress: true,
 		});
 	}
 
-	if (!fs.existsSync(config.deploy.scriptPath)) {
-		clearDeployLock();
-		logToFile("DEPLOY_WEBHOOK_CONFIG", {
-			status: "FAILURE",
-			reason: "SCRIPT_NOT_FOUND",
-			script_path: config.deploy.scriptPath,
-			...context,
-		}, "error");
-		return errorResponse(res, 503, "Deploy Unavailable", ["Deploy script is not available."]);
-	}
-
-	if (!fs.existsSync(config.deploy.workingDirectory)) {
-		clearDeployLock();
-		logToFile("DEPLOY_WEBHOOK_CONFIG", {
-			status: "FAILURE",
-			reason: "WORKING_DIRECTORY_NOT_FOUND",
-			working_directory: config.deploy.workingDirectory,
-			...context,
-		}, "error");
-		return errorResponse(res, 503, "Deploy Unavailable", ["Deploy working directory is not available."]);
-	}
-
-	const child = spawn("/bin/bash", [config.deploy.scriptPath], {
-		cwd: config.deploy.workingDirectory,
-		env: process.env,
-		stdio: "ignore",
-	});
-
-	activeDeployProcess = child;
-
-	child.on("spawn", () => {
-		try {
-			updateDeployLockPid(child.pid || null);
-		} catch (error) {
-			logToFile("DEPLOY_WEBHOOK_LOCKED", {
-				status: "FAILURE",
-				reason: "LOCK_UPDATE_FAILED",
-				error_message: error.message,
-				lock_file_path: config.deploy.lockFilePath,
-				pid: child.pid || null,
-				...context,
-			}, "error");
-		}
+	try {
+		const requestPid = await requestDeployServiceStart(context);
 		logToFile("DEPLOY_WEBHOOK_STARTED", {
 			status: "SUCCESS",
-			pid: child.pid || null,
+			pid: requestPid,
 			script_path: config.deploy.scriptPath,
 			working_directory: config.deploy.workingDirectory,
-			lock_file_path: config.deploy.lockFilePath,
+			service_name: config.deploy.serviceName,
 			ref: payload.ref,
 			...context,
 		}, "info");
-	});
-
-	child.on("error", (error) => {
-		clearDeployLock(child.pid || null);
-		clearActiveDeploy(child);
-		logToFile("DEPLOY_WEBHOOK_PROCESS", {
+	} catch (error) {
+		logToFile("DEPLOY_WEBHOOK_SYSTEMD", {
 			status: "FAILURE",
-			reason: "SPAWN_ERROR",
+			reason: "SYSTEMD_START_FAILED",
 			error_message: error.message,
-			pid: child.pid || null,
+			service_name: config.deploy.serviceName,
 			...context,
 		}, "error");
-	});
-
-	child.on("exit", (code, signal) => {
-		clearDeployLock(child.pid || null);
-		clearActiveDeploy(child);
-		logToFile("DEPLOY_WEBHOOK_PROCESS", {
-			status: code === 0 ? "SUCCESS" : "FAILURE",
-			exit_code: code,
-			signal: signal || null,
-			pid: child.pid || null,
-			...context,
-		}, code === 0 ? "info" : "error");
-	});
-
-	child.unref();
+		return errorResponse(res, 503, "Deploy Unavailable", ["Deploy service could not be started."]);
+	}
 
 	return successResponse(res, 202, "Deploy accepted.", {
 		accepted: true,
 		deployStarted: true,
+		serviceName: config.deploy.serviceName,
 	});
 });
 

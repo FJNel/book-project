@@ -2,7 +2,6 @@
 // Pulls from environment variables with sensible defaults and light parsing.
 
 require('dotenv').config();
-const path = require("path");
 const { logToFile } = require("./utils/logging");
 
 function env(name, def = undefined) {
@@ -106,7 +105,9 @@ const deployWebhookEnabled = deployWebhookEnabledSetting === undefined
 	: deployWebhookEnabledSetting !== "false";
 const deployScriptPath = env("DEPLOY_SCRIPT_PATH", "/home/johan/book-project/deploy.sh");
 const deployWorkingDirectory = env("DEPLOY_WORKING_DIRECTORY", "/home/johan/book-project");
-const deployLockFilePath = env("DEPLOY_LOCK_FILE_PATH", path.join(deployWorkingDirectory, ".deploy-webhook.lock"));
+const deployServiceName = env("DEPLOY_SERVICE_NAME", "book-project-deploy.service");
+const systemctlPath = env("SYSTEMCTL_PATH", "/bin/systemctl");
+const sudoPath = env("SUDO_PATH", "/usr/bin/sudo");
 
 module.exports = {
 	nodeEnv,
@@ -137,7 +138,9 @@ module.exports = {
 		webhookSecret: deployWebhookSecret || "",
 		scriptPath: deployScriptPath,
 		workingDirectory: deployWorkingDirectory,
-		lockFilePath: deployLockFilePath,
+		serviceName: deployServiceName,
+		systemctlPath,
+		sudoPath,
 	},
 };
 
@@ -164,7 +167,7 @@ logToFile("CONFIG_LOADED", {
 	deploy_webhook_enabled: deployWebhookEnabled,
 	deploy_script_path: deployScriptPath,
 	deploy_working_directory: deployWorkingDirectory,
-	deploy_lock_file_path: deployLockFilePath,
+	deploy_service_name: deployServiceName,
 	db: {
 		host: db.host,
 		port: db.port,

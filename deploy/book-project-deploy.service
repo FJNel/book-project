@@ -1,0 +1,11 @@
+[Unit]
+Description=Book Project deployment runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=johan
+WorkingDirectory=/home/johan/book-project
+ExecStart=/home/johan/book-project/deploy.sh
+
