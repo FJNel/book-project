@@ -1367,9 +1367,28 @@
             barcodeDetectorPromise = (async () => {
                 const preferredFormats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
                 if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
-                    const supported = await window.BarcodeDetector.getSupportedFormats();
-                    const formats = preferredFormats.filter((format) => supported.includes(format));
-                    return new window.BarcodeDetector(formats.length ? { formats } : undefined);
+                    try {
+                        const supported = await window.BarcodeDetector.getSupportedFormats();
+                        log('BarcodeDetector supported formats reported.', {
+                            supportedFormats: Array.isArray(supported) ? supported : []
+                        });
+                        if (Array.isArray(supported)) {
+                            const formats = preferredFormats.filter((format) => supported.includes(format));
+                            if (formats.length > 0) {
+                                try {
+                                    return new window.BarcodeDetector({ formats });
+                                } catch (error) {
+                                    log('BarcodeDetector initialization with preferred formats failed; retrying with default detector.', {
+                                        message: error?.message || 'Unknown error'
+                                    });
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        log('BarcodeDetector.getSupportedFormats failed; retrying with default detector.', {
+                            message: error?.message || 'Unknown error'
+                        });
+                    }
                 }
                 return new window.BarcodeDetector();
             })().catch((error) => {
@@ -1649,8 +1668,15 @@
         isbnLookupState.scannerStarting = true;
         setScannerRetryEnabled(false);
         setScannerImageButtonsEnabled(false);
-        const detector = await getBarcodeDetector();
+        const hasBarcodeDetector = typeof window.BarcodeDetector !== 'undefined';
+        const hasSupportedFormatsApi = typeof window.BarcodeDetector?.getSupportedFormats === 'function';
         const hasCameraAccess = Boolean(navigator.mediaDevices?.getUserMedia);
+        log('Live barcode scan capability check.', {
+            hasBarcodeDetector,
+            hasSupportedFormatsApi,
+            hasGetUserMedia: hasCameraAccess
+        });
+        const detector = await getBarcodeDetector();
         if (!detector) {
             isbnLookupState.scannerStarting = false;
             setScannerRetryEnabled(false);
@@ -1662,7 +1688,10 @@
                     : getImageScannerUnavailableMessage(),
                 'warning'
             );
-            log('Live barcode scanning unsupported; image fallback available.');
+            log('Fallback-only scanner mode selected.', {
+                reason: hasBarcodeDetector ? 'barcode_detector_initialization_failed' : 'barcode_detector_missing',
+                hasImageScannerFallback: hasImageScannerFallback()
+            });
             return;
         }
         if (!hasCameraAccess) {
@@ -1676,7 +1705,10 @@
                     : getImageScannerUnavailableMessage(),
                 'warning'
             );
-            log('Live barcode scanning unavailable because getUserMedia is not supported.');
+            log('Fallback-only scanner mode selected.', {
+                reason: 'getusermedia_missing',
+                hasImageScannerFallback: hasImageScannerFallback()
+            });
             return;
         }
 
