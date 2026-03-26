@@ -91,7 +91,7 @@ Applies to any modal that accepts user input, performs a server action, or confi
     "<strong>API message</strong>: errors joined"
   - errors are rendered safely (no HTML injection; use renderApiErrorAlert or textContent).
 
-5) Logging
+5) Logging 
 Minimum console logs per modal:
 - [Feature][Modal] opened
 - [Feature][Modal] validation state changed (optional)
